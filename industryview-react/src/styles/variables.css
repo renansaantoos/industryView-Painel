@@ -1,0 +1,97 @@
+/* ============================================
+   IndustryView Design Tokens
+   Migrated from Flutter LightModeTheme
+   ============================================ */
+
+:root {
+  /* === Primary Colors === */
+  --color-primary: #1D5CC6;
+  --color-secondary: #F8FAFC;
+  --color-tertiary: #EB7039;
+  --color-alternate: #DADEE6;
+
+  /* === Text Colors === */
+  --color-primary-text: #2D323F;
+  --color-secondary-text: #76787D;
+
+  /* === Background Colors === */
+  --color-primary-bg: #FAFAFA;
+  --color-secondary-bg: #FFFFFF;
+  --color-tertiary-bg: #E3EBF7;
+
+  /* === Accent Colors === */
+  --color-accent1: #ABC6FF;
+  --color-accent2: rgba(138, 199, 255, 0.3);
+  --color-accent3: rgba(238, 139, 96, 0.3);
+  --color-accent4: #9B9B9B;
+
+  /* === Semantic Colors === */
+  --color-success: #028F58;
+  --color-warning: #EFA953;
+  --color-error: #E65454;
+  --color-info: #FFFFFF;
+
+  /* === Navbar Colors === */
+  --color-navbar: #1E51AD;
+  --color-navbar-hover: #487EDA;
+  --color-navbar-gradient-start: #1D5CC6;
+  --color-navbar-gradient-end: #011E4D;
+
+  /* === Status Colors === */
+  --color-status-01: rgba(230, 230, 230, 0.84);
+  --color-status-02: #FBF9F6;
+  --color-status-03: #F0F3FC;
+  --color-status-04: #F4FEF9;
+  --color-status-05: #FAE2E3;
+  --color-status-06: #FCF5EF;
+
+  /* === Typography === */
+  --font-family: 'Poppins', sans-serif;
+
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 32px;
+  --font-size-3xl: 45px;
+  --font-size-4xl: 55px;
+  --font-size-5xl: 60px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* === Spacing === */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 48px;
+
+  /* === Border Radius === */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* === Shadows === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* === Layout === */
+  --navbar-width: 210px;
+  --header-height: 60px;
+  --content-max-width: 1440px;
+
+  /* === Transitions === */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
+}

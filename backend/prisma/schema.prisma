@@ -1,0 +1,2636 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model status_payment {
+  id         BigInt    @id @default(autoincrement())
+  name       String
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  companies  company[]
+}
+
+model projects_statuses {
+  id         BigInt     @id @default(autoincrement())
+  status     String
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime?  @db.Timestamptz(6)
+  projects   projects[]
+}
+
+model projects_works_situations {
+  id         BigInt     @id @default(autoincrement())
+  status     String?
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime?  @db.Timestamptz(6)
+  projects   projects[]
+}
+
+model projects_steps_statuses {
+  id                            BigInt           @id @default(autoincrement())
+  status                        String?
+  created_at                    DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                    DateTime?        @db.Timestamptz(6)
+  projects_steps_backlog_config projects_steps[] @relation("backlog_config")
+  projects_steps_config         projects_steps[] @relation("projects_config")
+  projects_steps_map_config     projects_steps[] @relation("map_config")
+  projects_steps_report_config  projects_steps[] @relation("report_config")
+  projects_steps_sprint_config  projects_steps[] @relation("sprint_config")
+  projects_steps_teams_config   projects_steps[] @relation("teams_config")
+}
+
+model projects_backlogs_statuses {
+  id                BigInt              @id @default(autoincrement())
+  status            String
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  projects_backlogs projects_backlogs[]
+}
+
+model sprints_statuses {
+  id         BigInt    @id @default(autoincrement())
+  status     String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  sprints    sprints[]
+}
+
+model sprints_tasks_statuses {
+  id            BigInt          @id @default(autoincrement())
+  status        String?
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at    DateTime?       @db.Timestamptz(6)
+  sprints_tasks sprints_tasks[]
+}
+
+model subtasks_statuses {
+  id         BigInt     @id @default(autoincrement())
+  status     String
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime?  @db.Timestamptz(6)
+  subtasks   subtasks[]
+}
+
+model quality_status {
+  id                BigInt              @id @default(autoincrement())
+  status            String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  projects_backlogs projects_backlogs[]
+  subtasks          subtasks[]
+}
+
+model stakes_statuses {
+  id          BigInt        @id @default(autoincrement())
+  status      String?
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime?     @db.Timestamptz(6)
+  rows_stakes rows_stakes[]
+}
+
+model rows_trackers_statuses {
+  id            BigInt          @id @default(autoincrement())
+  status        String?
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at    DateTime?       @db.Timestamptz(6)
+  rows_trackers rows_trackers[]
+}
+
+model status_inventory {
+  id                BigInt              @id @default(autoincrement())
+  status            String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  product_inventory product_inventory[]
+}
+
+model tasks_priorities {
+  id         BigInt    @id @default(autoincrement())
+  priority   String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+}
+
+model users_system_access {
+  id                BigInt              @id @default(autoincrement())
+  env               String
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  users_permissions users_permissions[]
+}
+
+model users_roles {
+  id                BigInt              @id @default(autoincrement())
+  role              String
+  role_normalized   String?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  users_permissions users_permissions[]
+}
+
+model users_control_system {
+  id                BigInt              @id @default(autoincrement())
+  access_level      String
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  users_permissions users_permissions[]
+}
+
+model users_permissions {
+  id                      BigInt                @id @default(autoincrement())
+  user_id                 BigInt?
+  users_system_access_id  BigInt?               @default(3)
+  users_roles_id          BigInt?               @default(5)
+  users_control_system_id BigInt?               @default(2)
+  created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime?             @updatedAt @db.Timestamptz(6)
+  deleted_at              DateTime?             @db.Timestamptz(6)
+  users                   users[]               @relation("permissions")
+  user                    users?                @relation("user_permissions", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_users_permissions_user")
+  users_control_system    users_control_system? @relation(fields: [users_control_system_id], references: [id], onUpdate: NoAction)
+  users_roles             users_roles?          @relation(fields: [users_roles_id], references: [id], onUpdate: NoAction)
+  users_system_access     users_system_access?  @relation(fields: [users_system_access_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_users_permissions_created_at")
+  @@index([user_id], map: "idx_users_permissions_user_id")
+  @@index([users_control_system_id], map: "idx_users_permissions_users_control_system_id")
+  @@index([users_roles_id], map: "idx_users_permissions_users_roles_id")
+  @@index([users_system_access_id], map: "idx_users_permissions_users_system_access_id")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model users {
+  id                         BigInt                   @id @default(autoincrement())
+  name                       String?
+  name_normalized            String?
+  email                      String?                  @unique
+  phone                      String?                  @db.VarChar(20)
+  password_hash              String?
+  profile_picture            String?
+  forget_password_code       Int?
+  users_permissions_id       BigInt?
+  company_id                 BigInt?
+  first_login                Boolean?                 @default(true)
+  qrcode                     String?
+  created_at                 DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                 DateTime?                @db.Timestamptz(6)
+  inventory_logs_received              inventory_logs[]                @relation("received")
+  inventory_logs_responsible           inventory_logs[]                @relation("responsible")
+  projects_users                       projects_users[]
+  schedule_user                        schedule_user[]
+  sprint_task_change_log               sprint_task_change_log[]
+  task_comments                        task_comments[]
+  teams_leaders                        teams_leaders[]
+  teams_members                        teams_members[]
+  company                              company?                        @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_permissions                    users_permissions?              @relation("permissions", fields: [users_permissions_id], references: [id], onUpdate: NoAction)
+  user_permissions                     users_permissions[]             @relation("user_permissions")
+  assigned_tasks                       sprints_tasks[]                 @relation("assigned_tasks")
+  daily_report_created                 daily_report[]                  @relation("daily_report_created")
+  daily_report_approved                daily_report[]                  @relation("daily_report_approved")
+  safety_incidents_reported            safety_incidents[]              @relation("incident_reporter")
+  safety_incidents_investigated        safety_incidents[]              @relation("incident_investigator")
+  safety_incidents_closed              safety_incidents[]              @relation("incident_closer")
+  worker_trainings                     worker_trainings[]
+  dds_conducted                        dds_records[]
+  dds_participations                   dds_participants[]
+  nc_opened                            non_conformances[]              @relation("nc_opener")
+  nc_responsible                       non_conformances[]              @relation("nc_responsible")
+  nc_closed                            non_conformances[]              @relation("nc_closer")
+  documents_created                    documents[]                     @relation("doc_creator")
+  documents_approved                   documents[]                     @relation("doc_approver")
+  document_acknowledgments             document_acknowledgments[]
+  work_permits_requested               work_permits[]                  @relation("wp_requester")
+  work_permits_approved                work_permits[]                  @relation("wp_approver")
+  work_permits_closed                  work_permits[]                  @relation("wp_closer")
+  work_permit_signatures               work_permit_signatures[]
+  checklist_responses                  checklist_responses[]
+  ppe_deliveries_delivered             ppe_deliveries[]                @relation("ppe_deliverer")
+  ppe_deliveries_received              ppe_deliveries[]                @relation("ppe_receiver")
+  workforce_daily_logs                 workforce_daily_log[]           @relation("wf_worker")
+  workforce_logs_registered            workforce_daily_log[]           @relation("wf_registrar")
+  notifications                        notifications[]
+  audit_logs                           audit_log[]
+  baseline_created                     schedule_baselines[]            @relation("baseline_created")
+  incident_witness_user                safety_incident_witnesses[]
+  nc_attachments_uploaded              non_conformance_attachments[]   @relation("nc_attach_uploader")
+  incident_attachments_uploaded        safety_incident_attachments[]   @relation("inc_attach_uploader")
+  training_registered                  worker_trainings[]              @relation("training_registrar")
+  contract_measurements_created        contract_measurements[]
+  contract_claims_created              contract_claims[]               @relation("claim_creator")
+  contract_claims_closed               contract_claims[]               @relation("claim_closer")
+  health_records                       worker_health_records[]
+  material_reqs_created                material_requisitions[]         @relation("matreq_creator")
+  material_reqs_approved               material_requisitions[]         @relation("matreq_approver")
+  hr_data                              employees_hr_data?
+  vacations                            employees_vacations[]
+  employee_documents                   employees_documents[]
+  day_offs                             employees_day_offs[]           @relation("day_off_user")
+  day_offs_approved                    employees_day_offs[]           @relation("day_off_approver")
+  benefits                             employees_benefits[]
+  career_history                       employees_career_history[]
+  career_history_registered            employees_career_history[]     @relation("career_registrar")
+  schedule_imports_created             schedule_imports[]             @relation("import_created")
+
+  @@index([company_id], map: "idx_users_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_users_created_at")
+  @@index([email], map: "idx_users_email")
+  @@index([name_normalized], map: "idx_users_name_normalized")
+  @@index([users_permissions_id], map: "idx_users_users_permissions_id")
+}
+
+model company {
+  id                    BigInt             @id @default(autoincrement())
+  brand_name            String?
+  legal_name            String?
+  cnpj                  String?            @db.VarChar(18)
+  phone                 String?            @db.VarChar(20)
+  email                 String?
+  cep                   String?            @db.VarChar(9)
+  numero                String?            @db.VarChar(20)
+  address_line          String?
+  address_line2         String?
+  city                  String?            @db.VarChar(100)
+  state                 String?            @db.Char(2)
+  status_payment_id     BigInt?
+  company_type          String?            @default("matriz") @db.VarChar(10)
+  bairro                String?            @db.VarChar(100)
+  complemento           String?            @db.VarChar(100)
+  pais                  String?            @default("Brasil") @db.VarChar(60)
+  inscricao_estadual    String?            @db.VarChar(20)
+  inscricao_municipal   String?            @db.VarChar(20)
+  cnae                  String?            @db.VarChar(10)
+  regime_tributario     String?            @db.VarChar(30)
+  responsavel_legal     String?            @db.VarChar(120)
+  responsavel_cpf       String?            @db.VarChar(14)
+  website               String?            @db.VarChar(255)
+  logo_url              String?
+  created_at            DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at            DateTime?          @db.Timestamptz(6)
+  status_payment        status_payment?    @relation(fields: [status_payment_id], references: [id], onUpdate: NoAction)
+  branches              company_branches[]
+  discipline            discipline[]
+  projects              projects[]
+  session               session[]
+  subscriptions         subscriptions[]
+  tasks_template        tasks_template[]
+  trackers              trackers[]
+  unity                 unity[]
+  users                 users[]
+  company_modules       company_modules[]
+  training_types        training_types[]
+  golden_rules          golden_rules[]
+  ppe_types             ppe_types[]
+  non_execution_reasons non_execution_reasons[]
+  checklist_templates   checklist_templates[]
+  documents             documents[]
+  environmental_licenses environmental_licenses[]
+
+  @@index([created_at(sort: Desc)], map: "idx_company_created_at")
+  @@index([status_payment_id], map: "idx_company_status_payment_id")
+}
+
+model company_branches {
+  id                  BigInt    @id @default(autoincrement())
+  company_id          BigInt
+  brand_name          String    @db.VarChar(120)
+  legal_name          String?
+  cnpj                String?   @db.VarChar(18)
+  inscricao_estadual  String?   @db.VarChar(20)
+  inscricao_municipal String?   @db.VarChar(20)
+  cnae                String?   @db.VarChar(10)
+  phone               String?   @db.VarChar(20)
+  email               String?
+  website             String?   @db.VarChar(255)
+  cep                 String?   @db.VarChar(9)
+  address_line        String?
+  complemento         String?   @db.VarChar(100)
+  numero              String?   @db.VarChar(20)
+  bairro              String?   @db.VarChar(100)
+  city                String?   @db.VarChar(100)
+  state               String?   @db.Char(2)
+  pais                String?   @default("Brasil") @db.VarChar(60)
+  responsavel_legal   String?   @db.VarChar(120)
+  responsavel_cpf     String?   @db.VarChar(14)
+  ativo               Boolean   @default(true)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at          DateTime? @db.Timestamptz(6)
+
+  company             company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([company_id])
+  @@index([created_at(sort: Desc)])
+}
+
+model equipaments_types {
+  id                BigInt              @id @default(autoincrement())
+  type              String?
+  code              String?             @db.VarChar(50)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  manufacturers          manufacturers[]
+  product_inventory      product_inventory[]
+  projects_backlogs      projects_backlogs[]
+  tasks_template         tasks_template[]
+  daily_report_equipment daily_report_equipment[]
+}
+
+model trackers_types {
+  id              BigInt     @id @default(autoincrement())
+  type            String
+  type_normalized String?
+  created_at      DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime?  @db.Timestamptz(6)
+  trackers        trackers[]
+}
+
+model modules_types {
+  id              BigInt    @id @default(autoincrement())
+  type            String
+  type_normalized String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  modules         modules[]
+}
+
+model stakes_types {
+  id         BigInt    @id @default(autoincrement())
+  type       String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  stakes     stakes[]
+}
+
+model manufacturers {
+  id                   BigInt              @id @default(autoincrement())
+  name                 String?
+  name_normalized      String?
+  equipaments_types_id BigInt?
+  created_at           DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at           DateTime?           @db.Timestamptz(6)
+  equipaments_types    equipaments_types?  @relation(fields: [equipaments_types_id], references: [id], onUpdate: NoAction)
+  modules              modules[]
+  product_inventory    product_inventory[]
+  trackers             trackers[]
+
+  @@index([created_at(sort: Desc)], map: "idx_manufacturers_created_at")
+  @@index([equipaments_types_id], map: "idx_manufacturers_equipaments_types_id")
+  @@index([name_normalized], map: "idx_manufacturers_name_normalized")
+}
+
+model trackers {
+  id                BigInt              @id @default(autoincrement())
+  stake_quantity    Int                 @default(0)
+  max_modules       Int                 @default(0)
+  trackers_types_id BigInt?
+  manufacturers_id  BigInt?
+  company_id        BigInt?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  projects_backlogs projects_backlogs[]
+  rows_trackers     rows_trackers[]
+  stakes            stakes[]
+  company           company?            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  manufacturers     manufacturers?      @relation(fields: [manufacturers_id], references: [id], onUpdate: NoAction)
+  trackers_types    trackers_types?     @relation(fields: [trackers_types_id], references: [id], onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_trackers_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_trackers_created_at")
+  @@index([manufacturers_id], map: "idx_trackers_manufacturers_id")
+  @@index([trackers_types_id], map: "idx_trackers_trackers_types_id")
+}
+
+model stakes {
+  id              BigInt        @id @default(autoincrement())
+  position        String?
+  is_motor        Boolean?      @default(false)
+  trackers_id     BigInt?
+  stakes_types_id BigInt?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime?     @db.Timestamptz(6)
+  rows_stakes     rows_stakes[]
+  stakes_types    stakes_types? @relation(fields: [stakes_types_id], references: [id], onUpdate: NoAction)
+  trackers        trackers?     @relation(fields: [trackers_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_stakes_created_at")
+  @@index([stakes_types_id], map: "idx_stakes_stakes_types_id")
+  @@index([trackers_id], map: "idx_stakes_trackers_id")
+}
+
+model modules {
+  id                    BigInt             @id @default(autoincrement())
+  voltage               Decimal?           @db.Decimal(10, 4)
+  current               Decimal?           @db.Decimal(10, 4)
+  short_circuit_current Decimal?           @db.Decimal(10, 4)
+  power                 Decimal?           @db.Decimal(10, 4)
+  vco                   Decimal?           @db.Decimal(10, 4)
+  im                    Decimal?           @db.Decimal(10, 4)
+  vm                    Decimal?           @db.Decimal(10, 4)
+  modules_types_id      BigInt?
+  manufacturers_id      BigInt?
+  created_at            DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at            DateTime?          @db.Timestamptz(6)
+  manufacturers         manufacturers?     @relation(fields: [manufacturers_id], references: [id], onUpdate: NoAction)
+  modules_types         modules_types?     @relation(fields: [modules_types_id], references: [id], onUpdate: NoAction)
+  modules_trackers      modules_trackers[]
+
+  @@index([created_at(sort: Desc)], map: "idx_modules_created_at")
+  @@index([manufacturers_id], map: "idx_modules_manufacturers_id")
+  @@index([modules_types_id], map: "idx_modules_modules_types_id")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model projects {
+  id                           BigInt                     @id @default(autoincrement())
+  registration_number          String?                    @db.VarChar(50)
+  name                         String?
+  name_normalized              String?
+  project_creation_date        DateTime?                  @db.Timestamptz(6)
+  origin_registration          String?
+  art                          String?                    @db.VarChar(50)
+  rrt                          String?                    @db.VarChar(50)
+  cib                          String?                    @db.VarChar(50)
+  real_state_registration      String?
+  start_date                   DateTime?                  @db.Timestamptz(6)
+  permit_number                String?                    @db.VarChar(50)
+  cnae                         String?                    @db.VarChar(20)
+  situation_date               DateTime?                  @db.Timestamptz(6)
+  responsible                  String?
+  cep                          String?                    @db.VarChar(9)
+  city                         String?                    @db.VarChar(100)
+  number                       String?                    @db.VarChar(20)
+  state                        String?                    @db.Char(2)
+  country                      String?                    @default("Brasil") @db.VarChar(50)
+  street                       String?
+  neighbourhood                String?                    @db.VarChar(100)
+  complement                   String?
+  cnpj                         String?                    @db.VarChar(18)
+  completion_percentage        Decimal?                   @default(0) @db.Decimal(5, 2)
+  category                     String?
+  destination                  String?
+  project_work_type            String?
+  resulting_work_area          String?
+  cno_file                     String?
+  projects_statuses_id         BigInt?
+  projects_works_situations_id BigInt?
+  company_id                   BigInt?
+  created_at                   DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                   DateTime?                  @db.Timestamptz(6)
+  daily_report                 daily_report[]
+  fields                       fields[]
+  inventory_logs               inventory_logs[]
+  product_inventory            product_inventory[]
+  company                      company?                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects_statuses            projects_statuses?         @relation(fields: [projects_statuses_id], references: [id], onUpdate: NoAction)
+  projects_works_situations    projects_works_situations? @relation(fields: [projects_works_situations_id], references: [id], onUpdate: NoAction)
+  projects_backlogs            projects_backlogs[]
+  projects_steps               projects_steps[]
+  projects_users               projects_users[]
+  schedule                     schedule[]
+  sprints                      sprints[]
+  teams                        teams[]
+  teams_projects               teams_projects[]
+  safety_incidents             safety_incidents[]
+  dds_records                  dds_records[]
+  non_conformances             non_conformances[]
+  schedule_baselines           schedule_baselines[]
+  task_dependencies            task_dependencies[]
+  work_permits                 work_permits[]
+  workforce_daily_logs         workforce_daily_log[]
+  contract_measurements        contract_measurements[]
+  contract_claims              contract_claims[]
+  commissioning_systems        commissioning_systems[]
+  environmental_licenses       environmental_licenses[]
+  material_requisitions        material_requisitions[]
+  schedule_imports             schedule_imports[]
+
+  @@index([company_id], map: "idx_projects_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_projects_created_at")
+  @@index([name_normalized], map: "idx_projects_name_normalized")
+  @@index([projects_statuses_id], map: "idx_projects_projects_statuses_id")
+  @@index([projects_works_situations_id], map: "idx_projects_projects_works_situations_id")
+}
+
+model projects_users {
+  id          BigInt    @id @default(autoincrement())
+  users_id    BigInt
+  projects_id BigInt
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  projects    projects  @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users     @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([users_id, projects_id])
+  @@index([created_at(sort: Desc)], map: "idx_projects_users_created_at")
+  @@index([projects_id], map: "idx_projects_users_projects_id")
+  @@index([users_id], map: "idx_projects_users_users_id")
+}
+
+model projects_steps {
+  id                             BigInt                   @id @default(autoincrement())
+  projects_id                    BigInt
+  projects_config_status         BigInt?                  @default(2)
+  projects_map_config_status     BigInt?                  @default(2)
+  projects_teams_config_status   BigInt?                  @default(3)
+  projects_backlog_config_status BigInt?                  @default(3)
+  projects_sprint_config_status  BigInt?                  @default(4)
+  projects_report_config_status  BigInt?                  @default(5)
+  created_at                     DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                     DateTime?                @db.Timestamptz(6)
+  backlog_config_status          projects_steps_statuses? @relation("backlog_config", fields: [projects_backlog_config_status], references: [id], onUpdate: NoAction)
+  config_status                  projects_steps_statuses? @relation("projects_config", fields: [projects_config_status], references: [id], onUpdate: NoAction)
+  projects                       projects                 @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  map_config_status              projects_steps_statuses? @relation("map_config", fields: [projects_map_config_status], references: [id], onUpdate: NoAction)
+  report_config_status           projects_steps_statuses? @relation("report_config", fields: [projects_report_config_status], references: [id], onUpdate: NoAction)
+  sprint_config_status           projects_steps_statuses? @relation("sprint_config", fields: [projects_sprint_config_status], references: [id], onUpdate: NoAction)
+  teams_config_status            projects_steps_statuses? @relation("teams_config", fields: [projects_teams_config_status], references: [id], onUpdate: NoAction)
+}
+
+model fields {
+  id                BigInt              @id @default(autoincrement())
+  name              String
+  section_quantity  Int?
+  rows_per_section  Int?
+  map_texts         Json?
+  projects_id       BigInt?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  projects          projects?           @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects_backlogs projects_backlogs[]
+  sections          sections[]
+
+  @@index([created_at(sort: Desc)], map: "idx_fields_created_at")
+  @@index([projects_id], map: "idx_fields_projects_id")
+}
+
+model sections {
+  id                BigInt              @id @default(autoincrement())
+  section_number    Int?
+  fields_id         BigInt?
+  x                 Int?
+  y                 Int?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  projects_backlogs projects_backlogs[]
+  rows              rows[]
+  fields            fields?             @relation(fields: [fields_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_sections_created_at")
+  @@index([fields_id], map: "idx_sections_fields_id")
+}
+
+model rows {
+  id                BigInt              @id @default(autoincrement())
+  row_number        Int?
+  sections_id       BigInt?
+  x                 Int?
+  y                 Int?
+  group_offset_x    Int?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  projects_backlogs projects_backlogs[]
+  sections          sections?           @relation(fields: [sections_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rows_trackers     rows_trackers[]
+
+  @@index([created_at(sort: Desc)], map: "idx_rows_created_at")
+  @@index([sections_id], map: "idx_rows_sections_id")
+}
+
+model rows_trackers {
+  id                        BigInt                  @id @default(autoincrement())
+  position                  String?
+  row_y                     Int?
+  rows_id                   BigInt?
+  trackers_id               BigInt?
+  rows_trackers_statuses_id BigInt?
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                DateTime?               @db.Timestamptz(6)
+  modules_trackers          modules_trackers[]
+  projects_backlogs         projects_backlogs[]
+  rows_stakes               rows_stakes[]
+  rows                      rows?                   @relation(fields: [rows_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rows_trackers_statuses    rows_trackers_statuses? @relation(fields: [rows_trackers_statuses_id], references: [id], onUpdate: NoAction)
+  trackers                  trackers?               @relation(fields: [trackers_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_rows_trackers_created_at")
+  @@index([rows_id], map: "idx_rows_trackers_rows_id")
+  @@index([rows_trackers_statuses_id], map: "idx_rows_trackers_statuses_id")
+  @@index([trackers_id], map: "idx_rows_trackers_trackers_id")
+}
+
+model rows_stakes {
+  id                 BigInt              @id @default(autoincrement())
+  position           String?
+  rows_trackers_id   BigInt?
+  stakes_id          BigInt
+  stakes_statuses_id BigInt?
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?           @updatedAt @db.Timestamptz(6)
+  deleted_at         DateTime?           @db.Timestamptz(6)
+  projects_backlogs  projects_backlogs[]
+  rows_trackers      rows_trackers?      @relation(fields: [rows_trackers_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stakes             stakes              @relation(fields: [stakes_id], references: [id], onUpdate: NoAction)
+  stakes_statuses    stakes_statuses?    @relation(fields: [stakes_statuses_id], references: [id], onUpdate: NoAction)
+
+  @@index([rows_trackers_id], map: "idx_rows_stakes_rows_trackers_id")
+  @@index([stakes_id], map: "idx_rows_stakes_stakes_id")
+  @@index([stakes_statuses_id], map: "idx_rows_stakes_statuses_id")
+}
+
+model modules_trackers {
+  id               BigInt         @id @default(autoincrement())
+  modules_id       BigInt
+  rows_trackers_id BigInt?
+  created_at       DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at       DateTime?      @db.Timestamptz(6)
+  modules          modules        @relation(fields: [modules_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rows_trackers    rows_trackers? @relation(fields: [rows_trackers_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([modules_id], map: "idx_modules_trackers_modules_id")
+  @@index([rows_trackers_id], map: "idx_modules_trackers_rows_trackers_id")
+}
+
+model teams {
+  id            BigInt          @id @default(autoincrement())
+  name          String?
+  projects_id   BigInt?
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at    DateTime?       @db.Timestamptz(6)
+  schedule             schedule[]
+  sprints_tasks        sprints_tasks[]
+  projects             projects?       @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teams_leaders        teams_leaders[]
+  teams_members        teams_members[]
+  teams_projects       teams_projects[]
+  dds_records              dds_records[]
+  workforce_daily_logs     workforce_daily_log[]
+  daily_report_activities  daily_report_activities[]
+
+  @@index([created_at(sort: Desc)], map: "idx_teams_created_at")
+  @@index([projects_id], map: "idx_teams_projects_id")
+}
+
+model teams_leaders {
+  id         BigInt    @id @default(autoincrement())
+  users_id   BigInt?
+  teams_id   BigInt?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  teams      teams?    @relation(fields: [teams_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users?    @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([users_id, teams_id])
+  @@index([teams_id], map: "idx_teams_leaders_teams_id")
+  @@index([users_id], map: "idx_teams_leaders_users_id")
+}
+
+model teams_members {
+  id         BigInt    @id @default(autoincrement())
+  users_id   BigInt?
+  teams_id   BigInt?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  teams      teams?    @relation(fields: [teams_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users?    @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([users_id, teams_id])
+  @@index([teams_id], map: "idx_teams_members_teams_id")
+  @@index([users_id], map: "idx_teams_members_users_id")
+}
+
+model discipline {
+  id                BigInt              @id @default(autoincrement())
+  discipline        String?
+  company_id        BigInt?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  company           company?            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects_backlogs projects_backlogs[]
+  tasks_template    tasks_template[]
+
+  @@index([company_id], map: "idx_discipline_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_discipline_created_at")
+}
+
+model unity {
+  id                BigInt              @id @default(autoincrement())
+  unity             String?
+  company_id        BigInt?
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  product_inventory        product_inventory[]
+  projects_backlogs        projects_backlogs[]
+  subtasks                 subtasks[]
+  tasks_template           tasks_template[]
+  company                  company?            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  daily_report_activities  daily_report_activities[]
+
+  @@index([company_id], map: "idx_unity_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_unity_created_at")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model tasks_template {
+  id                       BigInt              @id @default(autoincrement())
+  description              String?
+  description_normalized   String?
+  equipaments_types_id     BigInt?
+  weight                   Decimal?            @default(1) @db.Decimal(10, 2)
+  fixed                    Boolean?            @default(false)
+  is_inspection            Boolean?            @default(false)
+  installation_method      String?
+  checklist_templates_id   BigInt?
+  unity_id                 BigInt?
+  company_id               BigInt?
+  discipline_id            BigInt?
+  created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at               DateTime?           @db.Timestamptz(6)
+  projects_backlogs        projects_backlogs[]
+  company                  company?            @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  discipline               discipline?         @relation(fields: [discipline_id], references: [id], onUpdate: NoAction)
+  equipaments_types        equipaments_types?  @relation(fields: [equipaments_types_id], references: [id], onUpdate: NoAction)
+  unity                    unity?              @relation(fields: [unity_id], references: [id], onUpdate: NoAction)
+  checklist_template       checklist_templates? @relation(fields: [checklist_templates_id], references: [id], onUpdate: NoAction)
+  task_required_trainings  task_required_trainings[]
+  task_golden_rules        task_golden_rules[]
+  task_required_ppe        task_required_ppe[]
+  task_documents           task_documents[]
+  task_template_checklists task_template_checklists[]
+
+  @@index([company_id], map: "idx_tasks_template_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_tasks_template_created_at")
+  @@index([discipline_id], map: "idx_tasks_template_discipline_id")
+  @@index([equipaments_types_id], map: "idx_tasks_template_equipaments_types_id")
+  @@index([checklist_templates_id], map: "idx_tasks_template_checklist_id")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model projects_backlogs {
+  id                            BigInt                      @id @default(autoincrement())
+  projects_id                   BigInt
+  tasks_template_id             BigInt?
+  projects_backlogs_statuses_id BigInt?                     @default(1)
+  fields_id                     BigInt?
+  sections_id                   BigInt?
+  rows_id                       BigInt?
+  trackers_id                   BigInt?
+  rows_trackers_id              BigInt?
+  rows_stakes_id                BigInt?
+  discipline_id                 BigInt?
+  equipaments_types_id          BigInt?
+  unity_id                      BigInt?
+  quality_status_id             BigInt?                     @default(1)
+  projects_backlogs_id          BigInt?
+  subtasks_id                   BigInt?
+  description                   String?
+  description_normalized        String?
+  weight                        Decimal?                    @db.Decimal(10, 2)
+  quantity                      Decimal?                    @default(1) @db.Decimal(10, 2)
+  quantity_done                 Decimal?                    @db.Decimal(10, 2)
+  sprint_added                  Boolean?                    @default(false)
+  is_inspection                 Boolean?                    @default(false)
+  planned_start_date            DateTime?                   @db.Date
+  planned_end_date              DateTime?                   @db.Date
+  actual_start_date             DateTime?                   @db.Date
+  actual_end_date               DateTime?                   @db.Date
+  planned_duration_days         Int?
+  planned_cost                  Decimal?                    @db.Decimal(14, 2)
+  actual_cost                   Decimal?                    @db.Decimal(14, 2)
+  percent_complete              Decimal?                    @default(0) @db.Decimal(5, 2)
+  wbs_code                      String?                     @db.VarChar(50)
+  sort_order                    Int?                        @default(0)
+  level                         Int?                        @default(0)
+  import_source_id              String?                     @db.VarChar(100)
+  is_milestone                  Boolean?                    @default(false)
+  created_at                    DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                    @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                    DateTime?                   @db.Timestamptz(6)
+  subtasks_ref                  subtasks?                   @relation("backlog_subtask", fields: [subtasks_id], references: [id], onUpdate: NoAction, map: "fk_projects_backlogs_subtasks")
+  discipline                    discipline?                 @relation(fields: [discipline_id], references: [id], onUpdate: NoAction)
+  equipaments_types             equipaments_types?          @relation(fields: [equipaments_types_id], references: [id], onUpdate: NoAction)
+  fields                        fields?                     @relation(fields: [fields_id], references: [id], onUpdate: NoAction)
+  parent_backlog                projects_backlogs?          @relation("backlog_self", fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+  child_backlogs                projects_backlogs[]         @relation("backlog_self")
+  projects_backlogs_statuses    projects_backlogs_statuses? @relation(fields: [projects_backlogs_statuses_id], references: [id], onUpdate: NoAction)
+  projects                      projects                    @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  quality_status                quality_status?             @relation(fields: [quality_status_id], references: [id], onUpdate: NoAction)
+  rows                          rows?                       @relation(fields: [rows_id], references: [id], onUpdate: NoAction)
+  rows_stakes                   rows_stakes?                @relation(fields: [rows_stakes_id], references: [id], onUpdate: NoAction)
+  rows_trackers                 rows_trackers?              @relation(fields: [rows_trackers_id], references: [id], onUpdate: NoAction)
+  sections                      sections?                   @relation(fields: [sections_id], references: [id], onUpdate: NoAction)
+  tasks_template                tasks_template?             @relation(fields: [tasks_template_id], references: [id], onUpdate: NoAction)
+  trackers                      trackers?                   @relation(fields: [trackers_id], references: [id], onUpdate: NoAction)
+  unity                         unity?                      @relation(fields: [unity_id], references: [id], onUpdate: NoAction)
+  sprints_tasks                 sprints_tasks[]
+  subtasks                      subtasks[]                  @relation("subtasks")
+  task_comments                 task_comments[]
+  daily_report_activities       daily_report_activities[]
+  non_conformances              non_conformances[]
+  task_dependencies_pred        task_dependencies[]         @relation("predecessor")
+  task_dependencies_succ        task_dependencies[]         @relation("successor")
+  task_documents                task_documents[]
+  checklist_responses           checklist_responses[]
+  work_permits                  work_permits[]
+  measurement_items             measurement_items[]
+
+  @@index([created_at(sort: Desc)], map: "idx_projects_backlogs_created_at")
+  @@index([discipline_id], map: "idx_projects_backlogs_discipline_id")
+  @@index([fields_id], map: "idx_projects_backlogs_fields_id")
+  @@index([projects_backlogs_id], map: "idx_projects_backlogs_parent_id")
+  @@index([projects_id], map: "idx_projects_backlogs_projects_id")
+  @@index([quality_status_id], map: "idx_projects_backlogs_quality_status_id")
+  @@index([rows_id], map: "idx_projects_backlogs_rows_id")
+  @@index([rows_stakes_id], map: "idx_projects_backlogs_rows_stakes_id")
+  @@index([rows_trackers_id], map: "idx_projects_backlogs_rows_trackers_id")
+  @@index([sections_id], map: "idx_projects_backlogs_sections_id")
+  @@index([projects_backlogs_statuses_id], map: "idx_projects_backlogs_statuses_id")
+  @@index([tasks_template_id], map: "idx_projects_backlogs_tasks_template_id")
+  @@index([trackers_id], map: "idx_projects_backlogs_trackers_id")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model subtasks {
+  id                     BigInt              @id @default(autoincrement())
+  projects_backlogs_id   BigInt?
+  description            String?
+  description_normalized String?
+  weight                 Decimal?            @default(1) @db.Decimal(10, 2)
+  fixed                  Boolean?            @default(false)
+  is_inspection          Boolean?            @default(false)
+  unity_id               BigInt?
+  quantity               Decimal?            @db.Decimal(10, 2)
+  quantity_done          Decimal?            @db.Decimal(10, 2)
+  subtasks_statuses_id   BigInt?             @default(1)
+  quality_status_id      BigInt?             @default(1)
+  sprint_added           Boolean?            @default(false)
+  created_at             DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at             DateTime?           @db.Timestamptz(6)
+  backlog_refs           projects_backlogs[] @relation("backlog_subtask")
+  sprints_tasks          sprints_tasks[]
+  projects_backlogs      projects_backlogs?  @relation("subtasks", fields: [projects_backlogs_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  quality_status         quality_status?     @relation(fields: [quality_status_id], references: [id], onUpdate: NoAction)
+  subtasks_statuses      subtasks_statuses?  @relation(fields: [subtasks_statuses_id], references: [id], onUpdate: NoAction)
+  unity                  unity?              @relation(fields: [unity_id], references: [id], onUpdate: NoAction)
+  task_comments          task_comments[]
+
+  @@index([created_at(sort: Desc)], map: "idx_subtasks_created_at")
+  @@index([projects_backlogs_id], map: "idx_subtasks_projects_backlogs_id")
+  @@index([quality_status_id], map: "idx_subtasks_quality_status_id")
+  @@index([subtasks_statuses_id], map: "idx_subtasks_statuses_id")
+}
+
+model task_comments {
+  id                   BigInt             @id @default(autoincrement())
+  comment              String?
+  projects_backlogs_id BigInt?
+  subtasks_id          BigInt?
+  created_user_id      BigInt?
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?          @updatedAt @db.Timestamptz(6)
+  deleted_at           DateTime?          @db.Timestamptz(6)
+  created_user         users?             @relation(fields: [created_user_id], references: [id], onUpdate: NoAction)
+  projects_backlogs    projects_backlogs? @relation(fields: [projects_backlogs_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subtasks             subtasks?          @relation(fields: [subtasks_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_task_comments_created_at")
+  @@index([created_user_id], map: "idx_task_comments_created_user_id")
+  @@index([projects_backlogs_id], map: "idx_task_comments_projects_backlogs_id")
+  @@index([subtasks_id], map: "idx_task_comments_subtasks_id")
+}
+
+model sprints {
+  id                  BigInt            @id @default(autoincrement())
+  title               String
+  objective           String
+  start_date          DateTime?         @db.Timestamptz(6)
+  end_date            DateTime?         @db.Timestamptz(6)
+  progress_percentage Decimal?          @default(0) @db.Decimal(5, 2)
+  projects_id         BigInt?
+  sprints_statuses_id BigInt?
+  created_at          DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at          DateTime?         @db.Timestamptz(6)
+  schedule            schedule[]
+  projects            projects?         @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints_statuses    sprints_statuses? @relation(fields: [sprints_statuses_id], references: [id], onUpdate: NoAction)
+  sprints_tasks       sprints_tasks[]
+  schedule_baselines  schedule_baselines[]
+
+  @@index([created_at(sort: Desc)], map: "idx_sprints_created_at")
+  @@index([end_date], map: "idx_sprints_end_date")
+  @@index([projects_id], map: "idx_sprints_projects_id")
+  @@index([start_date], map: "idx_sprints_start_date")
+  @@index([sprints_statuses_id], map: "idx_sprints_statuses_id")
+}
+
+model sprints_tasks {
+  id                        BigInt                   @id @default(autoincrement())
+  projects_backlogs_id      BigInt?
+  subtasks_id               BigInt?
+  sprints_id                BigInt?
+  teams_id                  BigInt?
+  sprints_tasks_statuses_id BigInt?
+  scheduled_for             DateTime?                @db.Date
+  executed_at               DateTime?                @db.Date
+  assigned_user_id          BigInt?
+  non_execution_reason_id   BigInt?
+  non_execution_observations String?
+  criticality               String?                  @db.VarChar(20)
+  actual_start_time         DateTime?                @db.Timestamptz(6)
+  actual_end_time           DateTime?                @db.Timestamptz(6)
+  created_at                DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                DateTime?                @db.Timestamptz(6)
+  schedule_sprints_tasks    schedule_sprints_tasks[]
+  sprint_task_change_log    sprint_task_change_log[]
+  projects_backlogs         projects_backlogs?       @relation(fields: [projects_backlogs_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints                   sprints?                 @relation(fields: [sprints_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints_tasks_statuses    sprints_tasks_statuses?  @relation(fields: [sprints_tasks_statuses_id], references: [id], onUpdate: NoAction)
+  subtasks                  subtasks?                @relation(fields: [subtasks_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teams                     teams?                   @relation(fields: [teams_id], references: [id], onUpdate: NoAction)
+  assigned_user             users?                   @relation("assigned_tasks", fields: [assigned_user_id], references: [id], onUpdate: NoAction)
+  non_execution_reason      non_execution_reasons?   @relation(fields: [non_execution_reason_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_sprints_tasks_created_at")
+  @@index([projects_backlogs_id], map: "idx_sprints_tasks_projects_backlogs_id")
+  @@index([scheduled_for], map: "idx_sprints_tasks_scheduled_for")
+  @@index([sprints_id], map: "idx_sprints_tasks_sprints_id")
+  @@index([sprints_tasks_statuses_id], map: "idx_sprints_tasks_statuses_id")
+  @@index([subtasks_id], map: "idx_sprints_tasks_subtasks_id")
+  @@index([teams_id], map: "idx_sprints_tasks_teams_id")
+}
+
+model sprint_task_change_log {
+  id               BigInt         @id @default(autoincrement())
+  sprints_tasks_id BigInt?
+  users_id         BigInt?
+  changed_field    String?
+  old_value        String?
+  new_value        String?
+  date             DateTime?      @db.Date
+  created_at       DateTime       @default(now()) @db.Timestamptz(6)
+  sprints_tasks    sprints_tasks? @relation(fields: [sprints_tasks_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            users?         @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_sprint_task_change_log_created_at")
+  @@index([sprints_tasks_id], map: "idx_sprint_task_change_log_sprints_tasks_id")
+  @@index([users_id], map: "idx_sprint_task_change_log_users_id")
+}
+
+model schedule {
+  id                     BigInt                   @id @default(autoincrement())
+  teams_id               BigInt?
+  projects_id            BigInt?
+  sprints_id             BigInt?
+  daily_report_id        BigInt?
+  schedule_date          DateTime?                @db.Date
+  images                 String[]
+  end_service            Boolean?                 @default(false)
+  shift                  String?                  @db.VarChar(20)
+  weather_condition      String?                  @db.VarChar(30)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at             DateTime?                @db.Timestamptz(6)
+  daily_report           daily_report?            @relation(fields: [daily_report_id], references: [id], onUpdate: NoAction)
+  projects               projects?                @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints                sprints?                 @relation(fields: [sprints_id], references: [id], onUpdate: NoAction)
+  teams                  teams?                   @relation(fields: [teams_id], references: [id], onUpdate: NoAction)
+  schedule_sprints_tasks schedule_sprints_tasks[]
+  schedule_user          schedule_user[]
+
+  @@index([created_at(sort: Desc)], map: "idx_schedule_created_at")
+  @@index([daily_report_id], map: "idx_schedule_daily_report_id")
+  @@index([schedule_date], map: "idx_schedule_date")
+  @@index([projects_id], map: "idx_schedule_projects_id")
+  @@index([sprints_id], map: "idx_schedule_sprints_id")
+  @@index([teams_id], map: "idx_schedule_teams_id")
+}
+
+model schedule_sprints_tasks {
+  id               BigInt        @id @default(autoincrement())
+  schedule_id      BigInt
+  sprints_tasks_id BigInt
+  created_at       DateTime      @default(now()) @db.Timestamptz(6)
+  schedule         schedule      @relation(fields: [schedule_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints_tasks    sprints_tasks @relation(fields: [sprints_tasks_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([schedule_id, sprints_tasks_id])
+  @@index([schedule_id], map: "idx_schedule_sprints_tasks_schedule_id")
+  @@index([sprints_tasks_id], map: "idx_schedule_sprints_tasks_sprints_tasks_id")
+}
+
+model schedule_user {
+  id          BigInt    @id @default(autoincrement())
+  schedule_id BigInt?
+  users_id    BigInt?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  schedule    schedule? @relation(fields: [schedule_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users?    @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([schedule_id, users_id])
+  @@index([schedule_id], map: "idx_schedule_user_schedule_id")
+  @@index([users_id], map: "idx_schedule_user_users_id")
+}
+
+model daily_report {
+  id                       BigInt                     @id @default(autoincrement())
+  projects_id              BigInt?
+  rdo_date                 DateTime?                  @db.Date
+  rdo_number               Int?
+  shift                    String?                    @db.VarChar(20)
+  weather_morning          String?                    @db.VarChar(30)
+  weather_afternoon        String?                    @db.VarChar(30)
+  weather_night            String?                    @db.VarChar(30)
+  temperature_min          Decimal?                   @db.Decimal(5, 1)
+  temperature_max          Decimal?                   @db.Decimal(5, 1)
+  safety_topic             String?
+  general_observations     String?
+  status                   String?                    @default("rascunho") @db.VarChar(20)
+  created_by_user_id       BigInt?
+  approved_by_user_id      BigInt?
+  approved_at              DateTime?                  @db.Timestamptz(6)
+  rejection_reason         String?
+  created_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?                  @updatedAt @db.Timestamptz(6)
+  deleted_at               DateTime?                  @db.Timestamptz(6)
+  projects                 projects?                  @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  created_by_user          users?                     @relation("daily_report_created", fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+  approved_by_user         users?                     @relation("daily_report_approved", fields: [approved_by_user_id], references: [id], onUpdate: NoAction)
+  schedule                 schedule[]
+  daily_report_workforce   daily_report_workforce[]
+  daily_report_activities  daily_report_activities[]
+  daily_report_occurrences daily_report_occurrences[]
+  daily_report_equipment   daily_report_equipment[]
+
+  @@index([created_at(sort: Desc)], map: "idx_daily_report_created_at")
+  @@index([projects_id], map: "idx_daily_report_projects_id")
+  @@index([rdo_date], map: "idx_daily_report_rdo_date")
+}
+
+model daily_report_workforce {
+  id                BigInt       @id @default(autoincrement())
+  daily_report_id   BigInt
+  role_category     String       @db.VarChar(100)
+  quantity_planned  Int          @default(0)
+  quantity_present  Int          @default(0)
+  quantity_absent   Int?         @default(0)
+  absence_reason    String?
+  created_at        DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?    @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?    @db.Timestamptz(6)
+  daily_report      daily_report @relation(fields: [daily_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([daily_report_id], map: "idx_daily_report_workforce_report_id")
+  @@index([created_at(sort: Desc)], map: "idx_daily_report_workforce_created_at")
+}
+
+model daily_report_activities {
+  id                   BigInt             @id @default(autoincrement())
+  daily_report_id      BigInt
+  projects_backlogs_id BigInt?
+  description          String
+  quantity_done        Decimal?           @db.Decimal(10, 2)
+  unity_id             BigInt?
+  teams_id             BigInt?
+  location_description String?
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?          @updatedAt @db.Timestamptz(6)
+  deleted_at           DateTime?          @db.Timestamptz(6)
+  daily_report         daily_report       @relation(fields: [daily_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects_backlogs    projects_backlogs? @relation(fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+  unity                unity?             @relation(fields: [unity_id], references: [id], onUpdate: NoAction)
+  teams                teams?             @relation(fields: [teams_id], references: [id], onUpdate: NoAction)
+
+  @@index([daily_report_id], map: "idx_daily_report_activities_report_id")
+  @@index([projects_backlogs_id], map: "idx_daily_report_activities_backlog_id")
+  @@index([created_at(sort: Desc)], map: "idx_daily_report_activities_created_at")
+}
+
+model daily_report_occurrences {
+  id                 BigInt       @id @default(autoincrement())
+  daily_report_id    BigInt
+  occurrence_type    String       @db.VarChar(50)
+  description        String
+  start_time         DateTime?    @db.Timetz(6)
+  end_time           DateTime?    @db.Timetz(6)
+  duration_hours     Decimal?     @db.Decimal(5, 2)
+  impact_description String?
+  created_at         DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?    @updatedAt @db.Timestamptz(6)
+  deleted_at         DateTime?    @db.Timestamptz(6)
+  daily_report       daily_report @relation(fields: [daily_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([daily_report_id], map: "idx_daily_report_occurrences_report_id")
+  @@index([occurrence_type], map: "idx_daily_report_occurrences_type")
+  @@index([created_at(sort: Desc)], map: "idx_daily_report_occurrences_created_at")
+}
+
+model daily_report_equipment {
+  id                   BigInt             @id @default(autoincrement())
+  daily_report_id      BigInt
+  equipaments_types_id BigInt?
+  description          String?
+  quantity             Int                @default(1)
+  operation_hours      Decimal?           @db.Decimal(5, 2)
+  idle_hours           Decimal?           @db.Decimal(5, 2)
+  idle_reason          String?
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?          @updatedAt @db.Timestamptz(6)
+  deleted_at           DateTime?          @db.Timestamptz(6)
+  daily_report         daily_report       @relation(fields: [daily_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  equipaments_types    equipaments_types? @relation(fields: [equipaments_types_id], references: [id], onUpdate: NoAction)
+
+  @@index([daily_report_id], map: "idx_daily_report_equipment_report_id")
+  @@index([equipaments_types_id], map: "idx_daily_report_equipment_type_id")
+  @@index([created_at(sort: Desc)], map: "idx_daily_report_equipment_created_at")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model product_inventory {
+  id                      BigInt             @id @default(autoincrement())
+  code                    String?            @db.VarChar(50)
+  product                 String?
+  product_normalized      String?
+  specifications          String?
+  inventory_quantity      Int?               @default(0)
+  min_quantity            Int?               @default(0)
+  sequential_per_category Int?
+  unity_id                BigInt?
+  status_inventory_id     BigInt?
+  equipaments_types_id    BigInt?
+  manufacturers_id        BigInt?
+  projects_id             BigInt?
+  ncm_code                String?            @db.VarChar(8)
+  cest_code               String?            @db.VarChar(7)
+  origin_indicator        Int?               @db.SmallInt
+  custody_type            String?            @db.VarChar(20)
+  cost_price              Decimal?           @db.Decimal(12, 2)
+  batch_lot               String?            @db.VarChar(100)
+  fiscal_classification   String?
+  barcode                 String?            @db.VarChar(14)
+  created_at              DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime?          @updatedAt @db.Timestamptz(6)
+  deleted_at              DateTime?          @db.Timestamptz(6)
+  inventory_logs          inventory_logs[]
+  equipaments_types       equipaments_types? @relation(fields: [equipaments_types_id], references: [id], onUpdate: NoAction)
+  manufacturers           manufacturers?     @relation(fields: [manufacturers_id], references: [id], onUpdate: NoAction)
+  projects                projects?          @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  status_inventory        status_inventory?  @relation(fields: [status_inventory_id], references: [id], onUpdate: NoAction)
+  unity                   unity?             @relation(fields: [unity_id], references: [id], onUpdate: NoAction)
+
+  @@index([code], map: "idx_product_inventory_code")
+  @@index([created_at(sort: Desc)], map: "idx_product_inventory_created_at")
+  @@index([equipaments_types_id], map: "idx_product_inventory_equipaments_types_id")
+  @@index([manufacturers_id], map: "idx_product_inventory_manufacturers_id")
+  @@index([product_normalized], map: "idx_product_inventory_product_normalized")
+  @@index([projects_id], map: "idx_product_inventory_projects_id")
+  @@index([status_inventory_id], map: "idx_product_inventory_status_inventory_id")
+}
+
+model inventory_logs {
+  id                   BigInt             @id @default(autoincrement())
+  code                 String?            @db.VarChar(50)
+  quantity             Int?
+  type                 Boolean?
+  observations         String?
+  responsible_users_id BigInt?
+  received_user        BigInt?
+  product_inventory_id BigInt?
+  projects_id          BigInt?
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?          @updatedAt @db.Timestamptz(6)
+  deleted_at           DateTime?          @db.Timestamptz(6)
+  product_inventory    product_inventory? @relation(fields: [product_inventory_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects             projects?          @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  received_user_rel    users?             @relation("received", fields: [received_user], references: [id], onUpdate: NoAction)
+  responsible_user     users?             @relation("responsible", fields: [responsible_users_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_inventory_logs_created_at")
+  @@index([product_inventory_id], map: "idx_inventory_logs_product_inventory_id")
+  @@index([projects_id], map: "idx_inventory_logs_projects_id")
+  @@index([responsible_users_id], map: "idx_inventory_logs_responsible_users_id")
+}
+
+model subscriptions {
+  id                     BigInt    @id @default(autoincrement())
+  company_id             BigInt?
+  stripe_customer_id     String?
+  stripe_subscription_id String?
+  status                 String?
+  trial_end              DateTime? @db.Timestamptz(6)
+  current_period_end     DateTime? @db.Timestamptz(6)
+  cancel_at_period_end   Boolean?  @default(false)
+  last_invoice_id        String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime? @updatedAt @db.Timestamptz(6)
+  deleted_at             DateTime? @db.Timestamptz(6)
+  session                session[]
+  company                company?  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_subscriptions_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_subscriptions_created_at")
+  @@index([status], map: "idx_subscriptions_status")
+  @@index([stripe_customer_id], map: "idx_subscriptions_stripe_customer_id")
+  @@index([stripe_subscription_id], map: "idx_subscriptions_stripe_subscription_id")
+}
+
+model session {
+  id                BigInt         @id @default(autoincrement())
+  session_id        String?
+  customer_id       String?
+  amount_subtotal   Int?
+  amount_total      Int?
+  payment_intent_id String?
+  payment_status    String?
+  company_id        BigInt?
+  subscriptions_id  BigInt?
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  company           company?       @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subscriptions     subscriptions? @relation(fields: [subscriptions_id], references: [id], onUpdate: NoAction)
+
+  @@index([company_id], map: "idx_session_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_session_created_at")
+  @@index([session_id], map: "idx_session_session_id")
+  @@index([subscriptions_id], map: "idx_session_subscriptions_id")
+}
+
+model agent_log_dashboard {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       BigInt
+  question      String
+  response      String
+  intent_data   String?
+  object_answer Json?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at(sort: Desc)], map: "idx_agent_log_dashboard_created_at")
+  @@index([object_answer(ops: JsonbPathOps)], map: "idx_agent_log_dashboard_object_answer", type: Gin)
+  @@index([user_id], map: "idx_agent_log_dashboard_user_id")
+}
+
+model company_modules {
+  id          BigInt    @id @default(autoincrement())
+  company_id  BigInt
+  module_name String    @db.VarChar(100)
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  company     company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([company_id, module_name])
+  @@index([company_id], map: "idx_company_modules_company_id")
+  @@index([module_name], map: "idx_company_modules_module_name")
+}
+
+model schedule_baselines {
+  id              BigInt    @id @default(autoincrement())
+  projects_id     BigInt
+  sprints_id      BigInt?
+  baseline_number Int       @default(1)
+  description     String?
+  status          String    @default("ativo") @db.VarChar(20)
+  snapshot_data   Json?
+  created_by      BigInt?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  projects        projects  @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints         sprints?  @relation(fields: [sprints_id], references: [id], onUpdate: NoAction)
+  created_by_user users?    @relation("baseline_created", fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@index([projects_id], map: "idx_schedule_baselines_projects_id")
+  @@index([sprints_id], map: "idx_schedule_baselines_sprints_id")
+  @@index([baseline_number], map: "idx_schedule_baselines_number")
+  @@index([status], map: "idx_schedule_baselines_status")
+  @@index([created_at(sort: Desc)], map: "idx_schedule_baselines_created_at")
+}
+
+model schedule_imports {
+  id              BigInt    @id @default(autoincrement())
+  projects_id     BigInt
+  file_name       String    @db.VarChar(255)
+  file_type       String    @db.VarChar(20)
+  total_tasks     Int       @default(0)
+  imported_tasks  Int       @default(0)
+  failed_tasks    Int       @default(0)
+  import_mode     String    @db.VarChar(20)
+  status          String    @default("pendente") @db.VarChar(20)
+  error_log       Json?
+  column_mapping  Json?
+  created_by      BigInt?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  projects        projects  @relation(fields: [projects_id], references: [id], onDelete: Cascade)
+  created_by_user users?    @relation("import_created", fields: [created_by], references: [id])
+
+  @@index([projects_id])
+}
+
+model task_dependencies {
+  id                     BigInt            @id @default(autoincrement())
+  projects_id            BigInt
+  predecessor_backlog_id BigInt
+  successor_backlog_id   BigInt
+  dependency_type        String            @default("FS") @db.VarChar(10)
+  lag_days               Int               @default(0)
+  created_at             DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at             DateTime?         @db.Timestamptz(6)
+  projects               projects          @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  predecessor            projects_backlogs @relation("predecessor", fields: [predecessor_backlog_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  successor              projects_backlogs @relation("successor", fields: [successor_backlog_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([predecessor_backlog_id, successor_backlog_id])
+  @@index([projects_id], map: "idx_task_dependencies_projects_id")
+  @@index([predecessor_backlog_id], map: "idx_task_dependencies_predecessor_id")
+  @@index([successor_backlog_id], map: "idx_task_dependencies_successor_id")
+  @@index([created_at(sort: Desc)], map: "idx_task_dependencies_created_at")
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum inventory_log_type_enum {
+  entry
+  exit
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum payment_status_enum {
+  pending
+  paid
+  failed
+  refunded
+  canceled
+}
+
+enum incident_severity {
+  quase_acidente
+  primeiros_socorros
+  sem_afastamento
+  com_afastamento
+  fatal
+}
+
+enum incident_classification {
+  tipico
+  trajeto
+  doenca_ocupacional
+}
+
+enum incident_status {
+  registrado
+  em_investigacao
+  investigado
+  encerrado
+}
+
+enum rdo_status {
+  rascunho
+  finalizado
+  aprovado
+  rejeitado
+}
+
+enum weather_type {
+  sol
+  nublado
+  chuva
+  chuva_forte
+  vento_forte
+}
+
+enum nc_severity {
+  menor
+  maior
+  critica
+}
+
+enum nc_status {
+  aberta
+  em_analise
+  em_tratamento
+  verificacao
+  encerrada
+}
+
+enum document_type {
+  procedimento
+  instrucao_trabalho
+  projeto
+  certificado
+  licenca
+  laudo
+  contrato
+  ata
+  relatorio
+}
+
+enum document_status {
+  em_elaboracao
+  em_revisao
+  aprovado
+  obsoleto
+}
+
+enum dependency_type {
+  finish_to_start
+  start_to_start
+  finish_to_finish
+  start_to_finish
+}
+
+enum permit_type {
+  pt_geral
+  pt_quente
+  pt_altura
+  pt_confinado
+  pt_eletrica
+}
+
+enum permit_status {
+  solicitada
+  aprovada
+  ativa
+  encerrada
+  cancelada
+}
+
+enum checklist_response_type {
+  sim_nao
+  conforme_nao_conforme
+  nota_1_5
+  texto
+}
+
+enum module_name {
+  CORE
+  SSMA
+  QUALIDADE
+  PLANEJAMENTO
+  CONTRATOS
+}
+
+enum audit_action {
+  create
+  update
+  delete
+  status_change
+  approval
+}
+
+enum measurement_status {
+  rascunho
+  submetida
+  aprovada
+  rejeitada
+}
+
+enum claim_status {
+  aberta
+  em_analise
+  aceita
+  rejeitada
+  encerrada
+}
+
+enum commissioning_status {
+  pendente
+  em_andamento
+  concluido
+  reprovado
+}
+
+enum punch_priority {
+  A
+  B
+  C
+}
+
+enum license_status {
+  vigente
+  vencida
+  em_renovacao
+  cancelada
+}
+
+enum health_exam_type {
+  admissional
+  periodico
+  retorno_trabalho
+  mudanca_funcao
+  demissional
+}
+
+enum requisition_status {
+  rascunho
+  submetida
+  aprovada
+  rejeitada
+  atendida_parcial
+  atendida
+  cancelada
+}
+
+// =============================================================================
+// ONDA 1 - COMPLIANCE LEGAL - NOVOS MODELOS
+// =============================================================================
+
+// --- Safety Incidents (NO deleted_at - legal requirement) ---
+model safety_incidents {
+  id                      BigInt                        @id @default(autoincrement())
+  projects_id             BigInt
+  incident_number         String                        @db.VarChar(30)
+  incident_date           DateTime                      @db.Date
+  incident_time           DateTime?                     @db.Time(6)
+  severity                incident_severity
+  classification          incident_classification
+  category                String                        @db.VarChar(50)
+  description             String
+  immediate_cause         String?
+  root_cause              String?
+  corrective_actions      String?
+  location_description    String?
+  body_part_affected      String?
+  days_lost               Int                           @default(0)
+  cat_number              String?                       @db.VarChar(30)
+  cat_issued_at           DateTime?                     @db.Timestamptz(6)
+  status                  incident_status               @default(registrado)
+  reported_by_user_id     BigInt
+  investigated_by_user_id BigInt?
+  closed_by_user_id       BigInt?
+  closed_at               DateTime?                     @db.Timestamptz(6)
+  created_at              DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                      @default(now()) @updatedAt @db.Timestamptz(6)
+  projects                projects                      @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  reported_by             users                         @relation("incident_reporter", fields: [reported_by_user_id], references: [id], onUpdate: NoAction)
+  investigated_by         users?                        @relation("incident_investigator", fields: [investigated_by_user_id], references: [id], onUpdate: NoAction)
+  closed_by               users?                        @relation("incident_closer", fields: [closed_by_user_id], references: [id], onUpdate: NoAction)
+  witnesses               safety_incident_witnesses[]
+  attachments             safety_incident_attachments[]
+
+  @@index([projects_id], map: "idx_safety_incidents_projects_id")
+  @@index([incident_date], map: "idx_safety_incidents_date")
+  @@index([severity], map: "idx_safety_incidents_severity")
+  @@index([status], map: "idx_safety_incidents_status")
+}
+
+model safety_incident_witnesses {
+  id                  BigInt           @id @default(autoincrement())
+  safety_incidents_id BigInt
+  witness_name        String
+  witness_role        String?
+  witness_statement   String?
+  users_id            BigInt?
+  created_at          DateTime         @default(now()) @db.Timestamptz(6)
+  safety_incident     safety_incidents @relation(fields: [safety_incidents_id], references: [id], onUpdate: NoAction)
+  user                users?           @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@index([safety_incidents_id], map: "idx_si_witnesses_incident_id")
+}
+
+model safety_incident_attachments {
+  id                  BigInt           @id @default(autoincrement())
+  safety_incidents_id BigInt
+  file_url            String
+  file_type           String           @db.VarChar(20)
+  description         String?
+  uploaded_by_user_id BigInt
+  created_at          DateTime         @default(now()) @db.Timestamptz(6)
+  safety_incident     safety_incidents @relation(fields: [safety_incidents_id], references: [id], onUpdate: NoAction)
+  uploaded_by         users            @relation("inc_attach_uploader", fields: [uploaded_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([safety_incidents_id], map: "idx_si_attachments_incident_id")
+}
+
+// --- Training ---
+model training_types {
+  id                         BigInt                    @id @default(autoincrement())
+  name                       String
+  description                String?
+  nr_reference               String?                   @db.VarChar(20)
+  validity_months            Int?
+  is_mandatory_for_admission Boolean                   @default(false)
+  workload_hours             Int?
+  company_id                 BigInt
+  created_at                 DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                 DateTime?                 @db.Timestamptz(6)
+  company                    company                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  worker_trainings           worker_trainings[]
+  task_required_trainings    task_required_trainings[]
+
+  @@index([company_id], map: "idx_training_types_company_id")
+}
+
+model worker_trainings {
+  id                    BigInt         @id @default(autoincrement())
+  users_id              BigInt
+  training_types_id     BigInt
+  training_date         DateTime       @db.Date
+  expiry_date           DateTime?      @db.Date
+  instructor_name       String
+  institution           String?
+  certificate_number    String?        @db.VarChar(50)
+  certificate_file      String?
+  workload_hours        Int
+  status                String         @default("valido") @db.VarChar(20)
+  projects_id           BigInt?
+  registered_by_user_id BigInt
+  created_at            DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  user                  users          @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+  training_type         training_types @relation(fields: [training_types_id], references: [id], onUpdate: NoAction)
+  registered_by         users          @relation("training_registrar", fields: [registered_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([users_id], map: "idx_worker_trainings_users_id")
+  @@index([training_types_id], map: "idx_worker_trainings_type_id")
+  @@index([expiry_date], map: "idx_worker_trainings_expiry")
+}
+
+model task_required_trainings {
+  id                BigInt         @id @default(autoincrement())
+  tasks_template_id BigInt
+  training_types_id BigInt
+  is_blocking       Boolean        @default(true)
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?      @db.Timestamptz(6)
+  tasks_template    tasks_template @relation(fields: [tasks_template_id], references: [id], onUpdate: NoAction)
+  training_type     training_types @relation(fields: [training_types_id], references: [id], onUpdate: NoAction)
+
+  @@unique([tasks_template_id, training_types_id])
+  @@index([tasks_template_id], map: "idx_task_req_trainings_template_id")
+}
+
+// --- DDS (Dialogo Diario de Seguranca) ---
+model dds_records {
+  id                   BigInt            @id @default(autoincrement())
+  projects_id          BigInt
+  dds_date             DateTime          @db.Date
+  topic                String
+  description          String?
+  conducted_by_user_id BigInt
+  teams_id             BigInt?
+  participant_count    Int               @default(0)
+  duration_minutes     Int?
+  evidence_image       String?
+  created_at           DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  projects             projects          @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  conducted_by         users             @relation(fields: [conducted_by_user_id], references: [id], onUpdate: NoAction)
+  teams                teams?            @relation(fields: [teams_id], references: [id], onUpdate: NoAction)
+  participants         dds_participants[]
+
+  @@index([projects_id], map: "idx_dds_records_projects_id")
+  @@index([dds_date], map: "idx_dds_records_date")
+}
+
+model dds_participants {
+  id             BigInt      @id @default(autoincrement())
+  dds_records_id BigInt
+  users_id       BigInt
+  signed_at      DateTime?   @db.Timestamptz(6)
+  created_at     DateTime    @default(now()) @db.Timestamptz(6)
+  dds_record     dds_records @relation(fields: [dds_records_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user           users       @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@unique([dds_records_id, users_id])
+  @@index([dds_records_id], map: "idx_dds_participants_record_id")
+}
+
+// --- Non Conformances (RNC) ---
+model non_conformances {
+  id                     BigInt                        @id @default(autoincrement())
+  projects_id            BigInt
+  nc_number              String                        @db.VarChar(30)
+  title                  String
+  description            String
+  origin                 String                        @db.VarChar(30)
+  severity               nc_severity
+  category               String                        @db.VarChar(30)
+  projects_backlogs_id   BigInt?
+  location_description   String?
+  evidence_description   String?
+  immediate_action       String?
+  root_cause_analysis    String?
+  corrective_action_plan String?
+  preventive_action      String?
+  deadline               DateTime?                     @db.Date
+  status                 nc_status                     @default(aberta)
+  opened_by_user_id      BigInt
+  responsible_user_id    BigInt?
+  closed_by_user_id      BigInt?
+  closed_at              DateTime?                     @db.Timestamptz(6)
+  created_at             DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                      @default(now()) @updatedAt @db.Timestamptz(6)
+  projects               projects                      @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  projects_backlogs      projects_backlogs?            @relation(fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+  opened_by              users                         @relation("nc_opener", fields: [opened_by_user_id], references: [id], onUpdate: NoAction)
+  responsible_user       users?                        @relation("nc_responsible", fields: [responsible_user_id], references: [id], onUpdate: NoAction)
+  closed_by              users?                        @relation("nc_closer", fields: [closed_by_user_id], references: [id], onUpdate: NoAction)
+  attachments            non_conformance_attachments[]
+
+  @@index([projects_id], map: "idx_non_conformances_projects_id")
+  @@index([status], map: "idx_non_conformances_status")
+  @@index([severity], map: "idx_non_conformances_severity")
+}
+
+model non_conformance_attachments {
+  id                  BigInt           @id @default(autoincrement())
+  non_conformances_id BigInt
+  file_url            String
+  description         String?
+  uploaded_by_user_id BigInt
+  created_at          DateTime         @default(now()) @db.Timestamptz(6)
+  non_conformance     non_conformances @relation(fields: [non_conformances_id], references: [id], onUpdate: NoAction)
+  uploaded_by         users            @relation("nc_attach_uploader", fields: [uploaded_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([non_conformances_id], map: "idx_nc_attachments_nc_id")
+}
+
+// --- Documents (GED) ---
+model documents {
+  id                      BigInt                    @id @default(autoincrement())
+  projects_id             BigInt?
+  document_number         String                    @db.VarChar(50)
+  title                   String
+  document_type           document_type
+  category                String                    @db.VarChar(30)
+  revision                String                    @default("Rev 00") @db.VarChar(20)
+  revision_date           DateTime?                 @db.Date
+  status                  document_status           @default(em_elaboracao)
+  file_url                String?
+  valid_until             DateTime?                 @db.Date
+  requires_acknowledgment Boolean                   @default(false)
+  description             String?
+  created_by_user_id      BigInt
+  approved_by_user_id     BigInt?
+  approved_at             DateTime?                 @db.Timestamptz(6)
+  company_id              BigInt
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at              DateTime?                 @db.Timestamptz(6)
+  created_by              users                     @relation("doc_creator", fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+  approved_by             users?                    @relation("doc_approver", fields: [approved_by_user_id], references: [id], onUpdate: NoAction)
+  company                 company                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  acknowledgments         document_acknowledgments[]
+  task_documents          task_documents[]
+
+  @@index([company_id], map: "idx_documents_company_id")
+  @@index([document_type], map: "idx_documents_type")
+  @@index([status], map: "idx_documents_status")
+}
+
+model document_acknowledgments {
+  id              BigInt    @id @default(autoincrement())
+  documents_id    BigInt
+  users_id        BigInt
+  acknowledged_at DateTime  @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  document        documents @relation(fields: [documents_id], references: [id], onUpdate: NoAction)
+  user            users     @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@unique([documents_id, users_id])
+  @@index([documents_id], map: "idx_doc_ack_documents_id")
+}
+
+model task_documents {
+  id                   BigInt             @id @default(autoincrement())
+  documents_id         BigInt
+  tasks_template_id    BigInt?
+  projects_backlogs_id BigInt?
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at           DateTime?          @db.Timestamptz(6)
+  document             documents          @relation(fields: [documents_id], references: [id], onUpdate: NoAction)
+  tasks_template       tasks_template?    @relation(fields: [tasks_template_id], references: [id], onUpdate: NoAction)
+  projects_backlogs    projects_backlogs? @relation(fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+
+  @@index([documents_id], map: "idx_task_docs_documents_id")
+  @@index([tasks_template_id], map: "idx_task_docs_template_id")
+}
+
+// =============================================================================
+// ONDA 2 - PROFISSIONALIZACAO
+// =============================================================================
+
+// --- Work Permits (PT/APR) ---
+model work_permits {
+  id                   BigInt                   @id @default(autoincrement())
+  projects_id          BigInt
+  permit_number        String                   @db.VarChar(30)
+  permit_type          permit_type
+  projects_backlogs_id BigInt?
+  location_description String?
+  risk_description     String
+  control_measures     String
+  emergency_procedures String?
+  valid_from           DateTime                 @db.Timestamptz(6)
+  valid_until          DateTime                 @db.Timestamptz(6)
+  status               permit_status            @default(solicitada)
+  requested_by_user_id BigInt
+  approved_by_user_id  BigInt?
+  closed_by_user_id    BigInt?
+  closed_at            DateTime?                @db.Timestamptz(6)
+  created_at           DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  projects             projects                 @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  projects_backlogs    projects_backlogs?       @relation(fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+  requested_by         users                    @relation("wp_requester", fields: [requested_by_user_id], references: [id], onUpdate: NoAction)
+  approved_by          users?                   @relation("wp_approver", fields: [approved_by_user_id], references: [id], onUpdate: NoAction)
+  closed_by            users?                   @relation("wp_closer", fields: [closed_by_user_id], references: [id], onUpdate: NoAction)
+  signatures           work_permit_signatures[]
+
+  @@index([projects_id], map: "idx_work_permits_projects_id")
+  @@index([status], map: "idx_work_permits_status")
+  @@index([valid_until], map: "idx_work_permits_valid_until")
+}
+
+model work_permit_signatures {
+  id              BigInt       @id @default(autoincrement())
+  work_permits_id BigInt
+  users_id        BigInt
+  role            String       @db.VarChar(30)
+  signed_at       DateTime?    @db.Timestamptz(6)
+  signature_type  String       @default("digital") @db.VarChar(20)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  work_permit     work_permits @relation(fields: [work_permits_id], references: [id], onUpdate: NoAction)
+  user            users        @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@index([work_permits_id], map: "idx_wp_signatures_permit_id")
+}
+
+// --- Checklists ---
+model checklist_templates {
+  id              BigInt                     @id @default(autoincrement())
+  name            String
+  description     String?
+  checklist_type  String                     @db.VarChar(30)
+  company_id      BigInt
+  created_at      DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime?                  @db.Timestamptz(6)
+  company                  company                    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items                    checklist_template_items[]
+  responses                checklist_responses[]
+  tasks_templates          tasks_template[]
+  task_template_checklists task_template_checklists[]
+
+  @@index([company_id], map: "idx_checklist_templates_company_id")
+}
+
+model task_template_checklists {
+  id                     BigInt              @id @default(autoincrement())
+  tasks_template_id      BigInt
+  checklist_templates_id BigInt
+  created_at             DateTime            @default(now()) @db.Timestamptz(6)
+
+  tasks_template         tasks_template      @relation(fields: [tasks_template_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  checklist_template     checklist_templates @relation(fields: [checklist_templates_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tasks_template_id, checklist_templates_id])
+  @@index([tasks_template_id])
+  @@index([checklist_templates_id])
+}
+
+model checklist_template_items {
+  id                     BigInt                     @id @default(autoincrement())
+  checklist_templates_id BigInt
+  item_order             Int                        @default(0)
+  description            String
+  response_type          checklist_response_type    @default(sim_nao)
+  is_critical            Boolean                    @default(false)
+  created_at             DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at             DateTime?                  @db.Timestamptz(6)
+  checklist_template     checklist_templates        @relation(fields: [checklist_templates_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  response_items         checklist_response_items[]
+
+  @@index([checklist_templates_id], map: "idx_cl_items_template_id")
+}
+
+model checklist_responses {
+  id                     BigInt                     @id @default(autoincrement())
+  checklist_templates_id BigInt
+  projects_backlogs_id   BigInt?
+  sprints_tasks_id       BigInt?
+  responded_by_user_id   BigInt
+  response_date          DateTime                   @db.Date
+  status                 String                     @default("pendente") @db.VarChar(20)
+  overall_result         String?                    @db.VarChar(30)
+  created_at             DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
+  checklist_template     checklist_templates        @relation(fields: [checklist_templates_id], references: [id], onUpdate: NoAction)
+  projects_backlogs      projects_backlogs?         @relation(fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+  responded_by           users                      @relation(fields: [responded_by_user_id], references: [id], onUpdate: NoAction)
+  items                  checklist_response_items[]
+
+  @@index([checklist_templates_id], map: "idx_cl_responses_template_id")
+  @@index([projects_backlogs_id], map: "idx_cl_responses_backlog_id")
+}
+
+model checklist_response_items {
+  id                          BigInt                   @id @default(autoincrement())
+  checklist_responses_id      BigInt
+  checklist_template_items_id BigInt
+  response_value              String?
+  observations                String?
+  evidence_image              String?
+  created_at                  DateTime                 @default(now()) @db.Timestamptz(6)
+  checklist_response          checklist_responses      @relation(fields: [checklist_responses_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  checklist_template_item     checklist_template_items @relation(fields: [checklist_template_items_id], references: [id], onUpdate: NoAction)
+
+  @@index([checklist_responses_id], map: "idx_cl_resp_items_response_id")
+}
+
+// --- Golden Rules ---
+model golden_rules {
+  id                BigInt              @id @default(autoincrement())
+  title             String
+  description       String?
+  icon_url          String?
+  sort_order        Int                 @default(0)
+  severity          String?             @default("media") @db.VarChar(20)
+  is_active         Boolean             @default(true)
+  company_id        BigInt
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  company           company             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  task_golden_rules task_golden_rules[]
+
+  @@index([company_id], map: "idx_golden_rules_company_id")
+}
+
+model task_golden_rules {
+  id                BigInt         @id @default(autoincrement())
+  tasks_template_id BigInt
+  golden_rules_id   BigInt
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?      @db.Timestamptz(6)
+  tasks_template    tasks_template @relation(fields: [tasks_template_id], references: [id], onUpdate: NoAction)
+  golden_rule       golden_rules   @relation(fields: [golden_rules_id], references: [id], onUpdate: NoAction)
+
+  @@unique([tasks_template_id, golden_rules_id])
+  @@index([tasks_template_id], map: "idx_task_golden_rules_template_id")
+}
+
+// --- PPE (EPIs) ---
+model ppe_types {
+  id                BigInt              @id @default(autoincrement())
+  name              String
+  ca_number         String?             @db.VarChar(30)
+  validity_months   Int?
+  company_id        BigInt
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?           @db.Timestamptz(6)
+  company           company             @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deliveries        ppe_deliveries[]
+  task_required_ppe task_required_ppe[]
+
+  @@index([company_id], map: "idx_ppe_types_company_id")
+}
+
+model ppe_deliveries {
+  id                   BigInt    @id @default(autoincrement())
+  users_id             BigInt
+  ppe_types_id         BigInt
+  delivery_date        DateTime  @db.Date
+  quantity             Int       @default(1)
+  delivered_by_user_id BigInt
+  signature_file       String?
+  return_date          DateTime? @db.Date
+  condition_on_return  String?
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  user                 users     @relation("ppe_receiver", fields: [users_id], references: [id], onUpdate: NoAction)
+  ppe_type             ppe_types @relation(fields: [ppe_types_id], references: [id], onUpdate: NoAction)
+  delivered_by         users     @relation("ppe_deliverer", fields: [delivered_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([users_id], map: "idx_ppe_deliveries_users_id")
+  @@index([ppe_types_id], map: "idx_ppe_deliveries_type_id")
+}
+
+model task_required_ppe {
+  id                BigInt         @id @default(autoincrement())
+  tasks_template_id BigInt
+  ppe_types_id      BigInt
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at        DateTime?      @db.Timestamptz(6)
+  tasks_template    tasks_template @relation(fields: [tasks_template_id], references: [id], onUpdate: NoAction)
+  ppe_type          ppe_types      @relation(fields: [ppe_types_id], references: [id], onUpdate: NoAction)
+
+  @@unique([tasks_template_id, ppe_types_id])
+  @@index([tasks_template_id], map: "idx_task_req_ppe_template_id")
+}
+
+// --- Workforce Daily Log ---
+model workforce_daily_log {
+  id                    BigInt    @id @default(autoincrement())
+  projects_id           BigInt
+  log_date              DateTime  @db.Date
+  teams_id              BigInt?
+  users_id              BigInt
+  check_in              DateTime? @db.Timestamptz(6)
+  check_out             DateTime? @db.Timestamptz(6)
+  hours_normal          Decimal?  @default(0) @db.Decimal(5, 2)
+  hours_overtime        Decimal?  @default(0) @db.Decimal(5, 2)
+  status                String    @default("presente") @db.VarChar(20)
+  registered_by_user_id BigInt
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  projects              projects  @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  teams                 teams?    @relation(fields: [teams_id], references: [id], onUpdate: NoAction)
+  worker                users     @relation("wf_worker", fields: [users_id], references: [id], onUpdate: NoAction)
+  registered_by         users     @relation("wf_registrar", fields: [registered_by_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([projects_id], map: "idx_wf_log_projects_id")
+  @@index([log_date], map: "idx_wf_log_date")
+  @@index([users_id], map: "idx_wf_log_users_id")
+}
+
+// --- Non Execution Reasons ---
+model non_execution_reasons {
+  id            BigInt          @id @default(autoincrement())
+  name          String
+  category      String          @db.VarChar(30)
+  company_id    BigInt
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at    DateTime?       @db.Timestamptz(6)
+  company       company         @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sprints_tasks sprints_tasks[]
+
+  @@index([company_id], map: "idx_non_exec_reasons_company_id")
+}
+
+// --- Notifications ---
+model notifications {
+  id                BigInt    @id @default(autoincrement())
+  users_id          BigInt
+  title             String
+  message           String
+  notification_type String    @db.VarChar(50)
+  reference_type    String?   @db.VarChar(50)
+  reference_id      BigInt?
+  is_read           Boolean   @default(false)
+  read_at           DateTime? @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  user              users     @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([users_id], map: "idx_notifications_users_id")
+  @@index([is_read], map: "idx_notifications_is_read")
+  @@index([created_at(sort: Desc)], map: "idx_notifications_created_at")
+}
+
+// --- Audit Log ---
+model audit_log {
+  id         BigInt       @id @default(autoincrement())
+  table_name String       @db.VarChar(100)
+  record_id  BigInt
+  action     audit_action
+  old_values Json?
+  new_values Json?
+  users_id   BigInt
+  ip_address String?      @db.VarChar(45)
+  created_at DateTime     @default(now()) @db.Timestamptz(6)
+  user       users        @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@index([table_name], map: "idx_audit_log_table_name")
+  @@index([record_id], map: "idx_audit_log_record_id")
+  @@index([users_id], map: "idx_audit_log_users_id")
+  @@index([created_at(sort: Desc)], map: "idx_audit_log_created_at")
+}
+
+// =============================================================================
+// ONDA 3 - EXCELENCIA (EPC)
+// =============================================================================
+
+// --- Contract Measurements ---
+model contract_measurements {
+  id                       BigInt             @id @default(autoincrement())
+  projects_id              BigInt
+  measurement_number       Int
+  measurement_period_start DateTime           @db.Date
+  measurement_period_end   DateTime           @db.Date
+  total_value              Decimal?           @db.Decimal(14, 2)
+  status                   measurement_status @default(rascunho)
+  observations             String?
+  created_by_user_id       BigInt
+  approved_at              DateTime?          @db.Timestamptz(6)
+  created_at               DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at               DateTime?          @db.Timestamptz(6)
+  projects                 projects           @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  created_by               users              @relation(fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+  items                    measurement_items[]
+
+  @@index([projects_id], map: "idx_measurements_projects_id")
+}
+
+model measurement_items {
+  id                       BigInt                @id @default(autoincrement())
+  contract_measurements_id BigInt
+  projects_backlogs_id     BigInt?
+  description              String
+  unity                    String?               @db.VarChar(20)
+  quantity_measured        Decimal?              @db.Decimal(10, 2)
+  unit_price               Decimal?              @db.Decimal(14, 2)
+  total_price              Decimal?              @db.Decimal(14, 2)
+  created_at               DateTime              @default(now()) @db.Timestamptz(6)
+  contract_measurement     contract_measurements @relation(fields: [contract_measurements_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects_backlogs        projects_backlogs?    @relation(fields: [projects_backlogs_id], references: [id], onUpdate: NoAction)
+
+  @@index([contract_measurements_id], map: "idx_meas_items_measurement_id")
+}
+
+// --- Contract Claims ---
+model contract_claims {
+  id                 BigInt            @id @default(autoincrement())
+  projects_id        BigInt
+  claim_number       String            @db.VarChar(30)
+  title              String
+  description        String
+  claim_type         String            @db.VarChar(30)
+  claimed_value      Decimal?          @db.Decimal(14, 2)
+  approved_value     Decimal?          @db.Decimal(14, 2)
+  status             claim_status      @default(aberta)
+  submitted_at       DateTime?         @db.Timestamptz(6)
+  created_by_user_id BigInt
+  closed_by_user_id  BigInt?
+  closed_at          DateTime?         @db.Timestamptz(6)
+  created_at         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at         DateTime?         @db.Timestamptz(6)
+  projects           projects          @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  created_by         users             @relation("claim_creator", fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+  closed_by          users?            @relation("claim_closer", fields: [closed_by_user_id], references: [id], onUpdate: NoAction)
+  evidences          claim_evidences[]
+
+  @@index([projects_id], map: "idx_claims_projects_id")
+  @@index([status], map: "idx_claims_status")
+}
+
+model claim_evidences {
+  id                 BigInt          @id @default(autoincrement())
+  contract_claims_id BigInt
+  file_url           String
+  description        String?
+  evidence_type      String          @db.VarChar(30)
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  contract_claim     contract_claims @relation(fields: [contract_claims_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([contract_claims_id], map: "idx_claim_evidences_claim_id")
+}
+
+// --- Commissioning ---
+model commissioning_systems {
+  id           BigInt                       @id @default(autoincrement())
+  projects_id  BigInt
+  system_name  String
+  system_code  String                       @db.VarChar(30)
+  description  String?
+  status       commissioning_status         @default(pendente)
+  planned_date DateTime?                    @db.Date
+  actual_date  DateTime?                    @db.Date
+  created_at   DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime                     @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at   DateTime?                    @db.Timestamptz(6)
+  projects     projects                     @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  punch_list   commissioning_punch_list[]
+  certificates commissioning_certificates[]
+
+  @@index([projects_id], map: "idx_comm_systems_projects_id")
+}
+
+model commissioning_punch_list {
+  id                       BigInt                @id @default(autoincrement())
+  commissioning_systems_id BigInt
+  item_number              Int
+  description              String
+  priority                 punch_priority        @default(B)
+  responsible              String?
+  status                   commissioning_status  @default(pendente)
+  due_date                 DateTime?             @db.Date
+  completed_at             DateTime?             @db.Timestamptz(6)
+  created_at               DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  commissioning_system     commissioning_systems @relation(fields: [commissioning_systems_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([commissioning_systems_id], map: "idx_punch_list_system_id")
+}
+
+model commissioning_certificates {
+  id                       BigInt                @id @default(autoincrement())
+  commissioning_systems_id BigInt
+  certificate_type         String                @db.VarChar(50)
+  certificate_number       String?               @db.VarChar(50)
+  issued_date              DateTime?             @db.Date
+  file_url                 String?
+  status                   String                @default("pendente") @db.VarChar(20)
+  created_at               DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  commissioning_system     commissioning_systems @relation(fields: [commissioning_systems_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([commissioning_systems_id], map: "idx_comm_certs_system_id")
+}
+
+// --- Environmental Licenses ---
+model environmental_licenses {
+  id             BigInt                     @id @default(autoincrement())
+  projects_id    BigInt
+  license_type   String                     @db.VarChar(50)
+  license_number String                     @db.VarChar(50)
+  issuing_agency String?
+  issued_date    DateTime?                  @db.Date
+  expiry_date    DateTime?                  @db.Date
+  status         license_status             @default(vigente)
+  file_url       String?
+  observations   String?
+  company_id     BigInt
+  created_at     DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at     DateTime?                  @db.Timestamptz(6)
+  projects       projects                   @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  company        company                    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  conditions     environmental_conditions[]
+
+  @@index([projects_id], map: "idx_env_licenses_projects_id")
+  @@index([expiry_date], map: "idx_env_licenses_expiry")
+}
+
+model environmental_conditions {
+  id                        BigInt                 @id @default(autoincrement())
+  environmental_licenses_id BigInt
+  condition_number          Int
+  description               String
+  deadline                  DateTime?              @db.Date
+  status                    String                 @default("pendente") @db.VarChar(20)
+  evidence_file             String?
+  completed_at              DateTime?              @db.Timestamptz(6)
+  created_at                DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  environmental_license     environmental_licenses @relation(fields: [environmental_licenses_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([environmental_licenses_id], map: "idx_env_conditions_license_id")
+}
+
+// --- Worker Health Records (ASO) ---
+model worker_health_records {
+  id             BigInt           @id @default(autoincrement())
+  users_id       BigInt
+  exam_type      health_exam_type
+  exam_date      DateTime         @db.Date
+  expiry_date    DateTime?        @db.Date
+  result         String           @default("apto") @db.VarChar(20)
+  restrictions   String?
+  physician_name String?
+  physician_crm  String?          @db.VarChar(20)
+  file_url       String?
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  user           users            @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+
+  @@index([users_id], map: "idx_health_records_users_id")
+  @@index([expiry_date], map: "idx_health_records_expiry")
+}
+
+// --- Material Requisitions ---
+model material_requisitions {
+  id                  BigInt                      @id @default(autoincrement())
+  projects_id         BigInt
+  requisition_number  String                      @db.VarChar(30)
+  description         String?
+  status              requisition_status          @default(rascunho)
+  priority            String                      @default("media") @db.VarChar(20)
+  needed_by_date      DateTime?                   @db.Date
+  created_by_user_id  BigInt
+  approved_by_user_id BigInt?
+  approved_at         DateTime?                   @db.Timestamptz(6)
+  created_at          DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                    @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at          DateTime?                   @db.Timestamptz(6)
+  projects            projects                    @relation(fields: [projects_id], references: [id], onUpdate: NoAction)
+  created_by          users                       @relation("matreq_creator", fields: [created_by_user_id], references: [id], onUpdate: NoAction)
+  approved_by         users?                      @relation("matreq_approver", fields: [approved_by_user_id], references: [id], onUpdate: NoAction)
+  items               material_requisition_items[]
+
+  @@index([projects_id], map: "idx_mat_reqs_projects_id")
+  @@index([status], map: "idx_mat_reqs_status")
+}
+
+model material_requisition_items {
+  id                       BigInt                @id @default(autoincrement())
+  material_requisitions_id BigInt
+  product_description      String
+  quantity_requested       Decimal               @db.Decimal(10, 2)
+  quantity_approved        Decimal?              @db.Decimal(10, 2)
+  quantity_delivered       Decimal?              @db.Decimal(10, 2)
+  unity                    String?               @db.VarChar(20)
+  observations             String?
+  created_at               DateTime              @default(now()) @db.Timestamptz(6)
+  material_requisition     material_requisitions @relation(fields: [material_requisitions_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([material_requisitions_id], map: "idx_mat_req_items_req_id")
+}
+
+model teams_projects {
+  id          BigInt    @id @default(autoincrement())
+  teams_id    BigInt
+  projects_id BigInt
+  start_at    DateTime  @default(now()) @db.Timestamptz(6)
+  end_at      DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  teams       teams     @relation(fields: [teams_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects    projects  @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([teams_id, projects_id])
+  @@index([teams_id], map: "idx_teams_projects_teams_id")
+  @@index([projects_id], map: "idx_teams_projects_projects_id")
+  @@index([created_at(sort: Desc)], map: "idx_teams_projects_created_at")
+}
+
+model teams_projects_history {
+  id                  BigInt   @id @default(autoincrement())
+  teams_id            BigInt
+  projects_id         BigInt
+  action              String   @db.VarChar(20)
+  team_name           String?
+  project_name        String?
+  performed_by_id     BigInt?
+  performed_by_name   String?
+  performed_by_email  String?
+  members_snapshot    Json?
+  start_at            DateTime? @db.Timestamptz(6)
+  end_at              DateTime? @db.Timestamptz(6)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([teams_id], map: "idx_tp_history_teams_id")
+  @@index([projects_id], map: "idx_tp_history_projects_id")
+  @@index([action], map: "idx_tp_history_action")
+  @@index([created_at(sort: Desc)], map: "idx_tp_history_created_at")
+}
+
+model teams_members_history {
+  id                  BigInt    @id @default(autoincrement())
+  teams_id            BigInt
+  users_id            BigInt
+  action              String    @db.VarChar(20)
+  member_type         String    @db.VarChar(20)
+  team_name           String?
+  user_name           String?
+  user_email          String?
+  performed_by_id     BigInt?
+  performed_by_name   String?
+  performed_by_email  String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([teams_id], map: "idx_tm_history_teams_id")
+  @@index([users_id], map: "idx_tm_history_users_id")
+  @@index([action], map: "idx_tm_history_action")
+  @@index([created_at(sort: Desc)], map: "idx_tm_history_created_at")
+}
+
+// =============================================================================
+// EMPLOYEES HR MODULE
+// =============================================================================
+
+model employees_hr_data {
+  id                    BigInt    @id @default(autoincrement())
+  users_id              BigInt    @unique
+
+  // Dados pessoais
+  nome_completo         String?
+  cpf                   String?   @db.VarChar(14)
+  rg                    String?   @db.VarChar(20)
+  rg_orgao_emissor      String?   @db.VarChar(20)
+  rg_data_emissao       DateTime? @db.Date
+  data_nascimento       DateTime? @db.Date
+  genero                String?   @db.VarChar(20)
+  estado_civil          String?   @db.VarChar(20)
+  nacionalidade         String?   @db.VarChar(60)
+  naturalidade          String?   @db.VarChar(100)
+  nome_mae              String?
+  nome_pai              String?
+
+  // Endereco
+  cep                   String?   @db.VarChar(9)
+  logradouro            String?
+  numero                String?   @db.VarChar(20)
+  complemento           String?   @db.VarChar(100)
+  bairro                String?   @db.VarChar(100)
+  cidade                String?   @db.VarChar(100)
+  estado                String?   @db.Char(2)
+
+  // Dados profissionais
+  matricula             String?   @db.VarChar(30)
+  data_admissao         DateTime? @db.Date
+  data_demissao         DateTime? @db.Date
+  tipo_contrato         String?   @db.VarChar(30)
+  cargo                 String?   @db.VarChar(100)
+  departamento          String?   @db.VarChar(100)
+  salario               Decimal?  @db.Decimal(12, 2)
+  jornada_trabalho      String?   @db.VarChar(30)
+  pis_pasep             String?   @db.VarChar(14)
+  ctps_numero           String?   @db.VarChar(20)
+  ctps_serie            String?   @db.VarChar(10)
+  ctps_uf               String?   @db.Char(2)
+
+  // CNH
+  cnh_numero            String?   @db.VarChar(20)
+  cnh_categoria         String?   @db.VarChar(5)
+  cnh_validade          DateTime? @db.Date
+
+  // Dados bancarios
+  banco_nome            String?   @db.VarChar(60)
+  banco_agencia         String?   @db.VarChar(10)
+  banco_conta           String?   @db.VarChar(20)
+  banco_tipo_conta      String?   @db.VarChar(20)
+  banco_pix             String?
+
+  // Contato de emergencia
+  emergencia_nome       String?
+  emergencia_parentesco String?   @db.VarChar(30)
+  emergencia_telefone   String?   @db.VarChar(20)
+
+  // Escolaridade
+  escolaridade          String?   @db.VarChar(30)
+  curso                 String?
+  instituicao           String?
+
+  // Observacoes
+  observacoes           String?
+  foto_documento_url    String?
+
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  user                  users     @relation(fields: [users_id], references: [id], onDelete: Cascade)
+
+  @@index([users_id], map: "idx_employees_hr_data_users_id")
+  @@index([cpf], map: "idx_employees_hr_data_cpf")
+  @@index([matricula], map: "idx_employees_hr_data_matricula")
+}
+
+model employees_vacations {
+  id                            BigInt    @id @default(autoincrement())
+  users_id                      BigInt
+  tipo                          String    @db.VarChar(30)
+  data_inicio                   DateTime  @db.Date
+  data_fim                      DateTime  @db.Date
+  dias_total                    Int
+  dias_abono                    Int?      @default(0)
+  periodo_aquisitivo_inicio     DateTime? @db.Date
+  periodo_aquisitivo_fim        DateTime? @db.Date
+  status                        String    @default("pendente") @db.VarChar(20)
+  aprovado_por_id               BigInt?
+  aprovado_em                   DateTime? @db.Timestamptz(6)
+  observacoes                   String?
+  created_at                    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at                    DateTime? @db.Timestamptz(6)
+
+  user                          users     @relation(fields: [users_id], references: [id], onDelete: Cascade)
+
+  @@index([users_id], map: "idx_employees_vacations_users_id")
+  @@index([status], map: "idx_employees_vacations_status")
+  @@index([data_inicio], map: "idx_employees_vacations_data_inicio")
+}
+
+model employees_documents {
+  id                    BigInt    @id @default(autoincrement())
+  users_id              BigInt
+  tipo                  String    @db.VarChar(50)
+  nome                  String
+  descricao             String?
+  numero_documento      String?   @db.VarChar(50)
+  data_emissao          DateTime? @db.Date
+  data_validade         DateTime? @db.Date
+  file_url              String?
+  status                String    @default("ativo") @db.VarChar(20)
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+
+  user                  users     @relation(fields: [users_id], references: [id], onDelete: Cascade)
+
+  @@index([users_id], map: "idx_employees_documents_users_id")
+  @@index([data_validade], map: "idx_employees_documents_data_validade")
+}
+
+model employees_day_offs {
+  id              BigInt    @id @default(autoincrement())
+  users_id        BigInt
+  tipo            String    @db.VarChar(30) // folga_compensatoria, banco_horas, folga_escala, troca_turno
+  data            DateTime  @db.Date
+  motivo          String?
+  horas_banco     Decimal?  @db.Decimal(5, 2)
+  status          String    @default("pendente") @db.VarChar(20) // pendente, aprovado, rejeitado, cancelado
+  aprovado_por_id BigInt?
+  aprovado_em     DateTime? @db.Timestamptz(6)
+  observacoes     String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+
+  user            users     @relation("day_off_user", fields: [users_id], references: [id], onDelete: Cascade)
+  aprovado_por    users?    @relation("day_off_approver", fields: [aprovado_por_id], references: [id], onDelete: SetNull)
+
+  @@index([users_id], map: "idx_employees_day_offs_users_id")
+  @@index([status], map: "idx_employees_day_offs_status")
+  @@index([data], map: "idx_employees_day_offs_data")
+}
+
+model employees_benefits {
+  id          BigInt    @id @default(autoincrement())
+  users_id    BigInt
+  tipo        String    @db.VarChar(30) // vt, vr, va, plano_saude, plano_odonto, seguro_vida, outro
+  descricao   String?
+  valor       Decimal?  @db.Decimal(12, 2)
+  data_inicio DateTime  @db.Date
+  data_fim    DateTime? @db.Date
+  status      String    @default("ativo") @db.VarChar(20) // ativo, suspenso, cancelado
+  observacoes String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+
+  user        users     @relation(fields: [users_id], references: [id], onDelete: Cascade)
+
+  @@index([users_id], map: "idx_employees_benefits_users_id")
+  @@index([status], map: "idx_employees_benefits_status")
+}
+
+model employees_career_history {
+  id                    BigInt    @id @default(autoincrement())
+  users_id              BigInt
+  tipo                  String    @db.VarChar(30) // admissao, promocao, transferencia, mudanca_salario, demissao
+  cargo_anterior        String?
+  cargo_novo            String?
+  departamento_anterior String?
+  departamento_novo     String?
+  salario_anterior      Decimal?  @db.Decimal(12, 2)
+  salario_novo          Decimal?  @db.Decimal(12, 2)
+  data_efetivacao       DateTime  @db.Date
+  motivo                String?
+  observacoes           String?
+  registrado_por_id     BigInt?
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+
+  user                  users     @relation(fields: [users_id], references: [id], onDelete: Cascade)
+  registrado_por        users?    @relation("career_registrar", fields: [registrado_por_id], references: [id], onDelete: SetNull)
+
+  @@index([users_id], map: "idx_employees_career_history_users_id")
+  @@index([data_efetivacao], map: "idx_employees_career_history_data_efetivacao")
+}

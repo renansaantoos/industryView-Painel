@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker exec:*)",
+      "Bash(docker ps:*)",
+      "Bash(./node_modules/.bin/tsc:*)"
+    ]
+  }
+}

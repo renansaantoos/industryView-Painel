@@ -1,0 +1,24 @@
+import '/backend/api_requests/api_calls.dart';
+import '/flutter_flow/flutter_flow_theme.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/flutter_flow/flutter_flow_widgets.dart';
+import 'dart:ui';
+import 'expiredplan_widget.dart' show ExpiredplanWidget;
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+class ExpiredplanModel extends FlutterFlowModel<ExpiredplanWidget> {
+  ///  State fields for stateful widgets in this page.
+
+  // Stores action output result for [Backend Call - API (sessions)] action in Button widget.
+  ApiCallResponse? planBasic;
+
+  @override
+  void initState(BuildContext context) {}
+
+  @override
+  void dispose() {}
+}

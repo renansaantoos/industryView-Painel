@@ -1,0 +1,30 @@
+# =============================================================================
+# INDUSTRYVIEW BACKEND - Development Dockerfile
+# Dockerfile para ambiente de desenvolvimento com hot reload
+# =============================================================================
+
+FROM node:20-alpine
+
+# Instala dependencias do sistema necessarias para builds nativos
+RUN apk add --no-cache python3 make g++ openssl
+
+# Define diretorio de trabalho
+WORKDIR /app
+
+# Copia arquivos de dependencias
+COPY package*.json ./
+
+# Instala dependencias (incluindo devDependencies)
+RUN npm install
+
+# Copia codigo fonte
+COPY . .
+
+# Gera cliente Prisma
+RUN npx prisma generate
+
+# Expoe porta da aplicacao
+EXPOSE 3000
+
+# Comando para iniciar em modo desenvolvimento com hot reload
+CMD ["npm", "run", "dev"]

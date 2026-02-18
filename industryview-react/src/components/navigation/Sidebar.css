@@ -1,0 +1,189 @@
+/* Sidebar - Migrated from Flutter NavBarWidget */
+.sidebar {
+  width: var(--navbar-width);
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--color-navbar-gradient-start), var(--color-navbar-gradient-end));
+  border-right: 1px solid var(--color-alternate);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: center;
+}
+
+.sidebar-brand {
+  color: white;
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background-color: rgba(248, 250, 252, 0.2);
+  margin: var(--spacing-xs) 0;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm) 0;
+}
+
+.sidebar-section {
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.sidebar-section-label {
+  display: block;
+  padding: var(--spacing-md) 0 var(--spacing-xs) 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-normal);
+  color: rgba(212, 224, 249, 0.8);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-sm);
+  margin: 2px 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: white;
+  font-size: var(--font-size-md);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+  text-align: left;
+  height: 44px;
+}
+
+.sidebar-item:hover {
+  background-color: var(--color-navbar-hover);
+}
+
+.sidebar-item.active {
+  background-color: var(--color-navbar-hover);
+}
+
+.sidebar-item span {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-bottom {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  margin-top: auto;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+}
+
+.sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sidebar-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-user-name {
+  color: white;
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-email {
+  color: rgba(212, 224, 249, 0.7);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-logout {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sidebar-logout:hover {
+  background-color: rgba(230, 84, 84, 0.3);
+  color: white;
+}
+
+/* Collapsible section toggle */
+.sidebar-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--spacing-md) 0 var(--spacing-xs) 0;
+  border: none;
+  background: transparent;
+  color: rgba(212, 224, 249, 0.8);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-normal);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.sidebar-section-toggle:hover {
+  color: white;
+}
+
+.sidebar-section-toggle.open {
+  color: white;
+}
+
+.sidebar-chevron {
+  transition: transform 0.2s ease;
+}
+
+.sidebar-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* Collapsible content - animated by framer-motion */
+
+/* Mobile: hide sidebar */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}
