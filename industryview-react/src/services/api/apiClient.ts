@@ -36,13 +36,11 @@ apiClient.interceptors.response.use(
       const { status } = error.response;
 
       // Unauthorized - token expired or invalid
-      if (status === 401) {
+      // Skip redirect/cleanup when already on login page (login attempt failure)
+      if (status === 401 && window.location.pathname !== '/login') {
         localStorage.removeItem('ff_token');
         localStorage.removeItem('ff_infoUser');
-        // Redirect to login if not already there
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        window.location.href = '/login';
       }
 
       // Forbidden

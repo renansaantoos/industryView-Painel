@@ -123,6 +123,10 @@ function CompanyProfile() {
     try {
       const data = await companyApi.getCompany(user.companyId);
       setCompany(data);
+      // A resposta já inclui branches embutidas
+      if (data.branches && Array.isArray(data.branches)) {
+        setBranches(data.branches);
+      }
     } catch {
       showToast('Erro ao carregar dados da empresa', 'error');
     } finally {

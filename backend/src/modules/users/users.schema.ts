@@ -167,6 +167,10 @@ export type ListUsersForTeamsInput = z.infer<typeof listUsersForTeamsSchema>;
  */
 export const searchUsersForTeamSchema = z.object({
   search: z.string().trim().optional().default(''),
+  teams_id: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+    z.number().int().positive().optional()
+  ),
   page: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? 1 : Number(val)),
     z.number().int().positive().default(1)

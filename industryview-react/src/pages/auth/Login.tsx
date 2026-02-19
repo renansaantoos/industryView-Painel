@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AxiosError } from 'axios';
 import { useAuth } from '../../hooks/useAuth';
 import { isValidEmail } from '../../utils/validators';
 import { Eye, EyeOff } from 'lucide-react';
@@ -58,7 +59,11 @@ export default function Login() {
       await login(email, password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
+      if (err instanceof AxiosError && err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError(t('auth.loginFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -85,7 +90,7 @@ export default function Login() {
 
             {error && (
               <div className="auth-error">
-                <strong>{t('common.error')}</strong> {error}
+                {error}
               </div>
             )}
 

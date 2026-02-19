@@ -138,7 +138,8 @@
     "code": "Código de verificación",
     "selectCompany": "Registrar Empresa",
     "createCompany": "Crear Empresa",
-    "companyName": "Nombre de la Empresa"
+    "companyName": "Nombre de la Empresa",
+    "loginFailed": "Correo electrónico o contraseña incorrectos. Verifique sus datos e intente nuevamente."
   },
   "dashboard": {
     "title": "Panel",

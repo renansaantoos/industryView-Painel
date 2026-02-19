@@ -33,7 +33,7 @@ export interface SprintPaginatedCategory {
 /** Sprint status */
 export interface SprintStatus {
   id: number;
-  name: string;
+  status: string;
 }
 
 /** Sprint task record (full, from panel endpoint) */

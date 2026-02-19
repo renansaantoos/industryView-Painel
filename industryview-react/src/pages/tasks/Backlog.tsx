@@ -289,9 +289,16 @@ export default function Backlog() {
     if (!projectsInfo || selectedTaskIds.length === 0) return;
     setModalLoading(true);
     try {
+      const backlogs = selectedTaskIds.map((taskId) => {
+        const task = availableTasks.find((t) => t.id === taskId);
+        return {
+          name: task?.name || task?.description || '',
+          tasks_types_id: taskId,
+        };
+      });
       await projectsApi.projectsBacklogsBulk({
         projects_id: projectsInfo.id,
-        tasks_ids: selectedTaskIds,
+        backlogs,
       });
       setSelectedTaskIds([]);
       setShowAddModal(false);
@@ -708,11 +715,11 @@ export default function Backlog() {
       {/* Add from task list modal */}
       {/* ------------------------------------------------------------------ */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
           <div
-            className="modal"
+            className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '600px', maxHeight: '80vh' }}
+            style={{ maxWidth: '600px', maxHeight: '80vh', padding: '24px' }}
           >
             <h3 style={{ marginBottom: '16px' }}>{t('backlog.addFromList')}</h3>
             <div style={{ maxHeight: '400px', overflow: 'auto', marginBottom: '16px' }}>
@@ -781,8 +788,8 @@ export default function Backlog() {
       {/* Manual add modal */}
       {/* ------------------------------------------------------------------ */}
       {showManualModal && (
-        <div className="modal-overlay" onClick={() => setShowManualModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+        <div className="modal-backdrop" onClick={() => setShowManualModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '24px' }}>
             <h3 style={{ marginBottom: '16px' }}>{t('backlog.addManual')}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
@@ -843,11 +850,11 @@ export default function Backlog() {
       {/* Edit backlog modal */}
       {/* ------------------------------------------------------------------ */}
       {editTarget && (
-        <div className="modal-overlay" onClick={() => setEditTarget(null)}>
+        <div className="modal-backdrop" onClick={() => setEditTarget(null)}>
           <div
-            className="modal"
+            className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}
           >
             <h3 style={{ marginBottom: '16px' }}>{t('backlog.editBacklog')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

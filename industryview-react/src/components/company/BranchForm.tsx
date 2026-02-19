@@ -91,21 +91,49 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'responsavel', label: 'Responsável' },
 ];
 
+// Map fields to their tabs
+const FIELD_TAB_MAP: Record<string, Tab> = {
+  brand_name: 'identificacao',
+  legal_name: 'identificacao',
+  cnpj: 'identificacao',
+  cnae: 'identificacao',
+  phone: 'contato',
+  email: 'contato',
+  cep: 'endereco',
+  address_line: 'endereco',
+  numero: 'endereco',
+  bairro: 'endereco',
+  city: 'endereco',
+  state: 'endereco',
+  responsavel_legal: 'responsavel',
+  responsavel_cpf: 'responsavel',
+};
+
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
 export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
   const isEditing = branch !== null;
   const [form, setForm] = useState<FormState>(isEditing ? branchToForm(branch) : emptyForm);
   const [activeTab, setActiveTab] = useState<Tab>('identificacao');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     setForm(isEditing ? branchToForm(branch) : emptyForm);
     setActiveTab('identificacao');
     setError('');
+    setFieldErrors({});
   }, [branch, isEditing]);
 
   const setField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
+    setFieldErrors(prev => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }, []);
 
   const handleAddressFound = useCallback((address: CepAddress) => {
@@ -117,14 +145,61 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
       city: address.city || prev.city,
       state: address.state || prev.state,
     }));
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next.address_line;
+      delete next.bairro;
+      delete next.city;
+      delete next.state;
+      return next;
+    });
   }, []);
 
-  const handleSubmit = async () => {
-    if (!form.brand_name.trim()) {
-      setError('O Nome Fantasia é obrigatório');
-      setActiveTab('identificacao');
-      return;
+  const validate = (): boolean => {
+    const errors: FieldErrors = {};
+
+    // Identificação
+    if (!form.brand_name.trim()) errors.brand_name = 'Nome Fantasia é obrigatório';
+    if (!form.legal_name.trim()) errors.legal_name = 'Razão Social é obrigatória';
+    if (!form.cnpj.replace(/\D/g, '')) errors.cnpj = 'CNPJ é obrigatório';
+    else if (form.cnpj.replace(/\D/g, '').length !== 14) errors.cnpj = 'CNPJ deve ter 14 dígitos';
+    if (!form.cnae.replace(/\D/g, '')) errors.cnae = 'CNAE é obrigatório';
+    else if (form.cnae.replace(/\D/g, '').length !== 7) errors.cnae = 'CNAE deve ter 7 dígitos';
+
+    // Contato
+    if (!form.phone.replace(/\D/g, '')) errors.phone = 'Telefone é obrigatório';
+    else if (form.phone.replace(/\D/g, '').length < 10) errors.phone = 'Telefone inválido';
+    if (!form.email.trim()) errors.email = 'E-mail é obrigatório';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'E-mail inválido';
+
+    // Endereço
+    if (!form.cep.replace(/\D/g, '')) errors.cep = 'CEP é obrigatório';
+    if (!form.address_line.trim()) errors.address_line = 'Logradouro é obrigatório';
+    if (!form.numero.trim()) errors.numero = 'Número é obrigatório';
+    if (!form.bairro.trim()) errors.bairro = 'Bairro é obrigatório';
+    if (!form.city.trim()) errors.city = 'Cidade é obrigatória';
+    if (!form.state.trim()) errors.state = 'UF é obrigatória';
+
+    // Responsável
+    if (!form.responsavel_legal.trim()) errors.responsavel_legal = 'Nome do responsável é obrigatório';
+    if (!form.responsavel_cpf.replace(/\D/g, '')) errors.responsavel_cpf = 'CPF é obrigatório';
+    else if (form.responsavel_cpf.replace(/\D/g, '').length !== 11) errors.responsavel_cpf = 'CPF deve ter 11 dígitos';
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      // Navigate to the first tab that has errors
+      const firstErrorField = Object.keys(errors)[0];
+      const targetTab = FIELD_TAB_MAP[firstErrorField];
+      if (targetTab) setActiveTab(targetTab);
+      return false;
     }
+
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
 
     setSaving(true);
     setError('');
@@ -159,6 +234,11 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
     }
   };
 
+  // Count errors per tab for indicators
+  const tabErrorCount = (tab: Tab): number => {
+    return Object.keys(fieldErrors).filter(k => FIELD_TAB_MAP[k] === tab).length;
+  };
+
   const inputField = (
     label: string,
     key: keyof FormState,
@@ -171,11 +251,12 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
       </label>
       <input
         type={opts?.type || 'text'}
-        className="input-field"
+        className={`input-field ${fieldErrors[key] ? 'error' : ''}`}
         value={form[key] as string}
         onChange={e => setField(key, e.target.value as FormState[typeof key])}
         placeholder={opts?.placeholder}
       />
+      {fieldErrors[key] && <span className="input-error">{fieldErrors[key]}</span>}
     </div>
   );
 
@@ -198,26 +279,48 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, marginBottom: '20px', borderBottom: '2px solid var(--color-alternate)' }}>
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                padding: '10px 16px',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                border: 'none',
-                background: 'none',
-                color: activeTab === tab.key ? 'var(--color-primary)' : 'var(--color-secondary-text)',
-                borderBottom: activeTab === tab.key ? '2px solid var(--color-primary)' : '2px solid transparent',
-                marginBottom: '-2px',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {TABS.map(tab => {
+            const errCount = tabErrorCount(tab.key);
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: 'none',
+                  color: activeTab === tab.key ? 'var(--color-primary)' : errCount > 0 ? 'var(--color-error)' : 'var(--color-secondary-text)',
+                  borderBottom: activeTab === tab.key ? '2px solid var(--color-primary)' : '2px solid transparent',
+                  marginBottom: '-2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {tab.label}
+                {errCount > 0 && (
+                  <span style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: 'var(--color-error)',
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {errCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Content */}
@@ -226,16 +329,34 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
           {activeTab === 'identificacao' && (
             <>
               {inputField('Nome Fantasia', 'brand_name', { placeholder: 'Nome Fantasia', required: true })}
-              {inputField('Razão Social', 'legal_name', { placeholder: 'Razão Social' })}
+              {inputField('Razão Social', 'legal_name', { placeholder: 'Razão Social', required: true })}
               <CnpjInput
                 value={form.cnpj}
                 onChange={v => setField('cnpj', v)}
+                error={fieldErrors.cnpj}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {inputField('Inscrição Estadual', 'inscricao_estadual', { placeholder: 'Inscrição Estadual' })}
                 {inputField('Inscrição Municipal', 'inscricao_municipal', { placeholder: 'Inscrição Municipal' })}
               </div>
-              {inputField('CNAE', 'cnae', { placeholder: '0000-0/00' })}
+              <div className="input-group">
+                <label>CNAE <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
+                <input
+                  type="text"
+                  className={`input-field ${fieldErrors.cnae ? 'error' : ''}`}
+                  value={form.cnae}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 7);
+                    let masked = digits;
+                    if (digits.length > 4) masked = digits.slice(0, 4) + '-' + digits.slice(4);
+                    if (digits.length > 5) masked = digits.slice(0, 4) + '-' + digits.slice(4, 5) + '/' + digits.slice(5);
+                    setField('cnae', masked);
+                  }}
+                  placeholder="0000-0/00"
+                  maxLength={9}
+                />
+                {fieldErrors.cnae && <span className="input-error">{fieldErrors.cnae}</span>}
+              </div>
               {isEditing && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ fontSize: '14px', fontWeight: 500 }}>Filial Ativa</label>
@@ -280,9 +401,48 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
 
           {activeTab === 'contato' && (
             <>
-              {inputField('Telefone', 'phone', { placeholder: '(00) 00000-0000' })}
-              {inputField('E-mail', 'email', { type: 'email', placeholder: 'email@empresa.com.br' })}
-              {inputField('Website', 'website', { placeholder: 'https://www.empresa.com.br' })}
+              <div className="input-group">
+                <label>Telefone <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
+                <input
+                  type="tel"
+                  className={`input-field ${fieldErrors.phone ? 'error' : ''}`}
+                  value={form.phone}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    let masked = '';
+                    if (digits.length === 0) masked = '';
+                    else if (digits.length <= 2) masked = `(${digits}`;
+                    else if (digits.length <= 7) masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                    else if (digits.length <= 10) masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+                    else masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+                    setField('phone', masked);
+                  }}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                {fieldErrors.phone && <span className="input-error">{fieldErrors.phone}</span>}
+              </div>
+              <div className="input-group">
+                <label>E-mail <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
+                <input
+                  type="email"
+                  className={`input-field ${fieldErrors.email ? 'error' : ''}`}
+                  value={form.email}
+                  onChange={e => setField('email', e.target.value)}
+                  placeholder="email@empresa.com.br"
+                />
+                {fieldErrors.email && <span className="input-error">{fieldErrors.email}</span>}
+              </div>
+              <div className="input-group">
+                <label>Website</label>
+                <input
+                  type="url"
+                  className="input-field"
+                  value={form.website}
+                  onChange={e => setField('website', e.target.value)}
+                  placeholder="https://www.empresa.com.br"
+                />
+              </div>
             </>
           )}
 
@@ -292,20 +452,21 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
                 value={form.cep}
                 onChange={v => setField('cep', v)}
                 onAddressFound={handleAddressFound}
+                error={fieldErrors.cep}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px' }}>
                 <div style={{ flex: 1 }}>
-                  {inputField('Logradouro', 'address_line', { placeholder: 'Rua, Avenida...' })}
+                  {inputField('Logradouro', 'address_line', { placeholder: 'Rua, Avenida...', required: true })}
                 </div>
                 <div style={{ width: '100px' }}>
-                  {inputField('Número', 'numero', { placeholder: 'Nº' })}
+                  {inputField('Número', 'numero', { placeholder: 'Nº', required: true })}
                 </div>
               </div>
               {inputField('Complemento', 'complemento', { placeholder: 'Apto, Sala...' })}
-              {inputField('Bairro', 'bairro', { placeholder: 'Bairro' })}
+              {inputField('Bairro', 'bairro', { placeholder: 'Bairro', required: true })}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: '12px' }}>
-                <div>{inputField('Cidade', 'city', { placeholder: 'Cidade' })}</div>
-                <div>{inputField('UF', 'state', { placeholder: 'SP' })}</div>
+                <div>{inputField('Cidade', 'city', { placeholder: 'Cidade', required: true })}</div>
+                <div>{inputField('UF', 'state', { placeholder: 'SP', required: true })}</div>
               </div>
               {inputField('País', 'pais', { placeholder: 'Brasil' })}
             </>
@@ -313,8 +474,26 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
 
           {activeTab === 'responsavel' && (
             <>
-              {inputField('Nome do Responsável Legal', 'responsavel_legal', { placeholder: 'Nome completo' })}
-              {inputField('CPF do Responsável', 'responsavel_cpf', { placeholder: '000.000.000-00' })}
+              {inputField('Nome do Responsável Legal', 'responsavel_legal', { placeholder: 'Nome completo', required: true })}
+              <div className="input-group">
+                <label>CPF do Responsável <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
+                <input
+                  type="text"
+                  className={`input-field ${fieldErrors.responsavel_cpf ? 'error' : ''}`}
+                  value={form.responsavel_cpf}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    let masked = digits;
+                    if (digits.length > 3) masked = digits.slice(0, 3) + '.' + digits.slice(3);
+                    if (digits.length > 6) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6);
+                    if (digits.length > 9) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-' + digits.slice(9);
+                    setField('responsavel_cpf', masked);
+                  }}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                />
+                {fieldErrors.responsavel_cpf && <span className="input-error">{fieldErrors.responsavel_cpf}</span>}
+              </div>
             </>
           )}
         </div>

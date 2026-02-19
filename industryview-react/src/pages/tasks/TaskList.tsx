@@ -401,10 +401,6 @@ export default function TaskList() {
     (cl) => !linkedChecklists.some((lcl) => lcl.checklist_templates_id === cl.id),
   );
 
-  // Golden rules not already linked
-  const availableGoldenRules = allGoldenRules.filter(
-    (gr) => !linkedGoldenRules.some((lgr) => lgr.golden_rules_id === gr.id),
-  );
 
   // ------------------------------------------------------------------
   // Create
@@ -965,161 +961,129 @@ export default function TaskList() {
             </div>
           )}
 
-          {/* Link existing golden rule (edit mode) */}
-          {isEditMode && (
-            <>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <SearchableSelect
-                    options={availableGoldenRules.map((gr) => ({ value: gr.id, label: gr.title }))}
-                    value={selectedGoldenRuleId}
-                    onChange={(value) => setSelectedGoldenRuleId(value ? Number(value) : undefined)}
-                    placeholder={t('tasks.addGoldenRule')}
-                    searchPlaceholder={t('common.search')}
-                  />
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleAddGoldenRule}
-                  disabled={!selectedGoldenRuleId || goldenRulesLoading}
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  <Plus size={16} /> {t('common.add')}
-                </button>
-              </div>
+          {/* Select existing golden rule (both modes) */}
+          {(() => {
+            // In create mode, use form state; in edit mode, use linked rules from API
+            const currentIds = isEditMode
+              ? linkedGoldenRules.map((lgr) => lgr.golden_rules_id)
+              : form.selectedGoldenRuleIds;
+            const filteredRules = allGoldenRules.filter((gr) => !currentIds.includes(gr.id));
 
-              {/* Linked golden rules list */}
-              {goldenRulesLoading ? (
-                <div style={{ textAlign: 'center', padding: '12px', color: 'var(--color-secondary-text)' }}>
-                  <span className="spinner" />
-                </div>
-              ) : linkedGoldenRules.length === 0 ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '16px',
-                  color: 'var(--color-secondary-text)',
-                  fontSize: '13px',
-                  background: 'var(--color-bg)',
-                  borderRadius: '8px',
-                  border: '1px dashed var(--color-alternate)',
-                }}>
-                  {t('tasks.noGoldenRulesLinked')}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {linkedGoldenRules.map((lgr) => {
-                    const rule = allGoldenRules.find((gr) => gr.id === lgr.golden_rules_id);
-                    const sev = rule?.severity || 'media';
-                    const sevColors: Record<string, { bg: string; text: string }> = {
-                      baixa: { bg: '#E8F5E9', text: '#2E7D32' },
-                      media: { bg: '#FFF3E0', text: '#E65100' },
-                      alta: { bg: '#FFEBEE', text: '#C62828' },
-                      critica: { bg: '#F3E5F5', text: '#6A1B9A' },
-                    };
-                    const colors = sevColors[sev] || sevColors.media;
-                    return (
-                      <div
-                        key={lgr.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 10px',
-                          background: colors.bg,
-                          borderRadius: '6px',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          color: colors.text,
-                        }}
-                      >
-                        <Shield size={14} />
-                        <span>{lgr.golden_rule_title || rule?.title || `#${lgr.golden_rules_id}`}</span>
-                        <button
-                          onClick={() => handleRemoveGoldenRule(lgr.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: '2px',
-                            display: 'flex',
-                            borderRadius: '4px',
-                          }}
-                          title={t('tasks.removeGoldenRule')}
-                        >
-                          <X size={14} color={colors.text} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+            const handleSelect = () => {
+              if (!selectedGoldenRuleId) return;
+              if (isEditMode) {
+                handleAddGoldenRule();
+              } else {
+                onChange({ selectedGoldenRuleIds: [...form.selectedGoldenRuleIds, selectedGoldenRuleId] });
+                setSelectedGoldenRuleId(undefined);
+              }
+            };
 
-          {/* Create mode: show pending golden rules */}
-          {!isEditMode && form.selectedGoldenRuleIds.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-              {form.selectedGoldenRuleIds.map((grId) => {
-                const rule = allGoldenRules.find((gr) => gr.id === grId);
-                const sev = rule?.severity || 'media';
-                const sevColors: Record<string, { bg: string; text: string }> = {
-                  baixa: { bg: '#E8F5E9', text: '#2E7D32' },
-                  media: { bg: '#FFF3E0', text: '#E65100' },
-                  alta: { bg: '#FFEBEE', text: '#C62828' },
-                  critica: { bg: '#F3E5F5', text: '#6A1B9A' },
-                };
-                const colors = sevColors[sev] || sevColors.media;
-                return (
-                  <div
-                    key={grId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      background: colors.bg,
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: colors.text,
-                    }}
-                  >
-                    <Shield size={14} />
-                    <span>{rule?.title || `#${grId}`}</span>
-                    <button
-                      onClick={() => onChange({ selectedGoldenRuleIds: form.selectedGoldenRuleIds.filter((id) => id !== grId) })}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        display: 'flex',
-                        borderRadius: '4px',
-                      }}
-                    >
-                      <X size={14} color={colors.text} />
-                    </button>
+            const sevColors: Record<string, { bg: string; text: string }> = {
+              baixa: { bg: '#E8F5E9', text: '#2E7D32' },
+              media: { bg: '#FFF3E0', text: '#E65100' },
+              alta: { bg: '#FFEBEE', text: '#C62828' },
+              critica: { bg: '#F3E5F5', text: '#6A1B9A' },
+            };
+
+            const rulesToShow = isEditMode
+              ? linkedGoldenRules.map((lgr) => {
+                  const rule = allGoldenRules.find((gr) => gr.id === lgr.golden_rules_id);
+                  return { id: lgr.id, ruleId: lgr.golden_rules_id, title: lgr.golden_rule_title || rule?.title || `#${lgr.golden_rules_id}`, severity: rule?.severity || 'media', isLinked: true };
+                })
+              : form.selectedGoldenRuleIds.map((grId) => {
+                  const rule = allGoldenRules.find((gr) => gr.id === grId);
+                  return { id: grId, ruleId: grId, title: rule?.title || `#${grId}`, severity: rule?.severity || 'media', isLinked: false };
+                });
+
+            return (
+              <>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <SearchableSelect
+                      options={filteredRules.map((gr) => ({ value: gr.id, label: gr.title }))}
+                      value={selectedGoldenRuleId}
+                      onChange={(value) => setSelectedGoldenRuleId(value ? Number(value) : undefined)}
+                      placeholder={t('tasks.addGoldenRule')}
+                      searchPlaceholder={t('common.search')}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          )}
-          {!isEditMode && form.selectedGoldenRuleIds.length === 0 && !showNewRuleForm && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 16px',
-              background: 'var(--color-bg)',
-              borderRadius: '8px',
-              border: '1px dashed var(--color-alternate)',
-              color: 'var(--color-secondary-text)',
-              fontSize: '13px',
-            }}>
-              <Info size={16} />
-              {t('tasks.noGoldenRulesLinked')}
-            </div>
-          )}
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSelect}
+                    disabled={!selectedGoldenRuleId || (isEditMode && goldenRulesLoading)}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    <Plus size={16} /> {t('common.add')}
+                  </button>
+                </div>
+
+                {/* Selected / linked golden rules list */}
+                {isEditMode && goldenRulesLoading ? (
+                  <div style={{ textAlign: 'center', padding: '12px', color: 'var(--color-secondary-text)' }}>
+                    <span className="spinner" />
+                  </div>
+                ) : rulesToShow.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '16px',
+                    color: 'var(--color-secondary-text)',
+                    fontSize: '13px',
+                    background: 'var(--color-bg)',
+                    borderRadius: '8px',
+                    border: '1px dashed var(--color-alternate)',
+                  }}>
+                    {t('tasks.noGoldenRulesLinked')}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {rulesToShow.map((item) => {
+                      const colors = sevColors[item.severity] || sevColors.media;
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 10px',
+                            background: colors.bg,
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            color: colors.text,
+                          }}
+                        >
+                          <Shield size={14} />
+                          <span>{item.title}</span>
+                          <button
+                            onClick={() => {
+                              if (item.isLinked) {
+                                handleRemoveGoldenRule(item.id);
+                              } else {
+                                onChange({ selectedGoldenRuleIds: form.selectedGoldenRuleIds.filter((id) => id !== item.ruleId) });
+                              }
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '2px',
+                              display: 'flex',
+                              borderRadius: '4px',
+                            }}
+                            title={t('tasks.removeGoldenRule')}
+                          >
+                            <X size={14} color={colors.text} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </motion.div>
     </motion.div>

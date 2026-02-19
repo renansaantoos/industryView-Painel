@@ -224,6 +224,26 @@ export class TeamsController {
   }
 
   /**
+   * POST /teams/members/bulk
+   * Adiciona multiplos membros a equipe em uma unica chamada
+   */
+  static async bulkCreateMembers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const user = (req as any).user || {};
+      const performedBy = {
+        id: user.id ? Number(user.id) : undefined,
+        name: user.name || undefined,
+        email: user.email || undefined,
+      };
+      const result = await TeamsService.bulkCreateMembers(req.body, performedBy);
+      logger.info({ teamsId: req.body.teams_id, added: result.added, skipped: result.skipped }, 'Bulk team members added');
+      res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * DELETE /teams/members/:teams_members_id
    * Remove membro da equipe
    * Equivalente a: query teams_members/{teams_members_id} verb=DELETE do Xano (endpoint 555)
@@ -341,6 +361,26 @@ export class TeamsController {
 
       logger.info({ leaderId: result.id }, 'Team leader added');
 
+      res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /teams/leaders/bulk
+   * Adiciona multiplos lideres a equipe em uma unica chamada
+   */
+  static async bulkCreateLeaders(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const user = (req as any).user || {};
+      const performedBy = {
+        id: user.id ? Number(user.id) : undefined,
+        name: user.name || undefined,
+        email: user.email || undefined,
+      };
+      const result = await TeamsService.bulkCreateLeaders(req.body, performedBy);
+      logger.info({ teamsId: req.body.teams_id, added: result.added, skipped: result.skipped }, 'Bulk team leaders added');
       res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);

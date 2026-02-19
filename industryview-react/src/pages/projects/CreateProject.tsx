@@ -214,7 +214,19 @@ export default function CreateProject() {
               </div>
               <div className="input-group">
                 <label>{t('projects.cnae')}</label>
-                <input className="input-field" {...register('cnae')} />
+                <input
+                  className="input-field"
+                  {...register('cnae')}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 7);
+                    let masked = digits;
+                    if (digits.length > 4) masked = digits.slice(0, 4) + '-' + digits.slice(4);
+                    if (digits.length > 5) masked = digits.slice(0, 4) + '-' + digits.slice(4, 5) + '/' + digits.slice(5);
+                    setValue('cnae', masked);
+                  }}
+                  placeholder="0000-0/00"
+                  maxLength={9}
+                />
               </div>
               <div className="input-group">
                 <label>{t('projects.originRegistration')}</label>

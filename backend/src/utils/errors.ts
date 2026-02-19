@@ -214,8 +214,7 @@ export function handlePrismaError(error: unknown): AppError {
   switch (code) {
     case 'P2002': // Unique constraint violation
       return new ConflictError(
-        `Registro duplicado: ${meta?.target?.join(', ') || 'campo unico'}`,
-        meta
+        'Ja existe um registro com esses dados. Verifique e tente novamente.'
       );
     case 'P2025': // Record not found
       return new NotFoundError('Registro nao encontrado', meta);

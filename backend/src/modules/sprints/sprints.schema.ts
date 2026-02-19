@@ -31,7 +31,7 @@ export const createSprintSchema = z.object({
   end_date: z.string().datetime({ local: true, offset: true }),
   progress_percentage: z.number().min(0).max(100).optional().default(0),
   projects_id: z.number().int(),
-  sprints_statuses_id: z.number().int().optional().default(4), // 4 = Futura
+  sprints_statuses_id: z.number().int().optional().default(1), // 1 = Futura
 });
 
 export type CreateSprintInput = z.infer<typeof createSprintSchema>;

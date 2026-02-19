@@ -61,12 +61,12 @@ export async function getSprintStatus(statusId: number): Promise<SprintStatus> {
   return response.data;
 }
 
-export async function addSprintStatus(data: { name: string }): Promise<SprintStatus> {
+export async function addSprintStatus(data: { status: string }): Promise<SprintStatus> {
   const response = await apiClient.post(`${SPRINTS_BASE}/statuses`, data);
   return response.data;
 }
 
-export async function editSprintStatus(statusId: number, data: { name: string }): Promise<SprintStatus> {
+export async function editSprintStatus(statusId: number, data: { status: string }): Promise<SprintStatus> {
   const response = await apiClient.patch(`${SPRINTS_BASE}/statuses/${statusId}`, data);
   return response.data;
 }

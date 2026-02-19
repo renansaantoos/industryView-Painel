@@ -29,6 +29,8 @@ import {
   checkTeamConflictsParamsSchema,
   listTeamProjectsQuerySchema,
   teamMembersHistoryQuerySchema,
+  bulkAddTeamMembersSchema,
+  bulkAddTeamLeadersSchema,
 } from './teams.schema';
 
 const router = Router();
@@ -155,6 +157,22 @@ router.post(
 
 /**
  * @swagger
+ * /api/teams/members/bulk:
+ *   post:
+ *     summary: Adiciona multiplos membros a equipe em uma unica chamada
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post(
+  '/members/bulk',
+  authenticate,
+  validateBody(bulkAddTeamMembersSchema),
+  TeamsController.bulkCreateMembers
+);
+
+/**
+ * @swagger
  * /api/teams/members/history:
  *   get:
  *     summary: Lista historico de membros/lideres da equipe
@@ -251,6 +269,22 @@ router.post(
   authenticate,
   validateBody(createTeamLeaderSchema),
   TeamsController.createLeader
+);
+
+/**
+ * @swagger
+ * /api/teams/leaders/bulk:
+ *   post:
+ *     summary: Adiciona multiplos lideres a equipe em uma unica chamada
+ *     tags: [Teams]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post(
+  '/leaders/bulk',
+  authenticate,
+  validateBody(bulkAddTeamLeadersSchema),
+  TeamsController.bulkCreateLeaders
 );
 
 /**

@@ -80,7 +80,7 @@ const DEPARTAMENTOS = [
   'Planejamento', 'Qualidade', 'Manutenção', 'Logística', 'RH',
 ];
 
-const GENEROS = ['Masculino', 'Feminino'];
+const _GENEROS = ['Masculino', 'Feminino'];
 const ESTADOS_CIVIS = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
 const ESCOLARIDADES = ['Ensino Fundamental', 'Ensino Médio', 'Técnico', 'Superior Incompleto', 'Superior Completo', 'Pós-graduação'];
 const TIPOS_CONTRATO = ['CLT', 'PJ', 'Temporário', 'Estágio', 'Terceirizado'];
@@ -766,7 +766,7 @@ async function main() {
   // -----------------------------------------------------------------------
   console.log('13. Criando exames de saúde (ASO)...');
   let healthCount = 0;
-  const examTypes: health_exam_type[] = ['admissional', 'periodico', 'retorno_trabalho', 'mudanca_funcao', 'demissional'];
+  const _examTypes: health_exam_type[] = ['admissional', 'periodico', 'retorno_trabalho', 'mudanca_funcao', 'demissional'];
 
   for (const userId of createdUserIds) {
     // ASO admissional

@@ -64,6 +64,9 @@ export class ProjectsService {
       },
       orderBy: (() => {
         const ALLOWED_SORT_FIELDS = ['name', 'registration_number', 'responsible', 'projects_statuses_id', 'completion_percentage', 'created_at'];
+        if (sort_field === 'status_name') {
+          return { projects_statuses: { status: sort_direction || 'asc' } };
+        }
         if (sort_field && ALLOWED_SORT_FIELDS.includes(sort_field)) {
           return { [sort_field]: sort_direction || 'asc' };
         }
@@ -811,6 +814,17 @@ export class ProjectsService {
         quantity_done: true,
         sprint_added: true,
         is_inspection: true,
+        planned_start_date: true,
+        planned_end_date: true,
+        actual_start_date: true,
+        actual_end_date: true,
+        planned_duration_days: true,
+        planned_cost: true,
+        actual_cost: true,
+        percent_complete: true,
+        wbs_code: true,
+        sort_order: true,
+        level: true,
         created_at: true,
         updated_at: true,
         deleted_at: true,
@@ -1023,13 +1037,36 @@ export class ProjectsService {
       updateData.description = input.name;
       updateData.description_normalized = normalizeText(input.name);
     }
-    if (input.description !== undefined) updateData.description = input.description;
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+      updateData.description_normalized = normalizeText(input.description);
+    }
     if (input.trackers_id !== undefined) updateData.trackers_id = input.trackers_id;
     if (input.tasks_types_id !== undefined) updateData.tasks_template_id = input.tasks_types_id;
     if (input.projects_backlogs_statuses_id !== undefined) updateData.projects_backlogs_statuses_id = input.projects_backlogs_statuses_id;
     if (input.discipline_id !== undefined) updateData.discipline_id = input.discipline_id;
     if (input.quantity !== undefined) updateData.quantity = input.quantity;
     if (input.unity_id !== undefined) updateData.unity_id = input.unity_id;
+
+    // checked: converte boolean para projects_backlogs_statuses_id
+    // true → 3 (Concluído), false → 1 (Pendente)
+    if (input.checked !== undefined) {
+      updateData.projects_backlogs_statuses_id = input.checked ? 3 : 1;
+    }
+
+    // Planning fields
+    if (input.weight !== undefined) updateData.weight = input.weight;
+    if (input.planned_start_date !== undefined) updateData.planned_start_date = input.planned_start_date ? new Date(input.planned_start_date) : null;
+    if (input.planned_end_date !== undefined) updateData.planned_end_date = input.planned_end_date ? new Date(input.planned_end_date) : null;
+    if (input.actual_start_date !== undefined) updateData.actual_start_date = input.actual_start_date ? new Date(input.actual_start_date) : null;
+    if (input.actual_end_date !== undefined) updateData.actual_end_date = input.actual_end_date ? new Date(input.actual_end_date) : null;
+    if (input.planned_duration_days !== undefined) updateData.planned_duration_days = input.planned_duration_days;
+    if (input.planned_cost !== undefined) updateData.planned_cost = input.planned_cost;
+    if (input.actual_cost !== undefined) updateData.actual_cost = input.actual_cost;
+    if (input.percent_complete !== undefined) updateData.percent_complete = input.percent_complete;
+    if (input.wbs_code !== undefined) updateData.wbs_code = input.wbs_code;
+    if (input.sort_order !== undefined) updateData.sort_order = input.sort_order;
+    if (input.level !== undefined) updateData.level = input.level;
 
     return db.projects_backlogs.update({
       where: { id: backlogId },

@@ -492,7 +492,7 @@ export class ProjectsController {
 
   /**
    * GET /projects/backlogs
-   * Lista todos os backlogs
+   * Lista backlogs do projeto com paginacao e filtros
    * Equivalente a: query projects_backlogs verb=GET do Xano (endpoint 573)
    */
   static async listAllBacklogs(
@@ -502,8 +502,101 @@ export class ProjectsController {
   ): Promise<void> {
     try {
       const projectId = req.query.projects_id ? parseInt(req.query.projects_id as string, 10) : undefined;
-      const result = await ProjectsService.listAllBacklogs(projectId);
-      res.status(200).json(serializeBigInt(result));
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+      const perPage = req.query.per_page ? parseInt(req.query.per_page as string, 10) : 20;
+      const search = req.query.search as string | undefined;
+      const filterBacklog = req.query.filter_backlog ? parseInt(req.query.filter_backlog as string, 10) : undefined;
+      const sortField = req.query.sort_field as string | undefined;
+      const sortDirection = (req.query.sort_direction as string | undefined) || 'asc';
+
+      if (!projectId) {
+        const all = await ProjectsService.listAllBacklogs(projectId);
+        res.status(200).json(serializeBigInt(all));
+        return;
+      }
+
+      // Status IDs: 1=Pendente, 2=Em andamento, 3=Concluído, 4=Cancelado, 5=Impedido, 6=Sucesso, 7=Sem sucesso
+      // checked=true quando status = 3 (Concluído) ou 6 (Sucesso)
+      const CHECKED_STATUS_IDS = [3, 6];
+
+      // Converte filter_backlog para filtro de status no banco
+      let statusFilter: number[] | undefined;
+      if (filterBacklog === 2) {
+        // Pendentes: todos os status que NÃO são concluído/sucesso
+        statusFilter = [1, 2, 4, 5, 7];
+      } else if (filterBacklog === 3) {
+        // Concluídos: status concluído ou sucesso
+        statusFilter = CHECKED_STATUS_IDS;
+      }
+
+      const result = await ProjectsService.listBacklogs(projectId, {
+        page,
+        per_page: perPage,
+        search: search || undefined,
+        sprint_added: undefined,
+        projects_backlogs_statuses_id: statusFilter,
+        tasks_types_id: undefined,
+        discipline_id: undefined,
+        sort_field: sortField,
+        sort_direction: sortDirection as 'asc' | 'desc',
+      });
+
+      // Helper: converte Date do Prisma para string "YYYY-MM-DD" para inputs date do frontend
+      const toDateStr = (d: any): string | null => {
+        if (!d) return null;
+        if (d instanceof Date) return d.toISOString().split('T')[0];
+        if (typeof d === 'string') return d.split('T')[0];
+        return null;
+      };
+      // Helper: converte Decimal do Prisma para number (seguro para 0)
+      const toNum = (v: any): number | null => {
+        if (v === null || v === undefined) return null;
+        const n = Number(v);
+        return isNaN(n) ? null : n;
+      };
+
+      // Mapeia campos snake_case para camelCase que o frontend espera (ProjectBacklog)
+      const mappedItems = (result.items as any[]).map((b: any) => {
+        const statusId = Number(b.projects_backlogs_statuses_id) || 1;
+        return {
+          id: b.id,
+          name: b.description || '',
+          description: b.description || '',
+          projectsId: b.projects_id,
+          taskName: b.tasks_template?.description || b.description || '',
+          checked: CHECKED_STATUS_IDS.includes(statusId),
+          status: b.projects_backlogs_statuses?.status || 'Pendente',
+          quantity: toNum(b.quantity),
+          quantityDone: toNum(b.quantity_done),
+          unityName: b.unity?.unity || b.unity?.name || b.tasks_template?.unity?.unity || b.tasks_template?.unity?.name || '',
+          disciplineName: b.discipline?.discipline || b.discipline?.name || b.tasks_template?.discipline?.discipline || b.tasks_template?.discipline?.name || '',
+          tasksId: b.tasks_template_id,
+          unityId: b.unity_id,
+          disciplineId: b.discipline_id,
+          weight: toNum(b.weight),
+          sprintAdded: b.sprint_added,
+          plannedStartDate: toDateStr(b.planned_start_date),
+          plannedEndDate: toDateStr(b.planned_end_date),
+          actualStartDate: toDateStr(b.actual_start_date),
+          actualEndDate: toDateStr(b.actual_end_date),
+          plannedDurationDays: b.planned_duration_days,
+          plannedCost: toNum(b.planned_cost),
+          actualCost: toNum(b.actual_cost),
+          percentComplete: toNum(b.percent_complete),
+          wbsCode: b.wbs_code || null,
+          sortOrder: b.sort_order,
+          level: b.level,
+        };
+      });
+
+      res.status(200).json(serializeBigInt({
+        items: mappedItems,
+        curPage: result.curPage,
+        perPage: result.perPage,
+        itemsReceived: mappedItems.length,
+        itemsTotal: result.itemsTotal,
+        pageTotal: result.pageTotal,
+      }));
     } catch (error) {
       next(error);
     }

@@ -60,40 +60,42 @@ export class SprintsService {
       },
     } : {};
 
-    // Status 1 = Ativa
+    // Status IDs conforme seed: 1=Futura, 2=Ativa, 3=Concluída, 4=Cancelada
+
+    // Status 2 = Ativa
     const sprintsAtiva = await db.sprints.findMany({
-      where: { ...baseWhere, sprints_statuses_id: 1, ...dateFilter },
+      where: { ...baseWhere, sprints_statuses_id: 2, ...dateFilter },
       orderBy: { start_date: 'asc' },
       skip: (page - 1) * perPage,
       take: perPage,
     });
 
     const totalAtiva = await db.sprints.count({
-      where: { ...baseWhere, sprints_statuses_id: 1, ...dateFilter },
+      where: { ...baseWhere, sprints_statuses_id: 2, ...dateFilter },
     });
 
-    // Status 4 = Futura
+    // Status 1 = Futura
     const sprintsFutura = await db.sprints.findMany({
-      where: { ...baseWhere, sprints_statuses_id: 4, ...dateFilter },
+      where: { ...baseWhere, sprints_statuses_id: 1, ...dateFilter },
       orderBy: { start_date: 'asc' },
       skip: (page - 1) * perPage,
       take: perPage,
     });
 
     const totalFutura = await db.sprints.count({
-      where: { ...baseWhere, sprints_statuses_id: 4, ...dateFilter },
+      where: { ...baseWhere, sprints_statuses_id: 1, ...dateFilter },
     });
 
-    // Status 2 = Concluida
+    // Status 3 = Concluída
     const sprintsConcluida = await db.sprints.findMany({
-      where: { ...baseWhere, sprints_statuses_id: 2, ...dateFilter },
+      where: { ...baseWhere, sprints_statuses_id: 3, ...dateFilter },
       orderBy: { end_date: 'desc' },
       skip: (page - 1) * perPage,
       take: perPage,
     });
 
     const totalConcluida = await db.sprints.count({
-      where: { ...baseWhere, sprints_statuses_id: 2, ...dateFilter },
+      where: { ...baseWhere, sprints_statuses_id: 3, ...dateFilter },
     });
 
     return {
@@ -162,7 +164,7 @@ export class SprintsService {
         end_date: new Date(input.end_date),
         progress_percentage: input.progress_percentage || 0,
         projects_id: input.projects_id,
-        sprints_statuses_id: input.sprints_statuses_id || 4,
+        sprints_statuses_id: input.sprints_statuses_id || 1, // 1 = Futura
         created_at: new Date(),
         updated_at: new Date(),
         deleted_at: null,

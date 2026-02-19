@@ -91,10 +91,33 @@ async function insertDependency(data: any): Promise<void> {
 async function main() {
   console.log('=== Seeding Cronograma para Projeto 14 ===\n');
 
-  // Desabilitar trigger problemático (referencia NEW.name que não existe em projects_backlogs)
+  // Desabilitar triggers se existirem (podem não existir em banco novo)
   console.log('0. Desabilitando triggers temporariamente...');
-  await db.$executeRaw`ALTER TABLE projects_backlogs DISABLE TRIGGER trg_projects_backlogs_normalize`;
-  await db.$executeRaw`ALTER TABLE subtasks DISABLE TRIGGER ALL`;
+  try { await db.$executeRaw`ALTER TABLE projects_backlogs DISABLE TRIGGER trg_projects_backlogs_normalize`; } catch { console.log('   trigger trg_projects_backlogs_normalize não existe, pulando...'); }
+  try { await db.$executeRaw`ALTER TABLE subtasks DISABLE TRIGGER ALL`; } catch { console.log('   triggers de subtasks não existem, pulando...'); }
+
+  // =========================================================================
+  // 0.5. DISCIPLINAS E UNIDADES necessárias para os backlogs
+  // =========================================================================
+  console.log('\n0.5. Criando disciplinas e unidades...');
+  const disciplines = [
+    { id: 2, discipline: 'Elétrica' },
+    { id: 5, discipline: 'Civil' },
+    { id: 6, discipline: 'Mecânica' },
+    { id: 7, discipline: 'Hidráulica' },
+  ];
+  for (const d of disciplines) {
+    await db.$executeRaw`INSERT INTO discipline (id, discipline, company_id) VALUES (${d.id}, ${d.discipline}, 1) ON CONFLICT (id) DO NOTHING`;
+  }
+  const unities = [
+    { id: 7, unity: 'm (metro)' },
+    { id: 9, unity: 'm² (metro quadrado)' },
+    { id: 10, unity: 'un (unidade)' },
+  ];
+  for (const u of unities) {
+    await db.$executeRaw`INSERT INTO unity (id, unity, company_id) VALUES (${u.id}, ${u.unity}, 1) ON CONFLICT (id) DO NOTHING`;
+  }
+  console.log('   Disciplinas e unidades criadas');
 
   // =========================================================================
   // 1. BACKLOGS (WBS Hierárquico)
@@ -537,10 +560,10 @@ async function main() {
   console.log('║   GERAL PONDERADO            →  44%                    ║');
   console.log('╚══════════════════════════════════════════════════════════╝');
 
-  // Reabilitar triggers
+  // Reabilitar triggers se existirem
   console.log('\nReabilitando triggers...');
-  await db.$executeRaw`ALTER TABLE projects_backlogs ENABLE TRIGGER trg_projects_backlogs_normalize`;
-  await db.$executeRaw`ALTER TABLE subtasks ENABLE TRIGGER ALL`;
+  try { await db.$executeRaw`ALTER TABLE projects_backlogs ENABLE TRIGGER trg_projects_backlogs_normalize`; } catch { /* trigger não existe */ }
+  try { await db.$executeRaw`ALTER TABLE subtasks ENABLE TRIGGER ALL`; } catch { /* triggers não existem */ }
 }
 
 main()

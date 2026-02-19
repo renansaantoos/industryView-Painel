@@ -865,6 +865,23 @@ export class UsersService {
     memberRows.forEach((r) => { if (r.users_id) usersInTeams.add(String(r.users_id)); });
     leaderRows.forEach((r) => { if (r.users_id) usersInTeams.add(String(r.users_id)); });
 
+    // Se um time especifico foi fornecido, busca membros e lideres atuais desse time
+    let currentTeamUserIds = new Set<string>();
+    if (input.teams_id) {
+      const [currentMembers, currentLeaders] = await Promise.all([
+        db.teams_members.findMany({
+          where: { teams_id: input.teams_id, deleted_at: null },
+          select: { users_id: true },
+        }),
+        db.teams_leaders.findMany({
+          where: { teams_id: input.teams_id, deleted_at: null },
+          select: { users_id: true },
+        }),
+      ]);
+      currentMembers.forEach((r) => { if (r.users_id) currentTeamUserIds.add(String(r.users_id)); });
+      currentLeaders.forEach((r) => { if (r.users_id) currentTeamUserIds.add(String(r.users_id)); });
+    }
+
     // Filtros para "sem time" e "com time"
     const withoutTeamFilter = usersInTeams.size > 0
       ? { id: { notIn: [...usersInTeams].map((id) => BigInt(id)) } }
@@ -880,7 +897,7 @@ export class UsersService {
     });
 
     const skip = (page - 1) * per_page;
-    let items: { id: number; name: string; email: string; hasTeam: boolean }[] = [];
+    let items: { id: number; name: string; email: string; hasTeam: boolean; isMemberOfCurrentTeam: boolean }[] = [];
 
     if (skip < countWithoutTeam) {
       // A pagina atual comeca no segmento "sem time"
@@ -896,6 +913,7 @@ export class UsersService {
         name: u.name || '',
         email: u.email || '',
         hasTeam: false,
+        isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
       }));
 
       // Se precisar de mais itens para completar a pagina, busca do segmento "com time"
@@ -915,6 +933,7 @@ export class UsersService {
             name: u.name || '',
             email: u.email || '',
             hasTeam: true,
+            isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
           })),
         ];
       }
@@ -933,6 +952,7 @@ export class UsersService {
         name: u.name || '',
         email: u.email || '',
         hasTeam: true,
+        isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
       }));
     }
 

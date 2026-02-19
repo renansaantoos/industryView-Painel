@@ -73,7 +73,8 @@ export async function searchUsersForTeam(params: {
   search?: string;
   page?: number;
   per_page?: number;
-}): Promise<PaginatedResponse<UserListItem & { hasTeam?: boolean }>> {
+  teams_id?: number;
+}): Promise<PaginatedResponse<UserListItem & { hasTeam?: boolean; isMemberOfCurrentTeam?: boolean }>> {
   const response = await apiClient.get(`${USERS_BASE}/search-for-team`, { params });
   return response.data;
 }

@@ -120,7 +120,7 @@ export default function ProjectList() {
               <tr>
                 <SortableHeader label={t('projects.projectName')} field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('projects.responsible')} field="responsible" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('projects.status')} field="projectsStatusesId" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('projects.status')} field="status_name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>Tarefas</th>
                 <SortableHeader label="Progresso" field="completionPercentage" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>

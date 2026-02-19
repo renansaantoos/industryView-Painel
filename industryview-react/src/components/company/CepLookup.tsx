@@ -14,6 +14,7 @@ interface CepLookupProps {
   onChange: (value: string) => void;
   onAddressFound: (address: CepAddress) => void;
   disabled?: boolean;
+  error?: string;
 }
 
 const VIACEP_URL = 'https://viacep.com.br/ws';
@@ -24,7 +25,7 @@ function applyCepMask(raw: string): string {
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
-export function CepLookup({ value, onChange, onAddressFound, disabled }: CepLookupProps) {
+export function CepLookup({ value, onChange, onAddressFound, disabled, error: externalError }: CepLookupProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -78,7 +79,7 @@ export function CepLookup({ value, onChange, onAddressFound, disabled }: CepLook
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         <input
           type="text"
-          className={`input-field ${error ? 'error' : ''}`}
+          className={`input-field ${error || externalError ? 'error' : ''}`}
           value={value}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -107,6 +108,7 @@ export function CepLookup({ value, onChange, onAddressFound, disabled }: CepLook
         </button>
       </div>
       {error && <span className="input-error">{error}</span>}
+      {!error && externalError && <span className="input-error">{externalError}</span>}
     </div>
   );
 }

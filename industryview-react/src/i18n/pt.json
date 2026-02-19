@@ -138,7 +138,8 @@
     "code": "Código de verificação",
     "selectCompany": "Cadastrar Empresa",
     "createCompany": "Criar Empresa",
-    "companyName": "Nome da Empresa"
+    "companyName": "Nome da Empresa",
+    "loginFailed": "E-mail ou senha incorretos. Verifique seus dados e tente novamente."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -275,7 +276,7 @@
     "memberRole": "Cargo",
     "userEmail": "Email do usuário",
     "searchTeams": "Buscar equipe...",
-    "globalSearch": "Buscar equipe, líder ou membro...",
+    "globalSearch": "Buscar equipe ou projeto vinculado...",
     "inProject": "Projeto",
     "noProject": "Sem projeto",
     "results": "resultados",

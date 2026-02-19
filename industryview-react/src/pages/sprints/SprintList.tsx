@@ -64,7 +64,9 @@ export default function SprintList() {
   }, [loadSprints]);
 
   useEffect(() => {
-    sprintsApi.queryAllSprintStatuses().then(setSprintStatuses).catch(console.error);
+    sprintsApi.queryAllSprintStatuses().then((data) => {
+      setSprintStatuses(Array.isArray(data) ? data : (data as any).items ?? []);
+    }).catch(console.error);
   }, []);
 
   const handleCreateSprint = async () => {
@@ -318,9 +320,11 @@ export default function SprintList() {
                   onChange={(e) => setNewSprintStatusId(e.target.value ? Number(e.target.value) : undefined)}
                 >
                   <option value="">{t('sprints.selectStatus')}</option>
-                  {sprintStatuses.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                  {sprintStatuses
+                    .filter((s) => s.status === 'Futura' || s.status === 'Ativa')
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>{s.status}</option>
+                    ))}
                 </select>
               </div>
             </div>

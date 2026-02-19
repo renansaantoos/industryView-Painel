@@ -151,7 +151,22 @@ async function main() {
         where: { id: 4 }, update: {}, create: { id: 4, status: 'Sem Sucesso' },
     })
 
-    // 11. Non Execution Reasons (motivos de nao-execucao)
+    // 11. Empresa padrão (necessária para non_execution_reasons)
+    await prisma.company.upsert({
+        where: { id: 1 },
+        update: {},
+        create: {
+            id: 1,
+            brand_name: 'Doublex Engenharia',
+            legal_name: 'Doublex Engenharia e Construções Ltda',
+            cnpj: '12.345.678/0001-90',
+            status_payment_id: 1,
+            company_type: 'matriz',
+        },
+    })
+    console.log('Empresa padrão criada (ID 1)')
+
+    // 12. Non Execution Reasons (motivos de nao-execucao)
     // Uses company_id = 1 as default seed company
     const defaultNonExecReasons = [
         { name: 'Chuva', category: 'clima' },

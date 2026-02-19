@@ -232,7 +232,23 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
                     {inputField('Inscricao Estadual', 'inscricao_estadual')}
                     {inputField('Inscricao Municipal', 'inscricao_municipal')}
                   </div>
-                  {inputField('CNAE', 'cnae', { placeholder: '0000-0/00' })}
+                  <div className="input-group">
+                    <label>CNAE</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={form.cnae}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 7);
+                        let masked = digits;
+                        if (digits.length > 4) masked = digits.slice(0, 4) + '-' + digits.slice(4);
+                        if (digits.length > 5) masked = digits.slice(0, 4) + '-' + digits.slice(4, 5) + '/' + digits.slice(5);
+                        setField('cnae', masked);
+                      }}
+                      placeholder="0000-0/00"
+                      maxLength={9}
+                    />
+                  </div>
                   <div className="input-group">
                     <label>Regime Tributario</label>
                     <SearchableSelect
@@ -248,9 +264,46 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
 
               {activeTab === 'contato' && (
                 <>
-                  {inputField('Telefone', 'phone', { placeholder: '(00) 00000-0000' })}
-                  {inputField('E-mail', 'email', { type: 'email', placeholder: 'email@empresa.com.br' })}
-                  {inputField('Website', 'website', { placeholder: 'https://www.empresa.com.br' })}
+                  <div className="input-group">
+                    <label>Telefone</label>
+                    <input
+                      type="tel"
+                      className="input-field"
+                      value={form.phone}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        let masked = '';
+                        if (digits.length === 0) masked = '';
+                        else if (digits.length <= 2) masked = `(${digits}`;
+                        else if (digits.length <= 7) masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                        else if (digits.length <= 10) masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+                        else masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+                        setField('phone', masked);
+                      }}
+                      placeholder="(00) 00000-0000"
+                      maxLength={15}
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>E-mail</label>
+                    <input
+                      type="email"
+                      className="input-field"
+                      value={form.email}
+                      onChange={e => setField('email', e.target.value)}
+                      placeholder="email@empresa.com.br"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Website</label>
+                    <input
+                      type="url"
+                      className="input-field"
+                      value={form.website}
+                      onChange={e => setField('website', e.target.value)}
+                      placeholder="https://www.empresa.com.br"
+                    />
+                  </div>
                 </>
               )}
 
@@ -278,7 +331,24 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
               {activeTab === 'responsavel' && (
                 <>
                   {inputField('Nome do Responsavel Legal', 'responsavel_legal', { placeholder: 'Nome completo' })}
-                  {inputField('CPF do Responsavel', 'responsavel_cpf', { placeholder: '000.000.000-00' })}
+                  <div className="input-group">
+                    <label>CPF do Responsavel</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={form.responsavel_cpf}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                        let masked = digits;
+                        if (digits.length > 3) masked = digits.slice(0, 3) + '.' + digits.slice(3);
+                        if (digits.length > 6) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6);
+                        if (digits.length > 9) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-' + digits.slice(9);
+                        setField('responsavel_cpf', masked);
+                      }}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                    />
+                  </div>
                 </>
               )}
             </div>

@@ -19,6 +19,8 @@ import {
   ListTeamProjectsQuery,
   TeamProjectHistoryQuery,
   TeamMembersHistoryQuery,
+  BulkAddTeamMembersInput,
+  BulkAddTeamLeadersInput,
 } from './teams.schema';
 
 /**
@@ -153,8 +155,12 @@ export class TeamsService {
     }
 
     // Isolamento multi-tenant: filtra via projects.company_id quando nao ha projectId especifico
+    // Inclui equipes vinculadas ao projeto da empresa OU vinculadas via teams_projects
     if (companyId && !projectId) {
-      whereConditions.projects = { company_id: BigInt(companyId) };
+      whereConditions.OR = [
+        { projects: { company_id: BigInt(companyId) } },
+        { teams_projects: { some: { projects: { company_id: BigInt(companyId) }, deleted_at: null } } },
+      ];
     }
 
     const total = await db.teams.count({ where: whereConditions });
@@ -624,6 +630,75 @@ export class TeamsService {
   }
 
   /**
+   * Adiciona multiplos membros a equipe em uma unica operacao
+   * Usuarios que ja sao membros ativos da equipe sao ignorados (sem erro)
+   */
+  static async bulkCreateMembers(input: BulkAddTeamMembersInput, performedBy?: { id?: number; name?: string; email?: string }) {
+    const { teams_id, users_ids } = input;
+
+    // Busca membros existentes para este time e evita duplicatas
+    const existingMembers = await db.teams_members.findMany({
+      where: {
+        teams_id,
+        users_id: { in: users_ids },
+        deleted_at: null,
+      },
+      select: { users_id: true },
+    });
+    const existingSet = new Set(existingMembers.map((m) => Number(m.users_id)));
+
+    // Filtra somente usuarios novos (que ainda nao sao membros)
+    const newUserIds = users_ids.filter((id) => !existingSet.has(id));
+
+    if (newUserIds.length === 0) {
+      return { added: 0, skipped: users_ids.length, members: [] };
+    }
+
+    // Busca dados do time e dos usuarios para registrar no historico
+    const [team, users] = await Promise.all([
+      db.teams.findFirst({ where: { id: teams_id }, select: { name: true } }),
+      db.users.findMany({ where: { id: { in: newUserIds } }, select: { id: true, name: true, email: true } }),
+    ]);
+    const usersMap = new Map(users.map((u) => [Number(u.id), u]));
+
+    // Cria todos os membros e registros de historico em uma transacao
+    const members = await db.$transaction(async (tx) => {
+      const created = [];
+      for (const userId of newUserIds) {
+        const member = await tx.teams_members.create({
+          data: {
+            users_id: userId,
+            teams_id,
+            created_at: new Date(),
+            updated_at: new Date(),
+            deleted_at: null,
+          },
+        });
+        const userInfo = usersMap.get(userId);
+        await tx.teams_members_history.create({
+          data: {
+            teams_id,
+            users_id: userId,
+            action: 'ADICIONADO',
+            member_type: 'member',
+            team_name: team?.name || null,
+            user_name: userInfo?.name || null,
+            user_email: userInfo?.email || null,
+            performed_by_id: performedBy?.id ? BigInt(performedBy.id) : null,
+            performed_by_name: performedBy?.name || null,
+            performed_by_email: performedBy?.email || null,
+            created_at: new Date(),
+          },
+        });
+        created.push(member);
+      }
+      return created;
+    });
+
+    return { added: members.length, skipped: existingSet.size, members };
+  }
+
+  /**
    * Remove membro da equipe
    * Equivalente a: query teams_members/{teams_members_id} verb=DELETE do Xano (endpoint 555)
    */
@@ -904,6 +979,75 @@ export class TeamsService {
     });
 
     return leader;
+  }
+
+  /**
+   * Adiciona multiplos lideres a equipe em uma unica operacao
+   * Usuarios que ja sao lideres ativos da equipe sao ignorados (sem erro)
+   */
+  static async bulkCreateLeaders(input: BulkAddTeamLeadersInput, performedBy?: { id?: number; name?: string; email?: string }) {
+    const { teams_id, users_ids } = input;
+
+    // Busca lideres existentes para este time e evita duplicatas
+    const existingLeaders = await db.teams_leaders.findMany({
+      where: {
+        teams_id,
+        users_id: { in: users_ids },
+        deleted_at: null,
+      },
+      select: { users_id: true },
+    });
+    const existingSet = new Set(existingLeaders.map((l) => Number(l.users_id)));
+
+    // Filtra somente usuarios novos (que ainda nao sao lideres)
+    const newUserIds = users_ids.filter((id) => !existingSet.has(id));
+
+    if (newUserIds.length === 0) {
+      return { added: 0, skipped: users_ids.length, leaders: [] };
+    }
+
+    // Busca dados do time e dos usuarios para registrar no historico
+    const [team, users] = await Promise.all([
+      db.teams.findFirst({ where: { id: teams_id }, select: { name: true } }),
+      db.users.findMany({ where: { id: { in: newUserIds } }, select: { id: true, name: true, email: true } }),
+    ]);
+    const usersMap = new Map(users.map((u) => [Number(u.id), u]));
+
+    // Cria todos os lideres e registros de historico em uma transacao
+    const leaders = await db.$transaction(async (tx) => {
+      const created = [];
+      for (const userId of newUserIds) {
+        const leader = await tx.teams_leaders.create({
+          data: {
+            users_id: userId,
+            teams_id,
+            created_at: new Date(),
+            updated_at: new Date(),
+            deleted_at: null,
+          },
+        });
+        const userInfo = usersMap.get(userId);
+        await tx.teams_members_history.create({
+          data: {
+            teams_id,
+            users_id: userId,
+            action: 'ADICIONADO',
+            member_type: 'leader',
+            team_name: team?.name || null,
+            user_name: userInfo?.name || null,
+            user_email: userInfo?.email || null,
+            performed_by_id: performedBy?.id ? BigInt(performedBy.id) : null,
+            performed_by_name: performedBy?.name || null,
+            performed_by_email: performedBy?.email || null,
+            created_at: new Date(),
+          },
+        });
+        created.push(leader);
+      }
+      return created;
+    });
+
+    return { added: leaders.length, skipped: existingSet.size, leaders };
   }
 
   /**

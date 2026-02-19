@@ -145,18 +145,20 @@ export class AuthModuleService {
       },
     });
 
+    const invalidCredentialsMsg = 'E-mail ou senha incorretos. Verifique seus dados e tente novamente.';
+
     // Equivalente a: precondition ($users != null) do Xano
     if (!user) {
-      throw new UnauthorizedError('Esse usuario nao tem acesso');
+      throw new UnauthorizedError(invalidCredentialsMsg);
     }
 
     // Equivalente a: precondition ($users.deleted_at == null) do Xano
     if (user.deleted_at) {
-      throw new UnauthorizedError('Esse usuario nao tem acesso ao painel');
+      throw new UnauthorizedError(invalidCredentialsMsg);
     }
 
     if (!user.password_hash) {
-      throw new UnauthorizedError('Invalid Credentials.');
+      throw new UnauthorizedError(invalidCredentialsMsg);
     }
 
     // Verifica senha
@@ -168,7 +170,7 @@ export class AuthModuleService {
 
     // Equivalente a: precondition ($pass_result) do Xano
     if (!isValidPassword) {
-      throw new UnauthorizedError('Invalid Credentials.');
+      throw new UnauthorizedError(invalidCredentialsMsg);
     }
 
     // Cria token de autenticacao
@@ -241,7 +243,7 @@ export class AuthModuleService {
           include: {
             sprints: {
               where: {
-                sprints_statuses_id: 1, // Em andamento
+                sprints_statuses_id: 2, // Ativa
                 deleted_at: null,
               },
               select: {

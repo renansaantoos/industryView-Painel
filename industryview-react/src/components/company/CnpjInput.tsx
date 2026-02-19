@@ -7,6 +7,7 @@ interface CnpjInputProps {
   disabled?: boolean;
   label?: string;
   required?: boolean;
+  error?: string;
 }
 
 function applyCnpjMask(raw: string): string {
@@ -50,6 +51,7 @@ export function CnpjInput({
   disabled,
   label = 'CNPJ',
   required,
+  error: externalError,
 }: CnpjInputProps) {
   const [touched, setTouched] = useState(false);
 
@@ -57,6 +59,7 @@ export function CnpjInput({
   const isComplete = digits.length === 14;
   const isValid = isComplete && isValidCnpj(digits);
   const isInvalid = touched && isComplete && !isValid;
+  const hasError = isInvalid || !!externalError;
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(applyCnpjMask(e.target.value));
@@ -75,7 +78,7 @@ export function CnpjInput({
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         <input
           type="text"
-          className={`input-field ${isInvalid ? 'error' : ''}`}
+          className={`input-field ${hasError ? 'error' : ''}`}
           value={value}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -101,6 +104,9 @@ export function CnpjInput({
       </div>
       {isInvalid && (
         <span className="input-error">CNPJ inválido</span>
+      )}
+      {!isInvalid && externalError && (
+        <span className="input-error">{externalError}</span>
       )}
     </div>
   );

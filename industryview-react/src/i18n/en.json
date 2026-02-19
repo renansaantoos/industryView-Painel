@@ -138,7 +138,8 @@
     "code": "Verification code",
     "selectCompany": "Register Company",
     "createCompany": "Create Company",
-    "companyName": "Company Name"
+    "companyName": "Company Name",
+    "loginFailed": "Incorrect email or password. Please check your credentials and try again."
   },
   "dashboard": {
     "title": "Dashboard",

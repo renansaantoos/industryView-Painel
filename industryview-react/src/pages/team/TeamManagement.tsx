@@ -33,7 +33,8 @@ function getAvatarUrl(name: string) {
 }
 
 /** Remove acentos, converte para minúsculo */
-function normalize(text: string): string {
+function normalize(text: string | null | undefined): string {
+  if (!text) return '';
   return text
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -45,9 +46,11 @@ function normalize(text: string): string {
  * Ex: "mont alpha" encontra "Equipe Montagem Alpha"
  * Ex: "eletrica" encontra "Equipe Elétrica Norte"
  */
-function fuzzyMatch(target: string, query: string): boolean {
+function fuzzyMatch(target: string | null | undefined, query: string): boolean {
+  if (!target) return false;
   const norm = normalize(target);
   const words = normalize(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
   return words.every((w) => norm.includes(w));
 }
 
@@ -151,8 +154,9 @@ interface Role {
 interface AddUserModalProps {
   title: string;
   onClose: () => void;
-  onSave: (userId: number) => Promise<void>;
+  onSave: (userIds: number[]) => Promise<void>;
   saving: boolean;
+  teamId?: number;
 }
 
 interface SearchUserItem {
@@ -160,14 +164,19 @@ interface SearchUserItem {
   name: string;
   email: string;
   hasTeam?: boolean;
+  isMemberOfCurrentTeam?: boolean;
 }
 
-function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
+interface SelectedUser {
+  id: number;
+  name: string;
+}
+
+function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalProps) {
   const { t } = useTranslation();
 
   const [userSearch, setUserSearch] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<number>(0);
-  const [selectedUserName, setSelectedUserName] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
@@ -193,6 +202,8 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const selectedUserIds = useMemo(() => new Set(selectedUsers.map((u) => u.id)), [selectedUsers]);
+
   // Fetch users from paginated API
   const fetchUsers = useCallback(async (search: string, page: number, append = false) => {
     setSearchLoading(true);
@@ -201,6 +212,7 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
         search: search || undefined,
         page,
         per_page: 15,
+        teams_id: teamId || undefined,
       });
       const items = (data.items || []) as SearchUserItem[];
       setSearchResults(prev => append ? [...prev, ...items] : items);
@@ -288,11 +300,9 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
       });
 
       setSuccessMessage(t('teams.collaboratorRegistered'));
-      setSelectedUserId(newUser.id);
-      setSelectedUserName(newUser.name);
 
       setTimeout(async () => {
-        await onSave(newUser.id);
+        await onSave([newUser.id]);
       }, 800);
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { message?: string } } };
@@ -304,21 +314,38 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
     }
   };
 
+  // Toggle a user in/out of the selected set without touching the search input
   const handleSelectUser = (user: SearchUserItem) => {
-    setSelectedUserId(user.id);
-    setSelectedUserName(user.name);
-    setUserSearch(user.name);
+    setSelectedUsers((prev) => {
+      const alreadySelected = prev.some((u) => u.id === user.id);
+      if (alreadySelected) {
+        return prev.filter((u) => u.id !== user.id);
+      }
+      return [...prev, { id: user.id, name: user.name }];
+    });
+  };
+
+  const handleRemoveChip = (userId: number) => {
+    setSelectedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
   const handleSaveSelected = async () => {
-    if (!selectedUserId) return;
-    await onSave(selectedUserId);
+    if (selectedUsers.length === 0) return;
+    await onSave(selectedUsers.map((u) => u.id));
   };
 
-  const modalWidth = showQuickRegister ? '520px' : '440px';
+  const modalWidth = showQuickRegister ? '520px' : '460px';
+
+  const saveLabel = selectedUsers.length > 0
+    ? `${t('common.save')} (${selectedUsers.length})`
+    : t('common.save');
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
+      <style>{`
+        @keyframes slideIn { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes chipIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
       <div
         className="modal-content"
         style={{ padding: '24px', width: modalWidth, transition: 'width 0.25s ease' }}
@@ -356,11 +383,7 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
                   ref={searchInputRef}
                   className="input-field"
                   value={userSearch}
-                  onChange={(e) => {
-                    setUserSearch(e.target.value);
-                    setSelectedUserId(0);
-                    setSelectedUserName('');
-                  }}
+                  onChange={(e) => setUserSearch(e.target.value)}
                   placeholder={t('teams.searchUserPlaceholder')}
                   style={{ paddingLeft: '32px' }}
                   autoFocus
@@ -368,11 +391,58 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
               </div>
             </div>
 
+            {/* Selected users chips */}
+            {selectedUsers.length > 0 && (
+              <div
+                style={{
+                  display: 'flex', flexWrap: 'wrap', gap: '6px',
+                  marginTop: '10px', padding: '8px',
+                  background: 'var(--color-tertiary-bg)',
+                  border: '1px solid var(--color-primary)',
+                  borderRadius: '8px', maxHeight: '96px', overflowY: 'auto',
+                }}
+              >
+                {selectedUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '5px',
+                      padding: '3px 6px 3px 4px',
+                      background: 'var(--color-primary)', color: '#fff',
+                      borderRadius: '20px', fontSize: '12px', fontWeight: 500,
+                      animation: 'chipIn 0.18s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <img
+                      src={getAvatarUrl(u.name)}
+                      alt=""
+                      style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0 }}
+                    />
+                    <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.name}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveChip(u.id)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', padding: '0',
+                        color: 'rgba(255,255,255,0.8)', lineHeight: 1,
+                      }}
+                      aria-label={`Remover ${u.name}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div
               ref={listRef}
               onScroll={handleScroll}
               style={{
-                maxHeight: '260px', overflowY: 'auto', marginTop: '8px',
+                maxHeight: '240px', overflowY: 'auto', marginTop: '8px',
                 border: '1px solid var(--color-alternate)', borderRadius: '8px',
               }}
             >
@@ -406,40 +476,70 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
                       {totalResults} {t('common.results', 'resultados')}
                     </div>
                   )}
-                  {searchResults.map((u) => (
-                    <div
-                      key={u.id}
-                      onClick={() => handleSelectUser(u)}
-                      style={{
-                        padding: '10px 12px', cursor: 'pointer',
-                        backgroundColor: selectedUserId === u.id ? 'var(--color-tertiary-bg)' : 'transparent',
-                        borderBottom: '1px solid var(--color-alternate)',
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedUserId !== u.id) e.currentTarget.style.backgroundColor = 'var(--color-secondary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedUserId !== u.id) e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <img src={getAvatarUrl(u.name)} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {u.name}
-                          {u.hasTeam === false && (
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--color-status-04)', color: 'var(--color-success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                              {t('teams.available', 'Disponível')}
-                            </span>
+                  {searchResults.map((u) => {
+                    const isInCurrentTeam = u.isMemberOfCurrentTeam === true;
+                    const isSelected = selectedUserIds.has(u.id);
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => !isInCurrentTeam && handleSelectUser(u)}
+                        style={{
+                          padding: '10px 12px',
+                          cursor: isInCurrentTeam ? 'default' : 'pointer',
+                          opacity: isInCurrentTeam ? 0.55 : 1,
+                          backgroundColor: isSelected ? 'var(--color-tertiary-bg)' : 'transparent',
+                          borderBottom: '1px solid var(--color-alternate)',
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          transition: 'background-color 0.12s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected && !isInCurrentTeam) e.currentTarget.style.backgroundColor = 'var(--color-secondary)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <img src={getAvatarUrl(u.name)} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                          {isSelected && !isInCurrentTeam && (
+                            <div style={{
+                              position: 'absolute', inset: 0, borderRadius: '50%',
+                              background: 'rgba(99,102,241,0.85)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <UserCheck size={14} color="#fff" />
+                            </div>
                           )}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {u.email}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px', color: isSelected ? 'var(--color-primary)' : 'inherit' }}>
+                            {u.name}
+                            {isInCurrentTeam && (
+                              <span style={{
+                                fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
+                                background: 'var(--color-alternate)',
+                                color: 'var(--color-secondary-text)',
+                                fontWeight: 600, whiteSpace: 'nowrap',
+                              }}>
+                                Ja na equipe
+                              </span>
+                            )}
+                            {!isInCurrentTeam && u.hasTeam === false && (
+                              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--color-status-04)', color: 'var(--color-success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                {t('teams.available', 'Disponível')}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.email}
+                          </div>
                         </div>
+                        {isSelected && !isInCurrentTeam && (
+                          <UserCheck size={16} color="var(--color-primary)" style={{ flexShrink: 0 }} />
+                        )}
                       </div>
-                      {selectedUserId === u.id && <UserCheck size={16} color="var(--color-primary)" style={{ flexShrink: 0 }} />}
-                    </div>
-                  ))}
+                    );
+                  })}
                   {searchLoading && searchResults.length > 0 && (
                     <div style={{ padding: '8px', textAlign: 'center' }}>
                       <span className="spinner" style={{ width: '16px', height: '16px', margin: '0 auto' }} />
@@ -449,24 +549,10 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
               )}
             </div>
 
-            {selectedUserId > 0 && selectedUserName && (
-              <div
-                style={{
-                  marginTop: '10px', padding: '8px 12px', borderRadius: '8px',
-                  background: 'var(--color-tertiary-bg)', border: '1px solid var(--color-primary)',
-                  display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px',
-                }}
-              >
-                <UserCheck size={15} color="var(--color-primary)" />
-                <span style={{ fontWeight: 500, color: 'var(--color-primary)' }}>{selectedUserName}</span>
-                <span style={{ color: 'var(--color-secondary-text)', fontSize: '12px' }}>selecionado</span>
-              </div>
-            )}
-
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button className="btn btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
-              <button className="btn btn-primary" onClick={handleSaveSelected} disabled={saving || !selectedUserId}>
-                {saving ? <span className="spinner" /> : t('common.save')}
+              <button className="btn btn-primary" onClick={handleSaveSelected} disabled={saving || selectedUsers.length === 0}>
+                {saving ? <span className="spinner" /> : saveLabel}
               </button>
             </div>
           </>
@@ -474,7 +560,6 @@ function AddUserModal({ title, onClose, onSave, saving }: AddUserModalProps) {
 
         {showQuickRegister && (
           <div style={{ animation: 'slideIn 0.2s ease' }}>
-            <style>{`@keyframes slideIn { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }`}</style>
             <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)', marginBottom: '16px', lineHeight: 1.5 }}>
               {t('teams.quickRegisterSubtitle')}
             </p>
@@ -649,34 +734,37 @@ export default function TeamManagement() {
   // Project filter state (-1 = "sem projeto")
   const [projectFilter, setProjectFilter] = useState<number[]>([]);
   const [showProjectFilter, setShowProjectFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
   const projectFilterRef = useRef<HTMLDivElement>(null);
+  const filterSearchRef = useRef<HTMLInputElement>(null);
 
   // Close filter dropdown on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (projectFilterRef.current && !projectFilterRef.current.contains(e.target as Node)) {
         setShowProjectFilter(false);
+        setFilterSearch('');
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Extract unique projects from all teams
+  // Auto-focus search input when filter opens
+  useEffect(() => {
+    if (showProjectFilter) {
+      setTimeout(() => filterSearchRef.current?.focus(), 50);
+    }
+  }, [showProjectFilter]);
+
+  // All company projects for the filter dropdown
   const availableProjectsForFilter = useMemo(() => {
-    const map = new Map<number, string>();
-    teams.forEach((team) => {
-      const rawLinks = (team as any).teams_projects;
-      if (Array.isArray(rawLinks)) {
-        rawLinks.forEach((lp: any) => {
-          if (lp.projects?.id && lp.projects?.name) {
-            map.set(Number(lp.projects.id), lp.projects.name);
-          }
-        });
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [teams]);
+    const mapped = allProjects
+      .map((p) => ({ id: Number(p.id), name: p.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!filterSearch.trim()) return mapped;
+    return mapped.filter((p) => fuzzyMatch(p.name, filterSearch.trim()));
+  }, [allProjects, filterSearch]);
 
   const toggleProjectFilter = (id: number) => {
     setProjectFilter((prev) =>
@@ -685,12 +773,10 @@ export default function TeamManagement() {
     setTeamsPage(1);
   };
 
-  // Reset pagination when search changes
+  // Reset teams pagination when search or filter changes
   useEffect(() => {
     setTeamsPage(1);
-    setLeadersPage(1);
-    setMembersPage(1);
-  }, [globalSearch]);
+  }, [globalSearch, projectFilter]);
 
   // Reset leaders/members pagination when team changes
   useEffect(() => {
@@ -703,23 +789,17 @@ export default function TeamManagement() {
   /* --- Data loading --- */
 
   const loadTeams = useCallback(async () => {
-    if (!projectsInfo) return;
     setLoading(true);
     try {
-      const data = await projectsApi.queryAllTeams({ projects_id: projectsInfo.id });
+      const data = await projectsApi.queryAllTeams({ per_page: 100 });
       const list = Array.isArray(data) ? data : (data.items || []);
       setTeams(list);
-
-      if (teamId > 0) {
-        const found = list.find((t: Team) => t.id === teamId);
-        if (found) setSelectedTeamName(found.name);
-      }
     } catch (err) {
       console.error('Erro ao carregar equipes:', err);
     } finally {
       setLoading(false);
     }
-  }, [projectsInfo, teamId]);
+  }, []);
 
   const loadLeaders = useCallback(async () => {
     if (!teamId || teamId === 0) { setLeaders([]); return; }
@@ -829,7 +909,16 @@ export default function TeamManagement() {
   }, [teamId]);
 
   useEffect(() => { loadTeams(); }, [loadTeams]);
+  useEffect(() => { loadAllProjects(); }, [loadAllProjects]);
   useEffect(() => { loadLeaders(); loadMembers(); loadLinkedProjects(); }, [loadLeaders, loadMembers, loadLinkedProjects]);
+
+  // Sync selectedTeamName when teams load or teamId changes
+  useEffect(() => {
+    if (teamId > 0 && teams.length > 0) {
+      const found = teams.find((t: Team) => t.id === teamId);
+      if (found) setSelectedTeamName(found.name);
+    }
+  }, [teamId, teams]);
 
   /* --- Filtered + Paginated data --- */
 
@@ -858,9 +947,18 @@ export default function TeamManagement() {
       });
     }
 
-    // Apply text search
+    // Apply text search - search in team name AND linked project names
     if (searchTrimmed) {
-      result = result.filter((t) => fuzzyMatch(t.name, searchTrimmed));
+      result = result.filter((t) => {
+        if (fuzzyMatch(t.name, searchTrimmed)) return true;
+        const rawLinks = (t as any).teams_projects;
+        if (Array.isArray(rawLinks)) {
+          for (const lp of rawLinks) {
+            if (lp.projects?.name && fuzzyMatch(lp.projects.name, searchTrimmed)) return true;
+          }
+        }
+        return false;
+      });
     }
 
     return result;
@@ -918,30 +1016,30 @@ export default function TeamManagement() {
     }
   };
 
-  const handleAddLeader = async (userId: number) => {
-    if (!teamId || !userId) return;
+  const handleAddLeader = async (userIds: number[]) => {
+    if (!teamId || userIds.length === 0) return;
     setModalLoading(true);
     try {
-      await projectsApi.addTeamLeader({ teams_id: teamId, users_id: userId });
+      await projectsApi.bulkAddTeamLeaders({ teams_id: teamId, users_ids: userIds });
       setShowAddLeaderModal(false);
       loadLeaders();
     } catch (err) {
-      console.error('Erro ao adicionar líder:', err);
+      console.error('Erro ao adicionar lideres:', err);
       throw err;
     } finally {
       setModalLoading(false);
     }
   };
 
-  const handleAddMember = async (userId: number) => {
-    if (!teamId || !userId) return;
+  const handleAddMember = async (userIds: number[]) => {
+    if (!teamId || userIds.length === 0) return;
     setModalLoading(true);
     try {
-      await projectsApi.addTeamMember({ teams_id: teamId, users_id: userId });
+      await projectsApi.bulkAddTeamMembers({ teams_id: teamId, users_ids: userIds });
       setShowAddMemberModal(false);
       loadMembers();
     } catch (err) {
-      console.error('Erro ao adicionar membro:', err);
+      console.error('Erro ao adicionar membros:', err);
       throw err;
     } finally {
       setModalLoading(false);
@@ -1145,7 +1243,10 @@ export default function TeamManagement() {
         <div ref={projectFilterRef} style={{ position: 'relative' }}>
           <button
             className={`btn ${projectFilter.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setShowProjectFilter(!showProjectFilter)}
+            onClick={() => {
+              setShowProjectFilter(!showProjectFilter);
+              if (showProjectFilter) setFilterSearch('');
+            }}
             style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', whiteSpace: 'nowrap', padding: '0 12px' }}
           >
             <Filter size={15} />
@@ -1162,59 +1263,132 @@ export default function TeamManagement() {
           {showProjectFilter && (
             <div style={{
               position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
-              minWidth: '260px', maxHeight: '320px',
+              width: '320px',
               backgroundColor: 'var(--color-secondary-bg)',
               border: '1px solid var(--color-alternate)',
               borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)',
               overflow: 'hidden', animation: 'fadeIn 0.15s ease',
             }}>
-              <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--color-alternate)', fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)' }}>
-                {t('teams.inProject')}
+              {/* Header with title and count */}
+              <div style={{
+                padding: '10px 12px', borderBottom: '1px solid var(--color-alternate)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)' }}>
+                  {t('teams.inProject')}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', background: 'var(--color-secondary)', padding: '1px 6px', borderRadius: '8px' }}>
+                  {allProjects.length} {allProjects.length === 1 ? 'projeto' : 'projetos'}
+                </span>
               </div>
-              <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                {/* Sem projeto option */}
-                <label
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
-                    backgroundColor: projectFilter.includes(-1) ? 'var(--color-tertiary-bg)' : 'transparent',
-                  }}
-                  onMouseEnter={(e) => { if (!projectFilter.includes(-1)) e.currentTarget.style.backgroundColor = 'var(--color-secondary)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = projectFilter.includes(-1) ? 'var(--color-tertiary-bg)' : 'transparent'; }}
-                >
+
+              {/* Search inside filter */}
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-alternate)' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)' }} />
                   <input
-                    type="checkbox"
-                    checked={projectFilter.includes(-1)}
-                    onChange={() => toggleProjectFilter(-1)}
-                    style={{ accentColor: 'var(--color-primary)' }}
+                    ref={filterSearchRef}
+                    type="text"
+                    className="input-field"
+                    placeholder="Buscar projeto..."
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    style={{ paddingLeft: '28px', fontSize: '12px', height: '30px', borderRadius: '6px', width: '100%' }}
                   />
-                  <FolderOpen size={14} color="var(--color-accent4)" />
-                  <span style={{ fontStyle: 'italic', color: 'var(--color-accent4)' }}>{t('teams.noProject')}</span>
-                </label>
-                {availableProjectsForFilter.map((p) => (
+                  {filterSearch && (
+                    <button
+                      onClick={() => setFilterSearch('')}
+                      style={{
+                        position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary-text)',
+                        fontSize: '14px', lineHeight: 1, padding: '2px',
+                      }}
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Scrollable project list */}
+              <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                {/* Sem projeto option - only show when not searching */}
+                {!filterSearch.trim() && (
                   <label
-                    key={p.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '8px',
                       padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
-                      backgroundColor: projectFilter.includes(p.id) ? 'var(--color-tertiary-bg)' : 'transparent',
+                      backgroundColor: projectFilter.includes(-1) ? 'var(--color-tertiary-bg)' : 'transparent',
+                      borderBottom: '1px solid var(--color-alternate)',
                     }}
-                    onMouseEnter={(e) => { if (!projectFilter.includes(p.id)) e.currentTarget.style.backgroundColor = 'var(--color-secondary)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = projectFilter.includes(p.id) ? 'var(--color-tertiary-bg)' : 'transparent'; }}
+                    onMouseEnter={(e) => { if (!projectFilter.includes(-1)) e.currentTarget.style.backgroundColor = 'var(--color-secondary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = projectFilter.includes(-1) ? 'var(--color-tertiary-bg)' : 'transparent'; }}
                   >
                     <input
                       type="checkbox"
-                      checked={projectFilter.includes(p.id)}
-                      onChange={() => toggleProjectFilter(p.id)}
-                      style={{ accentColor: 'var(--color-primary)' }}
+                      checked={projectFilter.includes(-1)}
+                      onChange={() => toggleProjectFilter(-1)}
+                      style={{ accentColor: 'var(--color-primary)', flexShrink: 0 }}
                     />
-                    <FolderOpen size={14} color="var(--color-success)" />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    <FolderOpen size={14} color="var(--color-accent4)" style={{ flexShrink: 0 }} />
+                    <span style={{ fontStyle: 'italic', color: 'var(--color-accent4)' }}>{t('teams.noProject')}</span>
                   </label>
-                ))}
+                )}
+                {availableProjectsForFilter.length === 0 ? (
+                  <div style={{ padding: '16px 12px', textAlign: 'center', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                    {filterSearch ? `Nenhum projeto encontrado para "${filterSearch}"` : 'Nenhum projeto disponivel'}
+                  </div>
+                ) : (
+                  availableProjectsForFilter.map((p) => {
+                    const isChecked = projectFilter.includes(p.id);
+                    // Count teams linked to this project
+                    const linkedTeamsCount = teams.filter((team) => {
+                      const rawLinks = (team as any).teams_projects;
+                      if (!Array.isArray(rawLinks)) return false;
+                      return rawLinks.some((lp: any) => Number(lp.projects?.id) === p.id);
+                    }).length;
+
+                    return (
+                      <label
+                        key={p.id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
+                          backgroundColor: isChecked ? 'var(--color-tertiary-bg)' : 'transparent',
+                          transition: 'background-color 0.1s ease',
+                        }}
+                        onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = 'var(--color-secondary)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isChecked ? 'var(--color-tertiary-bg)' : 'transparent'; }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleProjectFilter(p.id)}
+                          style={{ accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                        />
+                        <FolderOpen size={14} color={linkedTeamsCount > 0 ? 'var(--color-success)' : 'var(--color-secondary-text)'} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{p.name}</span>
+                        {linkedTeamsCount > 0 && (
+                          <span style={{
+                            fontSize: '10px', color: 'var(--color-secondary-text)',
+                            background: 'var(--color-secondary)', padding: '1px 5px',
+                            borderRadius: '6px', flexShrink: 0,
+                          }}>
+                            {linkedTeamsCount} {linkedTeamsCount === 1 ? 'equipe' : 'equipes'}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })
+                )}
               </div>
+
+              {/* Footer with clear action */}
               {projectFilter.length > 0 && (
-                <div style={{ padding: '8px 12px', borderTop: '1px solid var(--color-alternate)' }}>
+                <div style={{ padding: '8px 12px', borderTop: '1px solid var(--color-alternate)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>
+                    {projectFilter.length} {projectFilter.length === 1 ? 'selecionado' : 'selecionados'}
+                  </span>
                   <button
                     onClick={() => { setProjectFilter([]); setTeamsPage(1); }}
                     style={{
@@ -1233,7 +1407,7 @@ export default function TeamManagement() {
 
         {/* Active filter chips */}
         {projectFilter.length > 0 && projectFilter.map((id) => {
-          const label = id === -1 ? t('teams.noProject') : availableProjectsForFilter.find((p) => p.id === id)?.name || `#${id}`;
+          const label = id === -1 ? t('teams.noProject') : allProjects.find((p) => Number(p.id) === id)?.name || `#${id}`;
           return (
             <span
               key={id}
@@ -1277,13 +1451,10 @@ export default function TeamManagement() {
             <EmptyState message={globalSearch ? `Nenhuma equipe encontrada para "${globalSearch}"` : t('common.noData')} />
           ) : (
             <>
-              <motion.div
-                variants={staggerParent}
-                initial="initial"
-                animate="animate"
+              <div
                 style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, overflowY: 'auto', marginRight: '-4px', paddingRight: '4px' }}
               >
-                {teamsPag.items.map((team) => {
+                {teamsPag.items.map((team, index) => {
                   const isSelected = teamId === team.id;
                   // Extrai nomes dos projetos via junction teams_projects
                   const teamProjectLinks: { id: number; name: string }[] = [];
@@ -1297,7 +1468,9 @@ export default function TeamManagement() {
                   return (
                     <motion.div
                       key={team.id}
-                      variants={fadeUpChild}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: index * 0.03 }}
                       onClick={() => handleSelectTeam(team)}
                       style={{
                         padding: '10px 12px',
@@ -1358,7 +1531,7 @@ export default function TeamManagement() {
                     </motion.div>
                   );
                 })}
-              </motion.div>
+              </div>
               <div style={{ flexShrink: 0 }}>
                 <PaginationControls
                   page={teamsPag.page}
@@ -1511,6 +1684,7 @@ export default function TeamManagement() {
             ) : (
               <>
                 <motion.div
+                  key={leaders.map((l) => l.id).join()}
                   variants={staggerParent}
                   initial="initial"
                   animate="animate"
@@ -1616,7 +1790,7 @@ export default function TeamManagement() {
                         <th style={{ width: '60px', position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>{t('common.actions')}</th>
                       </tr>
                     </thead>
-                    <motion.tbody variants={staggerParent} initial="initial" animate="animate">
+                    <motion.tbody key={members.map((m) => m.id).join()} variants={staggerParent} initial="initial" animate="animate">
                       {membersPag.items.map((member) => (
                         <motion.tr key={member.id} variants={tableRowVariants}>
                           <td>
@@ -1694,6 +1868,7 @@ export default function TeamManagement() {
           onClose={() => setShowAddLeaderModal(false)}
           onSave={handleAddLeader}
           saving={modalLoading}
+          teamId={teamId}
         />
       )}
 
@@ -1704,6 +1879,7 @@ export default function TeamManagement() {
           onClose={() => setShowAddMemberModal(false)}
           onSave={handleAddMember}
           saving={modalLoading}
+          teamId={teamId}
         />
       )}
 

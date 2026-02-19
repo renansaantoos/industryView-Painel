@@ -168,7 +168,7 @@ export async function deleteProjectBacklog(backlogId: number): Promise<void> {
 
 export async function projectsBacklogsBulk(data: {
   projects_id: number;
-  tasks_ids: number[];
+  backlogs: { name: string; tasks_types_id?: number }[];
 }): Promise<void> {
   await apiClient.post(`${PROJECTS_BASE}/backlogs/bulk`, data);
 }
@@ -180,7 +180,12 @@ export async function addTasksBacklogManual(data: {
   unity_id?: number;
   discipline_id?: number;
 }): Promise<ProjectBacklog> {
-  const response = await apiClient.post(`${PROJECTS_BASE}/projects_backlogs_manual`, data);
+  // Backend espera 'description', não 'name'
+  const { name, ...rest } = data;
+  const response = await apiClient.post(`${PROJECTS_BASE}/projects_backlogs_manual`, {
+    ...rest,
+    description: name,
+  });
   return response.data;
 }
 
@@ -311,6 +316,22 @@ export async function addTeamMember(data: {
   users_id: number;
 }): Promise<TeamMember> {
   const response = await apiClient.post('/teams/members', data);
+  return response.data;
+}
+
+export async function bulkAddTeamMembers(data: {
+  teams_id: number;
+  users_ids: number[];
+}): Promise<{ added: number; skipped: number }> {
+  const response = await apiClient.post('/teams/members/bulk', data);
+  return response.data;
+}
+
+export async function bulkAddTeamLeaders(data: {
+  teams_id: number;
+  users_ids: number[];
+}): Promise<{ added: number; skipped: number }> {
+  const response = await apiClient.post('/teams/leaders/bulk', data);
   return response.data;
 }
 

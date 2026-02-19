@@ -19,11 +19,12 @@ export async function endSprintJob(): Promise<void> {
   try {
     const now = new Date();
 
-    // Busca sprints ativas (status = 1 "Em Andamento") que ja passaram da data fim
+    // Busca sprints ativas (status = 2 "Ativa") que ja passaram da data fim
+    // IDs: 1=Futura, 2=Ativa, 3=Concluída, 4=Cancelada
     const expiredSprints = await db.sprints.findMany({
       where: {
         deleted_at: null,
-        sprints_statuses_id: 1, // Em Andamento
+        sprints_statuses_id: 2, // Ativa
         end_date: {
           lt: now,
         },
@@ -32,12 +33,12 @@ export async function endSprintJob(): Promise<void> {
 
     jobLogger.info({ count: expiredSprints.length }, 'Found expired sprints');
 
-    // Atualiza status para 3 (Concluida)
+    // Atualiza status para 3 (Concluída)
     for (const sprint of expiredSprints) {
       await db.sprints.update({
         where: { id: sprint.id },
         data: {
-          sprints_statuses_id: 3, // Concluida
+          sprints_statuses_id: 3, // Concluída
           updated_at: new Date(),
         },
       });
@@ -62,11 +63,12 @@ export async function startSprintJob(): Promise<void> {
   try {
     const now = new Date();
 
-    // Busca sprints em planejamento (status = 4 "Planejamento") que ja passaram da data inicio
+    // Busca sprints futuras (status = 1 "Futura") que ja passaram da data inicio
+    // IDs: 1=Futura, 2=Ativa, 3=Concluída, 4=Cancelada
     const pendingSprints = await db.sprints.findMany({
       where: {
         deleted_at: null,
-        sprints_statuses_id: 4, // Planejamento
+        sprints_statuses_id: 1, // Futura
         start_date: {
           lte: now,
         },
@@ -75,12 +77,12 @@ export async function startSprintJob(): Promise<void> {
 
     jobLogger.info({ count: pendingSprints.length }, 'Found pending sprints to start');
 
-    // Atualiza status para 1 (Em Andamento)
+    // Atualiza status para 2 (Ativa)
     for (const sprint of pendingSprints) {
       await db.sprints.update({
         where: { id: sprint.id },
         data: {
-          sprints_statuses_id: 1, // Em Andamento
+          sprints_statuses_id: 2, // Ativa
           updated_at: new Date(),
         },
       });

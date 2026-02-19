@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { usersApi } from '../../services';
-import { Building2, Plus, Phone, Mail } from 'lucide-react';
+import { Building2, Plus, Phone, Mail, LogOut } from 'lucide-react';
 import { MotionPage } from '../../lib/motion';
 import { CnpjInput } from '../../components/company/CnpjInput';
 import { CepLookup } from '../../components/company/CepLookup';
@@ -48,14 +48,24 @@ function applyPhoneMask(raw: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)} ${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Bom dia';
+  if (hour >= 12 && hour < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
 export default function CompanySelect() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
 
   const [form, setForm] = useState<CompanyForm>(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const firstName = useMemo(() => user?.name?.split(' ')[0] || '', [user?.name]);
+  const greeting = useMemo(() => getGreeting(), []);
 
   const updateField = (field: keyof CompanyForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -118,7 +128,39 @@ export default function CompanySelect() {
     <MotionPage variant="auth">
     <div className="auth-page">
       <div className="auth-container">
-        <div className="auth-form-section" style={{ overflowY: 'auto' }}>
+        <div className="auth-form-section" style={{ overflowY: 'auto', position: 'relative' }}>
+          {/* Botão Sair */}
+          <button
+            onClick={() => { logout(); navigate('/login', { replace: true }); }}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              background: 'none',
+              border: '1px solid var(--color-alternate)',
+              borderRadius: '8px',
+              color: 'var(--color-secondary-text)',
+              fontSize: '13px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-error)';
+              e.currentTarget.style.color = 'var(--color-error)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-alternate)';
+              e.currentTarget.style.color = 'var(--color-secondary-text)';
+            }}
+          >
+            <LogOut size={16} />
+            Sair
+          </button>
+
           <div className="auth-form-wrapper" style={{ maxWidth: '520px' }}>
             <h1 className="auth-brand">IndustryView</h1>
 
@@ -135,9 +177,9 @@ export default function CompanySelect() {
               }}>
                 <Building2 size={32} color="var(--color-primary)" />
               </div>
-              <h2 className="auth-title">{t('auth.selectCompany')}</h2>
+              <h2 className="auth-title">{greeting}{firstName ? `, ${firstName}` : ''}!</h2>
               <p className="auth-subtitle">
-                Preencha os dados da sua empresa para continuar.
+                Para poder acessar a plataforma do IndustryView é preciso finalizar o cadastro da empresa.
               </p>
             </div>
 

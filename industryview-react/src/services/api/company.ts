@@ -21,7 +21,8 @@ export async function updateCompany(
 /** List all branches of a company */
 export async function getBranches(companyId: number): Promise<CompanyBranch[]> {
   const response = await apiClient.get(`${COMPANY_BASE}/${companyId}/branches`);
-  return response.data;
+  const data = response.data;
+  return Array.isArray(data) ? data : data.items || [];
 }
 
 /** Create a new branch */

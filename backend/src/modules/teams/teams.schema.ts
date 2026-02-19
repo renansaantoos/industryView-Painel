@@ -86,6 +86,26 @@ export const createTeamMemberSchema = z.object({
 export type CreateTeamMemberInput = z.infer<typeof createTeamMemberSchema>;
 
 /**
+ * Schema para adicao em massa de membros a equipe
+ */
+export const bulkAddTeamMembersSchema = z.object({
+  teams_id: z.number().int(),
+  users_ids: z.array(z.number().int()).min(1),
+});
+
+export type BulkAddTeamMembersInput = z.infer<typeof bulkAddTeamMembersSchema>;
+
+/**
+ * Schema para adicao em massa de lideres a equipe
+ */
+export const bulkAddTeamLeadersSchema = z.object({
+  teams_id: z.number().int(),
+  users_ids: z.array(z.number().int()).min(1),
+});
+
+export type BulkAddTeamLeadersInput = z.infer<typeof bulkAddTeamLeadersSchema>;
+
+/**
  * Schema para params de membro da equipe
  */
 export const teamMemberParamsSchema = z.object({

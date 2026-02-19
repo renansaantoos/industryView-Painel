@@ -326,6 +326,19 @@ export const updateProjectBacklogSchema = z.object({
   discipline_id: z.number().int().optional().nullable(),
   quantity: z.number().optional().nullable(),
   unity_id: z.number().int().optional().nullable(),
+  checked: z.boolean().optional(),
+  weight: z.number().optional().nullable(),
+  planned_start_date: z.string().optional().nullable(),
+  planned_end_date: z.string().optional().nullable(),
+  actual_start_date: z.string().optional().nullable(),
+  actual_end_date: z.string().optional().nullable(),
+  planned_duration_days: z.number().int().optional().nullable(),
+  planned_cost: z.number().optional().nullable(),
+  actual_cost: z.number().optional().nullable(),
+  percent_complete: z.number().optional().nullable(),
+  wbs_code: z.string().trim().optional().nullable(),
+  sort_order: z.number().int().optional().nullable(),
+  level: z.number().int().optional().nullable(),
 });
 
 export type UpdateProjectBacklogInput = z.infer<typeof updateProjectBacklogSchema>;
