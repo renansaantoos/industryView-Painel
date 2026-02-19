@@ -36,6 +36,9 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 FROM node:20-alpine
 
+# Instala OpenSSL (necessario para Prisma conectar ao banco)
+RUN apk add --no-cache openssl
+
 # Define diretorio de trabalho
 WORKDIR /app
 
