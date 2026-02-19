@@ -33,6 +33,8 @@ export async function listIncidents(params?: {
   status?: string;
   initial_date?: string;
   final_date?: string;
+  involved_user_id?: number;
+  witness_user_id?: number;
   page?: number;
   per_page?: number;
 }): Promise<PaginatedResponse<SafetyIncident>> {
@@ -159,7 +161,16 @@ export async function listWorkerTrainings(params?: {
   per_page?: number;
 }): Promise<PaginatedResponse<WorkerTraining>> {
   const response = await apiClient.get(`${SAFETY_BASE}/worker-trainings`, { params });
-  return response.data;
+  const data = response.data;
+  // Backend field names differ from frontend: training_name → training_type_name, certificate_file → certificate_url
+  return {
+    ...data,
+    items: (data.items ?? []).map((item: any) => ({
+      ...item,
+      training_type_name: item.training_type_name || item.training_name || item.name,
+      certificate_url: item.certificate_url || item.certificate_file,
+    })),
+  };
 }
 
 /** Get worker trainings expiring soon */
@@ -214,6 +225,7 @@ export async function deleteTaskRequiredTraining(id: number): Promise<void> {
 export async function listDdsRecords(params?: {
   projects_id?: number;
   company_id?: number;
+  participant_user_id?: number;
   page?: number;
   per_page?: number;
 }): Promise<PaginatedResponse<DdsRecord>> {

@@ -19,6 +19,8 @@ export const listIncidentsSchema = z.object({
   status: z.enum(['registrado', 'em_investigacao', 'investigado', 'encerrado']).optional(),
   initial_date: z.string().optional(),
   final_date: z.string().optional(),
+  involved_user_id: z.coerce.number().int().optional(),
+  witness_user_id: z.coerce.number().int().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   per_page: z.coerce.number().int().min(1).max(100).optional().default(10),
 });
@@ -248,6 +250,7 @@ export const listDdsRecordsSchema = z.object({
   company_id: z.coerce.number().int().optional(),
   initial_date: z.string().optional(),
   final_date: z.string().optional(),
+  participant_user_id: z.coerce.number().int().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   per_page: z.coerce.number().int().min(1).max(100).optional().default(10),
 });

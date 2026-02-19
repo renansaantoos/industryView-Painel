@@ -41,6 +41,7 @@ export const updatePpeTypeSchema = z.object({
 export const listDeliveriesSchema = z.object({
   users_id: z.coerce.number().int().optional(),
   ppe_types_id: z.coerce.number().int().optional(),
+  search: z.string().trim().optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),

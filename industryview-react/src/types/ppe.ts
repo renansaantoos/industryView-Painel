@@ -24,6 +24,8 @@ export interface PpeDelivery {
   observation?: string;
   user_name?: string;
   ppe_type_name?: string;
+  user?: { id: number; name: string; email?: string };
+  ppe_type?: { id: number; name: string; ca_number?: string; validity_months?: number; description?: string };
   created_at: string;
   updated_at: string;
 }

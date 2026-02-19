@@ -18,6 +18,8 @@ export const listNonConformancesSchema = z.object({
   company_id: z.coerce.number().int().optional(),
   status: z.enum(['aberta', 'em_analise', 'em_tratamento', 'verificacao', 'encerrada']).optional(),
   severity: z.enum(['menor', 'maior', 'critica']).optional(),
+  responsible_user_id: z.coerce.number().int().optional(),
+  involved_user_id: z.coerce.number().int().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   per_page: z.coerce.number().int().min(1).max(100).optional().default(10),
 });

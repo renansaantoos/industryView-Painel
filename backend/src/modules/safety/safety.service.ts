@@ -161,6 +161,8 @@ export class SafetyService {
    */
   static async listIncidents(input: ListIncidentsInput) {
     const { projects_id, severity, status, initial_date, final_date, page, per_page } = input;
+    const involved_user_id = (input as any).involved_user_id as number | undefined;
+    const witness_user_id = (input as any).witness_user_id as number | undefined;
     const skip = (page - 1) * per_page;
 
     const conditions: string[] = [];
@@ -186,6 +188,14 @@ export class SafetyService {
     if (final_date) {
       conditions.push(`incident_date <= $${paramIndex++}`);
       values.push(new Date(final_date));
+    }
+    if (involved_user_id) {
+      conditions.push(`involved_user_id = $${paramIndex++}`);
+      values.push(BigInt(involved_user_id));
+    }
+    if (witness_user_id) {
+      conditions.push(`id IN (SELECT safety_incidents_id FROM safety_incident_witnesses WHERE users_id = $${paramIndex++})`);
+      values.push(BigInt(witness_user_id));
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -1082,6 +1092,7 @@ export class SafetyService {
    */
   static async listDdsRecords(input: ListDdsRecordsInput) {
     const { projects_id, company_id, initial_date, final_date, page, per_page } = input;
+    const participant_user_id = (input as any).participant_user_id as number | undefined;
     const skip = (page - 1) * per_page;
 
     const conditions: string[] = [];
@@ -1103,6 +1114,10 @@ export class SafetyService {
     if (final_date) {
       conditions.push(`dds_date <= $${paramIndex++}`);
       values.push(new Date(final_date));
+    }
+    if (participant_user_id) {
+      conditions.push(`id IN (SELECT dds_records_id FROM dds_participants WHERE user_id = $${paramIndex++})`);
+      values.push(BigInt(participant_user_id));
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

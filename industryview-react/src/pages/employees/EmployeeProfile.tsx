@@ -18,6 +18,11 @@ import {
   Coffee,
   TrendingUp,
   Gift,
+  AlertTriangle,
+  HeartPulse,
+  MessageSquare,
+  ClipboardCheck,
+  AlertOctagon,
 } from 'lucide-react';
 
 // Tab components
@@ -30,6 +35,11 @@ import TimeTrackingTab from './tabs/TimeTrackingTab';
 import DayOffsTab from './tabs/DayOffsTab';
 import CareerHistoryTab from './tabs/CareerHistoryTab';
 import BenefitsTab from './tabs/BenefitsTab';
+import IncidentsTab from './tabs/IncidentsTab';
+import HealthTab from './tabs/HealthTab';
+import DDSTab from './tabs/DDSTab';
+import WorkPermitsTab from './tabs/WorkPermitsTab';
+import NonConformancesTab from './tabs/NonConformancesTab';
 
 type TabKey =
   | 'dados'
@@ -40,7 +50,12 @@ type TabKey =
   | 'ponto'
   | 'folgas'
   | 'historico'
-  | 'beneficios';
+  | 'beneficios'
+  | 'incidentes'
+  | 'saude'
+  | 'dds'
+  | 'permissoes'
+  | 'nao_conformidades';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'dados', label: 'Dados Pessoais', icon: <User size={16} /> },
@@ -52,6 +67,11 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'folgas', label: 'Folgas', icon: <Coffee size={16} /> },
   { key: 'historico', label: 'Historico', icon: <TrendingUp size={16} /> },
   { key: 'beneficios', label: 'Beneficios', icon: <Gift size={16} /> },
+  { key: 'saude', label: 'Saude', icon: <HeartPulse size={16} /> },
+  { key: 'incidentes', label: 'Incidentes', icon: <AlertTriangle size={16} /> },
+  { key: 'dds', label: 'DDS', icon: <MessageSquare size={16} /> },
+  { key: 'permissoes', label: 'Permissoes de Trabalho', icon: <ClipboardCheck size={16} /> },
+  { key: 'nao_conformidades', label: 'Nao-Conformidades', icon: <AlertOctagon size={16} /> },
 ];
 
 interface SummaryData {
@@ -257,7 +277,7 @@ export default function EmployeeProfile() {
         style={{
           display: 'flex',
           gap: '4px',
-          overflowX: 'auto',
+          flexWrap: 'wrap',
           paddingBottom: '2px',
           marginBottom: '20px',
           borderBottom: '2px solid var(--color-border)',
@@ -305,6 +325,11 @@ export default function EmployeeProfile() {
         {activeTab === 'folgas' && <DayOffsTab usersId={usersId} />}
         {activeTab === 'historico' && <CareerHistoryTab usersId={usersId} />}
         {activeTab === 'beneficios' && <BenefitsTab usersId={usersId} />}
+        {activeTab === 'saude' && <HealthTab usersId={usersId} />}
+        {activeTab === 'incidentes' && <IncidentsTab usersId={usersId} />}
+        {activeTab === 'dds' && <DDSTab usersId={usersId} />}
+        {activeTab === 'permissoes' && <WorkPermitsTab usersId={usersId} />}
+        {activeTab === 'nao_conformidades' && <NonConformancesTab usersId={usersId} />}
       </motion.div>
     </motion.div>
   );

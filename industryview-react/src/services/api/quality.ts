@@ -25,6 +25,7 @@ export async function listNonConformances(params?: {
   category?: string;
   origin?: string;
   responsible_id?: number;
+  responsible_user_id?: number;
   initial_date?: string;
   final_date?: string;
   page?: number;

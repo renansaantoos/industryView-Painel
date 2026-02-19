@@ -109,7 +109,7 @@ export default function PPEManagement() {
   const [deliveryPage, setDeliveryPage] = useState(1);
   const [deliveryTotalPages, setDeliveryTotalPages] = useState(1);
   const [deliveryTotalItems, setDeliveryTotalItems] = useState(0);
-  const [filterUsersId, setFilterUsersId] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
   const [filterPpeTypeId, setFilterPpeTypeId] = useState('');
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState<DeliveryForm>(EMPTY_DELIVERY_FORM);
@@ -166,7 +166,7 @@ export default function PPEManagement() {
         per_page: PER_PAGE,
       };
       if (user?.companyId) params.company_id = user.companyId;
-      if (filterUsersId.trim()) params.users_id = parseInt(filterUsersId, 10);
+      if (filterSearch.trim()) params.search = filterSearch.trim();
       if (filterPpeTypeId.trim()) params.ppe_types_id = parseInt(filterPpeTypeId, 10);
       const data = await ppeApi.listDeliveries(params);
       setDeliveries(data.items ?? []);
@@ -177,7 +177,7 @@ export default function PPEManagement() {
     } finally {
       setDeliveriesLoading(false);
     }
-  }, [user, deliveryPage, filterUsersId, filterPpeTypeId, showToast]);
+  }, [user, deliveryPage, filterSearch, filterPpeTypeId, showToast]);
 
   useEffect(() => {
     if (activeTab === 'types') loadPpeTypes();
@@ -372,7 +372,7 @@ export default function PPEManagement() {
   };
 
   const handleClearDeliveryFilters = () => {
-    setFilterUsersId('');
+    setFilterSearch('');
     setFilterPpeTypeId('');
     setDeliveryPage(1);
   };
@@ -518,13 +518,25 @@ export default function PPEManagement() {
               <Filter size={16} />
               <span style={{ fontSize: '13px', fontWeight: 500 }}>Filtros:</span>
             </div>
-            <div className="input-group" style={{ margin: 0, flex: '0 0 200px' }}>
+            <div className="input-group" style={{ margin: 0, flex: '0 0 260px', position: 'relative' }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-secondary-text)',
+                  pointerEvents: 'none',
+                }}
+              />
               <input
-                type="number"
+                type="text"
                 className="input-field"
-                placeholder="ID do colaborador"
-                value={filterUsersId}
-                onChange={(e) => { setFilterUsersId(e.target.value); setDeliveryPage(1); }}
+                placeholder="Nome ou ID do colaborador"
+                value={filterSearch}
+                onChange={(e) => { setFilterSearch(e.target.value); setDeliveryPage(1); }}
+                style={{ paddingLeft: '32px' }}
               />
             </div>
             <div className="input-group" style={{ margin: 0, flex: '0 0 200px' }}>
@@ -539,7 +551,7 @@ export default function PPEManagement() {
                 ))}
               </select>
             </div>
-            {(filterUsersId || filterPpeTypeId) && (
+            {(filterSearch || filterPpeTypeId) && (
               <button className="btn btn-icon" title="Limpar filtros" onClick={handleClearDeliveryFilters}>
                 <X size={16} />
               </button>
@@ -574,8 +586,14 @@ export default function PPEManagement() {
                 <motion.tbody variants={staggerParent} initial="initial" animate="animate">
                   {deliveries.map((delivery) => (
                     <motion.tr key={delivery.id} variants={tableRowVariants}>
-                      <td style={{ fontWeight: 500 }}>{delivery.user_name ?? `ID ${delivery.users_id}`}</td>
-                      <td>{delivery.ppe_type_name ?? `ID ${delivery.ppe_types_id}`}</td>
+                      <td style={{ fontWeight: 500 }}>
+                        {delivery.user?.name
+                          ? `${delivery.user.name} (ID ${delivery.users_id})`
+                          : delivery.user_name
+                            ? `${delivery.user_name} (ID ${delivery.users_id})`
+                            : `ID ${delivery.users_id}`}
+                      </td>
+                      <td>{delivery.ppe_type?.name ?? delivery.ppe_type_name ?? `ID ${delivery.ppe_types_id}`}</td>
                       <td>{delivery.quantity}</td>
                       <td>{formatDate(delivery.delivery_date)}</td>
                       <td>{delivery.return_date ? formatDate(delivery.return_date) : '-'}</td>

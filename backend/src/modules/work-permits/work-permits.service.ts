@@ -32,6 +32,7 @@ export class WorkPermitsService {
   static async listPermits(input: ListPermitsInput) {
     const { projects_id, status, permit_type, page, per_page } = input;
     const company_id = (input as any).company_id;
+    const signer_user_id = (input as any).signer_user_id as number | undefined;
     const skip = (page - 1) * per_page;
 
     const whereClause: any = {};
@@ -51,6 +52,10 @@ export class WorkPermitsService {
 
     if (permit_type) {
       whereClause.permit_type = permit_type;
+    }
+
+    if (signer_user_id) {
+      whereClause.signatures = { some: { users_id: BigInt(signer_user_id) } };
     }
 
     const [items, total] = await Promise.all([

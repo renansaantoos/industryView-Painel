@@ -108,6 +108,8 @@ export class QualityService {
   static async listNonConformances(input: ListNonConformancesInput) {
     const { projects_id, status, severity, page, per_page } = input;
     const company_id = (input as any).company_id;
+    const responsible_user_id = (input as any).responsible_user_id as number | undefined;
+    const involved_user_id = (input as any).involved_user_id as number | undefined;
     const skip = (page - 1) * per_page;
 
     const whereClause: any = {};
@@ -126,6 +128,13 @@ export class QualityService {
     }
     if (severity) {
       whereClause.severity = severity;
+    }
+    if (responsible_user_id) {
+      whereClause.responsible_user_id = BigInt(responsible_user_id);
+    }
+    // involved_user_id filtra por opened_by_user_id (usuario que abriu a NC)
+    if (involved_user_id) {
+      whereClause.opened_by_user_id = BigInt(involved_user_id);
     }
 
     const [items, total] = await Promise.all([

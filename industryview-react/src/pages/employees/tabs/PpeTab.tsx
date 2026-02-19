@@ -35,6 +35,14 @@ function formatDate(dateStr?: string | null): string {
   return new Date(dateStr).toLocaleDateString('pt-BR');
 }
 
+function computeExpiry(delivery: PpeDelivery): string | null {
+  const months = delivery.ppe_type?.validity_months;
+  if (!months || !delivery.delivery_date) return null;
+  const d = new Date(delivery.delivery_date);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString();
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function DeliveryStatusBadge({ status }: { status: DeliveryStatus }) {
@@ -206,14 +214,13 @@ export default function PpeTab({ usersId }: PpeTabProps) {
                 return (
                   <motion.tr key={delivery.id} variants={tableRowVariants}>
                     <td style={{ fontWeight: 500 }}>
-                      {delivery.ppe_type_name || '-'}
+                      {delivery.ppe_type?.name || delivery.ppe_type_name || '-'}
                     </td>
                     <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
-                      {/* ca_number is available on ppe_type, not directly on delivery in the existing type */}
-                      {'-'}
+                      {delivery.ppe_type?.ca_number || '-'}
                     </td>
                     <td>{formatDate(delivery.delivery_date)}</td>
-                    <td>{formatDate(delivery.expiry_date)}</td>
+                    <td>{formatDate(delivery.expiry_date ?? computeExpiry(delivery))}</td>
                     <td>
                       <DeliveryStatusBadge status={status} />
                     </td>

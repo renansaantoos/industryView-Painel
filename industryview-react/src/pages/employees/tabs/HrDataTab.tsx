@@ -175,6 +175,49 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
   useEffect(() => {
     let cancelled = false;
 
+    // Dropdown fields that must be normalized for matching option values
+    const enumFields = new Set([
+      'genero', 'estado_civil', 'tipo_contrato', 'banco_tipo_conta', 'escolaridade',
+    ]);
+    // cnh_categoria is uppercase (A, B, AB, etc.)
+    const upperEnumFields = new Set(['cnh_categoria']);
+
+    // Normalize DB values to match option values: strip accents, lowercase, replace spaces/hyphens with _
+    // e.g. "União Estável" → "uniao_estavel", "Pós-Graduação" → "pos_graduacao", "Viúvo(a)" → "viuvo"
+    function normalizeEnumValue(val: string): string {
+      let normalized = val
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+        .toLowerCase()
+        .trim()
+        .replace(/\(.*?\)/g, '')       // remove parentheses content like (a)
+        .trim()
+        .replace(/[\s\-]+/g, '_')      // spaces and hyphens → underscore
+        .replace(/_+$/, '');            // trailing underscores
+      // Strip common prefixes: "ensino_" (e.g. "Ensino Médio Completo" → "medio_completo")
+      normalized = normalized.replace(/^ensino_/, '');
+      return normalized;
+    }
+
+    // Fallback: known DB labels → option values for escolaridade
+    const escolaridadeMap: Record<string, string> = {
+      'fundamental incompleto': 'fundamental_incompleto',
+      'fundamental completo': 'fundamental_completo',
+      'ensino fundamental incompleto': 'fundamental_incompleto',
+      'ensino fundamental completo': 'fundamental_completo',
+      'medio incompleto': 'medio_incompleto',
+      'medio completo': 'medio_completo',
+      'ensino medio incompleto': 'medio_incompleto',
+      'ensino medio completo': 'medio_completo',
+      'superior incompleto': 'superior_incompleto',
+      'superior completo': 'superior_completo',
+      'ensino superior incompleto': 'superior_incompleto',
+      'ensino superior completo': 'superior_completo',
+      'pos graduacao': 'pos_graduacao',
+      'pos-graduacao': 'pos_graduacao',
+      'mestrado': 'mestrado',
+      'doutorado': 'doutorado',
+    };
+
     async function loadHrData() {
       setIsLoading(true);
       try {
@@ -202,6 +245,18 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
                     if (typeof v === 'string' && v.length > 10) {
                       return [k, v.substring(0, 10)];
                     }
+                  }
+                  // Normalize enum fields to match dropdown option values
+                  if (enumFields.has(k) && typeof v === 'string') {
+                    if (k === 'escolaridade') {
+                      const stripped = v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+                      const mapped = escolaridadeMap[stripped];
+                      if (mapped) return [k, mapped];
+                    }
+                    return [k, normalizeEnumValue(v)];
+                  }
+                  if (upperEnumFields.has(k) && typeof v === 'string') {
+                    return [k, v.toUpperCase().trim()];
                   }
                   return [k, v];
                 })

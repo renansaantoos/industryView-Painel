@@ -17,6 +17,7 @@ export const listPermitsSchema = z.object({
   company_id: z.coerce.number().int().optional(),
   status: z.string().trim().optional(),
   permit_type: z.string().trim().optional(),
+  signer_user_id: z.coerce.number().int().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   per_page: z.coerce.number().int().min(1).max(100).optional().default(10),
 });

@@ -34,6 +34,7 @@ export async function listDeliveries(params?: {
   company_id?: number;
   ppe_types_id?: number;
   users_id?: number;
+  search?: string;
   page?: number;
   per_page?: number;
 }): Promise<PaginatedResponse<PpeDelivery>> {

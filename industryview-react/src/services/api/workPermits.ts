@@ -8,6 +8,7 @@ export async function listWorkPermits(params?: {
   company_id?: number;
   permit_type?: string;
   status?: string;
+  signer_user_id?: number;
   page?: number;
   per_page?: number;
 }): Promise<PaginatedResponse<WorkPermit>> {

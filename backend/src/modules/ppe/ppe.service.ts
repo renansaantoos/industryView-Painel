@@ -118,7 +118,7 @@ export class PpeService {
    * Campos reais: delivery_date (nao delivered_at), delivered_by_user_id (nao delivered_by_users_id)
    */
   static async listDeliveries(input: ListDeliveriesInput) {
-    const { users_id, ppe_types_id, start_date, end_date, page, per_page } = input;
+    const { users_id, ppe_types_id, search, start_date, end_date, page, per_page } = input;
     const skip = (page - 1) * per_page;
 
     const whereClause: any = {};
@@ -129,6 +129,19 @@ export class PpeService {
 
     if (ppe_types_id) {
       whereClause.ppe_types_id = BigInt(ppe_types_id);
+    }
+
+    // Busca por nome ou ID do colaborador
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      const isNumeric = /^\d+$/.test(searchTerm);
+      if (isNumeric) {
+        whereClause.users_id = BigInt(searchTerm);
+      } else {
+        whereClause.user = {
+          name: { contains: searchTerm, mode: 'insensitive' },
+        };
+      }
     }
 
     if (start_date) {
