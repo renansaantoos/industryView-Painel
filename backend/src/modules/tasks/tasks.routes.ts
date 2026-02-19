@@ -33,7 +33,7 @@ import {
 
 const router = Router();
 
-router.use((req, res, next) => {
+router.use((req, _res, next) => {
   console.log(`[TasksRoute DEBUG] Path: ${req.path}, Method: ${req.method}`);
   next();
 });

@@ -758,7 +758,7 @@ export class UsersService {
     // Link the user to the created company
     if (userId) {
       try {
-        const updatedUser = await db.users.update({
+        await db.users.update({
           where: { id: BigInt(userId) },
           data: { company_id: company.id },
         });
