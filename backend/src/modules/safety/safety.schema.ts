@@ -15,9 +15,8 @@ import { z } from 'zod';
  */
 export const listIncidentsSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
-  company_id: z.coerce.number().int().optional(),
-  severity: z.enum(['leve', 'moderado', 'grave', 'fatal']).optional(),
-  status: z.enum(['aberto', 'em_investigacao', 'encerrado']).optional(),
+  severity: z.enum(['quase_acidente', 'primeiros_socorros', 'sem_afastamento', 'com_afastamento', 'fatal']).optional(),
+  status: z.enum(['registrado', 'em_investigacao', 'investigado', 'encerrado']).optional(),
   initial_date: z.string().optional(),
   final_date: z.string().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -29,7 +28,6 @@ export const listIncidentsSchema = z.object({
  */
 export const getIncidentStatisticsSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
-  company_id: z.coerce.number().int().optional(),
 });
 
 /**
@@ -43,22 +41,21 @@ export const getIncidentByIdSchema = z.object({
  * Schema para criar incidente de seguranca
  */
 export const createSafetyIncidentSchema = z.object({
-  projects_id: z.coerce.number().int().optional(),
-  company_id: z.coerce.number().int().optional(),
+  projects_id: z.coerce.number().int({ message: 'Projeto e obrigatorio' }),
   reported_by: z.coerce.number().int({ message: 'ID do usuario que registrou e obrigatorio' }),
   incident_date: z.string({ required_error: 'Data do incidente e obrigatoria' }),
   description: z.string().trim().min(10, 'Descricao deve ter ao menos 10 caracteres'),
-  location: z.string().trim().min(1, 'Local do incidente e obrigatorio'),
-  severity: z.enum(['leve', 'moderado', 'grave', 'fatal'], {
+  severity: z.enum(['quase_acidente', 'primeiros_socorros', 'sem_afastamento', 'com_afastamento', 'fatal'], {
     required_error: 'Severidade e obrigatoria',
   }),
-  injured_user_id: z.coerce.number().int().optional(),
-  injured_name: z.string().trim().optional(),
+  classification: z.enum(['tipico', 'trajeto', 'doenca_ocupacional'], {
+    required_error: 'Classificacao e obrigatoria',
+  }),
+  category: z.string().trim().min(1, 'Categoria e obrigatoria'),
+  location_description: z.string().trim().optional(),
   body_part_affected: z.string().trim().optional(),
-  lost_time_days: z.coerce.number().int().min(0).optional().default(0),
+  days_lost: z.coerce.number().int().min(0).optional().default(0),
   immediate_cause: z.string().trim().optional(),
-  property_damage: z.boolean().optional().default(false),
-  property_damage_description: z.string().trim().optional(),
 });
 
 /**
@@ -66,15 +63,13 @@ export const createSafetyIncidentSchema = z.object({
  */
 export const updateSafetyIncidentSchema = z.object({
   description: z.string().trim().min(10).optional(),
-  location: z.string().trim().min(1).optional(),
-  severity: z.enum(['leve', 'moderado', 'grave', 'fatal']).optional(),
-  injured_user_id: z.coerce.number().int().optional(),
-  injured_name: z.string().trim().optional(),
+  location_description: z.string().trim().optional(),
+  severity: z.enum(['quase_acidente', 'primeiros_socorros', 'sem_afastamento', 'com_afastamento', 'fatal']).optional(),
+  classification: z.enum(['tipico', 'trajeto', 'doenca_ocupacional']).optional(),
+  category: z.string().trim().min(1).optional(),
   body_part_affected: z.string().trim().optional(),
-  lost_time_days: z.coerce.number().int().min(0).optional(),
+  days_lost: z.coerce.number().int().min(0).optional(),
   immediate_cause: z.string().trim().optional(),
-  property_damage: z.boolean().optional(),
-  property_damage_description: z.string().trim().optional(),
 });
 
 /**
@@ -82,7 +77,6 @@ export const updateSafetyIncidentSchema = z.object({
  */
 export const investigateIncidentSchema = z.object({
   investigated_by: z.coerce.number().int({ message: 'ID do investigador e obrigatorio' }),
-  investigation_notes: z.string().trim().optional(),
 });
 
 /**
@@ -92,7 +86,6 @@ export const closeIncidentSchema = z.object({
   closed_by: z.coerce.number().int({ message: 'ID de quem encerrou e obrigatorio' }),
   root_cause: z.string().trim().min(10, 'Causa raiz deve ter ao menos 10 caracteres'),
   corrective_actions: z.string().trim().min(10, 'Acoes corretivas devem ter ao menos 10 caracteres'),
-  preventive_actions: z.string().trim().optional(),
 });
 
 // =============================================================================
@@ -142,10 +135,10 @@ export const createTrainingTypeSchema = z.object({
   company_id: z.coerce.number().int().optional(),
   name: z.string().trim().min(1, 'Nome do treinamento e obrigatorio'),
   description: z.string().trim().optional(),
-  validity_months: z.coerce.number().int().min(1, 'Validade deve ser de ao menos 1 mes'),
-  is_mandatory: z.boolean().optional().default(false),
-  regulatory_norm: z.string().trim().optional(),
-  is_active: z.boolean().optional().default(true),
+  nr_reference: z.string().trim().optional(),
+  validity_months: z.coerce.number().int().min(1, 'Validade deve ser de ao menos 1 mes').optional(),
+  is_mandatory_for_admission: z.boolean().optional().default(false),
+  workload_hours: z.coerce.number().min(0, 'Carga horaria deve ser positiva').optional(),
 });
 
 /**
@@ -154,10 +147,10 @@ export const createTrainingTypeSchema = z.object({
 export const updateTrainingTypeSchema = z.object({
   name: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
+  nr_reference: z.string().trim().optional(),
   validity_months: z.coerce.number().int().min(1).optional(),
-  is_mandatory: z.boolean().optional(),
-  regulatory_norm: z.string().trim().optional(),
-  is_active: z.boolean().optional(),
+  is_mandatory_for_admission: z.boolean().optional(),
+  workload_hours: z.coerce.number().min(0).optional(),
 });
 
 // =============================================================================
@@ -195,13 +188,15 @@ export const getExpiredTrainingsSchema = z.object({
  * Schema para criar registro de treinamento do trabalhador
  */
 export const createWorkerTrainingSchema = z.object({
-  user_id: z.coerce.number().int({ message: 'ID do trabalhador e obrigatorio' }),
+  users_id: z.coerce.number().int({ message: 'ID do trabalhador e obrigatorio' }),
   training_types_id: z.coerce.number().int({ message: 'Tipo de treinamento e obrigatorio' }),
   training_date: z.string({ required_error: 'Data do treinamento e obrigatoria' }),
-  instructor_name: z.string().trim().optional(),
-  training_provider: z.string().trim().optional(),
-  certificate_url: z.string().url().optional(),
-  notes: z.string().trim().optional(),
+  instructor: z.string().trim().optional(),
+  institution: z.string().trim().optional(),
+  certificate_number: z.string().trim().optional(),
+  certificate_url: z.string().trim().optional(),
+  workload_hours: z.coerce.number().int().min(0).optional(),
+  company_id: z.coerce.number().int().optional(),
 });
 
 /**

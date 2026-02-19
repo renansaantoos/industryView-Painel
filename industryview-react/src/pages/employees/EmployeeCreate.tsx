@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -6,7 +6,7 @@ import { pageVariants, fadeUpChild } from '../../lib/motion';
 import { usersApi, employeesApi } from '../../services';
 import type { EmployeeHrData } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
-import { ArrowLeft, Save, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,35 @@ interface ViaCepResponse {
   uf?: string;
   erro?: boolean;
 }
+
+// ─── Required fields config (field → { message, section }) ───────────────────
+// Based on Brazilian labor law (CLT/eSocial), HR best practices, and UX:
+//
+// Dados Pessoais: CPF (identificador único), Data Nascimento (eSocial/benefícios)
+// Endereço: CEP, Logradouro, Número, Bairro, Cidade, Estado (exigência eSocial)
+// Profissional: Data Admissão, Cargo, Tipo Contrato (registro CLT obrigatório)
+// Emergência: Nome, Telefone (NR de segurança industrial)
+// CNH, Bancário, Escolaridade, Observações: opcionais (preenchidos quando necessário)
+
+const REQUIRED_HR_FIELDS: Record<string, { message: string; section: string }> = {
+  // Dados Pessoais
+  cpf:                 { message: 'CPF é obrigatório',                section: 'pessoal' },
+  data_nascimento:     { message: 'Data de nascimento é obrigatória', section: 'pessoal' },
+  // Endereço
+  cep:                 { message: 'CEP é obrigatório',                section: 'endereco' },
+  logradouro:          { message: 'Logradouro é obrigatório',         section: 'endereco' },
+  numero:              { message: 'Número é obrigatório',             section: 'endereco' },
+  bairro:              { message: 'Bairro é obrigatório',             section: 'endereco' },
+  cidade:              { message: 'Cidade é obrigatória',             section: 'endereco' },
+  estado:              { message: 'Estado é obrigatório',             section: 'endereco' },
+  // Dados Profissionais
+  data_admissao:       { message: 'Data de admissão é obrigatória',   section: 'profissional' },
+  cargo:               { message: 'Cargo é obrigatório',              section: 'profissional' },
+  tipo_contrato:       { message: 'Tipo de contrato é obrigatório',   section: 'profissional' },
+  // Contato de Emergência
+  emergencia_nome:     { message: 'Nome do contato é obrigatório',    section: 'emergencia' },
+  emergencia_telefone: { message: 'Telefone de emergência é obrigatório', section: 'emergencia' },
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -55,31 +84,135 @@ const SECTION_GRID_FULL_STYLE: React.CSSProperties = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Section({ title, isOpen, onToggle, children, fullWidth = false }: {
-  title: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode; fullWidth?: boolean;
+function Section({ title, isOpen, onToggle, children, fullWidth = false, errorCount = 0 }: {
+  title: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode; fullWidth?: boolean; errorCount?: number;
 }) {
+  const hasErrors = errorCount > 0;
   return (
     <div>
       <div style={SECTION_HEADER_STYLE} onClick={onToggle} role="button" aria-expanded={isOpen}>
         {isOpen
-          ? <ChevronDown size={16} color="var(--color-primary)" />
-          : <ChevronRight size={16} color="var(--color-secondary-text)" />}
-        <span style={{ color: isOpen ? 'var(--color-primary)' : 'var(--color-primary-text)' }}>{title}</span>
+          ? <ChevronDown size={16} color={hasErrors ? 'var(--color-error)' : 'var(--color-primary)'} />
+          : <ChevronRight size={16} color={hasErrors ? 'var(--color-error)' : 'var(--color-secondary-text)'} />}
+        <span style={{ color: isOpen ? (hasErrors ? 'var(--color-error)' : 'var(--color-primary)') : (hasErrors ? 'var(--color-error)' : 'var(--color-primary-text)') }}>
+          {title}
+        </span>
+        {hasErrors && !isOpen && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8,
+            fontSize: 12, color: 'var(--color-error)', fontWeight: 500,
+          }}>
+            <AlertCircle size={14} />
+            {errorCount} {errorCount === 1 ? 'campo obrigatório' : 'campos obrigatórios'}
+          </span>
+        )}
       </div>
       {isOpen && <div style={fullWidth ? SECTION_GRID_FULL_STYLE : SECTION_GRID_STYLE}>{children}</div>}
     </div>
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div className="input-group">
-      <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-secondary-text)', marginBottom: 4, display: 'block' }}>
+      <label style={{ fontSize: 12, fontWeight: 500, color: error ? 'var(--color-error)' : 'var(--color-secondary-text)', marginBottom: 4, display: 'block' }}>
         {label}{required && ' *'}
       </label>
       {children}
+      {error && <span className="input-error">{error}</span>}
     </div>
   );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function isValidCpf(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let rest = (sum * 10) % 11;
+  if (rest === 10) rest = 0;
+  if (rest !== parseInt(digits[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  rest = (sum * 10) % 11;
+  if (rest === 10) rest = 0;
+  return rest === parseInt(digits[10]);
+}
+
+// ─── Input masks ─────────────────────────────────────────────────────────────
+
+function maskPhone(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+function maskCpf(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function maskCep(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+function maskRg(value: string): string {
+  // Aceita dígitos + X no final (dígito verificador)
+  const clean = value.replace(/[^\dXx]/g, '').toUpperCase().slice(0, 10);
+  const d = clean.replace(/X/g, '');
+  const hasX = clean.endsWith('X') && d.length >= 9;
+  const digits = d.slice(0, 9);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  const base = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}-${digits.slice(8)}`;
+  return hasX ? `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}-X` : base;
+}
+
+function maskCnh(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 11);
+}
+
+/** Máscara moeda BR: digita da direita p/ esquerda em centavos. Ex: 150000 → "1.500,00" */
+function maskCurrency(value: string): string {
+  const d = value.replace(/\D/g, '').replace(/^0+/, '');
+  if (!d) return '0,00';
+  const padded = d.padStart(3, '0');
+  const cents = padded.slice(-2);
+  const intPart = padded.slice(0, -2);
+  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formatted},${cents}`;
+}
+
+/** Converte "1.500,00" → 1500.00 (number) */
+function parseCurrency(masked: string): number {
+  const raw = masked.replace(/\./g, '').replace(',', '.');
+  return parseFloat(raw) || 0;
+}
+
+/** Agência bancária: XXXX-X */
+function maskAgencia(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 5);
+  if (d.length <= 4) return d;
+  return `${d.slice(0, 4)}-${d.slice(4)}`;
+}
+
+/** Conta bancária: até 8 dígitos + dígito verificador → XXXXXXXX-X */
+function maskConta(value: string): string {
+  const d = value.replace(/\D/g, '').slice(0, 9);
+  if (d.length <= 1) return d;
+  return `${d.slice(0, -1)}-${d.slice(-1)}`;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -97,7 +230,10 @@ export default function EmployeeCreate() {
   const [form, setForm] = useState<HrFormData>(EMPTY_HR_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
+  const [salarioDisplay, setSalarioDisplay] = useState('');
   const [toast, setToast] = useState<ToastState | null>(null);
+
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     basico: true, pessoal: true, endereco: false, profissional: false,
@@ -106,20 +242,41 @@ export default function EmployeeCreate() {
 
   function showToast(message: string, type: 'success' | 'error') {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  function clearError(field: string) {
+    setFieldErrors(prev => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   }
 
   function handleChange(field: keyof HrFormData, value: string | number | undefined) {
     setForm(prev => ({ ...prev, [field]: value }));
+    clearError(field);
   }
 
   function toggleSection(section: string) {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   }
 
-  const handleCepBlur = useCallback(async () => {
-    const raw = form.cep?.replace(/\D/g, '') ?? '';
-    if (raw.length !== 8) return;
+  function countSectionErrors(section: string): number {
+    if (section === 'basico') {
+      return (fieldErrors.name ? 1 : 0) + (fieldErrors.email ? 1 : 0);
+    }
+    return Object.entries(REQUIRED_HR_FIELDS)
+      .filter(([field, cfg]) => cfg.section === section && fieldErrors[field])
+      .length;
+  }
+
+  const lastFetchedCep = useRef('');
+
+  const fetchCepData = useCallback(async (raw: string) => {
+    if (raw.length !== 8 || raw === lastFetchedCep.current) return;
+    lastFetchedCep.current = raw;
     setIsFetchingCep(true);
     try {
       const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
@@ -132,18 +289,76 @@ export default function EmployeeCreate() {
         cidade: json.localidade ?? prev.cidade,
         estado: json.uf ?? prev.estado,
       }));
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next.cep;
+        if (json.logradouro) delete next.logradouro;
+        if (json.bairro) delete next.bairro;
+        if (json.localidade) delete next.cidade;
+        if (json.uf) delete next.estado;
+        return next;
+      });
     } catch {
       showToast('Falha ao consultar CEP.', 'error');
     } finally {
       setIsFetchingCep(false);
     }
-  }, [form.cep]);
+  }, []);
 
   async function handleSave() {
-    if (!name.trim() || !email.trim()) {
-      showToast('Nome e email são obrigatórios.', 'error');
+    const errors: Record<string, string> = {};
+
+    // ── Basic fields ──
+    if (!name.trim()) errors.name = 'Nome é obrigatório';
+    if (!email.trim()) {
+      errors.email = 'Email é obrigatório';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = 'Formato de email inválido';
+    }
+
+    // ── HR required fields ──
+    for (const [field, config] of Object.entries(REQUIRED_HR_FIELDS)) {
+      const value = form[field as keyof HrFormData];
+      if (value === undefined || value === null || String(value).trim() === '') {
+        errors[field] = config.message;
+      }
+    }
+
+    // ── Format validations ──
+    const cpfRaw = form.cpf?.replace(/\D/g, '') ?? '';
+    if (cpfRaw && !isValidCpf(cpfRaw)) {
+      errors.cpf = 'CPF inválido';
+    }
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      // Collect sections that have errors and open them
+      const sectionsWithErrors = new Set<string>();
+      if (errors.name || errors.email) sectionsWithErrors.add('basico');
+      for (const [field, config] of Object.entries(REQUIRED_HR_FIELDS)) {
+        if (errors[field]) sectionsWithErrors.add(config.section);
+      }
+      if (errors.cpf) sectionsWithErrors.add('pessoal');
+
+      setOpenSections(prev => {
+        const next = { ...prev };
+        sectionsWithErrors.forEach(s => { next[s] = true; });
+        return next;
+      });
+
+      // Count total errors for toast summary
+      const total = Object.keys(errors).length;
+      showToast(`${total} ${total === 1 ? 'campo obrigatório não preenchido' : 'campos obrigatórios não preenchidos'}`, 'error');
+
+      // Scroll to first error
+      requestAnimationFrame(() => {
+        const firstError = document.querySelector('.input-field.error, .select-field.error');
+        firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
       return;
     }
+
     setIsSaving(true);
     try {
       // 1. Create user
@@ -171,25 +386,35 @@ export default function EmployeeCreate() {
     }
   }
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  // ─── Input helpers (with error support) ─────────────────────────────────────
+
+  function isRequired(field: keyof HrFormData): boolean {
+    return field in REQUIRED_HR_FIELDS;
+  }
 
   function textInput(field: keyof HrFormData, placeholder?: string) {
+    const err = fieldErrors[field];
     return (
-      <input className="input-field" type="text" value={(form[field] as string | undefined) ?? ''}
+      <input className={`input-field${err ? ' error' : ''}`} type="text"
+        value={(form[field] as string | undefined) ?? ''}
         placeholder={placeholder} onChange={e => handleChange(field, e.target.value)} />
     );
   }
 
   function dateInput(field: keyof HrFormData) {
+    const err = fieldErrors[field];
     return (
-      <input className="input-field" type="date" value={(form[field] as string | undefined) ?? ''}
+      <input className={`input-field${err ? ' error' : ''}`} type="date"
+        value={(form[field] as string | undefined) ?? ''}
         onChange={e => handleChange(field, e.target.value)} />
     );
   }
 
   function selectInput(field: keyof HrFormData, options: { value: string; label: string }[], placeholder?: string) {
+    const err = fieldErrors[field];
     return (
-      <select className="select-field" value={(form[field] as string | undefined) ?? ''}
+      <select className={`select-field${err ? ' error' : ''}`}
+        value={(form[field] as string | undefined) ?? ''}
         onChange={e => handleChange(field, e.target.value)}>
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -219,36 +444,46 @@ export default function EmployeeCreate() {
           padding: '12px 20px', borderRadius: 'var(--radius-md)',
           background: toast.type === 'success' ? 'var(--color-success)' : 'var(--color-error)',
           color: '#fff', fontWeight: 500, fontSize: 14, boxShadow: 'var(--shadow-lg)', maxWidth: 340,
+          display: 'flex', alignItems: 'center', gap: 8,
         }} role="alert" aria-live="polite">
+          {toast.type === 'error' && <AlertCircle size={16} />}
           {toast.message}
         </div>
       )}
 
       <motion.div variants={fadeUpChild} className="card" style={{ padding: '24px' }}>
         {/* ── Dados Básicos (Nome, Email, Telefone) ────────────────────── */}
-        <Section title={t('employees.basicData')} isOpen={openSections.basico} onToggle={() => toggleSection('basico')}>
-          <Field label={t('employees.name')} required>
-            <input className="input-field" type="text" value={name} placeholder={t('employees.namePlaceholder')}
-              onChange={e => setName(e.target.value)} />
+        <Section title={t('employees.basicData')} isOpen={openSections.basico} onToggle={() => toggleSection('basico')} errorCount={countSectionErrors('basico')}>
+          <Field label={t('employees.name')} required error={fieldErrors.name}>
+            <input className={`input-field${fieldErrors.name ? ' error' : ''}`} type="text" value={name} placeholder={t('employees.namePlaceholder')}
+              onChange={e => { setName(e.target.value); clearError('name'); }} />
           </Field>
-          <Field label={t('employees.email')} required>
-            <input className="input-field" type="email" value={email} placeholder={t('employees.emailPlaceholder')}
-              onChange={e => setEmail(e.target.value)} />
+          <Field label={t('employees.email')} required error={fieldErrors.email}>
+            <input className={`input-field${fieldErrors.email ? ' error' : ''}`} type="email" value={email} placeholder={t('employees.emailPlaceholder')}
+              onChange={e => { setEmail(e.target.value); clearError('email'); }} />
           </Field>
           <Field label={t('employees.phone')}>
-            <input className="input-field" type="text" value={phone} placeholder={t('employees.phonePlaceholder')}
-              onChange={e => setPhone(e.target.value)} />
+            <input className="input-field" type="text" value={phone} placeholder="(00) 00000-0000"
+              onChange={e => setPhone(maskPhone(e.target.value))} />
           </Field>
         </Section>
 
         {/* ── Dados Pessoais ─────────────────────────────────────────── */}
-        <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')}>
+        <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')} errorCount={countSectionErrors('pessoal')}>
           <Field label="Nome Completo">{textInput('nome_completo', 'Nome completo do funcionário')}</Field>
-          <Field label="CPF">{textInput('cpf', '000.000.000-00')}</Field>
-          <Field label="RG">{textInput('rg')}</Field>
+          <Field label="CPF" required error={fieldErrors.cpf}>
+            <input className={`input-field${fieldErrors.cpf ? ' error' : ''}`} type="text"
+              value={form.cpf ?? ''} placeholder="000.000.000-00"
+              onChange={e => handleChange('cpf', maskCpf(e.target.value))} />
+          </Field>
+          <Field label="RG">
+            <input className={`input-field${fieldErrors.rg ? ' error' : ''}`} type="text"
+              value={form.rg ?? ''} placeholder="00.000.000-0"
+              onChange={e => handleChange('rg', maskRg(e.target.value))} />
+          </Field>
           <Field label="Órgão Emissor RG">{textInput('rg_orgao_emissor', 'Ex: SSP-SP')}</Field>
           <Field label="Data Emissão RG">{dateInput('rg_data_emissao')}</Field>
-          <Field label="Data de Nascimento">{dateInput('data_nascimento')}</Field>
+          <Field label="Data de Nascimento" required error={fieldErrors.data_nascimento}>{dateInput('data_nascimento')}</Field>
           <Field label="Gênero">
             {selectInput('genero', [
               { value: 'masculino', label: 'Masculino' }, { value: 'feminino', label: 'Feminino' },
@@ -269,37 +504,48 @@ export default function EmployeeCreate() {
         </Section>
 
         {/* ── Endereço ───────────────────────────────────────────────── */}
-        <Section title="Endereço" isOpen={openSections.endereco} onToggle={() => toggleSection('endereco')}>
-          <Field label={isFetchingCep ? 'CEP (buscando...)' : 'CEP'}>
-            <input className="input-field" type="text" value={form.cep ?? ''} placeholder="00000-000"
-              onChange={e => handleChange('cep', e.target.value)} onBlur={handleCepBlur} disabled={isFetchingCep} />
+        <Section title="Endereço" isOpen={openSections.endereco} onToggle={() => toggleSection('endereco')} errorCount={countSectionErrors('endereco')}>
+          <Field label={isFetchingCep ? 'CEP (buscando...)' : 'CEP'} required error={fieldErrors.cep}>
+            <input className={`input-field${fieldErrors.cep ? ' error' : ''}`} type="text" value={form.cep ?? ''} placeholder="00000-000"
+              onChange={e => {
+                const masked = maskCep(e.target.value);
+                handleChange('cep', masked);
+                const raw = masked.replace(/\D/g, '');
+                if (raw.length === 8) fetchCepData(raw);
+              }}
+              onBlur={() => { const raw = (form.cep ?? '').replace(/\D/g, ''); if (raw.length === 8) fetchCepData(raw); }}
+              disabled={isFetchingCep} />
           </Field>
-          <Field label="Logradouro">{textInput('logradouro', 'Rua, Av...')}</Field>
-          <Field label="Número">{textInput('numero')}</Field>
+          <Field label="Logradouro" required error={fieldErrors.logradouro}>{textInput('logradouro', 'Rua, Av...')}</Field>
+          <Field label="Número" required error={fieldErrors.numero}>{textInput('numero')}</Field>
           <Field label="Complemento">{textInput('complemento', 'Apto, Bloco...')}</Field>
-          <Field label="Bairro">{textInput('bairro')}</Field>
-          <Field label="Cidade">{textInput('cidade')}</Field>
-          <Field label="Estado (UF)">{textInput('estado', 'Ex: SP')}</Field>
+          <Field label="Bairro" required error={fieldErrors.bairro}>{textInput('bairro')}</Field>
+          <Field label="Cidade" required error={fieldErrors.cidade}>{textInput('cidade')}</Field>
+          <Field label="Estado (UF)" required error={fieldErrors.estado}>{textInput('estado', 'Ex: SP')}</Field>
         </Section>
 
         {/* ── Dados Profissionais ────────────────────────────────────── */}
-        <Section title="Dados Profissionais" isOpen={openSections.profissional} onToggle={() => toggleSection('profissional')}>
+        <Section title="Dados Profissionais" isOpen={openSections.profissional} onToggle={() => toggleSection('profissional')} errorCount={countSectionErrors('profissional')}>
           <Field label="Matrícula">{textInput('matricula')}</Field>
-          <Field label="Data de Admissão">{dateInput('data_admissao')}</Field>
+          <Field label="Data de Admissão" required error={fieldErrors.data_admissao}>{dateInput('data_admissao')}</Field>
           <Field label="Data de Demissão">{dateInput('data_demissao')}</Field>
-          <Field label="Tipo de Contrato">
+          <Field label="Tipo de Contrato" required error={fieldErrors.tipo_contrato}>
             {selectInput('tipo_contrato', [
               { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' },
               { value: 'estagio', label: 'Estágio' }, { value: 'temporario', label: 'Temporário' },
               { value: 'autonomo', label: 'Autônomo' },
             ], 'Selecione')}
           </Field>
-          <Field label="Cargo">{textInput('cargo')}</Field>
+          <Field label="Cargo" required error={fieldErrors.cargo}>{textInput('cargo')}</Field>
           <Field label="Departamento">{textInput('departamento')}</Field>
           <Field label="Salário (R$)">
-            <input className="input-field" type="number" min={0} step={0.01}
-              value={form.salario ?? ''} placeholder="0,00"
-              onChange={e => handleChange('salario', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+            <input className="input-field" type="text" inputMode="numeric"
+              value={salarioDisplay} placeholder="0,00"
+              onChange={e => {
+                const masked = maskCurrency(e.target.value);
+                setSalarioDisplay(masked);
+                handleChange('salario', parseCurrency(masked));
+              }} />
           </Field>
           <Field label="Jornada de Trabalho">{textInput('jornada_trabalho', 'Ex: 44h semanais')}</Field>
           <Field label="PIS/PASEP">{textInput('pis_pasep')}</Field>
@@ -310,7 +556,11 @@ export default function EmployeeCreate() {
 
         {/* ── CNH ────────────────────────────────────────────────────── */}
         <Section title="Carteira de Habilitação (CNH)" isOpen={openSections.cnh} onToggle={() => toggleSection('cnh')}>
-          <Field label="Número da CNH">{textInput('cnh_numero')}</Field>
+          <Field label="Número da CNH">
+            <input className={`input-field${fieldErrors.cnh_numero ? ' error' : ''}`} type="text"
+              value={form.cnh_numero ?? ''} placeholder="00000000000"
+              onChange={e => handleChange('cnh_numero', maskCnh(e.target.value))} />
+          </Field>
           <Field label="Categoria">
             {selectInput('cnh_categoria', [
               { value: 'A', label: 'A' }, { value: 'B', label: 'B' }, { value: 'AB', label: 'AB' },
@@ -323,8 +573,16 @@ export default function EmployeeCreate() {
         {/* ── Dados Bancários ────────────────────────────────────────── */}
         <Section title="Dados Bancários" isOpen={openSections.bancario} onToggle={() => toggleSection('bancario')}>
           <Field label="Banco">{textInput('banco_nome', 'Nome do banco')}</Field>
-          <Field label="Agência">{textInput('banco_agencia')}</Field>
-          <Field label="Conta">{textInput('banco_conta')}</Field>
+          <Field label="Agência">
+            <input className={`input-field${fieldErrors.banco_agencia ? ' error' : ''}`} type="text"
+              value={form.banco_agencia ?? ''} placeholder="0000-0"
+              onChange={e => handleChange('banco_agencia', maskAgencia(e.target.value))} />
+          </Field>
+          <Field label="Conta">
+            <input className={`input-field${fieldErrors.banco_conta ? ' error' : ''}`} type="text"
+              value={form.banco_conta ?? ''} placeholder="00000000-0"
+              onChange={e => handleChange('banco_conta', maskConta(e.target.value))} />
+          </Field>
           <Field label="Tipo de Conta">
             {selectInput('banco_tipo_conta', [
               { value: 'corrente', label: 'Conta Corrente' }, { value: 'poupanca', label: 'Conta Poupança' },
@@ -335,10 +593,14 @@ export default function EmployeeCreate() {
         </Section>
 
         {/* ── Contato de Emergência ──────────────────────────────────── */}
-        <Section title="Contato de Emergência" isOpen={openSections.emergencia} onToggle={() => toggleSection('emergencia')}>
-          <Field label="Nome">{textInput('emergencia_nome')}</Field>
+        <Section title="Contato de Emergência" isOpen={openSections.emergencia} onToggle={() => toggleSection('emergencia')} errorCount={countSectionErrors('emergencia')}>
+          <Field label="Nome" required error={fieldErrors.emergencia_nome}>{textInput('emergencia_nome')}</Field>
           <Field label="Parentesco">{textInput('emergencia_parentesco', 'Ex: Cônjuge, Pai, Mãe')}</Field>
-          <Field label="Telefone">{textInput('emergencia_telefone', '(00) 00000-0000')}</Field>
+          <Field label="Telefone" required error={fieldErrors.emergencia_telefone}>
+            <input className={`input-field${fieldErrors.emergencia_telefone ? ' error' : ''}`} type="text"
+              value={form.emergencia_telefone ?? ''} placeholder="(00) 00000-0000"
+              onChange={e => handleChange('emergencia_telefone', maskPhone(e.target.value))} />
+          </Field>
         </Section>
 
         {/* ── Escolaridade ───────────────────────────────────────────── */}

@@ -4,7 +4,7 @@
 // Tabela ppe_deliveries: delivery_date, delivered_by_user_id, return_date, condition_on_return
 // Sem: status, expires_at, batch_number, returned_at - ppe_deliveries e documento legal
 // Tabela task_required_ppe: tasks_template_id (nao tasks_id)
-// Tabela ppe_types: sem is_active, sem description
+// Tabela ppe_types: sem is_active
 // =============================================================================
 
 import { db } from '../../config/database';
@@ -31,8 +31,8 @@ export class PpeService {
 
   /**
    * Lista tipos de EPI por empresa
-   * Campos reais: name, ca_number, validity_months, company_id
-   * Sem: description, is_active
+   * Campos reais: name, ca_number, validity_months, description, company_id
+   * Sem: is_active
    */
   static async listPpeTypes(input: ListPpeTypesInput) {
     const whereClause: any = {
@@ -59,6 +59,7 @@ export class PpeService {
         name: input.name,
         ca_number: input.ca_number ?? null,
         validity_months: input.validity_months ?? null,
+        description: input.description ?? null,
       },
     });
   }
@@ -81,6 +82,7 @@ export class PpeService {
         name: input.name,
         ca_number: input.ca_number,
         validity_months: input.validity_months,
+        description: input.description,
         updated_at: new Date(),
       },
     });

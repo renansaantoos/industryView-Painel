@@ -14,6 +14,7 @@ import {
   addSignatureSchema,
 } from './work-permits.schema';
 import { AuthenticatedRequest } from '../../types';
+import { serializeBigInt } from '../../utils/bigint';
 
 /**
  * WorkPermitsController - Controller do modulo de permissoes de trabalho
@@ -31,7 +32,7 @@ export class WorkPermitsController {
         input.company_id = req.user.companyId;
       }
       const result = await WorkPermitsService.listPermits(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -45,7 +46,7 @@ export class WorkPermitsController {
     try {
       const { id } = getPermitByIdSchema.parse(req.params);
       const result = await WorkPermitsService.getPermitById(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -59,7 +60,7 @@ export class WorkPermitsController {
     try {
       const { projects_id } = getActivePermitsSchema.parse(req.query);
       const result = await WorkPermitsService.getActivePermits(projects_id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -74,7 +75,7 @@ export class WorkPermitsController {
       const input = createPermitSchema.parse(req.body);
       const user_id = Number(req.auth!.id);
       const result = await WorkPermitsService.createPermit(input, user_id);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -89,7 +90,7 @@ export class WorkPermitsController {
       const { id } = getPermitByIdSchema.parse(req.params);
       const input = updatePermitSchema.parse(req.body);
       const result = await WorkPermitsService.updatePermit(id, input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -104,7 +105,7 @@ export class WorkPermitsController {
       const { id } = getPermitByIdSchema.parse(req.params);
       const user_id = Number(req.auth!.id);
       const result = await WorkPermitsService.approvePermit(id, user_id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -119,7 +120,7 @@ export class WorkPermitsController {
       const { id } = getPermitByIdSchema.parse(req.params);
       const user_id = Number(req.auth!.id);
       const result = await WorkPermitsService.closePermit(id, user_id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -133,7 +134,7 @@ export class WorkPermitsController {
     try {
       const { id } = getPermitByIdSchema.parse(req.params);
       const result = await WorkPermitsService.cancelPermit(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -148,7 +149,7 @@ export class WorkPermitsController {
       const { id: permit_id } = getPermitByIdSchema.parse(req.params);
       const input = addSignatureSchema.parse({ ...req.body, permit_id });
       const result = await WorkPermitsService.addSignature(input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }

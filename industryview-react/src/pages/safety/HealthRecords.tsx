@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
-import { healthApi } from '../../services';
+import { healthApi, usersApi } from '../../services';
 import type { HealthRecord } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
@@ -17,6 +17,7 @@ import {
   Filter,
   X,
   AlertTriangle,
+  Search,
 } from 'lucide-react';
 
 /* =========================================
@@ -74,14 +75,14 @@ const EMPTY_FORM: RecordForm = {
    Helpers
    ========================================= */
 
-function formatDate(dateStr?: string): string {
+function formatDate(dateStr?: string | number): string {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+  if (isNaN(d.getTime())) return String(dateStr);
   return d.toLocaleDateString('pt-BR');
 }
 
-function getExpiryStatus(expiry_date?: string): 'expired' | 'expiring_soon' | 'ok' | 'none' {
+function getExpiryStatus(expiry_date?: string | number): 'expired' | 'expiring_soon' | 'ok' | 'none' {
   if (!expiry_date) return 'none';
   const now = new Date();
   const expiry = new Date(expiry_date);
@@ -141,6 +142,13 @@ export default function HealthRecords() {
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
   const [form, setForm] = useState<RecordForm>(EMPTY_FORM);
   const [formLoading, setFormLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof RecordForm, string>>>({});
+  const [formTouched, setFormTouched] = useState(false);
+
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState<HealthRecord | null>(null);
 
@@ -184,35 +192,100 @@ export default function HealthRecords() {
   }, [loadRecords]);
 
   /* =========================================
+     Load Users for Dropdown
+     ========================================= */
+
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const data = await usersApi.queryAllUsers({ per_page: 50 });
+      setUsers((data.items ?? []).map((u: any) => ({ id: u.id, name: u.name })));
+    } catch {
+      showToast('Erro ao carregar lista de colaboradores', 'error');
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [showToast]);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch.trim()) return users;
+    const q = userSearch.toLowerCase();
+    return users.filter((u) => u.name?.toLowerCase().includes(q));
+  }, [users, userSearch]);
+
+  const selectedUserName = useMemo(() => {
+    if (!form.users_id) return '';
+    const u = users.find((u) => String(u.id) === form.users_id);
+    if (u?.name) return u.name;
+    // Fallback: usar o nome do registro sendo editado
+    if (editingRecord && String(editingRecord.users_id) === form.users_id) {
+      return editingRecord.user_name ?? '';
+    }
+    return '';
+  }, [form.users_id, users, editingRecord]);
+
+  /* =========================================
+     Form Validation
+     ========================================= */
+
+  const validateForm = useCallback((): Partial<Record<keyof RecordForm, string>> => {
+    const errors: Partial<Record<keyof RecordForm, string>> = {};
+    if (!form.users_id) errors.users_id = 'Selecione um colaborador';
+    if (!form.exam_type) errors.exam_type = 'Selecione o tipo de exame';
+    if (!form.exam_date) errors.exam_date = 'Informe a data do exame';
+    if (!form.result) errors.result = 'Selecione o resultado';
+    if (form.result === 'apto_restricao' && !form.restriction_description.trim()) {
+      errors.restriction_description = 'Descreva a restrição para resultado "Apto com Restrição"';
+    }
+    return errors;
+  }, [form]);
+
+  /* =========================================
      Handlers
      ========================================= */
 
   const openCreateModal = () => {
     setEditingRecord(null);
     setForm(EMPTY_FORM);
+    setFormErrors({});
+    setFormTouched(false);
+    setUserSearch('');
+    setShowUserDropdown(false);
     setShowModal(true);
+    loadUsers();
   };
 
   const openEditModal = (record: HealthRecord) => {
     setEditingRecord(record);
+    const toDateStr = (v: string | number | undefined): string => {
+      if (!v) return '';
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return String(v).slice(0, 10);
+      return d.toISOString().slice(0, 10);
+    };
     setForm({
       users_id: String(record.users_id),
       exam_type: record.exam_type,
-      exam_date: record.exam_date.slice(0, 10),
-      expiry_date: record.expiry_date ? record.expiry_date.slice(0, 10) : '',
+      exam_date: toDateStr(record.exam_date),
+      expiry_date: toDateStr(record.expiry_date),
       result: record.result,
       restriction_description: record.restriction_description ?? '',
       doctor_name: record.doctor_name ?? '',
       crm: record.crm ?? '',
     });
+    setFormErrors({});
+    setFormTouched(false);
+    setUserSearch('');
+    setShowUserDropdown(false);
     setShowModal(true);
+    loadUsers();
   };
 
   const handleSave = async () => {
-    if (!form.users_id || !form.exam_type || !form.exam_date || !form.result) {
-      showToast('Colaborador, tipo de exame, data e resultado são obrigatórios', 'error');
-      return;
-    }
+    setFormTouched(true);
+    const errors = validateForm();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setFormLoading(true);
     try {
       const payload = {
@@ -417,43 +490,139 @@ export default function HealthRecords() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '540px' }}>
-            <h3 style={{ marginBottom: '20px' }}>
-              {editingRecord ? 'Editar Registro de Saúde' : 'Novo Registro de Saúde (ASO)'}
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px', padding: '28px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ margin: 0 }}>
+                {editingRecord ? 'Editar Registro de Saúde' : 'Novo Registro de Saúde (ASO)'}
+              </h3>
+              <button className="btn btn-icon" onClick={() => setShowModal(false)} title="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Colaborador - searchable dropdown */}
               <div className="input-group">
-                <label>ID do Colaborador *</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  placeholder="ID do usuário"
-                  value={form.users_id}
-                  onChange={(e) => setForm((f) => ({ ...f, users_id: e.target.value }))}
-                />
+                <label>Colaborador <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                <div style={{ position: 'relative' }}>
+                  {form.users_id && selectedUserName ? (
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--color-border)', backgroundColor: 'var(--color-secondary-bg)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => { setShowUserDropdown(true); setUserSearch(''); if (users.length === 0) loadUsers(); }}
+                    >
+                      <span style={{ fontWeight: 500 }}>{selectedUserName}</span>
+                      <X size={14} style={{ cursor: 'pointer', color: 'var(--color-secondary-text)' }}
+                        onClick={(e) => { e.stopPropagation(); setForm((f) => ({ ...f, users_id: '' })); }}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)' }} />
+                        <input
+                          className="input-field"
+                          placeholder={usersLoading ? 'Carregando colaboradores...' : 'Buscar colaborador pelo nome...'}
+                          value={userSearch}
+                          onChange={(e) => { setUserSearch(e.target.value); setShowUserDropdown(true); }}
+                          onFocus={() => setShowUserDropdown(true)}
+                          style={{
+                            paddingLeft: '34px',
+                            borderColor: formTouched && formErrors.users_id ? 'var(--color-error)' : undefined,
+                          }}
+                        />
+                      </div>
+                      {showUserDropdown && (
+                        <div style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                          maxHeight: '180px', overflowY: 'auto',
+                          backgroundColor: 'var(--color-secondary-bg)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          boxShadow: 'var(--shadow-md)',
+                          marginTop: '4px',
+                        }}>
+                          {usersLoading ? (
+                            <div style={{ padding: '12px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                              Carregando colaboradores...
+                            </div>
+                          ) : filteredUsers.length === 0 ? (
+                            <div style={{ padding: '12px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                              {users.length === 0 ? (
+                                <span>
+                                  Nenhum colaborador carregado.{' '}
+                                  <span style={{ color: 'var(--color-primary)', cursor: 'pointer', textDecoration: 'underline' }} onClick={loadUsers}>
+                                    Tentar novamente
+                                  </span>
+                                </span>
+                              ) : 'Nenhum colaborador encontrado'}
+                            </div>
+                          ) : filteredUsers.map((u) => (
+                            <div
+                              key={u.id}
+                              style={{
+                                padding: '8px 12px', cursor: 'pointer', fontSize: '14px',
+                                borderBottom: '1px solid var(--color-border)',
+                              }}
+                              onMouseDown={() => {
+                                setForm((f) => ({ ...f, users_id: String(u.id) }));
+                                setShowUserDropdown(false);
+                                setUserSearch('');
+                              }}
+                              onMouseEnter={(e) => { (e.target as HTMLElement).style.backgroundColor = 'var(--color-hover)'; }}
+                              onMouseLeave={(e) => { (e.target as HTMLElement).style.backgroundColor = 'transparent'; }}
+                            >
+                              {u.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                {formTouched && formErrors.users_id && (
+                  <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.users_id}</span>
+                )}
               </div>
+
+              {/* Tipo de Exame */}
               <div className="input-group">
-                <label>Tipo de Exame *</label>
+                <label>Tipo de Exame <span style={{ color: 'var(--color-error)' }}>*</span></label>
                 <select
                   className="select-field"
                   value={form.exam_type}
                   onChange={(e) => setForm((f) => ({ ...f, exam_type: e.target.value }))}
+                  style={{ borderColor: formTouched && formErrors.exam_type ? 'var(--color-error)' : undefined }}
                 >
                   {EXAM_TYPES.map((et) => (
                     <option key={et.value} value={et.value}>{et.label}</option>
                   ))}
                 </select>
+                {formTouched && formErrors.exam_type && (
+                  <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.exam_type}</span>
+                )}
               </div>
+
+              {/* Datas */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
-                  <label>Data do Exame *</label>
+                  <label>Data do Exame <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
                     type="date"
                     className="input-field"
                     value={form.exam_date}
                     onChange={(e) => setForm((f) => ({ ...f, exam_date: e.target.value }))}
+                    style={{ borderColor: formTouched && formErrors.exam_date ? 'var(--color-error)' : undefined }}
                   />
+                  {formTouched && formErrors.exam_date && (
+                    <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.exam_date}</span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label>Data de Validade</label>
@@ -465,31 +634,47 @@ export default function HealthRecords() {
                   />
                 </div>
               </div>
+
+              {/* Resultado */}
               <div className="input-group">
-                <label>Resultado *</label>
+                <label>Resultado <span style={{ color: 'var(--color-error)' }}>*</span></label>
                 <select
                   className="select-field"
                   value={form.result}
                   onChange={(e) => setForm((f) => ({ ...f, result: e.target.value }))}
+                  style={{ borderColor: formTouched && formErrors.result ? 'var(--color-error)' : undefined }}
                 >
                   {RESULT_OPTIONS.map((ro) => (
                     <option key={ro.value} value={ro.value}>{ro.label}</option>
                   ))}
                 </select>
+                {formTouched && formErrors.result && (
+                  <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.result}</span>
+                )}
               </div>
+
+              {/* Descrição da Restrição - condicional */}
               {form.result === 'apto_restricao' && (
                 <div className="input-group">
-                  <label>Descrição da Restrição</label>
+                  <label>Descrição da Restrição <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <textarea
                     className="input-field"
-                    placeholder="Descreva as restrições..."
+                    placeholder="Descreva as restrições ocupacionais..."
                     rows={3}
                     value={form.restriction_description}
                     onChange={(e) => setForm((f) => ({ ...f, restriction_description: e.target.value }))}
-                    style={{ resize: 'vertical' }}
+                    style={{
+                      resize: 'vertical',
+                      borderColor: formTouched && formErrors.restriction_description ? 'var(--color-error)' : undefined,
+                    }}
                   />
+                  {formTouched && formErrors.restriction_description && (
+                    <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.restriction_description}</span>
+                  )}
                 </div>
               )}
+
+              {/* Médico / CRM */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>Nome do Médico</label>
@@ -511,12 +696,14 @@ export default function HealthRecords() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+
+            {/* Ações */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
                 Cancelar
               </button>
               <button className="btn btn-primary" onClick={handleSave} disabled={formLoading}>
-                {formLoading ? <span className="spinner" /> : 'Salvar'}
+                {formLoading ? <span className="spinner" /> : editingRecord ? 'Atualizar' : 'Salvar'}
               </button>
             </div>
           </div>

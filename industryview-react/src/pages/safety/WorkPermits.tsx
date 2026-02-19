@@ -4,8 +4,8 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
-import { workPermitsApi } from '../../services';
-import type { WorkPermit, WorkPermitSignature } from '../../types';
+import { workPermitsApi, projectsApi } from '../../services';
+import type { WorkPermit, WorkPermitSignature, ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -67,31 +67,31 @@ interface PermitTypeConfig {
 }
 
 const PERMIT_TYPE_CONFIG: Record<string, PermitTypeConfig> = {
-  geral: {
+  pt_geral: {
     label: 'Geral',
     icon: <ShieldCheck size={13} />,
     color: 'var(--color-primary)',
     bg: '#e8f0fe',
   },
-  quente: {
+  pt_quente: {
     label: 'Trabalho a Quente',
     icon: <Flame size={13} />,
     color: '#d97706',
     bg: '#fef3c7',
   },
-  altura: {
+  pt_altura: {
     label: 'Trabalho em Altura',
     icon: <ArrowUp size={13} />,
     color: '#7c3aed',
     bg: '#f5f3ff',
   },
-  confinado: {
+  pt_confinado: {
     label: 'Espaço Confinado',
     icon: <Wind size={13} />,
     color: '#0891b2',
     bg: '#e0f2fe',
   },
-  eletrica: {
+  pt_eletrica: {
     label: 'Elétrica',
     icon: <Zap size={13} />,
     color: '#b45309',
@@ -131,13 +131,18 @@ export default function WorkPermits() {
 
   // ── Create modal ─────────────────────────────────────────────────────────────
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createType, setCreateType] = useState('geral');
+  const [createType, setCreateType] = useState('pt_geral');
   const [createLocation, setCreateLocation] = useState('');
   const [createRiskDescription, setCreateRiskDescription] = useState('');
   const [createControlMeasures, setCreateControlMeasures] = useState('');
   const [createValidFrom, setCreateValidFrom] = useState('');
   const [createValidUntil, setCreateValidUntil] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [createProjectId, setCreateProjectId] = useState<number | ''>('');
+
+  // ── Projects list for modal dropdown ────────────────────────────────────────
+  const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
 
   // ── Cancel modal ──────────────────────────────────────────────────────────────
   const [cancelPermit, setCancelPermit] = useState<WorkPermit | null>(null);
@@ -153,6 +158,18 @@ export default function WorkPermits() {
   useEffect(() => {
     setNavBarSelection(17);
   }, []);
+
+  // Load projects for create modal dropdown
+  useEffect(() => {
+    projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
+      setAllProjects(data.items ?? []);
+    }).catch(() => {});
+  }, []);
+
+  // Pre-select project when projectsInfo changes
+  useEffect(() => {
+    if (projectsInfo?.id) setCreateProjectId(projectsInfo.id);
+  }, [projectsInfo]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -206,8 +223,18 @@ export default function WorkPermits() {
     [expandedRow, permits],
   );
 
+  const validateCreateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!createProjectId) errors.project = t('workPermits.projectRequired');
+    if (!createLocation.trim()) errors.location = t('workPermits.locationRequired');
+    if (!createRiskDescription.trim()) errors.riskDescription = t('workPermits.riskDescriptionRequired');
+    if (!createControlMeasures.trim()) errors.controlMeasures = t('workPermits.controlMeasuresRequired');
+    setCreateErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreatePermit = async () => {
-    if (!createLocation.trim() || !createRiskDescription.trim() || !createControlMeasures.trim()) return;
+    if (!validateCreateForm()) return;
     setCreateLoading(true);
     try {
       await workPermitsApi.createWorkPermit({
@@ -217,7 +244,7 @@ export default function WorkPermits() {
         control_measures: createControlMeasures.trim(),
         valid_from: createValidFrom || undefined,
         valid_until: createValidUntil || undefined,
-        projects_id: projectsInfo?.id,
+        projects_id: Number(createProjectId),
         company_id: user?.companyId,
       });
       setCreateLocation('');
@@ -225,7 +252,8 @@ export default function WorkPermits() {
       setCreateControlMeasures('');
       setCreateValidFrom('');
       setCreateValidUntil('');
-      setCreateType('geral');
+      setCreateType('pt_geral');
+      setCreateErrors({});
       setShowCreateModal(false);
       showToast(t('workPermits.createSuccess'), 'success');
       loadPermits();
@@ -377,7 +405,7 @@ export default function WorkPermits() {
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
               {permits.map((permit) => {
-                const typeCfg = PERMIT_TYPE_CONFIG[permit.permit_type] ?? PERMIT_TYPE_CONFIG.geral;
+                const typeCfg = PERMIT_TYPE_CONFIG[permit.permit_type] ?? PERMIT_TYPE_CONFIG.pt_geral;
                 const isLoadingAction = isActionLoading(permit.id);
 
                 return (
@@ -655,7 +683,7 @@ export default function WorkPermits() {
 
       {/* Create Permit Modal */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
           <div
             className="modal-content"
             style={{ padding: '24px', width: '540px' }}
@@ -665,6 +693,23 @@ export default function WorkPermits() {
               {t('workPermits.newPermit')}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="input-group">
+                <label>{t('common.project')} *</label>
+                <select
+                  className={`select-field${createErrors.project ? ' error' : ''}`}
+                  value={createProjectId}
+                  onChange={(e) => {
+                    setCreateProjectId(e.target.value ? Number(e.target.value) : '');
+                    if (createErrors.project) setCreateErrors((prev) => { const { project, ...rest } = prev; return rest; });
+                  }}
+                >
+                  <option value="">{t('workPermits.selectProject')}</option>
+                  {allProjects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                {createErrors.project && <span className="input-error">{createErrors.project}</span>}
+              </div>
               <div className="input-group">
                 <label>{t('workPermits.type')} *</label>
                 <select
@@ -682,34 +727,45 @@ export default function WorkPermits() {
               <div className="input-group">
                 <label>{t('workPermits.location')} *</label>
                 <input
-                  className="input-field"
+                  className={`input-field${createErrors.location ? ' error' : ''}`}
                   value={createLocation}
-                  onChange={(e) => setCreateLocation(e.target.value)}
+                  onChange={(e) => {
+                    setCreateLocation(e.target.value);
+                    if (createErrors.location) setCreateErrors((prev) => { const { location, ...rest } = prev; return rest; });
+                  }}
                   placeholder={t('workPermits.locationPlaceholder')}
-                  autoFocus
                 />
+                {createErrors.location && <span className="input-error">{createErrors.location}</span>}
               </div>
               <div className="input-group">
                 <label>{t('workPermits.riskDescription')} *</label>
                 <textarea
-                  className="input-field"
+                  className={`input-field${createErrors.riskDescription ? ' error' : ''}`}
                   value={createRiskDescription}
-                  onChange={(e) => setCreateRiskDescription(e.target.value)}
+                  onChange={(e) => {
+                    setCreateRiskDescription(e.target.value);
+                    if (createErrors.riskDescription) setCreateErrors((prev) => { const { riskDescription, ...rest } = prev; return rest; });
+                  }}
                   placeholder={t('workPermits.riskDescriptionPlaceholder')}
                   rows={3}
                   style={{ resize: 'vertical' }}
                 />
+                {createErrors.riskDescription && <span className="input-error">{createErrors.riskDescription}</span>}
               </div>
               <div className="input-group">
                 <label>{t('workPermits.controlMeasures')} *</label>
                 <textarea
-                  className="input-field"
+                  className={`input-field${createErrors.controlMeasures ? ' error' : ''}`}
                   value={createControlMeasures}
-                  onChange={(e) => setCreateControlMeasures(e.target.value)}
+                  onChange={(e) => {
+                    setCreateControlMeasures(e.target.value);
+                    if (createErrors.controlMeasures) setCreateErrors((prev) => { const { controlMeasures, ...rest } = prev; return rest; });
+                  }}
                   placeholder={t('workPermits.controlMeasuresPlaceholder')}
                   rows={3}
                   style={{ resize: 'vertical' }}
                 />
+                {createErrors.controlMeasures && <span className="input-error">{createErrors.controlMeasures}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
@@ -733,18 +789,13 @@ export default function WorkPermits() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreatePermit}
-                disabled={
-                  createLoading ||
-                  !createLocation.trim() ||
-                  !createRiskDescription.trim() ||
-                  !createControlMeasures.trim()
-                }
+                disabled={createLoading}
               >
                 {createLoading ? <span className="spinner" /> : t('common.save')}
               </button>

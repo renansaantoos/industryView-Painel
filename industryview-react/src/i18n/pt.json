@@ -64,7 +64,9 @@
     "viewAll": "Ver todos",
     "create": "Criar",
     "update": "Atualizar",
-    "project": "Projeto"
+    "project": "Projeto",
+    "errorLoading": "Erro ao carregar dados",
+    "errorSaving": "Erro ao salvar"
   },
   "nav": {
     "mainPages": "Páginas principais",
@@ -647,6 +649,8 @@
     "workloadHours": "Carga Horária (h)",
     "instructor": "Instrutor",
     "certificate": "Certificado",
+    "certificatePlaceholder": "Nº do certificado ou URL",
+    "searchEmployee": "Buscar colaborador pelo nome...",
     "trainingDate": "Data do Treinamento",
     "expiryDate": "Data de Validade",
     "validStatus": "Válido",
@@ -662,7 +666,14 @@
     "addParticipant": "Adicionar Participante",
     "sign": "Assinar",
     "searchIncidents": "Pesquisar incidentes...",
-    "confirmDelete": "Tem certeza que deseja excluir?"
+    "confirmDelete": "Tem certeza que deseja excluir?",
+    "validation": {
+      "nameRequired": "Nome do treinamento é obrigatório",
+      "nameMinLength": "Nome deve ter pelo menos 3 caracteres",
+      "validityMin": "Validade deve ser de pelo menos 1 mês",
+      "workloadMin": "Carga horária não pode ser negativa",
+      "saveFailed": "Erro ao salvar tipo de treinamento. Tente novamente."
+    }
   },
   "quality": {
     "title": "Qualidade",
@@ -781,7 +792,34 @@
     "cancelPermit": "Cancelar PT",
     "signatures": "Assinaturas",
     "addSignature": "Adicionar Assinatura",
-    "searchPermits": "Pesquisar permissões..."
+    "searchPermits": "Pesquisar permissões...",
+    "newPermit": "Nova Permissão",
+    "allTypes": "Todos os tipos",
+    "allStatuses": "Todos os status",
+    "type": "Tipo",
+    "location": "Local",
+    "status": "Status",
+    "approve": "Aprovar",
+    "close": "Encerrar",
+    "cancel": "Cancelar",
+    "viewSignatures": "Ver Assinaturas",
+    "noSignatures": "Nenhuma assinatura registrada",
+    "createSuccess": "Permissão criada com sucesso!",
+    "approveSuccess": "Permissão aprovada com sucesso!",
+    "closeSuccess": "Permissão encerrada com sucesso!",
+    "cancelSuccess": "Permissão cancelada com sucesso!",
+    "cancelConfirmMessage": "Tem certeza que deseja cancelar a PT #{{id}}?",
+    "cancellationReason": "Motivo do Cancelamento",
+    "cancellationReasonPlaceholder": "Descreva o motivo do cancelamento...",
+    "confirmCancel": "Confirmar Cancelamento",
+    "locationPlaceholder": "Ex: Área de montagem, Bloco B...",
+    "riskDescriptionPlaceholder": "Descreva os riscos envolvidos...",
+    "controlMeasuresPlaceholder": "Descreva as medidas de controle...",
+    "locationRequired": "O local é obrigatório",
+    "riskDescriptionRequired": "A descrição do risco é obrigatória",
+    "controlMeasuresRequired": "As medidas de controle são obrigatórias",
+    "projectRequired": "Selecione um projeto",
+    "selectProject": "Selecione um projeto..."
   },
   "workforce": {
     "title": "Controle de Efetivo",

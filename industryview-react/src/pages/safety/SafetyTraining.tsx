@@ -4,8 +4,8 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { safetyApi } from '../../services';
-import type { TrainingType, WorkerTraining } from '../../types';
+import { safetyApi, usersApi } from '../../services';
+import type { TrainingType, WorkerTraining, UserFull } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -111,6 +111,10 @@ export default function SafetyTraining() {
   const [typeModalLoading, setTypeModalLoading] = useState(false);
   const [typeName, setTypeName] = useState('');
   const [typeNrReference, setTypeNrReference] = useState('');
+  const [typeFormErrors, setTypeFormErrors] = useState<Record<string, string>>({});
+  const [typeFormTouched, setTypeFormTouched] = useState<Record<string, boolean>>({});
+  const [typeFormSubmitAttempted, setTypeFormSubmitAttempted] = useState(false);
+  const [typeApiError, setTypeApiError] = useState('');
   const [typeValidityMonths, setTypeValidityMonths] = useState('');
   const [typeWorkloadHours, setTypeWorkloadHours] = useState('');
   const [typeDescription, setTypeDescription] = useState('');
@@ -134,6 +138,13 @@ export default function SafetyTraining() {
   const [trainingDate, setTrainingDate] = useState('');
   const [trainingInstructor, setTrainingInstructor] = useState('');
   const [trainingCertificateUrl, setTrainingCertificateUrl] = useState('');
+
+  // Employee search dropdown
+  const [employees, setEmployees] = useState<UserFull[]>([]);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<UserFull | null>(null);
 
   useEffect(() => {
     setNavBarSelection(15);
@@ -188,6 +199,50 @@ export default function SafetyTraining() {
 
   // ── Training Type handlers ────────────────────────────────────────────────
 
+  const resetTypeFormValidation = () => {
+    setTypeFormErrors({});
+    setTypeFormTouched({});
+    setTypeFormSubmitAttempted(false);
+    setTypeApiError('');
+  };
+
+  const validateTypeField = (field: string, value: string): string => {
+    switch (field) {
+      case 'name':
+        if (!value.trim()) return t('safety.validation.nameRequired');
+        if (value.trim().length < 3) return t('safety.validation.nameMinLength');
+        return '';
+      case 'validity_months':
+        if (value && (isNaN(Number(value)) || Number(value) < 1))
+          return t('safety.validation.validityMin');
+        return '';
+      case 'workload_hours':
+        if (value && (isNaN(Number(value)) || Number(value) < 0))
+          return t('safety.validation.workloadMin');
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const validateTypeForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    const nameError = validateTypeField('name', typeName);
+    if (nameError) errors.name = nameError;
+    const validityError = validateTypeField('validity_months', typeValidityMonths);
+    if (validityError) errors.validity_months = validityError;
+    const workloadError = validateTypeField('workload_hours', typeWorkloadHours);
+    if (workloadError) errors.workload_hours = workloadError;
+    setTypeFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleTypeFieldBlur = (field: string, value: string) => {
+    setTypeFormTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateTypeField(field, value);
+    setTypeFormErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
   const openCreateTypeModal = () => {
     setEditingType(null);
     setTypeName('');
@@ -195,6 +250,7 @@ export default function SafetyTraining() {
     setTypeValidityMonths('');
     setTypeWorkloadHours('');
     setTypeDescription('');
+    resetTypeFormValidation();
     setShowTypeModal(true);
   };
 
@@ -205,11 +261,15 @@ export default function SafetyTraining() {
     setTypeValidityMonths(type.validity_months != null ? String(type.validity_months) : '');
     setTypeWorkloadHours(type.workload_hours != null ? String(type.workload_hours) : '');
     setTypeDescription(type.description || '');
+    resetTypeFormValidation();
     setShowTypeModal(true);
   };
 
   const handleSaveType = async () => {
-    if (!typeName.trim()) return;
+    setTypeFormSubmitAttempted(true);
+    setTypeApiError('');
+    if (!validateTypeForm()) return;
+
     setTypeModalLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -229,8 +289,10 @@ export default function SafetyTraining() {
       }
       setShowTypeModal(false);
       loadTrainingTypes();
-    } catch (err) {
-      console.error('Failed to save training type:', err);
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      const msg = apiErr?.response?.data?.message || t('safety.validation.saveFailed');
+      setTypeApiError(msg);
     } finally {
       setTypeModalLoading(false);
     }
@@ -248,17 +310,52 @@ export default function SafetyTraining() {
 
   // ── Worker Training handlers ──────────────────────────────────────────────
 
+  const loadEmployees = useCallback(async (search?: string) => {
+    setEmployeesLoading(true);
+    try {
+      const data = await usersApi.queryAllUsers({
+        per_page: 50,
+        search: search || undefined,
+      });
+      setEmployees(data.items || []);
+    } catch (err) {
+      console.error('Failed to load employees:', err);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, []);
+
+  // Debounce employee search
+  useEffect(() => {
+    if (!showTrainingModal) return;
+    const timer = setTimeout(() => {
+      loadEmployees(employeeSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [employeeSearch, showTrainingModal, loadEmployees]);
+
   const openCreateTrainingModal = () => {
     setTrainingUserId('');
     setTrainingTypeId('');
     setTrainingDate('');
     setTrainingInstructor('');
     setTrainingCertificateUrl('');
+    setSelectedEmployee(null);
+    setEmployeeSearch('');
+    setShowEmployeeDropdown(false);
+    loadEmployees();
     setShowTrainingModal(true);
   };
 
+  const handleSelectEmployee = (emp: UserFull) => {
+    setSelectedEmployee(emp);
+    setTrainingUserId(String(emp.id));
+    setEmployeeSearch(emp.name);
+    setShowEmployeeDropdown(false);
+  };
+
   const handleSaveTraining = async () => {
-    if (!trainingUserId.trim() || !trainingTypeId || !trainingDate) return;
+    if (!trainingUserId || !trainingTypeId || !trainingDate) return;
     setTrainingModalLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -398,7 +495,6 @@ export default function SafetyTraining() {
                     <th>{t('safety.nrReference')}</th>
                     <th>{t('safety.validityMonths')}</th>
                     <th>{t('safety.workloadHours')}</th>
-                    <th>{t('common.status')}</th>
                     <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
@@ -443,18 +539,6 @@ export default function SafetyTraining() {
                         ) : (
                           '-'
                         )}
-                      </td>
-                      <td>
-                        <span
-                          className="badge"
-                          style={
-                            tt.is_active
-                              ? { backgroundColor: '#F4FEF9', color: '#028F58' }
-                              : { backgroundColor: '#F0F0F0', color: '#555555' }
-                          }
-                        >
-                          {tt.is_active ? t('common.active') : t('common.inactive')}
-                        </span>
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -672,16 +756,58 @@ export default function SafetyTraining() {
             <h3 style={{ marginBottom: '16px' }}>
               {editingType ? t('common.edit') : t('safety.createTrainingType')}
             </h3>
+
+            {typeApiError && (
+              <div
+                style={{
+                  marginBottom: '12px',
+                  padding: '10px 14px',
+                  background: '#FDE8E8',
+                  border: '1px solid #F5B7B1',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#C0392B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <AlertTriangle size={16} />
+                {typeApiError}
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label>{t('common.name')} *</label>
+                <label>
+                  {t('common.name')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <input
                   className="input-field"
                   value={typeName}
-                  onChange={(e) => setTypeName(e.target.value)}
+                  onChange={(e) => {
+                    setTypeName(e.target.value);
+                    if (typeFormTouched.name || typeFormSubmitAttempted) {
+                      const err = validateTypeField('name', e.target.value);
+                      setTypeFormErrors((prev) => ({ ...prev, name: err }));
+                    }
+                  }}
+                  onBlur={() => handleTypeFieldBlur('name', typeName)}
                   placeholder="Ex: NR-35 Trabalho em Altura"
+                  style={
+                    (typeFormTouched.name || typeFormSubmitAttempted) && typeFormErrors.name
+                      ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                      : undefined
+                  }
+                  autoFocus
                 />
+                {(typeFormTouched.name || typeFormSubmitAttempted) && typeFormErrors.name && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px' }}>
+                    {typeFormErrors.name}
+                  </span>
+                )}
               </div>
+
               <div className="input-group">
                 <label>{t('safety.nrReference')}</label>
                 <input
@@ -691,6 +817,7 @@ export default function SafetyTraining() {
                   placeholder="Ex: NR-35"
                 />
               </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>{t('safety.validityMonths')}</label>
@@ -698,10 +825,27 @@ export default function SafetyTraining() {
                     type="number"
                     className="input-field"
                     value={typeValidityMonths}
-                    onChange={(e) => setTypeValidityMonths(e.target.value)}
-                    min="0"
+                    onChange={(e) => {
+                      setTypeValidityMonths(e.target.value);
+                      if (typeFormTouched.validity_months || typeFormSubmitAttempted) {
+                        const err = validateTypeField('validity_months', e.target.value);
+                        setTypeFormErrors((prev) => ({ ...prev, validity_months: err }));
+                      }
+                    }}
+                    onBlur={() => handleTypeFieldBlur('validity_months', typeValidityMonths)}
+                    min="1"
                     placeholder="12"
+                    style={
+                      (typeFormTouched.validity_months || typeFormSubmitAttempted) && typeFormErrors.validity_months
+                        ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                        : undefined
+                    }
                   />
+                  {(typeFormTouched.validity_months || typeFormSubmitAttempted) && typeFormErrors.validity_months && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px' }}>
+                      {typeFormErrors.validity_months}
+                    </span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label>{t('safety.workloadHours')}</label>
@@ -709,13 +853,31 @@ export default function SafetyTraining() {
                     type="number"
                     className="input-field"
                     value={typeWorkloadHours}
-                    onChange={(e) => setTypeWorkloadHours(e.target.value)}
+                    onChange={(e) => {
+                      setTypeWorkloadHours(e.target.value);
+                      if (typeFormTouched.workload_hours || typeFormSubmitAttempted) {
+                        const err = validateTypeField('workload_hours', e.target.value);
+                        setTypeFormErrors((prev) => ({ ...prev, workload_hours: err }));
+                      }
+                    }}
+                    onBlur={() => handleTypeFieldBlur('workload_hours', typeWorkloadHours)}
                     min="0"
                     step="0.5"
                     placeholder="8"
+                    style={
+                      (typeFormTouched.workload_hours || typeFormSubmitAttempted) && typeFormErrors.workload_hours
+                        ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                        : undefined
+                    }
                   />
+                  {(typeFormTouched.workload_hours || typeFormSubmitAttempted) && typeFormErrors.workload_hours && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px' }}>
+                      {typeFormErrors.workload_hours}
+                    </span>
+                  )}
                 </div>
               </div>
+
               <div className="input-group">
                 <label>{t('common.description')}</label>
                 <textarea
@@ -728,6 +890,7 @@ export default function SafetyTraining() {
                 />
               </div>
             </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setShowTypeModal(false)}>
                 {t('common.cancel')}
@@ -735,7 +898,7 @@ export default function SafetyTraining() {
               <button
                 className="btn btn-primary"
                 onClick={handleSaveType}
-                disabled={typeModalLoading || !typeName.trim()}
+                disabled={typeModalLoading}
               >
                 {typeModalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
@@ -750,20 +913,102 @@ export default function SafetyTraining() {
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => {
+              // Fecha dropdown apenas se o clique for fora do container do dropdown
+              const target = e.target as HTMLElement;
+              if (!target.closest('[data-employee-dropdown]')) {
+                setShowEmployeeDropdown(false);
+              }
+            }}
             style={{ padding: '24px', width: '460px' }}
           >
             <h3 style={{ marginBottom: '16px' }}>{t('safety.createWorkerTraining')}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="input-group">
-                <label>{t('common.name')} (ID) *</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  value={trainingUserId}
-                  onChange={(e) => setTrainingUserId(e.target.value)}
-                  placeholder="ID do colaborador"
-                  min="1"
-                />
+              <div className="input-group" style={{ position: 'relative', zIndex: 10 }} data-employee-dropdown>
+                <label>
+                  {t('common.name')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Search
+                    size={16}
+                    style={{
+                      position: 'absolute',
+                      left: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--color-secondary-text)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <input
+                    className="input-field"
+                    value={selectedEmployee ? employeeSearch : employeeSearch}
+                    onChange={(e) => {
+                      setEmployeeSearch(e.target.value);
+                      setShowEmployeeDropdown(true);
+                      if (selectedEmployee && e.target.value !== selectedEmployee.name) {
+                        setSelectedEmployee(null);
+                        setTrainingUserId('');
+                      }
+                    }}
+                    onFocus={() => setShowEmployeeDropdown(true)}
+                    placeholder={t('safety.searchEmployee')}
+                    style={{ paddingLeft: '32px' }}
+                    autoComplete="off"
+                  />
+                </div>
+                {showEmployeeDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 999,
+                      background: '#fff',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      marginTop: '2px',
+                    }}
+                  >
+                    {employeesLoading ? (
+                      <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                        {t('common.loading')}...
+                      </div>
+                    ) : employees.length === 0 ? (
+                      <div style={{ padding: '12px', textAlign: 'center', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                        {t('common.noData')}
+                      </div>
+                    ) : (
+                      employees.map((emp) => (
+                        <div
+                          key={emp.id}
+                          onClick={() => handleSelectEmployee(emp)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            borderBottom: '1px solid var(--color-alternate)',
+                            backgroundColor: selectedEmployee?.id === emp.id ? 'var(--color-primary-light, #EBF5FB)' : 'transparent',
+                            transition: 'background-color 100ms ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedEmployee?.id !== emp.id) e.currentTarget.style.backgroundColor = 'var(--color-hover, #f5f5f5)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedEmployee?.id !== emp.id) e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <div style={{ fontWeight: 500 }}>{emp.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>{emp.email}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
               <div className="input-group">
                 <label>{t('safety.trainingTypes')} *</label>
@@ -773,9 +1018,7 @@ export default function SafetyTraining() {
                   onChange={(e) => setTrainingTypeId(e.target.value)}
                 >
                   <option value="">— {t('common.type')} —</option>
-                  {trainingTypes
-                    .filter((tt) => tt.is_active)
-                    .map((tt) => (
+                  {trainingTypes.map((tt) => (
                       <option key={tt.id} value={String(tt.id)}>
                         {tt.name}
                         {tt.nr_reference ? ` (${tt.nr_reference})` : ''}
@@ -804,11 +1047,10 @@ export default function SafetyTraining() {
               <div className="input-group">
                 <label>{t('safety.certificate')}</label>
                 <input
-                  type="url"
                   className="input-field"
                   value={trainingCertificateUrl}
                   onChange={(e) => setTrainingCertificateUrl(e.target.value)}
-                  placeholder="https://..."
+                  placeholder={t('safety.certificatePlaceholder')}
                 />
               </div>
             </div>
@@ -821,7 +1063,7 @@ export default function SafetyTraining() {
                 onClick={handleSaveTraining}
                 disabled={
                   trainingModalLoading ||
-                  !trainingUserId.trim() ||
+                  !trainingUserId ||
                   !trainingTypeId ||
                   !trainingDate
                 }

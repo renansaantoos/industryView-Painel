@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SafetyService } from './safety.service';
 import { AuthenticatedRequest } from '../../types';
+import { serializeBigInt } from '../../utils/bigint';
 import {
   listIncidentsSchema,
   getIncidentStatisticsSchema,
@@ -51,12 +52,8 @@ export class SafetyController {
   static async listIncidents(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const input = listIncidentsSchema.parse(req.query);
-      // company_id SEMPRE vem do usuario autenticado — sobrepoe o query string
-      if (req.user?.companyId) {
-        input.company_id = req.user.companyId;
-      }
       const result = await SafetyService.listIncidents(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -69,12 +66,8 @@ export class SafetyController {
   static async getIncidentStatistics(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const input = getIncidentStatisticsSchema.parse(req.query);
-      // company_id SEMPRE vem do usuario autenticado
-      if (req.user?.companyId) {
-        input.company_id = req.user.companyId;
-      }
       const result = await SafetyService.getIncidentStatistics(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -88,7 +81,7 @@ export class SafetyController {
     try {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const result = await SafetyService.getIncidentById(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -102,7 +95,7 @@ export class SafetyController {
     try {
       const input = createSafetyIncidentSchema.parse(req.body);
       const result = await SafetyService.createIncident(input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -118,7 +111,7 @@ export class SafetyController {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const input = updateSafetyIncidentSchema.parse(req.body);
       const result = await SafetyService.updateIncident(id, input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -134,7 +127,7 @@ export class SafetyController {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const input = investigateIncidentSchema.parse(req.body);
       const result = await SafetyService.investigateIncident(id, input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -149,7 +142,7 @@ export class SafetyController {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const input = closeIncidentSchema.parse(req.body);
       const result = await SafetyService.closeIncident(id, input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -164,7 +157,7 @@ export class SafetyController {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const input = createIncidentWitnessSchema.parse(req.body);
       const result = await SafetyService.addWitness(id, input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -179,7 +172,7 @@ export class SafetyController {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const input = createIncidentAttachmentSchema.parse(req.body);
       const result = await SafetyService.addAttachment(id, input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -201,7 +194,7 @@ export class SafetyController {
         input.company_id = req.user.companyId;
       }
       const result = await SafetyService.listTrainingTypes(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -220,7 +213,7 @@ export class SafetyController {
       }
       const input = createTrainingTypeSchema.parse(body);
       const result = await SafetyService.createTrainingType(input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -235,7 +228,7 @@ export class SafetyController {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const input = updateTrainingTypeSchema.parse(req.body);
       const result = await SafetyService.updateTrainingType(id, input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -249,7 +242,7 @@ export class SafetyController {
     try {
       const { id } = getIncidentByIdSchema.parse(req.params);
       const result = await SafetyService.deleteTrainingType(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -271,7 +264,7 @@ export class SafetyController {
         input.company_id = req.user.companyId;
       }
       const result = await SafetyService.listWorkerTrainings(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -289,7 +282,7 @@ export class SafetyController {
         input.company_id = req.user.companyId;
       }
       const result = await SafetyService.getExpiringTrainings(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -305,7 +298,7 @@ export class SafetyController {
       // company_id SEMPRE vem do usuario autenticado
       const companyId = req.user?.companyId ?? input.company_id;
       const result = await SafetyService.getExpiredTrainings(companyId);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -319,7 +312,7 @@ export class SafetyController {
     try {
       const input = checkTrainingEligibilitySchema.parse(req.query);
       const result = await SafetyService.checkTrainingEligibility(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -329,11 +322,12 @@ export class SafetyController {
    * Cria registro de treinamento para um trabalhador
    * Route: POST /api/v1/safety/worker-trainings
    */
-  static async createWorkerTraining(req: Request, res: Response, next: NextFunction) {
+  static async createWorkerTraining(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const input = createWorkerTrainingSchema.parse(req.body);
-      const result = await SafetyService.createWorkerTraining(input);
-      res.status(201).json(result);
+      const registeredBy = req.user?.id ?? input.users_id;
+      const result = await SafetyService.createWorkerTraining(input, registeredBy);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -351,7 +345,7 @@ export class SafetyController {
     try {
       const input = listTaskRequiredTrainingsSchema.parse(req.query);
       const result = await SafetyService.listTaskRequiredTrainings(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -365,7 +359,7 @@ export class SafetyController {
     try {
       const input = createTaskRequiredTrainingSchema.parse(req.body);
       const result = await SafetyService.createTaskRequiredTraining(input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -379,7 +373,7 @@ export class SafetyController {
     try {
       const { id } = deleteTaskRequiredTrainingSchema.parse(req.params);
       const result = await SafetyService.deleteTaskRequiredTraining(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -401,7 +395,7 @@ export class SafetyController {
         input.company_id = req.user.companyId;
       }
       const result = await SafetyService.listDdsRecords(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -419,7 +413,7 @@ export class SafetyController {
         input.company_id = req.user.companyId;
       }
       const result = await SafetyService.getDdsStatistics(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -433,7 +427,7 @@ export class SafetyController {
     try {
       const { id } = getDdsByIdSchema.parse(req.params);
       const result = await SafetyService.getDdsById(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -452,7 +446,7 @@ export class SafetyController {
       }
       const input = createDdsRecordSchema.parse(body);
       const result = await SafetyService.createDdsRecord(input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -467,7 +461,7 @@ export class SafetyController {
       const { id } = getDdsByIdSchema.parse(req.params);
       const { user_id } = createDdsParticipantSchema.parse(req.body);
       const result = await SafetyService.addDdsParticipant(id, user_id);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -482,7 +476,7 @@ export class SafetyController {
       const { id } = getDdsByIdSchema.parse(req.params);
       const { user_id } = signDdsParticipationSchema.parse(req.body);
       const result = await SafetyService.signDdsParticipation(id, user_id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }

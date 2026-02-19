@@ -182,12 +182,10 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         if (cancelled) return;
 
         if (data) {
-          // Date fields that need ISO → YYYY-MM-DD normalization
           const dateFields = new Set([
             'rg_data_emissao', 'data_nascimento', 'data_admissao',
             'data_demissao', 'cnh_validade',
           ]);
-          // Merge API data with empty form so every field is always a string
           setForm({
             ...EMPTY_FORM,
             ...Object.fromEntries(
@@ -195,9 +193,15 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
                 .filter(([key]) => key in EMPTY_FORM)
                 .map(([k, v]) => {
                   if (v == null) return [k, ''];
-                  // Normalize ISO datetime to YYYY-MM-DD for date inputs
-                  if (dateFields.has(k) && typeof v === 'string' && v.length > 10) {
-                    return [k, v.substring(0, 10)];
+                  if (dateFields.has(k)) {
+                    // Numeric timestamp → YYYY-MM-DD
+                    if (typeof v === 'number') {
+                      return [k, new Date(v).toISOString().substring(0, 10)];
+                    }
+                    // ISO string → YYYY-MM-DD
+                    if (typeof v === 'string' && v.length > 10) {
+                      return [k, v.substring(0, 10)];
+                    }
                   }
                   return [k, v];
                 })
@@ -263,9 +267,20 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
   async function handleSave() {
     setIsSaving(true);
     try {
-      // Strip empty strings back to undefined for clean API payload
+      const dateFields = new Set([
+        'rg_data_emissao', 'data_nascimento', 'data_admissao',
+        'data_demissao', 'cnh_validade',
+      ]);
+
       const payload = Object.fromEntries(
-        Object.entries(form).map(([k, v]) => [k, v === '' ? undefined : v])
+        Object.entries(form).map(([k, v]) => {
+          if (v === '' || v == null) return [k, undefined];
+          // Ensure date fields are always sent as YYYY-MM-DD strings
+          if (dateFields.has(k) && typeof v === 'number') {
+            return [k, new Date(v).toISOString().substring(0, 10)];
+          }
+          return [k, v];
+        })
       ) as Partial<EmployeeHrData>;
 
       await employeesApi.upsertHrData(usersId, payload);

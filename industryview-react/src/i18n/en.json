@@ -64,7 +64,9 @@
     "viewAll": "View all",
     "create": "Create",
     "update": "Update",
-    "project": "Project"
+    "project": "Project",
+    "errorLoading": "Error loading data",
+    "errorSaving": "Error saving"
   },
   "nav": {
     "mainPages": "Main pages",
@@ -642,6 +644,8 @@
     "workloadHours": "Workload (h)",
     "instructor": "Instructor",
     "certificate": "Certificate",
+    "certificatePlaceholder": "Certificate number or URL",
+    "searchEmployee": "Search employee by name...",
     "trainingDate": "Training Date",
     "expiryDate": "Expiry Date",
     "validStatus": "Valid",
@@ -657,7 +661,14 @@
     "addParticipant": "Add Participant",
     "sign": "Sign",
     "searchIncidents": "Search incidents...",
-    "confirmDelete": "Are you sure you want to delete?"
+    "confirmDelete": "Are you sure you want to delete?",
+    "validation": {
+      "nameRequired": "Training name is required",
+      "nameMinLength": "Name must be at least 3 characters",
+      "validityMin": "Validity must be at least 1 month",
+      "workloadMin": "Workload cannot be negative",
+      "saveFailed": "Failed to save training type. Please try again."
+    }
   },
   "quality": {
     "title": "Quality",
@@ -776,7 +787,34 @@
     "cancelPermit": "Cancel WP",
     "signatures": "Signatures",
     "addSignature": "Add Signature",
-    "searchPermits": "Search permits..."
+    "searchPermits": "Search permits...",
+    "newPermit": "New Permit",
+    "allTypes": "All types",
+    "allStatuses": "All statuses",
+    "type": "Type",
+    "location": "Location",
+    "status": "Status",
+    "approve": "Approve",
+    "close": "Close",
+    "cancel": "Cancel",
+    "viewSignatures": "View Signatures",
+    "noSignatures": "No signatures recorded",
+    "createSuccess": "Permit created successfully!",
+    "approveSuccess": "Permit approved successfully!",
+    "closeSuccess": "Permit closed successfully!",
+    "cancelSuccess": "Permit cancelled successfully!",
+    "cancelConfirmMessage": "Are you sure you want to cancel WP #{{id}}?",
+    "cancellationReason": "Cancellation Reason",
+    "cancellationReasonPlaceholder": "Describe the cancellation reason...",
+    "confirmCancel": "Confirm Cancellation",
+    "locationPlaceholder": "E.g.: Assembly area, Block B...",
+    "riskDescriptionPlaceholder": "Describe the risks involved...",
+    "controlMeasuresPlaceholder": "Describe the control measures...",
+    "locationRequired": "Location is required",
+    "riskDescriptionRequired": "Risk description is required",
+    "controlMeasuresRequired": "Control measures are required",
+    "projectRequired": "Select a project",
+    "selectProject": "Select a project..."
   },
   "workforce": {
     "title": "Workforce Control",

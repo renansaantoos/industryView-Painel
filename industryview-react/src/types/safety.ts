@@ -1,26 +1,28 @@
 /** Safety Incident */
 export interface SafetyIncident {
   id: number;
-  projects_id?: number;
-  company_id: number;
-  reported_by: number;
+  projects_id: number;
+  incident_number: string;
   incident_date: string;
+  severity: 'quase_acidente' | 'primeiros_socorros' | 'sem_afastamento' | 'com_afastamento' | 'fatal';
+  classification: 'tipico' | 'trajeto' | 'doenca_ocupacional';
+  category: string;
   description: string;
-  location?: string;
-  severity: 'quase_acidente' | 'leve' | 'moderado' | 'grave' | 'fatal';
-  classification?: string;
-  category?: string;
-  status: 'aberto' | 'em_investigacao' | 'encerrado';
+  immediate_cause?: string;
   root_cause?: string;
   corrective_actions?: string;
-  investigated_by?: number;
-  investigated_at?: string;
-  closed_by?: number;
+  location_description?: string;
+  body_part_affected?: string;
+  days_lost: number;
+  status: 'registrado' | 'em_investigacao' | 'investigado' | 'encerrado';
+  reported_by_user_id: number;
+  investigated_by_user_id?: number;
+  closed_by_user_id?: number;
   closed_at?: string;
-  reporter_name?: string;
-  investigator_name?: string;
   created_at: string;
   updated_at: string;
+  reporter_name?: string;
+  investigator_name?: string;
   witnesses?: SafetyIncidentWitness[];
   attachments?: SafetyIncidentAttachment[];
 }
@@ -49,10 +51,11 @@ export interface SafetyIncidentAttachment {
 
 /** Incident Statistics (Bird Pyramid) */
 export interface SafetyIncidentStatistics {
-  total: number;
+  total_incidents: number;
+  total_lost_days: number;
   by_severity: Record<string, number>;
   by_status: Record<string, number>;
-  by_month?: Record<string, number>;
+  bird_pyramid?: Record<string, unknown>;
 }
 
 /** Training Type */
@@ -64,7 +67,7 @@ export interface TrainingType {
   validity_months?: number;
   workload_hours?: number;
   description?: string;
-  is_active: boolean;
+  is_mandatory_for_admission?: boolean;
   created_at: string;
   updated_at: string;
 }

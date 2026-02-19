@@ -434,14 +434,14 @@ router.get('/training-types', authenticate, SafetyController.listTrainingTypes);
  *                 type: string
  *               description:
  *                 type: string
+ *               nr_reference:
+ *                 type: string
  *               validity_months:
  *                 type: integer
- *               is_mandatory:
+ *               is_mandatory_for_admission:
  *                 type: boolean
- *               regulatory_norm:
- *                 type: string
- *               is_active:
- *                 type: boolean
+ *               workload_hours:
+ *                 type: number
  *     responses:
  *       201:
  *         description: Tipo de treinamento criado com sucesso
@@ -475,14 +475,14 @@ router.post('/training-types', authenticate, SafetyController.createTrainingType
  *                 type: string
  *               description:
  *                 type: string
+ *               nr_reference:
+ *                 type: string
  *               validity_months:
  *                 type: integer
- *               is_mandatory:
+ *               is_mandatory_for_admission:
  *                 type: boolean
- *               regulatory_norm:
- *                 type: string
- *               is_active:
- *                 type: boolean
+ *               workload_hours:
+ *                 type: number
  *     responses:
  *       200:
  *         description: Tipo de treinamento atualizado

@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { Request, Response, NextFunction } from 'express';
+import { serializeBigInt } from '../../utils/bigint';
 import { HealthService } from './health.service';
 import { AuthenticatedRequest } from '../../types';
 import {
@@ -27,7 +28,7 @@ export class HealthController {
         input.company_id = req.user.companyId;
       }
       const result = await HealthService.listRecords(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -37,7 +38,7 @@ export class HealthController {
     try {
       const input = getExpiringExamsSchema.parse(req.query);
       const result = await HealthService.getExpiringExams(input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -47,7 +48,7 @@ export class HealthController {
     try {
       const { id } = getHealthRecordByIdSchema.parse(req.params);
       const result = await HealthService.getRecordById(id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -57,7 +58,7 @@ export class HealthController {
     try {
       const input = createHealthRecordSchema.parse(req.body);
       const result = await HealthService.createRecord(input);
-      res.status(201).json(result);
+      res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -68,7 +69,7 @@ export class HealthController {
       const { id } = getHealthRecordByIdSchema.parse(req.params);
       const input = updateHealthRecordSchema.parse(req.body);
       const result = await HealthService.updateRecord(id, input);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
@@ -78,7 +79,7 @@ export class HealthController {
     try {
       const { user_id } = checkWorkerFitnessSchema.parse(req.params);
       const result = await HealthService.checkWorkerFitness(user_id);
-      res.json(result);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }

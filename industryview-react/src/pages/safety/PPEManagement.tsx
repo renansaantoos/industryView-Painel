@@ -99,6 +99,7 @@ export default function PPEManagement() {
   const [typeForm, setTypeForm] = useState<PpeTypeForm>(EMPTY_PPE_TYPE_FORM);
   const [typeFormLoading, setTypeFormLoading] = useState(false);
   const [deleteTypeConfirm, setDeleteTypeConfirm] = useState<PpeType | null>(null);
+  const [typeErrors, setTypeErrors] = useState<Partial<Record<keyof PpeTypeForm, string>>>({});
 
   /* ---- Deliveries state ---- */
   const [deliveries, setDeliveries] = useState<PpeDelivery[]>([]);
@@ -112,6 +113,7 @@ export default function PPEManagement() {
   const [deliveryForm, setDeliveryForm] = useState<DeliveryForm>(EMPTY_DELIVERY_FORM);
   const [deliveryFormLoading, setDeliveryFormLoading] = useState(false);
   const [returningDeliveryId, setReturningDeliveryId] = useState<number | null>(null);
+  const [deliveryErrors, setDeliveryErrors] = useState<Partial<Record<keyof DeliveryForm, string>>>({});
 
   /* =========================================
      Toast
@@ -175,12 +177,52 @@ export default function PPEManagement() {
   }, [activeTab, loadDeliveries]);
 
   /* =========================================
+     Validation Helpers
+     ========================================= */
+
+  const validateTypeForm = (): boolean => {
+    const errors: Partial<Record<keyof PpeTypeForm, string>> = {};
+    if (!typeForm.name.trim()) errors.name = 'Nome é obrigatório';
+    if (!typeForm.ca_number.trim()) errors.ca_number = 'Número do CA é obrigatório';
+    else if (!/^\d+$/.test(typeForm.ca_number.trim())) errors.ca_number = 'Apenas números são permitidos';
+    if (!typeForm.validity_months.trim()) errors.validity_months = 'Validade é obrigatória';
+    else {
+      const m = parseInt(typeForm.validity_months, 10);
+      if (isNaN(m) || m < 1) errors.validity_months = 'Valor mínimo é 1';
+      else if (m > 120) errors.validity_months = 'Máximo 120 meses';
+    }
+    setTypeErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleTypeField = (field: keyof PpeTypeForm, value: string) => {
+    setTypeForm((f) => ({ ...f, [field]: value }));
+    if (typeErrors[field]) setTypeErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  };
+
+  const validateDeliveryForm = (): boolean => {
+    const errors: Partial<Record<keyof DeliveryForm, string>> = {};
+    if (!deliveryForm.ppe_types_id) errors.ppe_types_id = 'Tipo de EPI é obrigatório';
+    if (!deliveryForm.users_id.trim()) errors.users_id = 'Colaborador é obrigatório';
+    if (!deliveryForm.quantity.trim() || parseInt(deliveryForm.quantity, 10) < 1) errors.quantity = 'Quantidade mínima é 1';
+    if (!deliveryForm.delivery_date) errors.delivery_date = 'Data de entrega é obrigatória';
+    setDeliveryErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleDeliveryField = (field: keyof DeliveryForm, value: string) => {
+    setDeliveryForm((f) => ({ ...f, [field]: value }));
+    if (deliveryErrors[field]) setDeliveryErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  };
+
+  /* =========================================
      PPE Type Handlers
      ========================================= */
 
   const openCreateType = () => {
     setEditingType(null);
     setTypeForm(EMPTY_PPE_TYPE_FORM);
+    setTypeErrors({});
     setShowTypeModal(true);
   };
 
@@ -192,20 +234,18 @@ export default function PPEManagement() {
       validity_months: ppeType.validity_months != null ? String(ppeType.validity_months) : '',
       description: ppeType.description ?? '',
     });
+    setTypeErrors({});
     setShowTypeModal(true);
   };
 
   const handleSaveType = async () => {
-    if (!typeForm.name.trim()) {
-      showToast('O nome do EPI é obrigatório', 'error');
-      return;
-    }
+    if (!validateTypeForm()) return;
     setTypeFormLoading(true);
     try {
       const payload: Record<string, unknown> = {
         name: typeForm.name.trim(),
-        ca_number: typeForm.ca_number.trim() || undefined,
-        validity_months: typeForm.validity_months ? parseInt(typeForm.validity_months, 10) : undefined,
+        ca_number: typeForm.ca_number.trim(),
+        validity_months: parseInt(typeForm.validity_months, 10),
         description: typeForm.description.trim() || undefined,
       };
       if (editingType) {
@@ -244,14 +284,12 @@ export default function PPEManagement() {
 
   const openCreateDelivery = () => {
     setDeliveryForm(EMPTY_DELIVERY_FORM);
+    setDeliveryErrors({});
     setShowDeliveryModal(true);
   };
 
   const handleSaveDelivery = async () => {
-    if (!deliveryForm.ppe_types_id || !deliveryForm.users_id || !deliveryForm.delivery_date) {
-      showToast('Tipo de EPI, colaborador e data de entrega são obrigatórios', 'error');
-      return;
-    }
+    if (!validateDeliveryForm()) return;
     setDeliveryFormLoading(true);
     try {
       await ppeApi.createDelivery({
@@ -547,34 +585,38 @@ export default function PPEManagement() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label>Nome *</label>
+                <label>Nome <span style={{ color: 'var(--color-error)' }}>*</span></label>
                 <input
-                  className="input-field"
+                  className={`input-field${typeErrors.name ? ' error' : ''}`}
                   placeholder="Ex: Capacete de Segurança"
                   value={typeForm.name}
-                  onChange={(e) => setTypeForm((f) => ({ ...f, name: e.target.value }))}
+                  onChange={(e) => handleTypeField('name', e.target.value)}
                 />
+                {typeErrors.name && <span className="input-error">{typeErrors.name}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
-                  <label>Número do CA</label>
+                  <label>Número do CA <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
-                    className="input-field"
+                    className={`input-field${typeErrors.ca_number ? ' error' : ''}`}
                     placeholder="Ex: 12345"
+                    inputMode="numeric"
                     value={typeForm.ca_number}
-                    onChange={(e) => setTypeForm((f) => ({ ...f, ca_number: e.target.value }))}
+                    onChange={(e) => handleTypeField('ca_number', e.target.value)}
                   />
+                  {typeErrors.ca_number && <span className="input-error">{typeErrors.ca_number}</span>}
                 </div>
                 <div className="input-group">
-                  <label>Validade (meses)</label>
+                  <label>Validade (meses) <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
                     type="number"
-                    className="input-field"
+                    className={`input-field${typeErrors.validity_months ? ' error' : ''}`}
                     placeholder="Ex: 12"
                     min="1"
                     value={typeForm.validity_months}
-                    onChange={(e) => setTypeForm((f) => ({ ...f, validity_months: e.target.value }))}
+                    onChange={(e) => handleTypeField('validity_months', e.target.value)}
                   />
+                  {typeErrors.validity_months && <span className="input-error">{typeErrors.validity_months}</span>}
                 </div>
               </div>
               <div className="input-group">
@@ -584,10 +626,13 @@ export default function PPEManagement() {
                   placeholder="Descrição do EPI..."
                   rows={3}
                   value={typeForm.description}
-                  onChange={(e) => setTypeForm((f) => ({ ...f, description: e.target.value }))}
+                  onChange={(e) => handleTypeField('description', e.target.value)}
                   style={{ resize: 'vertical' }}
                 />
               </div>
+              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
+                <span style={{ color: 'var(--color-error)' }}>*</span> Campos obrigatórios
+              </p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button className="btn btn-secondary" onClick={() => setShowTypeModal(false)}>
@@ -613,47 +658,51 @@ export default function PPEManagement() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label>Tipo de EPI *</label>
+                <label>Tipo de EPI <span style={{ color: 'var(--color-error)' }}>*</span></label>
                 <select
-                  className="select-field"
+                  className={`select-field${deliveryErrors.ppe_types_id ? ' error' : ''}`}
                   value={deliveryForm.ppe_types_id}
-                  onChange={(e) => setDeliveryForm((f) => ({ ...f, ppe_types_id: e.target.value }))}
+                  onChange={(e) => handleDeliveryField('ppe_types_id', e.target.value)}
                 >
                   <option value="">Selecione o tipo de EPI</option>
                   {ppeTypes.map((pt) => (
                     <option key={pt.id} value={String(pt.id)}>{pt.name}</option>
                   ))}
                 </select>
+                {deliveryErrors.ppe_types_id && <span className="input-error">{deliveryErrors.ppe_types_id}</span>}
               </div>
               <div className="input-group">
-                <label>ID do Colaborador *</label>
+                <label>ID do Colaborador <span style={{ color: 'var(--color-error)' }}>*</span></label>
                 <input
                   type="number"
-                  className="input-field"
+                  className={`input-field${deliveryErrors.users_id ? ' error' : ''}`}
                   placeholder="ID do usuário"
                   value={deliveryForm.users_id}
-                  onChange={(e) => setDeliveryForm((f) => ({ ...f, users_id: e.target.value }))}
+                  onChange={(e) => handleDeliveryField('users_id', e.target.value)}
                 />
+                {deliveryErrors.users_id && <span className="input-error">{deliveryErrors.users_id}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
-                  <label>Quantidade *</label>
+                  <label>Quantidade <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
                     type="number"
-                    className="input-field"
+                    className={`input-field${deliveryErrors.quantity ? ' error' : ''}`}
                     min="1"
                     value={deliveryForm.quantity}
-                    onChange={(e) => setDeliveryForm((f) => ({ ...f, quantity: e.target.value }))}
+                    onChange={(e) => handleDeliveryField('quantity', e.target.value)}
                   />
+                  {deliveryErrors.quantity && <span className="input-error">{deliveryErrors.quantity}</span>}
                 </div>
                 <div className="input-group">
-                  <label>Data de Entrega *</label>
+                  <label>Data de Entrega <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
                     type="date"
-                    className="input-field"
+                    className={`input-field${deliveryErrors.delivery_date ? ' error' : ''}`}
                     value={deliveryForm.delivery_date}
-                    onChange={(e) => setDeliveryForm((f) => ({ ...f, delivery_date: e.target.value }))}
+                    onChange={(e) => handleDeliveryField('delivery_date', e.target.value)}
                   />
+                  {deliveryErrors.delivery_date && <span className="input-error">{deliveryErrors.delivery_date}</span>}
                 </div>
               </div>
               <div className="input-group">
@@ -663,10 +712,13 @@ export default function PPEManagement() {
                   placeholder="Observações sobre a entrega..."
                   rows={3}
                   value={deliveryForm.observation}
-                  onChange={(e) => setDeliveryForm((f) => ({ ...f, observation: e.target.value }))}
+                  onChange={(e) => handleDeliveryField('observation', e.target.value)}
                   style={{ resize: 'vertical' }}
                 />
               </div>
+              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
+                <span style={{ color: 'var(--color-error)' }}>*</span> Campos obrigatórios
+              </p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button className="btn btn-secondary" onClick={() => setShowDeliveryModal(false)}>

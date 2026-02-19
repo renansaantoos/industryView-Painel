@@ -264,11 +264,22 @@ tr:hover td {
 
 .input-field.error {
   border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+  animation: shake 0.4s ease-in-out;
 }
 
 .input-error {
   font-size: var(--font-size-xs);
   color: var(--color-error);
+  margin-top: 2px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
 }
 
 /* === Select === */
@@ -285,6 +296,12 @@ tr:hover td {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
+}
+
+.select-field.error {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+  animation: shake 0.4s ease-in-out;
 }
 
 /* === Loading === */

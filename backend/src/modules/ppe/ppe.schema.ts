@@ -63,7 +63,7 @@ export const createDeliverySchema = z.object({
 
 export const registerReturnSchema = z.object({
   id: z.coerce.number().int().min(1),
-  condition: z.enum(['bom', 'danificado', 'descartado']),
+  condition: z.enum(['bom', 'danificado', 'descartado']).optional().default('bom'),
   returned_at: z.string().optional(),
   notes: z.string().trim().optional(),
 });

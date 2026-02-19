@@ -4,6 +4,11 @@
 // Migrado de Xano para Node.js/Express
 // =============================================================================
 
+// Global BigInt serialization - ensures JSON.stringify handles BigInt everywhere
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
+
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -11,6 +16,8 @@ import compression from 'compression';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Multer for multipart form data
 const upload = multer();
@@ -100,6 +107,13 @@ app.use(compression());
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static file serving for uploads
+const uploadsDir = path.resolve(config.storage?.path || './uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
 
 // Request logging
 if (config.app.isDevelopment) {
@@ -429,6 +443,53 @@ app.use(`${API_PREFIX}/material-requisitions`, materialRequisitionsRoutes);
 app.use(`${API_PREFIX}/audit`, auditRoutes);
 app.use(`${API_PREFIX}/employees`, employeesRoutes);
 app.use(`${API_PREFIX}/schedule-import`, scheduleImportRoutes);
+
+// =============================================================================
+// File Upload Endpoint - Upload generico de arquivos
+// =============================================================================
+
+const fileUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dest = path.resolve(config.storage.path, 'attachments');
+      fs.mkdirSync(dest, { recursive: true });
+      cb(null, dest);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e6);
+      const ext = path.extname(file.originalname);
+      cb(null, uniqueSuffix + ext);
+    },
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (_req, file, cb) => {
+    const blocked = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.dll'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (blocked.includes(ext)) {
+      cb(new Error('Tipo de arquivo nao permitido.'));
+    } else {
+      cb(null, true);
+    }
+  },
+});
+
+app.post(`${API_PREFIX}/uploads`, authenticate, fileUpload.single('file'), (req: Request, res: Response) => {
+  const file = req.file;
+  if (!file) {
+    res.status(400).json({ error: true, message: 'Nenhum arquivo enviado.' });
+    return;
+  }
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const fileUrl = `${baseUrl}/uploads/attachments/${file.filename}`;
+
+  res.status(201).json({
+    file_url: fileUrl,
+    file_name: file.originalname,
+    file_type: file.mimetype,
+    file_size: file.size,
+  });
+});
 
 // =============================================================================
 // ALIAS ROUTES - Suporte para paths legados do Xano usados pelo Flutter

@@ -4,8 +4,8 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { safetyApi } from '../../services';
-import type { SafetyIncident, SafetyIncidentStatistics } from '../../types';
+import { safetyApi, projectsApi } from '../../services';
+import type { SafetyIncident, SafetyIncidentStatistics, ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -32,17 +32,20 @@ import {
 type Severity = SafetyIncident['severity'];
 type Status = SafetyIncident['status'];
 
+type Classification = SafetyIncident['classification'];
+
 const SEVERITY_CONFIG: Record<Severity, { bg: string; color: string; label: string }> = {
   quase_acidente: { bg: '#F0F0F0', color: '#555555', label: '' },
-  leve: { bg: '#EEF4FF', color: '#1D5CC6', label: '' },
-  moderado: { bg: '#FFF9E6', color: '#B98E00', label: '' },
-  grave: { bg: '#FFF0E6', color: '#C25B00', label: '' },
+  primeiros_socorros: { bg: '#EEF4FF', color: '#1D5CC6', label: '' },
+  sem_afastamento: { bg: '#FFF9E6', color: '#B98E00', label: '' },
+  com_afastamento: { bg: '#FFF0E6', color: '#C25B00', label: '' },
   fatal: { bg: '#FDE8E8', color: '#C0392B', label: '' },
 };
 
 const STATUS_CONFIG: Record<Status, { bg: string; color: string; label: string }> = {
-  aberto: { bg: '#FDE8E8', color: '#C0392B', label: '' },
+  registrado: { bg: '#FDE8E8', color: '#C0392B', label: '' },
   em_investigacao: { bg: '#FFF9E6', color: '#B98E00', label: '' },
+  investigado: { bg: '#E8F0FE', color: '#1D5CC6', label: '' },
   encerrado: { bg: '#F4FEF9', color: '#028F58', label: '' },
 };
 
@@ -147,19 +150,38 @@ export default function SafetyIncidents() {
 
   // Expanded rows
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [expandedDetail, setExpandedDetail] = useState<SafetyIncident | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Add witness inline form
+  const [showWitnessForm, setShowWitnessForm] = useState(false);
+  const [witnessName, setWitnessName] = useState('');
+  const [witnessStatement, setWitnessStatement] = useState('');
+  const [witnessLoading, setWitnessLoading] = useState(false);
+
+  // Add attachment inline form
+  const [showAttachmentForm, setShowAttachmentForm] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentLoading, setAttachmentLoading] = useState(false);
 
   // Delete
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
+  // Projects list for modal dropdown
+  const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
+
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [formProjectId, setFormProjectId] = useState<number | ''>('');
   const [formDate, setFormDate] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formLocation, setFormLocation] = useState('');
-  const [formSeverity, setFormSeverity] = useState<Severity>('leve');
-  const [formClassification, setFormClassification] = useState('');
+  const [formSeverity, setFormSeverity] = useState<Severity>('quase_acidente');
+  const [formClassification, setFormClassification] = useState<Classification | ''>('');
   const [formCategory, setFormCategory] = useState('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [formTouched, setFormTouched] = useState(false);
 
   // Investigate modal
   const [investigateTarget, setInvestigateTarget] = useState<SafetyIncident | null>(null);
@@ -175,21 +197,35 @@ export default function SafetyIncidents() {
 
   // Translated labels derived once per render
   const severityLabel: Record<Severity, string> = {
-    quase_acidente: t('safety.nearMiss'),
-    leve: t('safety.minor'),
-    moderado: t('safety.moderate'),
-    grave: t('safety.serious'),
-    fatal: t('safety.fatal'),
+    quase_acidente: t('safety.nearMiss', 'Quase Acidente'),
+    primeiros_socorros: t('safety.firstAid', 'Primeiros Socorros'),
+    sem_afastamento: t('safety.noLostTime', 'Sem Afastamento'),
+    com_afastamento: t('safety.lostTime', 'Com Afastamento'),
+    fatal: t('safety.fatal', 'Fatal'),
   };
 
   const statusLabel: Record<Status, string> = {
-    aberto: t('safety.open'),
-    em_investigacao: t('safety.investigating'),
-    encerrado: t('safety.closed'),
+    registrado: t('safety.registered', 'Registrado'),
+    em_investigacao: t('safety.investigating', 'Em Investigacao'),
+    investigado: t('safety.investigated', 'Investigado'),
+    encerrado: t('safety.closed', 'Encerrado'),
+  };
+
+  const classificationLabel: Record<Classification, string> = {
+    tipico: t('safety.classTypical', 'Tipico'),
+    trajeto: t('safety.classCommute', 'Trajeto'),
+    doenca_ocupacional: t('safety.classOccupational', 'Doenca Ocupacional'),
   };
 
   useEffect(() => {
     setNavBarSelection(14);
+  }, []);
+
+  // Load projects for create modal dropdown
+  useEffect(() => {
+    projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
+      setAllProjects(data.items ?? []);
+    }).catch(() => {});
   }, []);
 
   // ── Data loading ────────────────────────────────────────────────────────────
@@ -243,29 +279,51 @@ export default function SafetyIncidents() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const resetCreateForm = () => {
+    setFormProjectId(projectsInfo?.id ?? '');
     setFormDate('');
     setFormDescription('');
     setFormLocation('');
-    setFormSeverity('leve');
+    setFormSeverity('quase_acidente');
     setFormClassification('');
     setFormCategory('');
+    setFormErrors({});
+    setFormTouched(false);
+  };
+
+  const openCreateModal = () => {
+    setFormProjectId(projectsInfo?.id ?? '');
+    setShowCreateModal(true);
+  };
+
+  const validateCreateForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    if (!formProjectId) errors.project = t('safety.validation.projectRequired', 'Selecione um projeto');
+    if (!formDate) errors.date = t('safety.validation.dateRequired', 'Data do incidente e obrigatoria');
+    if (!formDescription.trim()) errors.description = t('safety.validation.descriptionRequired', 'Descricao e obrigatoria');
+    if (formDescription.trim().length > 0 && formDescription.trim().length < 10) errors.description = t('safety.validation.descriptionMin', 'Descricao deve ter ao menos 10 caracteres');
+    if (!formClassification) errors.classification = t('safety.validation.classificationRequired', 'Classificacao e obrigatoria');
+    if (!formCategory.trim()) errors.category = t('safety.validation.categoryRequired', 'Categoria e obrigatoria');
+    return errors;
   };
 
   const handleCreateIncident = async () => {
-    if (!formDate || !formDescription.trim() || !user) return;
+    setFormTouched(true);
+    const errors = validateCreateForm();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0 || !user) return;
+
     setCreateLoading(true);
     try {
-      const payload: Parameters<typeof safetyApi.createIncident>[0] = {
+      await safetyApi.createIncident({
         reported_by: user.id,
         incident_date: formDate,
         description: formDescription.trim(),
-        location: formLocation.trim() || undefined,
         severity: formSeverity,
-      };
-      if (projectsInfo?.id) {
-        payload.projects_id = projectsInfo.id;
-      }
-      await safetyApi.createIncident(payload);
+        classification: formClassification as Classification,
+        category: formCategory.trim(),
+        projects_id: Number(formProjectId),
+        location_description: formLocation.trim() || undefined,
+      });
       resetCreateForm();
       setShowCreateModal(false);
       loadIncidents();
@@ -278,12 +336,11 @@ export default function SafetyIncidents() {
   };
 
   const handleInvestigate = async () => {
-    if (!investigateTarget) return;
+    if (!investigateTarget || !user) return;
     setInvestigateLoading(true);
     try {
       await safetyApi.investigateIncident(investigateTarget.id, {
-        root_cause: investigateRootCause.trim() || undefined,
-        corrective_actions: investigateActions.trim() || undefined,
+        investigated_by: user.id,
       });
       setInvestigateTarget(null);
       setInvestigateRootCause('');
@@ -297,10 +354,11 @@ export default function SafetyIncidents() {
   };
 
   const handleClose = async () => {
-    if (!closeTarget || !closeRootCause.trim() || !closeActions.trim()) return;
+    if (!closeTarget || !closeRootCause.trim() || !closeActions.trim() || !user) return;
     setCloseLoading(true);
     try {
       await safetyApi.closeIncident(closeTarget.id, {
+        closed_by: user.id,
         root_cause: closeRootCause.trim(),
         corrective_actions: closeActions.trim(),
       });
@@ -326,8 +384,73 @@ export default function SafetyIncidents() {
     setDeleteConfirm(null);
   };
 
-  const toggleExpandedRow = (id: number) => {
-    setExpandedRow((prev) => (prev === id ? null : id));
+  const toggleExpandedRow = async (id: number) => {
+    if (expandedRow === id) {
+      setExpandedRow(null);
+      setExpandedDetail(null);
+      setShowWitnessForm(false);
+      setShowAttachmentForm(false);
+      return;
+    }
+    setExpandedRow(id);
+    setDetailLoading(true);
+    try {
+      const detail = await safetyApi.getIncident(id);
+      setExpandedDetail(detail);
+    } catch {
+      setExpandedDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const reloadExpandedDetail = async (id: number) => {
+    try {
+      const detail = await safetyApi.getIncident(id);
+      setExpandedDetail(detail);
+    } catch { /* ignore */ }
+  };
+
+  const handleAddWitness = async (incidentId: number) => {
+    if (!witnessName.trim()) return;
+    setWitnessLoading(true);
+    try {
+      await safetyApi.addWitness(incidentId, {
+        witness_name: witnessName.trim(),
+        witness_statement: witnessStatement.trim() || undefined,
+      });
+      setWitnessName('');
+      setWitnessStatement('');
+      setShowWitnessForm(false);
+      reloadExpandedDetail(incidentId);
+    } catch (err) {
+      console.error('Failed to add witness:', err);
+    } finally {
+      setWitnessLoading(false);
+    }
+  };
+
+  const handleAddAttachment = async (incidentId: number) => {
+    if (!attachmentFile || !user) return;
+    setAttachmentLoading(true);
+    try {
+      // 1. Upload file to server
+      const uploaded = await safetyApi.uploadFile(attachmentFile);
+      // 2. Create attachment record linked to incident
+      await safetyApi.addAttachment(incidentId, {
+        file_url: uploaded.file_url,
+        file_name: uploaded.file_name,
+        file_type: uploaded.file_type,
+        uploaded_by: user.id,
+      });
+      setAttachmentFile(null);
+      setShowAttachmentForm(false);
+      reloadExpandedDetail(incidentId);
+    } catch (err) {
+      console.error('Failed to add attachment:', err);
+    } finally {
+      setAttachmentLoading(false);
+    }
   };
 
   const handleFilterChange = () => {
@@ -347,7 +470,7 @@ export default function SafetyIncidents() {
             : `${t('nav.ssma')} / ${t('safety.incidents')}`
         }
         actions={
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+          <button className="btn btn-primary" onClick={openCreateModal}>
             <Plus size={18} /> {t('safety.createIncident')}
           </button>
         }
@@ -367,7 +490,7 @@ export default function SafetyIncidents() {
         >
           <StatCard
             label={t('common.total')}
-            value={stats.total}
+            value={stats.total_incidents}
             bg="var(--color-tertiary-bg)"
             color="var(--color-primary)"
             icon={<Shield size={20} />}
@@ -380,22 +503,22 @@ export default function SafetyIncidents() {
             icon={<AlertTriangle size={20} />}
           />
           <StatCard
-            label={severityLabel.leve}
-            value={stats.by_severity?.leve ?? 0}
+            label={severityLabel.primeiros_socorros}
+            value={stats.by_severity?.primeiros_socorros ?? 0}
             bg="#EEF4FF"
             color="#1D5CC6"
             icon={<AlertTriangle size={20} />}
           />
           <StatCard
-            label={severityLabel.moderado}
-            value={stats.by_severity?.moderado ?? 0}
+            label={severityLabel.sem_afastamento}
+            value={stats.by_severity?.sem_afastamento ?? 0}
             bg="#FFF9E6"
             color="#B98E00"
             icon={<AlertTriangle size={20} />}
           />
           <StatCard
-            label={severityLabel.grave}
-            value={stats.by_severity?.grave ?? 0}
+            label={severityLabel.com_afastamento}
+            value={stats.by_severity?.com_afastamento ?? 0}
             bg="#FFF0E6"
             color="#C25B00"
             icon={<AlertTriangle size={20} />}
@@ -457,9 +580,9 @@ export default function SafetyIncidents() {
         >
           <option value="">{t('common.severity')} — {t('common.filter')}</option>
           <option value="quase_acidente">{severityLabel.quase_acidente}</option>
-          <option value="leve">{severityLabel.leve}</option>
-          <option value="moderado">{severityLabel.moderado}</option>
-          <option value="grave">{severityLabel.grave}</option>
+          <option value="primeiros_socorros">{severityLabel.primeiros_socorros}</option>
+          <option value="sem_afastamento">{severityLabel.sem_afastamento}</option>
+          <option value="com_afastamento">{severityLabel.com_afastamento}</option>
           <option value="fatal">{severityLabel.fatal}</option>
         </select>
 
@@ -474,8 +597,9 @@ export default function SafetyIncidents() {
           }}
         >
           <option value="">{t('common.status')} — {t('common.filter')}</option>
-          <option value="aberto">{statusLabel.aberto}</option>
+          <option value="registrado">{statusLabel.registrado}</option>
           <option value="em_investigacao">{statusLabel.em_investigacao}</option>
+          <option value="investigado">{statusLabel.investigado}</option>
           <option value="encerrado">{statusLabel.encerrado}</option>
         </select>
 
@@ -527,7 +651,7 @@ export default function SafetyIncidents() {
         <EmptyState
           message={t('common.noData')}
           action={
-            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            <button className="btn btn-primary" onClick={openCreateModal}>
               <Plus size={18} /> {t('safety.createIncident')}
             </button>
           }
@@ -552,7 +676,7 @@ export default function SafetyIncidents() {
                   (inc) =>
                     !search ||
                     inc.description.toLowerCase().includes(search.toLowerCase()) ||
-                    (inc.location || '').toLowerCase().includes(search.toLowerCase()) ||
+                    (inc.location_description || '').toLowerCase().includes(search.toLowerCase()) ||
                     (inc.classification || '').toLowerCase().includes(search.toLowerCase()),
                 )
                 .map((incident) => (
@@ -602,7 +726,7 @@ export default function SafetyIncidents() {
                             {incident.description}
                           </span>
                         </div>
-                        {incident.location && (
+                        {incident.location_description && (
                           <div
                             style={{
                               fontSize: '11px',
@@ -611,7 +735,7 @@ export default function SafetyIncidents() {
                               paddingLeft: '23px',
                             }}
                           >
-                            {incident.location}
+                            {incident.location_description}
                           </div>
                         )}
                       </td>
@@ -621,7 +745,7 @@ export default function SafetyIncidents() {
                           label={severityLabel[incident.severity]}
                         />
                       </td>
-                      <td>{incident.classification || '-'}</td>
+                      <td>{incident.classification ? classificationLabel[incident.classification] || incident.classification : '-'}</td>
                       <td>
                         <StatusBadge
                           status={incident.status}
@@ -630,7 +754,7 @@ export default function SafetyIncidents() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
-                          {incident.status === 'aberto' && (
+                          {incident.status === 'registrado' && (
                             <button
                               className="btn btn-icon"
                               title={t('safety.investigate')}
@@ -671,6 +795,11 @@ export default function SafetyIncidents() {
                     {expandedRow === incident.id && (
                       <tr key={`${incident.id}-expanded`}>
                         <td colSpan={7} style={{ padding: 0, borderBottom: '2px solid var(--color-alternate)' }}>
+                          {detailLoading ? (
+                            <div style={{ padding: '24px', textAlign: 'center' }}>
+                              <span className="spinner" />
+                            </div>
+                          ) : (
                           <div
                             style={{
                               padding: '16px 24px',
@@ -683,166 +812,200 @@ export default function SafetyIncidents() {
                             {/* Root cause & actions */}
                             {incident.root_cause && (
                               <div>
-                                <div
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    color: 'var(--color-secondary-text)',
-                                    marginBottom: '4px',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px',
-                                  }}
-                                >
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   {t('safety.rootCause')}
                                 </div>
-                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                  {incident.root_cause}
-                                </p>
+                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>{incident.root_cause}</p>
                               </div>
                             )}
                             {incident.corrective_actions && (
                               <div>
-                                <div
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    color: 'var(--color-secondary-text)',
-                                    marginBottom: '4px',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px',
-                                  }}
-                                >
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   {t('safety.correctiveActions')}
                                 </div>
-                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                  {incident.corrective_actions}
-                                </p>
+                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>{incident.corrective_actions}</p>
                               </div>
                             )}
 
                             {/* Witnesses */}
                             <div>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: 'var(--color-secondary-text)',
-                                  marginBottom: '6px',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px',
-                                }}
-                              >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 <Users size={13} />
-                                {t('common.witnesses')}
-                              </div>
-                              {incident.witnesses && incident.witnesses.length > 0 ? (
-                                incident.witnesses.map((w) => (
-                                  <div
-                                    key={w.id}
-                                    style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}
+                                {t('common.witnesses', 'Testemunhas')}
+                                {incident.status !== 'encerrado' && (
+                                  <button
+                                    className="btn btn-icon"
+                                    title={t('safety.addWitness', 'Adicionar testemunha')}
+                                    onClick={() => { setShowWitnessForm(!showWitnessForm); setShowAttachmentForm(false); }}
+                                    style={{ marginLeft: '4px', padding: '2px' }}
                                   >
+                                    <Plus size={14} color="var(--color-primary)" />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Witness list */}
+                              {expandedDetail?.witnesses && expandedDetail.witnesses.length > 0 ? (
+                                expandedDetail.witnesses.map((w) => (
+                                  <div key={w.id} style={{ fontSize: '13px', color: 'var(--color-primary-text)', marginBottom: '4px' }}>
                                     {w.user_name || `ID ${w.users_id}`}
                                     {w.statement && (
-                                      <span style={{ color: 'var(--color-secondary-text)' }}>
-                                        {' — '}{w.statement}
-                                      </span>
+                                      <span style={{ color: 'var(--color-secondary-text)' }}>{' \u2014 '}{w.statement}</span>
                                     )}
                                   </div>
                                 ))
                               ) : (
-                                <span
-                                  style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}
-                                >
-                                  {t('common.witnesses')} —
+                                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                                  {t('safety.noWitnesses', 'Nenhuma testemunha registrada')}
                                 </span>
+                              )}
+
+                              {/* Add witness form */}
+                              {showWitnessForm && (
+                                <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
+                                  <input
+                                    className="input-field"
+                                    placeholder={t('safety.witnessName', 'Nome da testemunha *')}
+                                    value={witnessName}
+                                    onChange={(e) => setWitnessName(e.target.value)}
+                                    style={{ marginBottom: '6px', fontSize: '12px' }}
+                                  />
+                                  <input
+                                    className="input-field"
+                                    placeholder={t('safety.witnessStatement', 'Depoimento (opcional)')}
+                                    value={witnessStatement}
+                                    onChange={(e) => setWitnessStatement(e.target.value)}
+                                    style={{ marginBottom: '8px', fontSize: '12px' }}
+                                  />
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                    <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowWitnessForm(false); setWitnessName(''); setWitnessStatement(''); }}>
+                                      {t('common.cancel')}
+                                    </button>
+                                    <button
+                                      className="btn btn-primary"
+                                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                                      onClick={() => handleAddWitness(incident.id)}
+                                      disabled={witnessLoading || !witnessName.trim()}
+                                    >
+                                      {witnessLoading ? <span className="spinner" /> : t('common.add', 'Adicionar')}
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                             </div>
 
                             {/* Attachments */}
                             <div>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: 'var(--color-secondary-text)',
-                                  marginBottom: '6px',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px',
-                                }}
-                              >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 <Paperclip size={13} />
-                                {t('common.attachments')}
+                                {t('common.attachments', 'Anexos')}
+                                {incident.status !== 'encerrado' && (
+                                  <button
+                                    className="btn btn-icon"
+                                    title={t('safety.addAttachment', 'Adicionar anexo')}
+                                    onClick={() => { setShowAttachmentForm(!showAttachmentForm); setShowWitnessForm(false); }}
+                                    style={{ marginLeft: '4px', padding: '2px' }}
+                                  >
+                                    <Plus size={14} color="var(--color-primary)" />
+                                  </button>
+                                )}
                               </div>
-                              {incident.attachments && incident.attachments.length > 0 ? (
-                                incident.attachments.map((att) => (
-                                  <div key={att.id} style={{ fontSize: '13px' }}>
-                                    <a
-                                      href={att.file_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{ color: 'var(--color-primary)' }}
-                                    >
-                                      <FileText size={12} style={{ marginRight: '4px' }} />
+
+                              {/* Attachment list */}
+                              {expandedDetail?.attachments && expandedDetail.attachments.length > 0 ? (
+                                expandedDetail.attachments.map((att) => (
+                                  <div key={att.id} style={{ fontSize: '13px', marginBottom: '4px' }}>
+                                    <a href={att.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <FileText size={12} />
                                       {att.file_name || att.file_url}
                                     </a>
                                   </div>
                                 ))
                               ) : (
-                                <span
-                                  style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}
-                                >
-                                  {t('common.attachments')} —
+                                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                                  {t('safety.noAttachments', 'Nenhum anexo registrado')}
                                 </span>
+                              )}
+
+                              {/* Add attachment form */}
+                              {showAttachmentForm && (
+                                <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
+                                  <label
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '8px',
+                                      padding: '10px 14px',
+                                      border: '2px dashed var(--color-alternate)',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      color: 'var(--color-secondary-text)',
+                                      marginBottom: '8px',
+                                      transition: 'border-color 0.2s',
+                                    }}
+                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
+                                    onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-alternate)'; }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      e.currentTarget.style.borderColor = 'var(--color-alternate)';
+                                      const droppedFile = e.dataTransfer.files[0];
+                                      if (droppedFile) setAttachmentFile(droppedFile);
+                                    }}
+                                  >
+                                    <Paperclip size={16} />
+                                    {attachmentFile ? (
+                                      <span style={{ color: 'var(--color-primary-text)' }}>
+                                        {attachmentFile.name}
+                                        <span style={{ color: 'var(--color-secondary-text)', marginLeft: '6px' }}>
+                                          ({(attachmentFile.size / 1024).toFixed(0)} KB)
+                                        </span>
+                                      </span>
+                                    ) : (
+                                      t('safety.dropOrClickFile', 'Clique para selecionar ou arraste um arquivo aqui')
+                                    )}
+                                    <input
+                                      type="file"
+                                      style={{ display: 'none' }}
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) setAttachmentFile(f);
+                                      }}
+                                    />
+                                  </label>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                    <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowAttachmentForm(false); setAttachmentFile(null); }}>
+                                      {t('common.cancel')}
+                                    </button>
+                                    <button
+                                      className="btn btn-primary"
+                                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                                      onClick={() => handleAddAttachment(incident.id)}
+                                      disabled={attachmentLoading || !attachmentFile}
+                                    >
+                                      {attachmentLoading ? <span className="spinner" /> : t('safety.uploadFile', 'Enviar arquivo')}
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                             </div>
 
                             {/* Reporter & timestamps */}
                             <div>
-                              <div
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: 'var(--color-secondary-text)',
-                                  marginBottom: '4px',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px',
-                                }}
-                              >
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 {t('safety.reportedBy')}
                               </div>
                               <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                {incident.reporter_name || `ID ${incident.reported_by}`}
+                                {incident.reporter_name || `ID ${incident.reported_by_user_id}`}
                               </p>
-                              {incident.investigated_at && (
-                                <p
-                                  style={{
-                                    fontSize: '12px',
-                                    color: 'var(--color-secondary-text)',
-                                    marginTop: '4px',
-                                  }}
-                                >
-                                  {t('safety.investigating')}: {formatDate(incident.investigated_at)}
-                                </p>
-                              )}
                               {incident.closed_at && (
-                                <p
-                                  style={{
-                                    fontSize: '12px',
-                                    color: 'var(--color-secondary-text)',
-                                    marginTop: '4px',
-                                  }}
-                                >
+                                <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
                                   {t('safety.closed')}: {formatDate(incident.closed_at)}
                                 </p>
                               )}
                             </div>
                           </div>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -866,86 +1029,135 @@ export default function SafetyIncidents() {
 
       {/* ── Create Incident Modal ──────────────────────────────────────────── */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); resetCreateForm(); }}>
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ padding: '24px', width: '480px' }}
+            style={{ padding: '24px', width: '520px' }}
           >
             <h3 style={{ marginBottom: '16px' }}>{t('safety.createIncident')}</h3>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Project dropdown */}
               <div className="input-group">
-                <label>{t('safety.incidentDate')} *</label>
+                <label>{t('common.project', 'Projeto')} <span style={{ color: '#C0392B' }}>*</span></label>
+                <select
+                  className="select-field"
+                  value={formProjectId}
+                  onChange={(e) => setFormProjectId(e.target.value ? Number(e.target.value) : '')}
+                  style={formTouched && formErrors.project ? { borderColor: '#C0392B' } : {}}
+                >
+                  <option value="">{t('safety.selectProject', 'Selecione um projeto...')}</option>
+                  {allProjects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                {formTouched && formErrors.project && (
+                  <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.project}</span>
+                )}
+              </div>
+
+              {/* Date */}
+              <div className="input-group">
+                <label>{t('safety.incidentDate', 'Data do Incidente')} <span style={{ color: '#C0392B' }}>*</span></label>
                 <input
                   type="date"
                   className="input-field"
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
+                  style={formTouched && formErrors.date ? { borderColor: '#C0392B' } : {}}
                 />
+                {formTouched && formErrors.date && (
+                  <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.date}</span>
+                )}
               </div>
+
+              {/* Description */}
               <div className="input-group">
-                <label>{t('common.description')} *</label>
+                <label>{t('common.description', 'Descricao')} <span style={{ color: '#C0392B' }}>*</span></label>
                 <textarea
                   className="input-field"
                   rows={3}
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder={t('common.description')}
-                  style={{ resize: 'vertical' }}
+                  placeholder={t('safety.descriptionPlaceholder', 'Descreva o incidente com detalhes (min. 10 caracteres)')}
+                  style={{ resize: 'vertical', ...(formTouched && formErrors.description ? { borderColor: '#C0392B' } : {}) }}
                 />
+                {formTouched && formErrors.description && (
+                  <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.description}</span>
+                )}
               </div>
-              <div className="input-group">
-                <label>{t('common.location')}</label>
-                <input
-                  className="input-field"
-                  value={formLocation}
-                  onChange={(e) => setFormLocation(e.target.value)}
-                  placeholder={t('common.location')}
-                />
-              </div>
+
+              {/* Severity + Classification */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
-                  <label>{t('safety.severity')} *</label>
+                  <label>{t('safety.severity', 'Severidade')} <span style={{ color: '#C0392B' }}>*</span></label>
                   <select
                     className="select-field"
                     value={formSeverity}
                     onChange={(e) => setFormSeverity(e.target.value as Severity)}
                   >
                     <option value="quase_acidente">{severityLabel.quase_acidente}</option>
-                    <option value="leve">{severityLabel.leve}</option>
-                    <option value="moderado">{severityLabel.moderado}</option>
-                    <option value="grave">{severityLabel.grave}</option>
+                    <option value="primeiros_socorros">{severityLabel.primeiros_socorros}</option>
+                    <option value="sem_afastamento">{severityLabel.sem_afastamento}</option>
+                    <option value="com_afastamento">{severityLabel.com_afastamento}</option>
                     <option value="fatal">{severityLabel.fatal}</option>
                   </select>
                 </div>
                 <div className="input-group">
-                  <label>{t('safety.classification')}</label>
-                  <input
-                    className="input-field"
+                  <label>{t('safety.classification', 'Classificacao')} <span style={{ color: '#C0392B' }}>*</span></label>
+                  <select
+                    className="select-field"
                     value={formClassification}
-                    onChange={(e) => setFormClassification(e.target.value)}
-                    placeholder={t('safety.classification')}
-                  />
+                    onChange={(e) => setFormClassification(e.target.value as Classification)}
+                    style={formTouched && formErrors.classification ? { borderColor: '#C0392B' } : {}}
+                  >
+                    <option value="">{t('common.select', 'Selecione...')}</option>
+                    <option value="tipico">{classificationLabel.tipico}</option>
+                    <option value="trajeto">{classificationLabel.trajeto}</option>
+                    <option value="doenca_ocupacional">{classificationLabel.doenca_ocupacional}</option>
+                  </select>
+                  {formTouched && formErrors.classification && (
+                    <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.classification}</span>
+                  )}
                 </div>
               </div>
+
+              {/* Category */}
               <div className="input-group">
-                <label>{t('safety.category')}</label>
+                <label>{t('safety.category', 'Categoria')} <span style={{ color: '#C0392B' }}>*</span></label>
                 <input
                   className="input-field"
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  placeholder={t('safety.category')}
+                  placeholder={t('safety.categoryPlaceholder', 'Ex: Queda, Corte, Queimadura...')}
+                  style={formTouched && formErrors.category ? { borderColor: '#C0392B' } : {}}
+                />
+                {formTouched && formErrors.category && (
+                  <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.category}</span>
+                )}
+              </div>
+
+              {/* Location (optional) */}
+              <div className="input-group">
+                <label>{t('common.location', 'Local')}</label>
+                <input
+                  className="input-field"
+                  value={formLocation}
+                  onChange={(e) => setFormLocation(e.target.value)}
+                  placeholder={t('safety.locationPlaceholder', 'Local do incidente')}
                 />
               </div>
             </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); resetCreateForm(); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreateIncident}
-                disabled={createLoading || !formDate || !formDescription.trim()}
+                disabled={createLoading}
               >
                 {createLoading ? <span className="spinner" /> : t('common.save')}
               </button>

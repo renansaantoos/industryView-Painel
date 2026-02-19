@@ -12,12 +12,23 @@ import type {
 
 const SAFETY_BASE = '/safety';
 
+// ── File Upload ─────────────────────────────────────────────────────────────
+
+/** Upload a file and return its URL */
+export async function uploadFile(file: File): Promise<{ file_url: string; file_name: string; file_type: string; file_size: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post('/uploads', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
 // ── Incidents ────────────────────────────────────────────────────────────────
 
 /** List incidents with optional filters */
 export async function listIncidents(params?: {
   projects_id?: number;
-  company_id?: number;
   severity?: string;
   status?: string;
   initial_date?: string;
@@ -32,7 +43,6 @@ export async function listIncidents(params?: {
 /** Get incident statistics (Bird Pyramid) */
 export async function getIncidentStatistics(params?: {
   projects_id?: number;
-  company_id?: number;
 }): Promise<SafetyIncidentStatistics> {
   const response = await apiClient.get(`${SAFETY_BASE}/incidents/statistics`, { params });
   return response.data;
@@ -49,10 +59,14 @@ export async function createIncident(data: {
   reported_by: number;
   incident_date: string;
   description: string;
-  location?: string;
   severity: string;
-  projects_id?: number;
-  company_id?: number;
+  classification: string;
+  category: string;
+  projects_id: number;
+  location_description?: string;
+  body_part_affected?: string;
+  days_lost?: number;
+  immediate_cause?: string;
 }): Promise<SafetyIncident> {
   const response = await apiClient.post(`${SAFETY_BASE}/incidents`, data);
   return response.data;
@@ -67,10 +81,10 @@ export async function updateIncident(
   return response.data;
 }
 
-/** Move incident to "em_investigacao" and record initial findings */
+/** Move incident to "em_investigacao" */
 export async function investigateIncident(
   id: number,
-  data: { root_cause?: string; corrective_actions?: string },
+  data: { investigated_by: number },
 ): Promise<SafetyIncident> {
   const response = await apiClient.post(`${SAFETY_BASE}/incidents/${id}/investigate`, data);
   return response.data;
@@ -79,7 +93,7 @@ export async function investigateIncident(
 /** Close an incident with root cause and corrective actions */
 export async function closeIncident(
   id: number,
-  data: { root_cause: string; corrective_actions: string },
+  data: { closed_by: number; root_cause: string; corrective_actions: string },
 ): Promise<SafetyIncident> {
   const response = await apiClient.post(`${SAFETY_BASE}/incidents/${id}/close`, data);
   return response.data;
@@ -88,17 +102,19 @@ export async function closeIncident(
 /** Add a witness to an incident */
 export async function addWitness(
   incidentId: number,
-  data: { users_id: number; statement?: string },
-): Promise<void> {
-  await apiClient.post(`${SAFETY_BASE}/incidents/${incidentId}/witnesses`, data);
+  data: { witness_name: string; user_id?: number; witness_statement?: string; witness_contact?: string },
+): Promise<unknown> {
+  const response = await apiClient.post(`${SAFETY_BASE}/incidents/${incidentId}/witnesses`, data);
+  return response.data;
 }
 
 /** Add an attachment to an incident */
 export async function addAttachment(
   incidentId: number,
-  data: { file_url: string; file_name?: string; file_type?: string },
-): Promise<void> {
-  await apiClient.post(`${SAFETY_BASE}/incidents/${incidentId}/attachments`, data);
+  data: { file_url: string; file_name: string; file_type?: string; uploaded_by: number },
+): Promise<unknown> {
+  const response = await apiClient.post(`${SAFETY_BASE}/incidents/${incidentId}/attachments`, data);
+  return response.data;
 }
 
 // ── Training Types ────────────────────────────────────────────────────────────

@@ -38,32 +38,29 @@ import {
 
 interface SafetyIncidentRow {
   id: bigint;
+  projects_id: bigint;
   incident_number: string;
-  projects_id: bigint | null;
-  company_id: bigint | null;
-  reported_by: bigint;
   incident_date: Date;
-  description: string;
-  location: string;
+  incident_time: Date | null;
   severity: string;
-  status: string;
-  injured_user_id: bigint | null;
-  injured_name: string | null;
-  body_part_affected: string | null;
-  lost_time_days: number;
+  classification: string;
+  category: string;
+  description: string;
   immediate_cause: string | null;
-  property_damage: boolean;
-  property_damage_description: string | null;
-  investigated_by: bigint | null;
-  investigation_notes: string | null;
-  investigated_at: Date | null;
   root_cause: string | null;
   corrective_actions: string | null;
-  preventive_actions: string | null;
-  closed_by: bigint | null;
+  location_description: string | null;
+  body_part_affected: string | null;
+  days_lost: number;
+  cat_number: string | null;
+  cat_issued_at: Date | null;
+  status: string;
+  reported_by_user_id: bigint;
+  investigated_by_user_id: bigint | null;
+  closed_by_user_id: bigint | null;
   closed_at: Date | null;
   created_at: Date;
-  updated_at: Date | null;
+  updated_at: Date;
 }
 
 interface TrainingTypeRow {
@@ -71,24 +68,29 @@ interface TrainingTypeRow {
   company_id: bigint | null;
   name: string;
   description: string | null;
-  validity_months: number;
-  is_mandatory: boolean;
-  regulatory_norm: string | null;
-  is_active: boolean;
+  nr_reference: string | null;
+  validity_months: number | null;
+  is_mandatory_for_admission: boolean;
+  workload_hours: number | null;
   created_at: Date;
   updated_at: Date | null;
+  deleted_at: Date | null;
 }
 
 interface WorkerTrainingRow {
   id: bigint;
-  user_id: bigint;
+  users_id: bigint;
   training_types_id: bigint;
   training_date: Date;
   expiry_date: Date;
   instructor_name: string | null;
-  training_provider: string | null;
-  certificate_url: string | null;
-  notes: string | null;
+  institution: string | null;
+  certificate_number: string | null;
+  certificate_file: string | null;
+  workload_hours: number;
+  status: string;
+  projects_id: bigint | null;
+  registered_by_user_id: bigint;
   created_at: Date;
   updated_at: Date | null;
 }
@@ -157,7 +159,7 @@ export class SafetyService {
    * Lista incidentes de seguranca com paginacao e filtros
    */
   static async listIncidents(input: ListIncidentsInput) {
-    const { projects_id, company_id, severity, status, initial_date, final_date, page, per_page } = input;
+    const { projects_id, severity, status, initial_date, final_date, page, per_page } = input;
     const skip = (page - 1) * per_page;
 
     const conditions: string[] = [];
@@ -167,10 +169,6 @@ export class SafetyService {
     if (projects_id) {
       conditions.push(`projects_id = $${paramIndex++}`);
       values.push(BigInt(projects_id));
-    }
-    if (company_id) {
-      conditions.push(`company_id = $${paramIndex++}`);
-      values.push(BigInt(company_id));
     }
     if (severity) {
       conditions.push(`severity = $${paramIndex++}`);
@@ -249,39 +247,33 @@ export class SafetyService {
       INSERT INTO safety_incidents (
         incident_number,
         projects_id,
-        company_id,
-        reported_by,
+        reported_by_user_id,
         incident_date,
         description,
-        location,
         severity,
-        status,
-        injured_user_id,
-        injured_name,
+        classification,
+        category,
+        location_description,
         body_part_affected,
-        lost_time_days,
+        days_lost,
         immediate_cause,
-        property_damage,
-        property_damage_description,
+        status,
         created_at,
         updated_at
       ) VALUES (
         ${incidentNumber},
-        ${input.projects_id ? BigInt(input.projects_id) : null},
-        ${input.company_id ? BigInt(input.company_id) : null},
+        ${BigInt(input.projects_id)},
         ${BigInt(input.reported_by)},
         ${new Date(input.incident_date)},
         ${input.description},
-        ${input.location},
-        ${input.severity},
-        'aberto',
-        ${input.injured_user_id ? BigInt(input.injured_user_id) : null},
-        ${input.injured_name ?? null},
+        ${input.severity}::incident_severity,
+        ${input.classification}::incident_classification,
+        ${input.category},
+        ${input.location_description ?? null},
         ${input.body_part_affected ?? null},
-        ${input.lost_time_days ?? 0},
+        ${input.days_lost ?? 0},
         ${input.immediate_cause ?? null},
-        ${input.property_damage ?? false},
-        ${input.property_damage_description ?? null},
+        'registrado'::incident_status,
         NOW(),
         NOW()
       )
@@ -316,41 +308,33 @@ export class SafetyService {
       setClauses.push(`description = $${paramIndex++}`);
       values.push(input.description);
     }
-    if (input.location !== undefined) {
-      setClauses.push(`location = $${paramIndex++}`);
-      values.push(input.location);
+    if (input.location_description !== undefined) {
+      setClauses.push(`location_description = $${paramIndex++}`);
+      values.push(input.location_description);
     }
     if (input.severity !== undefined) {
-      setClauses.push(`severity = $${paramIndex++}`);
+      setClauses.push(`severity = $${paramIndex++}::incident_severity`);
       values.push(input.severity);
     }
-    if (input.injured_user_id !== undefined) {
-      setClauses.push(`injured_user_id = $${paramIndex++}`);
-      values.push(input.injured_user_id ? BigInt(input.injured_user_id) : null);
+    if (input.classification !== undefined) {
+      setClauses.push(`classification = $${paramIndex++}::incident_classification`);
+      values.push(input.classification);
     }
-    if (input.injured_name !== undefined) {
-      setClauses.push(`injured_name = $${paramIndex++}`);
-      values.push(input.injured_name);
+    if (input.category !== undefined) {
+      setClauses.push(`category = $${paramIndex++}`);
+      values.push(input.category);
     }
     if (input.body_part_affected !== undefined) {
       setClauses.push(`body_part_affected = $${paramIndex++}`);
       values.push(input.body_part_affected);
     }
-    if (input.lost_time_days !== undefined) {
-      setClauses.push(`lost_time_days = $${paramIndex++}`);
-      values.push(input.lost_time_days);
+    if (input.days_lost !== undefined) {
+      setClauses.push(`days_lost = $${paramIndex++}`);
+      values.push(input.days_lost);
     }
     if (input.immediate_cause !== undefined) {
       setClauses.push(`immediate_cause = $${paramIndex++}`);
       values.push(input.immediate_cause);
-    }
-    if (input.property_damage !== undefined) {
-      setClauses.push(`property_damage = $${paramIndex++}`);
-      values.push(input.property_damage);
-    }
-    if (input.property_damage_description !== undefined) {
-      setClauses.push(`property_damage_description = $${paramIndex++}`);
-      values.push(input.property_damage_description);
     }
 
     values.push(BigInt(id));
@@ -387,10 +371,8 @@ export class SafetyService {
     const result = await db.$queryRaw<SafetyIncidentRow[]>`
       UPDATE safety_incidents
       SET
-        status = 'em_investigacao',
-        investigated_by = ${BigInt(input.investigated_by)},
-        investigation_notes = ${input.investigation_notes ?? null},
-        investigated_at = NOW(),
+        status = 'em_investigacao'::incident_status,
+        investigated_by_user_id = ${BigInt(input.investigated_by)},
         updated_at = NOW()
       WHERE id = ${BigInt(id)}
       RETURNING *
@@ -419,11 +401,10 @@ export class SafetyService {
     const result = await db.$queryRaw<SafetyIncidentRow[]>`
       UPDATE safety_incidents
       SET
-        status = 'encerrado',
+        status = 'encerrado'::incident_status,
         root_cause = ${input.root_cause},
         corrective_actions = ${input.corrective_actions},
-        preventive_actions = ${input.preventive_actions ?? null},
-        closed_by = ${BigInt(input.closed_by)},
+        closed_by_user_id = ${BigInt(input.closed_by)},
         closed_at = NOW(),
         updated_at = NOW()
       WHERE id = ${BigInt(id)}
@@ -446,10 +427,6 @@ export class SafetyService {
       conditions.push(`projects_id = $${paramIndex++}`);
       values.push(BigInt(input.projects_id));
     }
-    if (input.company_id) {
-      conditions.push(`company_id = $${paramIndex++}`);
-      values.push(BigInt(input.company_id));
-    }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -463,17 +440,18 @@ export class SafetyService {
         ...values
       ),
       db.$queryRawUnsafe<{ total: bigint }[]>(
-        `SELECT COALESCE(SUM(lost_time_days), 0)::bigint as total FROM safety_incidents ${whereClause}`,
+        `SELECT COALESCE(SUM(days_lost), 0)::bigint as total FROM safety_incidents ${whereClause}`,
         ...values
       ),
     ]);
 
-    // Organiza contagens por severidade
+    // Organiza contagens por severidade (DB enum values)
     const severityCounts = {
+      quase_acidente: 0,
+      primeiros_socorros: 0,
+      sem_afastamento: 0,
+      com_afastamento: 0,
       fatal: 0,
-      grave: 0,
-      moderado: 0,
-      leve: 0,
     };
 
     for (const row of bySeverity) {
@@ -483,10 +461,11 @@ export class SafetyService {
       }
     }
 
-    // Organiza contagens por status
+    // Organiza contagens por status (DB enum values)
     const statusCounts = {
-      aberto: 0,
+      registrado: 0,
       em_investigacao: 0,
+      investigado: 0,
       encerrado: 0,
     };
 
@@ -504,13 +483,13 @@ export class SafetyService {
       total_lost_days: Number(totalLostDays[0]?.total ?? 0),
       by_severity: severityCounts,
       by_status: statusCounts,
-      // Piramide de Bird - proporcao relativa ao ponto base
       bird_pyramid: {
         fatal: severityCounts.fatal,
-        grave: severityCounts.grave,
-        moderado: severityCounts.moderado,
-        leve: severityCounts.leve,
-        ratio_description: 'Para cada acidente fatal, esperam-se ~10 graves, ~30 moderados e ~600 leves (Heinrich/Bird)',
+        com_afastamento: severityCounts.com_afastamento,
+        sem_afastamento: severityCounts.sem_afastamento,
+        primeiros_socorros: severityCounts.primeiros_socorros,
+        quase_acidente: severityCounts.quase_acidente,
+        ratio_description: 'Para cada acidente fatal, esperam-se ~10 com afastamento, ~30 sem afastamento e ~600 primeiros socorros (Heinrich/Bird)',
       },
     };
   }
@@ -603,136 +582,100 @@ export class SafetyService {
    * Lista tipos de treinamento
    */
   static async listTrainingTypes(input: ListTrainingTypesInput) {
-    const conditions: string[] = [];
-    const values: unknown[] = [];
-    let paramIndex = 1;
+    const where: Record<string, unknown> = {};
 
     if (input.company_id) {
-      conditions.push(`(company_id = $${paramIndex++} OR company_id IS NULL)`);
-      values.push(BigInt(input.company_id));
+      where.company_id = BigInt(input.company_id);
     }
     if (input.active_only) {
-      conditions.push(`is_active = true`);
+      where.deleted_at = null;
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    return db.$queryRawUnsafe<TrainingTypeRow[]>(
-      `SELECT * FROM training_types ${whereClause} ORDER BY name ASC`,
-      ...values
-    );
+    return db.training_types.findMany({
+      where,
+      orderBy: { name: 'asc' },
+    });
   }
 
   /**
    * Busca tipo de treinamento por ID
    */
   static async getTrainingTypeById(id: number) {
-    const result = await db.$queryRaw<TrainingTypeRow[]>`
-      SELECT * FROM training_types WHERE id = ${BigInt(id)}
-    `;
+    const result = await db.training_types.findUnique({
+      where: { id: BigInt(id) },
+    });
 
-    if (!result || result.length === 0) {
+    if (!result) {
       throw new NotFoundError('Tipo de treinamento nao encontrado.');
     }
 
-    return result[0];
+    return result;
   }
 
   /**
    * Cria tipo de treinamento
    */
   static async createTrainingType(input: CreateTrainingTypeInput) {
-    // Verifica duplicidade de nome dentro da mesma empresa
-    const existing = await db.$queryRaw<TrainingTypeRow[]>`
-      SELECT id FROM training_types
-      WHERE LOWER(name) = LOWER(${input.name})
-        AND (
-          company_id = ${input.company_id ? BigInt(input.company_id) : null}
-          OR (company_id IS NULL AND ${input.company_id ? BigInt(input.company_id) : null} IS NULL)
-        )
-    `;
+    if (!input.company_id) {
+      throw new BadRequestError('company_id e obrigatorio.');
+    }
 
-    if (existing && existing.length > 0) {
+    const companyId = BigInt(input.company_id);
+
+    // Verifica duplicidade de nome dentro da mesma empresa
+    const existing = await db.training_types.findFirst({
+      where: {
+        company_id: companyId,
+        name: { equals: input.name, mode: 'insensitive' },
+        deleted_at: null,
+      },
+    });
+
+    if (existing) {
       throw new BadRequestError(`Ja existe um tipo de treinamento com o nome "${input.name}" para esta empresa.`);
     }
 
-    const result = await db.$queryRaw<TrainingTypeRow[]>`
-      INSERT INTO training_types (
-        company_id,
-        name,
-        description,
-        validity_months,
-        is_mandatory,
-        regulatory_norm,
-        is_active,
-        created_at,
-        updated_at
-      ) VALUES (
-        ${input.company_id ? BigInt(input.company_id) : null},
-        ${input.name},
-        ${input.description ?? null},
-        ${input.validity_months},
-        ${input.is_mandatory ?? false},
-        ${input.regulatory_norm ?? null},
-        ${input.is_active ?? true},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
+    const result = await db.training_types.create({
+      data: {
+        company_id: companyId,
+        name: input.name,
+        description: input.description ?? null,
+        nr_reference: input.nr_reference ?? null,
+        validity_months: input.validity_months ?? null,
+        is_mandatory_for_admission: input.is_mandatory_for_admission ?? false,
+        workload_hours: input.workload_hours != null ? Math.round(input.workload_hours) : null,
+      },
+    });
 
-    return result[0];
+    return result;
   }
 
   /**
    * Atualiza tipo de treinamento
    */
   static async updateTrainingType(id: number, input: UpdateTrainingTypeInput) {
-    const existing = await db.$queryRaw<TrainingTypeRow[]>`
-      SELECT id FROM training_types WHERE id = ${BigInt(id)}
-    `;
+    const existing = await db.training_types.findFirst({
+      where: { id: BigInt(id), deleted_at: null },
+    });
 
-    if (!existing || existing.length === 0) {
+    if (!existing) {
       throw new NotFoundError('Tipo de treinamento nao encontrado.');
     }
 
-    const setClauses: string[] = ['updated_at = NOW()'];
-    const values: unknown[] = [];
-    let paramIndex = 1;
+    const data: Record<string, unknown> = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.description !== undefined) data.description = input.description;
+    if (input.nr_reference !== undefined) data.nr_reference = input.nr_reference;
+    if (input.validity_months !== undefined) data.validity_months = input.validity_months;
+    if (input.is_mandatory_for_admission !== undefined) data.is_mandatory_for_admission = input.is_mandatory_for_admission;
+    if (input.workload_hours !== undefined) data.workload_hours = input.workload_hours != null ? Math.round(input.workload_hours) : null;
 
-    if (input.name !== undefined) {
-      setClauses.push(`name = $${paramIndex++}`);
-      values.push(input.name);
-    }
-    if (input.description !== undefined) {
-      setClauses.push(`description = $${paramIndex++}`);
-      values.push(input.description);
-    }
-    if (input.validity_months !== undefined) {
-      setClauses.push(`validity_months = $${paramIndex++}`);
-      values.push(input.validity_months);
-    }
-    if (input.is_mandatory !== undefined) {
-      setClauses.push(`is_mandatory = $${paramIndex++}`);
-      values.push(input.is_mandatory);
-    }
-    if (input.regulatory_norm !== undefined) {
-      setClauses.push(`regulatory_norm = $${paramIndex++}`);
-      values.push(input.regulatory_norm);
-    }
-    if (input.is_active !== undefined) {
-      setClauses.push(`is_active = $${paramIndex++}`);
-      values.push(input.is_active);
-    }
+    const result = await db.training_types.update({
+      where: { id: BigInt(id) },
+      data,
+    });
 
-    values.push(BigInt(id));
-
-    const result = await db.$queryRawUnsafe<TrainingTypeRow[]>(
-      `UPDATE training_types SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-      ...values
-    );
-
-    return result[0];
+    return result;
   }
 
   /**
@@ -740,39 +683,43 @@ export class SafetyService {
    * Impede remocao se houver treinamentos ou associacoes de tarefas vinculadas
    */
   static async deleteTrainingType(id: number) {
-    const existing = await db.$queryRaw<TrainingTypeRow[]>`
-      SELECT id FROM training_types WHERE id = ${BigInt(id)}
-    `;
+    const bigId = BigInt(id);
 
-    if (!existing || existing.length === 0) {
+    const existing = await db.training_types.findFirst({
+      where: { id: bigId, deleted_at: null },
+    });
+
+    if (!existing) {
       throw new NotFoundError('Tipo de treinamento nao encontrado.');
     }
 
     // Verifica se existe algum worker_training usando este tipo
-    const inUse = await db.$queryRaw<CountRow[]>`
-      SELECT COUNT(*)::bigint as count FROM worker_trainings WHERE training_types_id = ${BigInt(id)}
-    `;
+    const inUseCount = await db.worker_trainings.count({
+      where: { training_types_id: bigId },
+    });
 
-    if (Number(inUse[0]?.count ?? 0) > 0) {
+    if (inUseCount > 0) {
       throw new BadRequestError(
         'Nao e possivel excluir este tipo de treinamento pois ha registros de trabalhadores vinculados. Desative-o ao inves de excluir.'
       );
     }
 
     // Verifica se existe alguma task_required_training usando este tipo
-    const requiredByTask = await db.$queryRaw<CountRow[]>`
-      SELECT COUNT(*)::bigint as count FROM task_required_trainings WHERE training_types_id = ${BigInt(id)}
-    `;
+    const requiredCount = await db.task_required_trainings.count({
+      where: { training_types_id: bigId },
+    });
 
-    if (Number(requiredByTask[0]?.count ?? 0) > 0) {
+    if (requiredCount > 0) {
       throw new BadRequestError(
         'Nao e possivel excluir este tipo de treinamento pois ha tarefas que o exigem. Desative-o ao inves de excluir.'
       );
     }
 
-    await db.$executeRaw`
-      DELETE FROM training_types WHERE id = ${BigInt(id)}
-    `;
+    // Soft delete
+    await db.training_types.update({
+      where: { id: bigId },
+      data: { deleted_at: new Date() },
+    });
 
     return { success: true, id };
   }
@@ -797,7 +744,7 @@ export class SafetyService {
     let paramIndex = 1;
 
     if (user_id) {
-      conditions.push(`wt.user_id = $${paramIndex++}`);
+      conditions.push(`wt.users_id = $${paramIndex++}`);
       values.push(BigInt(user_id));
     }
     if (training_types_id) {
@@ -824,11 +771,11 @@ export class SafetyService {
       values.push(thirtyDaysFromNow);
     }
 
-    const joinClause = company_id ? 'JOIN users u ON wt.user_id = u.id' : '';
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const selectQuery = `
-      SELECT wt.*, tt.name as training_name, tt.validity_months, tt.regulatory_norm,
+      SELECT wt.*, tt.name as training_name, tt.validity_months, tt.nr_reference,
+             u.name as user_name,
              CASE
                WHEN wt.expiry_date < NOW() THEN 'expirado'
                WHEN wt.expiry_date <= NOW() + INTERVAL '30 days' THEN 'expirando'
@@ -836,7 +783,7 @@ export class SafetyService {
              END as computed_status
       FROM worker_trainings wt
       JOIN training_types tt ON wt.training_types_id = tt.id
-      ${joinClause}
+      JOIN users u ON wt.users_id = u.id
       ${whereClause}
       ORDER BY wt.expiry_date ASC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -846,7 +793,7 @@ export class SafetyService {
       SELECT COUNT(*)::bigint as count
       FROM worker_trainings wt
       JOIN training_types tt ON wt.training_types_id = tt.id
-      ${joinClause}
+      JOIN users u ON wt.users_id = u.id
       ${whereClause}
     `;
 
@@ -868,54 +815,45 @@ export class SafetyService {
    * Cria registro de treinamento para um trabalhador
    * Calcula automaticamente expiry_date com base em training_date + validity_months
    */
-  static async createWorkerTraining(input: CreateWorkerTrainingInput) {
-    // Busca validity_months do tipo de treinamento
-    const trainingType = await db.$queryRaw<TrainingTypeRow[]>`
-      SELECT id, validity_months FROM training_types WHERE id = ${BigInt(input.training_types_id)}
-    `;
+  static async createWorkerTraining(input: CreateWorkerTrainingInput, registeredByUserId: number) {
+    // Busca tipo de treinamento para calcular validade e carga horaria
+    const trainingType = await db.training_types.findUnique({
+      where: { id: BigInt(input.training_types_id) },
+    });
 
-    if (!trainingType || trainingType.length === 0) {
+    if (!trainingType) {
       throw new NotFoundError('Tipo de treinamento nao encontrado.');
     }
 
     const trainingDate = new Date(input.training_date);
-    const validityMonths = trainingType[0].validity_months;
+    const validityMonths = trainingType.validity_months ?? 12;
 
     // Calcula data de expiracao: training_date + validity_months
     const expiryDate = new Date(trainingDate);
     expiryDate.setMonth(expiryDate.getMonth() + validityMonths);
 
-    const result = await db.$queryRaw<WorkerTrainingRow[]>`
-      INSERT INTO worker_trainings (
-        user_id,
-        training_types_id,
-        training_date,
-        expiry_date,
-        instructor_name,
-        training_provider,
-        certificate_url,
-        notes,
-        created_at,
-        updated_at
-      ) VALUES (
-        ${BigInt(input.user_id)},
-        ${BigInt(input.training_types_id)},
-        ${trainingDate},
-        ${expiryDate},
-        ${input.instructor_name ?? null},
-        ${input.training_provider ?? null},
-        ${input.certificate_url ?? null},
-        ${input.notes ?? null},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
+    // Carga horaria: usa a do input ou herda do tipo de treinamento
+    const workloadHours = input.workload_hours ?? trainingType.workload_hours ?? 0;
 
-    return {
-      ...result[0],
-      training_type: trainingType[0],
-    };
+    const result = await db.worker_trainings.create({
+      data: {
+        users_id: BigInt(input.users_id),
+        training_types_id: BigInt(input.training_types_id),
+        training_date: trainingDate,
+        expiry_date: expiryDate,
+        instructor_name: input.instructor || 'N/A',
+        institution: input.institution ?? null,
+        certificate_number: input.certificate_number ?? null,
+        certificate_file: input.certificate_url ?? null,
+        workload_hours: workloadHours,
+        registered_by_user_id: BigInt(registeredByUserId),
+      },
+      include: {
+        training_type: true,
+      },
+    });
+
+    return result;
   }
 
   /**
@@ -932,7 +870,7 @@ export class SafetyService {
         SELECT wt.*, tt.name as training_name, u.name as user_name
         FROM worker_trainings wt
         JOIN training_types tt ON wt.training_types_id = tt.id
-        JOIN users u ON wt.user_id = u.id
+        JOIN users u ON wt.users_id = u.id
         WHERE wt.expiry_date >= ${today}
           AND wt.expiry_date <= ${limitDate}
           AND u.company_id = ${BigInt(company_id)}
@@ -944,7 +882,7 @@ export class SafetyService {
       SELECT wt.*, tt.name as training_name, u.name as user_name
       FROM worker_trainings wt
       JOIN training_types tt ON wt.training_types_id = tt.id
-      JOIN users u ON wt.user_id = u.id
+      JOIN users u ON wt.users_id = u.id
       WHERE wt.expiry_date >= ${today}
         AND wt.expiry_date <= ${limitDate}
       ORDER BY wt.expiry_date ASC
@@ -962,7 +900,7 @@ export class SafetyService {
         SELECT wt.*, tt.name as training_name, u.name as user_name
         FROM worker_trainings wt
         JOIN training_types tt ON wt.training_types_id = tt.id
-        JOIN users u ON wt.user_id = u.id
+        JOIN users u ON wt.users_id = u.id
         WHERE wt.expiry_date < ${today}
           AND u.company_id = ${BigInt(company_id)}
         ORDER BY wt.expiry_date DESC
@@ -973,7 +911,7 @@ export class SafetyService {
       SELECT wt.*, tt.name as training_name, u.name as user_name
       FROM worker_trainings wt
       JOIN training_types tt ON wt.training_types_id = tt.id
-      JOIN users u ON wt.user_id = u.id
+      JOIN users u ON wt.users_id = u.id
       WHERE wt.expiry_date < ${today}
       ORDER BY wt.expiry_date DESC
     `;
@@ -1010,7 +948,7 @@ export class SafetyService {
     const workerValidTrainings = await db.$queryRaw<WorkerTrainingRow[]>`
       SELECT wt.*
       FROM worker_trainings wt
-      WHERE wt.user_id = ${BigInt(user_id)}
+      WHERE wt.users_id = ${BigInt(user_id)}
         AND wt.expiry_date > ${today}
     `;
 
@@ -1060,7 +998,7 @@ export class SafetyService {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     return db.$queryRawUnsafe<(TaskRequiredTrainingRow & { training_name: string })[]>(
-      `SELECT trt.*, tt.name as training_name, tt.validity_months, tt.is_mandatory, tt.regulatory_norm
+      `SELECT trt.*, tt.name as training_name, tt.validity_months, tt.is_mandatory_for_admission, tt.nr_reference
        FROM task_required_trainings trt
        JOIN training_types tt ON trt.training_types_id = tt.id
        ${whereClause}
