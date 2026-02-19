@@ -1,7 +1,7 @@
 {
   "framework": "vite",
   "installCommand": "cd industryview-react && npm install",
-  "buildCommand": "cd industryview-react && npm run build",
+  "buildCommand": "cd industryview-react && npx vite build",
   "outputDirectory": "industryview-react/dist",
   "rewrites": [
     {
