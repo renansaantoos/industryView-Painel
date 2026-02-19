@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authApi } from '../../services';
 import { isValidEmail } from '../../utils/validators';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { MotionPage } from '../../lib/motion';
 import './Auth.css';
 
@@ -18,6 +18,8 @@ export default function ForgotPassword() {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -162,25 +164,35 @@ export default function ForgotPassword() {
               <form onSubmit={handleResetPassword} className="auth-form">
                 <div className="input-group">
                   <label htmlFor="newPassword">{t('auth.newPassword')}</label>
-                  <input
-                    id="newPassword"
-                    type="password"
-                    className="input-field"
-                    placeholder="**********"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
+                  <div className="input-password-wrapper">
+                    <input
+                      id="newPassword"
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="input-field"
+                      placeholder="**********"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                    <button type="button" className="input-password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="input-group">
                   <label htmlFor="confirmPassword">{t('auth.confirmPassword')}</label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    className="input-field"
-                    placeholder="**********"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
+                  <div className="input-password-wrapper">
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="input-field"
+                      placeholder="**********"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <button type="button" className="input-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" className="btn btn-primary auth-submit-btn" disabled={loading}>
                   {loading ? <span className="spinner" /> : t('auth.resetPassword')}

@@ -18,6 +18,7 @@ export interface SafetyIncident {
   reported_by_user_id: number;
   investigated_by_user_id?: number;
   closed_by_user_id?: number;
+  involved_user_id?: number;
   closed_at?: string;
   created_at: string;
   updated_at: string;
@@ -31,9 +32,10 @@ export interface SafetyIncident {
 export interface SafetyIncidentWitness {
   id: number;
   safety_incidents_id: number;
-  users_id: number;
-  statement?: string;
-  user_name?: string;
+  users_id?: number;
+  witness_name: string;
+  witness_statement?: string;
+  witness_role?: string;
   created_at: string;
 }
 
@@ -42,10 +44,9 @@ export interface SafetyIncidentAttachment {
   id: number;
   safety_incidents_id: number;
   file_url: string;
-  file_name?: string;
   file_type?: string;
-  uploaded_by: number;
-  uploader_name?: string;
+  description?: string;
+  uploaded_by_user_id: number;
   created_at: string;
 }
 

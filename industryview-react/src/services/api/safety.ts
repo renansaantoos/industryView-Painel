@@ -67,6 +67,7 @@ export async function createIncident(data: {
   body_part_affected?: string;
   days_lost?: number;
   immediate_cause?: string;
+  involved_user_id?: number;
 }): Promise<SafetyIncident> {
   const response = await apiClient.post(`${SAFETY_BASE}/incidents`, data);
   return response.data;
@@ -102,7 +103,7 @@ export async function closeIncident(
 /** Add a witness to an incident */
 export async function addWitness(
   incidentId: number,
-  data: { witness_name: string; user_id?: number; witness_statement?: string; witness_contact?: string },
+  data: { witness_name: string; users_id?: number; witness_statement?: string; witness_role?: string },
 ): Promise<unknown> {
   const response = await apiClient.post(`${SAFETY_BASE}/incidents/${incidentId}/witnesses`, data);
   return response.data;
@@ -111,7 +112,7 @@ export async function addWitness(
 /** Add an attachment to an incident */
 export async function addAttachment(
   incidentId: number,
-  data: { file_url: string; file_name: string; file_type?: string; uploaded_by: number },
+  data: { file_url: string; file_type?: string; description?: string; uploaded_by_user_id: number },
 ): Promise<unknown> {
   const response = await apiClient.post(`${SAFETY_BASE}/incidents/${incidentId}/attachments`, data);
   return response.data;

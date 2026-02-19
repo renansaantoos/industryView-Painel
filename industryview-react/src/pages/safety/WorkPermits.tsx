@@ -268,9 +268,9 @@ export default function WorkPermits() {
   const handleApprove = async (permit: WorkPermit) => {
     setActionLoading(permit.id);
     try {
-      const updated = await workPermitsApi.approveWorkPermit(permit.id);
-      setPermits((prev) => prev.map((p) => (p.id === permit.id ? { ...p, ...updated } : p)));
+      await workPermitsApi.approveWorkPermit(permit.id);
       showToast(t('workPermits.approveSuccess'), 'success');
+      loadPermits();
     } catch (err) {
       console.error('Failed to approve permit:', err);
       showToast(t('common.errorSaving'), 'error');
@@ -282,9 +282,9 @@ export default function WorkPermits() {
   const handleClose = async (permit: WorkPermit) => {
     setActionLoading(permit.id);
     try {
-      const updated = await workPermitsApi.closeWorkPermit(permit.id);
-      setPermits((prev) => prev.map((p) => (p.id === permit.id ? { ...p, ...updated } : p)));
+      await workPermitsApi.closeWorkPermit(permit.id);
       showToast(t('workPermits.closeSuccess'), 'success');
+      loadPermits();
     } catch (err) {
       console.error('Failed to close permit:', err);
       showToast(t('common.errorSaving'), 'error');
@@ -297,13 +297,13 @@ export default function WorkPermits() {
     if (!cancelPermit) return;
     setCancelLoading(true);
     try {
-      const updated = await workPermitsApi.cancelWorkPermit(cancelPermit.id, {
+      await workPermitsApi.cancelWorkPermit(cancelPermit.id, {
         cancellation_reason: cancelReason.trim() || undefined,
       });
-      setPermits((prev) => prev.map((p) => (p.id === cancelPermit.id ? { ...p, ...updated } : p)));
       setCancelPermit(null);
       setCancelReason('');
       showToast(t('workPermits.cancelSuccess'), 'success');
+      loadPermits();
     } catch (err) {
       console.error('Failed to cancel permit:', err);
       showToast(t('common.errorSaving'), 'error');
@@ -642,7 +642,7 @@ export default function WorkPermits() {
                                     }}
                                   >
                                     <CheckCircle size={11} />
-                                    {sig.user_name || `ID ${sig.users_id}`}
+                                    {sig.user_name || (sig as any).user?.name || `ID ${sig.users_id}`}
                                     {sig.role && (
                                       <span
                                         style={{

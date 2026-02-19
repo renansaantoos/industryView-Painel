@@ -349,6 +349,20 @@ router.get(
 
 /**
  * @swagger
+ * /api/users/query_all_users:
+ *   get:
+ *     summary: Lista todos os usuarios para dropdown (id, name, email)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios para dropdown
+ */
+router.get('/query_all_users', authenticate, UsersController.queryAll);
+
+/**
+ * @swagger
  * /api/users/{users_id}:
  *   get:
  *     summary: Busca usuario por ID

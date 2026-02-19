@@ -965,6 +965,27 @@ export class UsersService {
       pageTotal: Math.ceil(total / per_page),
     };
   }
+
+  /**
+   * Lista todos os usuarios para dropdowns (id, name, email)
+   * Filtra por company_id se informado
+   */
+  static async queryAllForDropdown(companyId?: number) {
+    const where: Record<string, unknown> = { deleted_at: null };
+    if (companyId) {
+      where.company_id = BigInt(companyId);
+    }
+    const users = await db.users.findMany({
+      where,
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    });
+    return users.map((u) => ({
+      id: Number(u.id),
+      name: u.name || '',
+      email: u.email || '',
+    }));
+  }
 }
 
 export default UsersService;

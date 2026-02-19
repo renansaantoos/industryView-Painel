@@ -58,6 +58,7 @@ interface SafetyIncidentRow {
   reported_by_user_id: bigint;
   investigated_by_user_id: bigint | null;
   closed_by_user_id: bigint | null;
+  involved_user_id: bigint | null;
   closed_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -257,6 +258,7 @@ export class SafetyService {
         body_part_affected,
         days_lost,
         immediate_cause,
+        involved_user_id,
         status,
         created_at,
         updated_at
@@ -273,6 +275,7 @@ export class SafetyService {
         ${input.body_part_affected ?? null},
         ${input.days_lost ?? 0},
         ${input.immediate_cause ?? null},
+        ${input.involved_user_id ? BigInt(input.involved_user_id) : null},
         'registrado'::incident_status,
         NOW(),
         NOW()
@@ -335,6 +338,10 @@ export class SafetyService {
     if (input.immediate_cause !== undefined) {
       setClauses.push(`immediate_cause = $${paramIndex++}`);
       values.push(input.immediate_cause);
+    }
+    if (input.involved_user_id !== undefined) {
+      setClauses.push(`involved_user_id = $${paramIndex++}`);
+      values.push(input.involved_user_id ? BigInt(input.involved_user_id) : null);
     }
 
     values.push(BigInt(id));
@@ -517,17 +524,17 @@ export class SafetyService {
     const result = await db.$queryRaw<unknown[]>`
       INSERT INTO safety_incident_witnesses (
         safety_incidents_id,
-        user_id,
+        users_id,
         witness_name,
         witness_statement,
-        witness_contact,
+        witness_role,
         created_at
       ) VALUES (
         ${BigInt(incident_id)},
-        ${input.user_id ? BigInt(input.user_id) : null},
+        ${input.users_id ? BigInt(input.users_id) : null},
         ${input.witness_name},
         ${input.witness_statement ?? null},
-        ${input.witness_contact ?? null},
+        ${input.witness_role ?? null},
         NOW()
       )
       RETURNING *
@@ -556,16 +563,16 @@ export class SafetyService {
       INSERT INTO safety_incident_attachments (
         safety_incidents_id,
         file_url,
-        file_name,
         file_type,
-        uploaded_by,
+        description,
+        uploaded_by_user_id,
         created_at
       ) VALUES (
         ${BigInt(incident_id)},
         ${input.file_url},
-        ${input.file_name},
         ${input.file_type ?? null},
-        ${BigInt(input.uploaded_by)},
+        ${input.description ?? null},
+        ${BigInt(input.uploaded_by_user_id)},
         NOW()
       )
       RETURNING *
@@ -733,7 +740,7 @@ export class SafetyService {
    * Status calculado dinamicamente com base em expiry_date
    */
   static async listWorkerTrainings(input: ListWorkerTrainingsInput) {
-    const { user_id, training_types_id, company_id, status, page, per_page } = input;
+    const { users_id, training_types_id, company_id, status, page, per_page } = input;
     const skip = (page - 1) * per_page;
     const today = new Date();
     const thirtyDaysFromNow = new Date(today);
@@ -743,9 +750,9 @@ export class SafetyService {
     const values: unknown[] = [];
     let paramIndex = 1;
 
-    if (user_id) {
+    if (users_id) {
       conditions.push(`wt.users_id = $${paramIndex++}`);
-      values.push(BigInt(user_id));
+      values.push(BigInt(users_id));
     }
     if (training_types_id) {
       conditions.push(`wt.training_types_id = $${paramIndex++}`);

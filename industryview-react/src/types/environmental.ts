@@ -6,11 +6,11 @@ export interface EnvironmentalLicense {
   license_number: string;
   license_type: string;
   issuing_agency: string;
-  issue_date: string;
+  issued_date: string;
   expiry_date: string;
   status: 'vigente' | 'vencendo' | 'vencida' | 'renovacao';
   file_url?: string;
-  observation?: string;
+  observations?: string;
   created_by: number;
   creator_name?: string;
   created_at: string;

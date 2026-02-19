@@ -304,6 +304,24 @@ export class UsersController {
       next(error);
     }
   }
+
+  /**
+   * GET /users/query_all_users
+   * Lista todos os usuarios para dropdowns (id, name, email)
+   */
+  static async queryAll(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const companyId = req.user?.companyId ?? undefined;
+      const result = await UsersService.queryAllForDropdown(companyId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default UsersController;

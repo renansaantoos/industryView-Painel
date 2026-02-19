@@ -155,7 +155,21 @@ export default function CreateProject() {
               </div>
               <div className="input-group">
                 <label>{t('projects.cnpj')}</label>
-                <input className="input-field" {...register('cnpj')} />
+                <input
+                  className="input-field"
+                  {...register('cnpj')}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 14);
+                    let masked = digits;
+                    if (digits.length > 2) masked = digits.slice(0, 2) + '.' + digits.slice(2);
+                    if (digits.length > 5) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5);
+                    if (digits.length > 8) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8);
+                    if (digits.length > 12) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8, 12) + '-' + digits.slice(12);
+                    setValue('cnpj', masked);
+                  }}
+                  placeholder="00.000.000/0000-00"
+                  maxLength={18}
+                />
               </div>
               <div className="input-group">
                 <label>{t('projects.startDate')}</label>

@@ -33,6 +33,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -179,14 +180,19 @@ export default function Register() {
 
               <div className="input-group">
                 <label htmlFor="confirmPassword">{t('auth.confirmPassword')}</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  className={`input-field ${errors.confirmPassword ? 'error' : ''}`}
-                  placeholder="**********"
-                  value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setErrors(prev => ({ ...prev, confirmPassword: '' })); }}
-                />
+                <div className="input-password-wrapper">
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    className={`input-field ${errors.confirmPassword ? 'error' : ''}`}
+                    placeholder="**********"
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setErrors(prev => ({ ...prev, confirmPassword: '' })); }}
+                  />
+                  <button type="button" className="input-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
                 {errors.confirmPassword && <span className="input-error">{errors.confirmPassword}</span>}
               </div>
 

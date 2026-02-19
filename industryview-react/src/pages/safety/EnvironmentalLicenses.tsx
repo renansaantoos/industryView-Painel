@@ -255,10 +255,10 @@ function ConditionsPanel({ license, onShowToast }: ConditionsPanelProps) {
 
       {/* Add Condition Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Nova Condicionante</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+            <h3>Nova Condicionante</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="input-group">
                 <label>Descrição *</label>
                 <textarea
@@ -270,7 +270,7 @@ function ConditionsPanel({ license, onShowToast }: ConditionsPanelProps) {
                   style={{ resize: 'vertical' }}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="input-group">
                   <label>Prazo</label>
                   <input
@@ -292,7 +292,7 @@ function ConditionsPanel({ license, onShowToast }: ConditionsPanelProps) {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+            <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleAddCondition} disabled={formLoading}>
                 {formLoading ? <span className="spinner" /> : 'Adicionar'}
@@ -304,9 +304,9 @@ function ConditionsPanel({ license, onShowToast }: ConditionsPanelProps) {
 
       {/* Update Status Modal */}
       {editingCondition && (
-        <div className="modal-overlay" onClick={() => setEditingCondition(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '380px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Atualizar Status da Condicionante</h3>
+        <div className="modal-backdrop" onClick={() => setEditingCondition(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <h3>Atualizar Status</h3>
             <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '16px' }}>
               {editingCondition.description}
             </p>
@@ -322,7 +322,7 @@ function ConditionsPanel({ license, onShowToast }: ConditionsPanelProps) {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+            <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setEditingCondition(null)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleUpdateStatus} disabled={editStatusLoading}>
                 {editStatusLoading ? <span className="spinner" /> : 'Salvar'}
@@ -415,10 +415,10 @@ export default function EnvironmentalLicenses() {
       license_number: license.license_number,
       license_type: license.license_type,
       issuing_agency: license.issuing_agency,
-      issue_date: license.issue_date.slice(0, 10),
-      expiry_date: license.expiry_date.slice(0, 10),
+      issue_date: license.issued_date?.slice(0, 10) ?? '',
+      expiry_date: license.expiry_date?.slice(0, 10) ?? '',
       file_url: license.file_url ?? '',
-      observation: license.observation ?? '',
+      observation: license.observations ?? '',
     });
     setShowModal(true);
   };
@@ -428,17 +428,21 @@ export default function EnvironmentalLicenses() {
       showToast('Número, tipo, órgão emissor, emissão e validade são obrigatórios', 'error');
       return;
     }
+    if (!projectsInfo?.id) {
+      showToast('Selecione um projeto antes de salvar a licença', 'error');
+      return;
+    }
     setFormLoading(true);
     try {
       const payload = {
         license_number: form.license_number.trim(),
         license_type: form.license_type.trim(),
-        issuing_agency: form.issuing_agency.trim(),
-        issue_date: form.issue_date,
-        expiry_date: form.expiry_date,
+        issuing_authority: form.issuing_agency.trim(),
+        issued_at: form.issue_date,
+        expires_at: form.expiry_date,
         file_url: form.file_url.trim() || undefined,
-        observation: form.observation.trim() || undefined,
-        projects_id: projectsInfo?.id,
+        notes: form.observation.trim() || undefined,
+        projects_id: projectsInfo.id,
       };
       if (editingLicense) {
         await environmentalApi.updateLicense(editingLicense.id, payload);
@@ -549,7 +553,7 @@ export default function EnvironmentalLicenses() {
                       </td>
                       <td style={{ fontSize: '13px' }}>{license.license_type}</td>
                       <td style={{ fontSize: '13px' }}>{license.issuing_agency}</td>
-                      <td style={{ fontSize: '13px' }}>{formatDate(license.issue_date)}</td>
+                      <td style={{ fontSize: '13px' }}>{formatDate(license.issued_date)}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {(license.status === 'vencida' || license.status === 'vencendo') && (
@@ -632,13 +636,13 @@ export default function EnvironmentalLicenses() {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
-            <h3 style={{ marginBottom: '20px' }}>
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+            <h3>
               {editingLicense ? 'Editar Licença Ambiental' : 'Nova Licença Ambiental'}
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="input-group">
                   <label>Número da Licença *</label>
                   <input
@@ -667,7 +671,7 @@ export default function EnvironmentalLicenses() {
                   onChange={(e) => setForm((f) => ({ ...f, issuing_agency: e.target.value }))}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="input-group">
                   <label>Data de Emissão *</label>
                   <input
@@ -709,7 +713,7 @@ export default function EnvironmentalLicenses() {
                 />
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+            <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
                 Cancelar
               </button>

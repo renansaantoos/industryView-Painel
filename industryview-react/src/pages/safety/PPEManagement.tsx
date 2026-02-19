@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { ppeApi } from '../../services';
-import type { PpeType, PpeDelivery } from '../../types';
+import { ppeApi, usersApi } from '../../services';
+import type { PpeType, PpeDelivery, UserFull } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -20,6 +20,8 @@ import {
   Package,
   Filter,
   X,
+  Search,
+  ChevronDown,
 } from 'lucide-react';
 
 /* =========================================
@@ -115,6 +117,15 @@ export default function PPEManagement() {
   const [returningDeliveryId, setReturningDeliveryId] = useState<number | null>(null);
   const [deliveryErrors, setDeliveryErrors] = useState<Partial<Record<keyof DeliveryForm, string>>>({});
 
+  /* ---- Employee dropdown state ---- */
+  const [employeesList, setEmployeesList] = useState<UserFull[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState('');
+  const employeeDropdownRef = useRef<HTMLDivElement>(null);
+  const employeeSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   /* =========================================
      Toast
      ========================================= */
@@ -175,6 +186,40 @@ export default function PPEManagement() {
   useEffect(() => {
     if (activeTab === 'deliveries') loadDeliveries();
   }, [activeTab, loadDeliveries]);
+
+  /* =========================================
+     Load Employees for dropdown
+     ========================================= */
+
+  const loadEmployees = useCallback(async (search = '') => {
+    setEmployeesLoading(true);
+    try {
+      const data = await usersApi.queryAllUsers({ per_page: 50, search: search || undefined });
+      const list = Array.isArray(data) ? data : (data as any)?.items ?? [];
+      setEmployeesList(list);
+    } catch {
+      // silently fail — dropdown will just be empty
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, []);
+
+  const handleEmployeeSearch = (value: string) => {
+    setEmployeeSearch(value);
+    if (employeeSearchTimerRef.current) clearTimeout(employeeSearchTimerRef.current);
+    employeeSearchTimerRef.current = setTimeout(() => loadEmployees(value), 300);
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(e.target as Node)) {
+        setShowEmployeeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   /* =========================================
      Validation Helpers
@@ -285,6 +330,10 @@ export default function PPEManagement() {
   const openCreateDelivery = () => {
     setDeliveryForm(EMPTY_DELIVERY_FORM);
     setDeliveryErrors({});
+    setSelectedEmployeeName('');
+    setEmployeeSearch('');
+    setShowEmployeeDropdown(false);
+    loadEmployees();
     setShowDeliveryModal(true);
   };
 
@@ -671,15 +720,132 @@ export default function PPEManagement() {
                 </select>
                 {deliveryErrors.ppe_types_id && <span className="input-error">{deliveryErrors.ppe_types_id}</span>}
               </div>
-              <div className="input-group">
-                <label>ID do Colaborador <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <input
-                  type="number"
+              <div className="input-group" ref={employeeDropdownRef} style={{ position: 'relative' }}>
+                <label>Colaborador <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                <div
                   className={`input-field${deliveryErrors.users_id ? ' error' : ''}`}
-                  placeholder="ID do usuário"
-                  value={deliveryForm.users_id}
-                  onChange={(e) => handleDeliveryField('users_id', e.target.value)}
-                />
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    padding: 0,
+                    overflow: 'hidden',
+                  }}
+                  onClick={() => {
+                    setShowEmployeeDropdown((prev) => !prev);
+                    if (!showEmployeeDropdown && employeesList.length === 0) loadEmployees();
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      color: selectedEmployeeName ? 'var(--color-text)' : 'var(--color-secondary-text)',
+                      fontSize: '14px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {selectedEmployeeName || 'Selecione o colaborador'}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    style={{
+                      marginRight: '10px',
+                      color: 'var(--color-secondary-text)',
+                      transition: 'transform 0.2s',
+                      transform: showEmployeeDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}
+                  />
+                </div>
+
+                {showEmployeeDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 100,
+                      backgroundColor: 'var(--color-surface, #fff)',
+                      border: '1px solid var(--color-alternate, #e0e0e0)',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      boxShadow: 'var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.15))',
+                      marginTop: '4px',
+                      maxHeight: '280px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ padding: '8px', borderBottom: '1px solid var(--color-alternate, #e0e0e0)' }}>
+                      <div style={{ position: 'relative' }}>
+                        <Search
+                          size={14}
+                          style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--color-secondary-text)',
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="Buscar por nome..."
+                          value={employeeSearch}
+                          onChange={(e) => handleEmployeeSearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ paddingLeft: '32px', margin: 0 }}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div style={{ overflowY: 'auto', maxHeight: '220px' }}>
+                      {employeesLoading ? (
+                        <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                          Carregando...
+                        </div>
+                      ) : employeesList.length === 0 ? (
+                        <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                          Nenhum colaborador encontrado
+                        </div>
+                      ) : (
+                        employeesList.map((emp) => (
+                          <div
+                            key={emp.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeliveryField('users_id', String(emp.id));
+                              setSelectedEmployeeName(emp.name);
+                              setShowEmployeeDropdown(false);
+                              setEmployeeSearch('');
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              backgroundColor: deliveryForm.users_id === String(emp.id) ? 'var(--color-primary-light, #e8f0fe)' : 'transparent',
+                              transition: 'background-color 0.15s',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (deliveryForm.users_id !== String(emp.id))
+                                (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--color-hover, #f5f5f5)';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (deliveryForm.users_id !== String(emp.id))
+                                (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            <div style={{ fontWeight: 500 }}>{emp.name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{emp.email}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
                 {deliveryErrors.users_id && <span className="input-error">{deliveryErrors.users_id}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

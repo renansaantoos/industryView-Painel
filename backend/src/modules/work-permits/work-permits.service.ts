@@ -71,7 +71,13 @@ export class WorkPermitsService {
       db.work_permits.count({ where: whereClause }),
     ]);
 
-    return buildPaginationResponse(items, total, page, per_page);
+    // Mapeia location_description → location para o frontend
+    const mappedItems = items.map((item) => ({
+      ...item,
+      location: item.location_description ?? '',
+    }));
+
+    return buildPaginationResponse(mappedItems, total, page, per_page);
   }
 
   /**
@@ -95,7 +101,7 @@ export class WorkPermitsService {
       throw new NotFoundError('Permissao de trabalho nao encontrada.');
     }
 
-    return permit;
+    return { ...permit, location: permit.location_description ?? '' };
   }
 
   /**
@@ -146,7 +152,7 @@ export class WorkPermitsService {
     const sequence = String(countThisYear + 1).padStart(3, '0');
     const permit_number = `PT-${year}-${sequence}`;
 
-    return db.work_permits.create({
+    const created = await db.work_permits.create({
       data: {
         permit_number,
         projects_id: BigInt(input.projects_id),
@@ -161,6 +167,19 @@ export class WorkPermitsService {
         status: 'solicitada',
       },
     });
+
+    // Assinatura automatica do solicitante
+    await db.work_permit_signatures.create({
+      data: {
+        work_permits_id: created.id,
+        users_id: BigInt(requested_by_user_id),
+        role: 'solicitante',
+        signature_type: 'digital',
+        signed_at: new Date(),
+      },
+    });
+
+    return { ...created, location: created.location_description ?? '' };
   }
 
   // ===========================================================================
@@ -186,7 +205,7 @@ export class WorkPermitsService {
       );
     }
 
-    return db.work_permits.update({
+    const updated = await db.work_permits.update({
       where: { id: BigInt(id) },
       data: {
         permit_type: input.permit_type as any,
@@ -199,6 +218,8 @@ export class WorkPermitsService {
         updated_at: new Date(),
       },
     });
+
+    return { ...updated, location: updated.location_description ?? '' };
   }
 
   // ===========================================================================
@@ -223,14 +244,27 @@ export class WorkPermitsService {
       );
     }
 
-    return db.work_permits.update({
-      where: { id: BigInt(id) },
-      data: {
-        status: 'aprovada',
-        approved_by_user_id: BigInt(user_id),
-        updated_at: new Date(),
-      },
-    });
+    const [updated] = await Promise.all([
+      db.work_permits.update({
+        where: { id: BigInt(id) },
+        data: {
+          status: 'aprovada',
+          approved_by_user_id: BigInt(user_id),
+          updated_at: new Date(),
+        },
+      }),
+      db.work_permit_signatures.create({
+        data: {
+          work_permits_id: BigInt(id),
+          users_id: BigInt(user_id),
+          role: 'aprovador',
+          signature_type: 'digital',
+          signed_at: new Date(),
+        },
+      }),
+    ]);
+
+    return { ...updated, location: updated.location_description ?? '' };
   }
 
   /**
@@ -252,21 +286,34 @@ export class WorkPermitsService {
       );
     }
 
-    return db.work_permits.update({
-      where: { id: BigInt(id) },
-      data: {
-        status: 'encerrada',
-        closed_by_user_id: BigInt(user_id),
-        closed_at: new Date(),
-        updated_at: new Date(),
-      },
-    });
+    const [updated] = await Promise.all([
+      db.work_permits.update({
+        where: { id: BigInt(id) },
+        data: {
+          status: 'encerrada',
+          closed_by_user_id: BigInt(user_id),
+          closed_at: new Date(),
+          updated_at: new Date(),
+        },
+      }),
+      db.work_permit_signatures.create({
+        data: {
+          work_permits_id: BigInt(id),
+          users_id: BigInt(user_id),
+          role: 'encerramento',
+          signature_type: 'digital',
+          signed_at: new Date(),
+        },
+      }),
+    ]);
+
+    return { ...updated, location: updated.location_description ?? '' };
   }
 
   /**
    * Cancela permissao de trabalho
    */
-  static async cancelPermit(id: number) {
+  static async cancelPermit(id: number, user_id: number) {
     const permit = await db.work_permits.findFirst({
       where: { id: BigInt(id) },
     });
@@ -283,13 +330,26 @@ export class WorkPermitsService {
       throw new BadRequestError('Permissao ja esta cancelada.');
     }
 
-    return db.work_permits.update({
-      where: { id: BigInt(id) },
-      data: {
-        status: 'cancelada',
-        updated_at: new Date(),
-      },
-    });
+    const [updated] = await Promise.all([
+      db.work_permits.update({
+        where: { id: BigInt(id) },
+        data: {
+          status: 'cancelada',
+          updated_at: new Date(),
+        },
+      }),
+      db.work_permit_signatures.create({
+        data: {
+          work_permits_id: BigInt(id),
+          users_id: BigInt(user_id),
+          role: 'cancelamento',
+          signature_type: 'digital',
+          signed_at: new Date(),
+        },
+      }),
+    ]);
+
+    return { ...updated, location: updated.location_description ?? '' };
   }
 
   // ===========================================================================

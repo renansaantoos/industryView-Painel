@@ -56,6 +56,7 @@ export const createSafetyIncidentSchema = z.object({
   body_part_affected: z.string().trim().optional(),
   days_lost: z.coerce.number().int().min(0).optional().default(0),
   immediate_cause: z.string().trim().optional(),
+  involved_user_id: z.coerce.number().int().optional(),
 });
 
 /**
@@ -70,6 +71,7 @@ export const updateSafetyIncidentSchema = z.object({
   body_part_affected: z.string().trim().optional(),
   days_lost: z.coerce.number().int().min(0).optional(),
   immediate_cause: z.string().trim().optional(),
+  involved_user_id: z.coerce.number().int().nullable().optional(),
 });
 
 /**
@@ -96,10 +98,10 @@ export const closeIncidentSchema = z.object({
  * Schema para adicionar testemunha a um incidente
  */
 export const createIncidentWitnessSchema = z.object({
-  user_id: z.coerce.number().int().optional(),
+  users_id: z.coerce.number().int().optional(),
   witness_name: z.string().trim().min(1, 'Nome da testemunha e obrigatorio'),
   witness_statement: z.string().trim().optional(),
-  witness_contact: z.string().trim().optional(),
+  witness_role: z.string().trim().optional(),
 });
 
 // =============================================================================
@@ -111,9 +113,9 @@ export const createIncidentWitnessSchema = z.object({
  */
 export const createIncidentAttachmentSchema = z.object({
   file_url: z.string().url('URL do arquivo invalida'),
-  file_name: z.string().trim().min(1, 'Nome do arquivo e obrigatorio'),
   file_type: z.string().trim().optional(),
-  uploaded_by: z.coerce.number().int({ message: 'ID do usuario que enviou e obrigatorio' }),
+  description: z.string().trim().optional(),
+  uploaded_by_user_id: z.coerce.number().int({ message: 'ID do usuario que enviou e obrigatorio' }),
 });
 
 // =============================================================================
@@ -161,7 +163,7 @@ export const updateTrainingTypeSchema = z.object({
  * Schema para listar treinamentos de trabalhadores
  */
 export const listWorkerTrainingsSchema = z.object({
-  user_id: z.coerce.number().int().optional(),
+  users_id: z.coerce.number().int().optional(),
   training_types_id: z.coerce.number().int().optional(),
   company_id: z.coerce.number().int().optional(),
   status: z.enum(['valido', 'expirado', 'expirando']).optional(),

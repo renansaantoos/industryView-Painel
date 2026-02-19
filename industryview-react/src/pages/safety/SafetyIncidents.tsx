@@ -4,8 +4,8 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { safetyApi, projectsApi } from '../../services';
-import type { SafetyIncident, SafetyIncidentStatistics, ProjectInfo } from '../../types';
+import { safetyApi, projectsApi, usersApi } from '../../services';
+import type { SafetyIncident, SafetyIncidentStatistics, ProjectInfo, UserListItem } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -169,6 +169,8 @@ export default function SafetyIncidents() {
 
   // Projects list for modal dropdown
   const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
+  // Users list for involved user dropdown
+  const [allUsers, setAllUsers] = useState<UserListItem[]>([]);
 
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -180,6 +182,7 @@ export default function SafetyIncidents() {
   const [formSeverity, setFormSeverity] = useState<Severity>('quase_acidente');
   const [formClassification, setFormClassification] = useState<Classification | ''>('');
   const [formCategory, setFormCategory] = useState('');
+  const [formInvolvedUserId, setFormInvolvedUserId] = useState<number | ''>('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formTouched, setFormTouched] = useState(false);
 
@@ -221,10 +224,13 @@ export default function SafetyIncidents() {
     setNavBarSelection(14);
   }, []);
 
-  // Load projects for create modal dropdown
+  // Load projects and users for create modal dropdowns
   useEffect(() => {
     projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
       setAllProjects(data.items ?? []);
+    }).catch(() => {});
+    usersApi.getAllUsersDropdown().then((data) => {
+      setAllUsers(data ?? []);
     }).catch(() => {});
   }, []);
 
@@ -286,6 +292,7 @@ export default function SafetyIncidents() {
     setFormSeverity('quase_acidente');
     setFormClassification('');
     setFormCategory('');
+    setFormInvolvedUserId('');
     setFormErrors({});
     setFormTouched(false);
   };
@@ -323,6 +330,7 @@ export default function SafetyIncidents() {
         category: formCategory.trim(),
         projects_id: Number(formProjectId),
         location_description: formLocation.trim() || undefined,
+        involved_user_id: formInvolvedUserId ? Number(formInvolvedUserId) : undefined,
       });
       resetCreateForm();
       setShowCreateModal(false);
@@ -439,9 +447,9 @@ export default function SafetyIncidents() {
       // 2. Create attachment record linked to incident
       await safetyApi.addAttachment(incidentId, {
         file_url: uploaded.file_url,
-        file_name: uploaded.file_name,
         file_type: uploaded.file_type,
-        uploaded_by: user.id,
+        description: uploaded.file_name,
+        uploaded_by_user_id: user.id,
       });
       setAttachmentFile(null);
       setShowAttachmentForm(false);
@@ -848,9 +856,12 @@ export default function SafetyIncidents() {
                               {expandedDetail?.witnesses && expandedDetail.witnesses.length > 0 ? (
                                 expandedDetail.witnesses.map((w) => (
                                   <div key={w.id} style={{ fontSize: '13px', color: 'var(--color-primary-text)', marginBottom: '4px' }}>
-                                    {w.user_name || `ID ${w.users_id}`}
-                                    {w.statement && (
-                                      <span style={{ color: 'var(--color-secondary-text)' }}>{' \u2014 '}{w.statement}</span>
+                                    {w.witness_name}
+                                    {w.witness_role && (
+                                      <span style={{ color: 'var(--color-secondary-text)', fontSize: '11px', marginLeft: '6px' }}>({w.witness_role})</span>
+                                    )}
+                                    {w.witness_statement && (
+                                      <span style={{ color: 'var(--color-secondary-text)' }}>{' \u2014 '}{w.witness_statement}</span>
                                     )}
                                   </div>
                                 ))
@@ -917,8 +928,13 @@ export default function SafetyIncidents() {
                                   <div key={att.id} style={{ fontSize: '13px', marginBottom: '4px' }}>
                                     <a href={att.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                       <FileText size={12} />
-                                      {att.file_name || att.file_url}
+                                      {att.description || att.file_url.split('/').pop() || 'Anexo'}
                                     </a>
+                                    {att.file_type && (
+                                      <span style={{ color: 'var(--color-secondary-text)', fontSize: '11px', marginLeft: '6px' }}>
+                                        ({att.file_type.split('/').pop()?.toUpperCase()})
+                                      </span>
+                                    )}
                                   </div>
                                 ))
                               ) : (
@@ -990,18 +1006,35 @@ export default function SafetyIncidents() {
                               )}
                             </div>
 
-                            {/* Reporter & timestamps */}
-                            <div>
-                              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                {t('safety.reportedBy')}
-                              </div>
-                              <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                {incident.reporter_name || `ID ${incident.reported_by_user_id}`}
-                              </p>
-                              {incident.closed_at && (
-                                <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
-                                  {t('safety.closed')}: {formatDate(incident.closed_at)}
+                            {/* Reporter, involved user & timestamps */}
+                            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  {t('safety.reportedBy', 'Reportado por')}
+                                </div>
+                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                                  {incident.reporter_name || `ID ${incident.reported_by_user_id}`}
                                 </p>
+                              </div>
+                              {incident.involved_user_id && (
+                                <div>
+                                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {t('safety.involvedUser', 'Funcionario Envolvido')}
+                                  </div>
+                                  <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                                    {allUsers.find(u => u.id === incident.involved_user_id)?.name || `ID ${incident.involved_user_id}`}
+                                  </p>
+                                </div>
+                              )}
+                              {incident.closed_at && (
+                                <div>
+                                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {t('safety.closedAt', 'Encerrado em')}
+                                  </div>
+                                  <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                                    {formatDate(incident.closed_at)}
+                                  </p>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1147,6 +1180,21 @@ export default function SafetyIncidents() {
                   onChange={(e) => setFormLocation(e.target.value)}
                   placeholder={t('safety.locationPlaceholder', 'Local do incidente')}
                 />
+              </div>
+
+              {/* Involved user (optional) */}
+              <div className="input-group">
+                <label>{t('safety.involvedUser', 'Funcionario Envolvido')}</label>
+                <select
+                  className="select-field"
+                  value={formInvolvedUserId}
+                  onChange={(e) => setFormInvolvedUserId(e.target.value ? Number(e.target.value) : '')}
+                >
+                  <option value="">{t('common.none', 'Nenhum')}</option>
+                  {allUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

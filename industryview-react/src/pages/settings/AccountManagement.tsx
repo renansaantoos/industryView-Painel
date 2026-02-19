@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { authApi, usersApi } from '../../services';
 import PageHeader from '../../components/common/PageHeader';
-import { User, Lock, Globe, Save, Shield } from 'lucide-react';
+import { User, Lock, Globe, Save, Shield, Eye, EyeOff } from 'lucide-react';
 import { changeLanguage, getCurrentLanguage, LANGUAGES } from '../../i18n';
 
 export default function AccountManagement() {
@@ -25,6 +25,9 @@ export default function AccountManagement() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -185,30 +188,45 @@ export default function AccountManagement() {
               <motion.div variants={staggerParent} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
                 <motion.div variants={fadeUpChild} className="input-group">
                   <label>{t('account.currentPassword')}</label>
-                  <input
-                    type="password"
-                    className="input-field"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                  />
+                  <div className="input-password-wrapper">
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      className="input-field"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <button type="button" className="input-password-toggle" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                      {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </motion.div>
                 <motion.div variants={fadeUpChild} className="input-group">
                   <label>{t('account.newPassword')}</label>
-                  <input
-                    type="password"
-                    className="input-field"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
+                  <div className="input-password-wrapper">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="input-field"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                    <button type="button" className="input-password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </motion.div>
                 <motion.div variants={fadeUpChild} className="input-group">
                   <label>{t('account.confirmPassword')}</label>
-                  <input
-                    type="password"
-                    className="input-field"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
+                  <div className="input-password-wrapper">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="input-field"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <button type="button" className="input-password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </motion.div>
                 <motion.div variants={fadeUpChild}>
                   <button className="btn btn-primary" onClick={handleChangePassword} disabled={passwordSaving} style={{ alignSelf: 'flex-start' }}>

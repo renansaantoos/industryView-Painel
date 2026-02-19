@@ -211,6 +211,7 @@ model users {
   safety_incidents_reported            safety_incidents[]              @relation("incident_reporter")
   safety_incidents_investigated        safety_incidents[]              @relation("incident_investigator")
   safety_incidents_closed              safety_incidents[]              @relation("incident_closer")
+  safety_incidents_involved            safety_incidents[]              @relation("incident_involved")
   worker_trainings                     worker_trainings[]
   dds_conducted                        dds_records[]
   dds_participations                   dds_participants[]
@@ -1606,6 +1607,7 @@ model safety_incidents {
   reported_by_user_id     BigInt
   investigated_by_user_id BigInt?
   closed_by_user_id       BigInt?
+  involved_user_id        BigInt?
   closed_at               DateTime?                     @db.Timestamptz(6)
   created_at              DateTime                      @default(now()) @db.Timestamptz(6)
   updated_at              DateTime                      @default(now()) @updatedAt @db.Timestamptz(6)
@@ -1613,6 +1615,7 @@ model safety_incidents {
   reported_by             users                         @relation("incident_reporter", fields: [reported_by_user_id], references: [id], onUpdate: NoAction)
   investigated_by         users?                        @relation("incident_investigator", fields: [investigated_by_user_id], references: [id], onUpdate: NoAction)
   closed_by               users?                        @relation("incident_closer", fields: [closed_by_user_id], references: [id], onUpdate: NoAction)
+  involved_user           users?                        @relation("incident_involved", fields: [involved_user_id], references: [id], onUpdate: NoAction)
   witnesses               safety_incident_witnesses[]
   attachments             safety_incident_attachments[]
 

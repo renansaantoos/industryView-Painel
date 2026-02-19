@@ -151,7 +151,43 @@ async function main() {
         where: { id: 4 }, update: {}, create: { id: 4, status: 'Sem Sucesso' },
     })
 
-    // 11. Empresa padrão (necessária para non_execution_reasons)
+    // 11. projects_steps_statuses (Necessário para criar projects_steps ao criar projeto)
+    // IDs usados no projects.service.ts: 1, 2, 3, 4, 5
+    const stepsStatuses = [
+        { id: 1, status: 'Não iniciado' },
+        { id: 2, status: 'Em configuração' },
+        { id: 3, status: 'Configurado' },
+        { id: 4, status: 'Em andamento' },
+        { id: 5, status: 'Concluído' },
+    ]
+    for (const s of stepsStatuses) {
+        await prisma.projects_steps_statuses.upsert({
+            where: { id: s.id },
+            update: {},
+            create: { id: s.id, status: s.status },
+        })
+    }
+    console.log('projects_steps_statuses seeded (IDs 1-5)')
+
+    // 12. projects_works_situations (Dropdown "Situação da obra")
+    const worksSituations = [
+        { id: 1, status: 'Em obras' },
+        { id: 2, status: 'Paralisada' },
+        { id: 3, status: 'Concluída' },
+        { id: 4, status: 'Em projeto' },
+        { id: 5, status: 'Em licenciamento' },
+        { id: 6, status: 'Não iniciada' },
+    ]
+    for (const w of worksSituations) {
+        await prisma.projects_works_situations.upsert({
+            where: { id: w.id },
+            update: {},
+            create: { id: w.id, status: w.status },
+        })
+    }
+    console.log('projects_works_situations seeded (IDs 1-6)')
+
+    // 13. Empresa padrão (necessária para non_execution_reasons)
     await prisma.company.upsert({
         where: { id: 1 },
         update: {},
@@ -166,7 +202,7 @@ async function main() {
     })
     console.log('Empresa padrão criada (ID 1)')
 
-    // 12. Non Execution Reasons (motivos de nao-execucao)
+    // 14. Non Execution Reasons (motivos de nao-execucao)
     // Uses company_id = 1 as default seed company
     const defaultNonExecReasons = [
         { name: 'Chuva', category: 'clima' },

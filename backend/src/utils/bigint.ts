@@ -57,7 +57,7 @@ const transformValues = (value: any, key?: string): any => {
   }
 
   if (value instanceof Date) {
-    return value.getTime();
+    return value.toISOString();
   }
 
   if (Array.isArray(value)) {

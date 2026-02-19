@@ -133,7 +133,8 @@ export class WorkPermitsController {
   static async cancelPermit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { id } = getPermitByIdSchema.parse(req.params);
-      const result = await WorkPermitsService.cancelPermit(id);
+      const user_id = Number(req.auth!.id);
+      const result = await WorkPermitsService.cancelPermit(id, user_id);
       res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
