@@ -2,11 +2,11 @@
   "name": "industryview-backend",
   "version": "1.0.0",
   "description": "IndustryView Backend - Migrated from Xano to Node.js",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
