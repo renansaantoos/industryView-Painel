@@ -66,7 +66,8 @@
     "update": "Actualizar",
     "project": "Proyecto",
     "errorLoading": "Error al cargar datos",
-    "errorSaving": "Error al guardar"
+    "errorSaving": "Error al guardar",
+    "requiredField": "Campo obligatorio"
   },
   "nav": {
     "mainPages": "Páginas principales",
@@ -1012,6 +1013,37 @@
     "updateAction": "Actualización",
     "deleteAction": "Eliminación",
     "searchLogs": "Buscar registros..."
+  },
+  "dds": {
+    "title": "Diálogo Diario de Seguridad",
+    "subtitle": "Registre y realice seguimiento de los DDS realizados en la obra",
+    "newDds": "Nuevo DDS",
+    "totalDds": "Total de DDS",
+    "thisMonth": "Este Mes",
+    "avgParticipants": "Promedio de Participantes",
+    "date": "Fecha",
+    "topic": "Tema",
+    "conductor": "Conductor",
+    "team": "Equipo",
+    "participantsCount": "Participantes",
+    "participants": "Participantes",
+    "noParticipants": "Ningún participante registrado en este DDS.",
+    "addParticipant": "Agregar Participante",
+    "signParticipation": "Firmar Participación",
+    "signed": "Firmado",
+    "description": "Descripción",
+    "topicPlaceholder": "Ej: Uso correcto de EPP, Trabajo en altura...",
+    "descriptionPlaceholder": "Describa el contenido abordado en el DDS (opcional)",
+    "teamPlaceholder": "Ej: Equipo de Montaje A",
+    "userId": "ID del Usuario",
+    "userIdPlaceholder": "Ingrese el ID del usuario...",
+    "sign": "Firmar",
+    "createSuccess": "¡DDS registrado con éxito!",
+    "participantAdded": "¡Participante agregado con éxito!",
+    "signedSuccess": "¡Participación firmada con éxito!",
+    "selectProjectFirst": "Seleccione un proyecto antes de crear un DDS",
+    "project": "Proyecto",
+    "projectPlaceholder": "Seleccione un proyecto..."
   },
   "account": {
     "title": "Mi Cuenta",

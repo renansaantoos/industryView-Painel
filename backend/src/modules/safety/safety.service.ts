@@ -106,13 +106,14 @@ interface TaskRequiredTrainingRow {
 interface DdsRecordRow {
   id: bigint;
   projects_id: bigint | null;
-  company_id: bigint | null;
-  conducted_by: bigint;
+  conducted_by_user_id: bigint;
   dds_date: Date;
   topic: string;
-  duration_minutes: number;
-  content: string | null;
-  location: string | null;
+  description: string | null;
+  teams_id: bigint | null;
+  participant_count: number;
+  duration_minutes: number | null;
+  evidence_image: string | null;
   created_at: Date;
   updated_at: Date | null;
 }
@@ -1099,27 +1100,34 @@ export class SafetyService {
     const values: unknown[] = [];
     let paramIndex = 1;
 
+    // Quando company_id e informado, precisa de JOIN com projects pois dds_records nao tem company_id
+    const needsProjectJoin = !!company_id;
+
     if (projects_id) {
-      conditions.push(`projects_id = $${paramIndex++}`);
+      conditions.push(`dr.projects_id = $${paramIndex++}`);
       values.push(BigInt(projects_id));
     }
     if (company_id) {
-      conditions.push(`company_id = $${paramIndex++}`);
+      // Filtra via projeto vinculado ao DDS
+      conditions.push(`p.company_id = $${paramIndex++}`);
       values.push(BigInt(company_id));
     }
     if (initial_date) {
-      conditions.push(`dds_date >= $${paramIndex++}`);
+      conditions.push(`dr.dds_date >= $${paramIndex++}`);
       values.push(new Date(initial_date));
     }
     if (final_date) {
-      conditions.push(`dds_date <= $${paramIndex++}`);
+      conditions.push(`dr.dds_date <= $${paramIndex++}`);
       values.push(new Date(final_date));
     }
     if (participant_user_id) {
-      conditions.push(`id IN (SELECT dds_records_id FROM dds_participants WHERE user_id = $${paramIndex++})`);
+      conditions.push(`dr.id IN (SELECT dds_records_id FROM dds_participants WHERE user_id = $${paramIndex++})`);
       values.push(BigInt(participant_user_id));
     }
 
+    const joinClause = needsProjectJoin
+      ? `LEFT JOIN projects p ON p.id = dr.projects_id`
+      : '';
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const [items, totalResult] = await Promise.all([
@@ -1127,6 +1135,7 @@ export class SafetyService {
         `SELECT dr.*,
                 (SELECT COUNT(*)::bigint FROM dds_participants dp WHERE dp.dds_records_id = dr.id) as participant_count
          FROM dds_records dr
+         ${joinClause}
          ${whereClause}
          ORDER BY dr.dds_date DESC
          LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -1135,7 +1144,7 @@ export class SafetyService {
         skip
       ),
       db.$queryRawUnsafe<CountRow[]>(
-        `SELECT COUNT(*)::bigint as count FROM dds_records ${whereClause}`,
+        `SELECT COUNT(*)::bigint as count FROM dds_records dr ${joinClause} ${whereClause}`,
         ...values
       ),
     ]);
@@ -1174,27 +1183,34 @@ export class SafetyService {
    * Cria registro de DDS com participantes iniciais
    */
   static async createDdsRecord(input: CreateDdsRecordInput) {
+    // Suporta nomes legados do frontend: conducted_by -> conducted_by_user_id, content -> description
+    const conductedByUserId = (input as any).conducted_by_user_id ?? (input as any).conducted_by;
+    const descriptionValue = (input as any).description ?? (input as any).content ?? null;
+    const teamsId = (input as any).teams_id ?? null;
+
+    if (!conductedByUserId) {
+      throw new BadRequestError('ID do responsavel pelo DDS e obrigatorio.');
+    }
+
     const record = await db.$queryRaw<DdsRecordRow[]>`
       INSERT INTO dds_records (
         projects_id,
-        company_id,
-        conducted_by,
+        conducted_by_user_id,
         dds_date,
         topic,
         duration_minutes,
-        content,
-        location,
+        description,
+        teams_id,
         created_at,
         updated_at
       ) VALUES (
         ${input.projects_id ? BigInt(input.projects_id) : null},
-        ${input.company_id ? BigInt(input.company_id) : null},
-        ${BigInt(input.conducted_by)},
+        ${BigInt(conductedByUserId)},
         ${new Date(input.dds_date)},
         ${input.topic},
-        ${input.duration_minutes ?? 15},
-        ${input.content ?? null},
-        ${input.location ?? null},
+        ${(input as any).duration_minutes ?? 15},
+        ${descriptionValue},
+        ${teamsId ? BigInt(teamsId) : null},
         NOW(),
         NOW()
       )
@@ -1292,28 +1308,34 @@ export class SafetyService {
     const values: unknown[] = [];
     let paramIndex = 1;
 
+    // dds_records nao tem company_id; quando filtrar por empresa, usa JOIN com projects
+    const needsProjectJoin = !!company_id;
+
     if (projects_id) {
       conditions.push(`dr.projects_id = $${paramIndex++}`);
       values.push(BigInt(projects_id));
     }
     if (company_id) {
-      conditions.push(`dr.company_id = $${paramIndex++}`);
+      conditions.push(`p.company_id = $${paramIndex++}`);
       values.push(BigInt(company_id));
     }
 
+    const joinClause = needsProjectJoin
+      ? `LEFT JOIN projects p ON p.id = dr.projects_id`
+      : '';
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const [totalDds, totalParticipations, signedParticipations, avgParticipants] = await Promise.all([
       db.$queryRawUnsafe<CountRow[]>(
-        `SELECT COUNT(*)::bigint as count FROM dds_records dr ${whereClause}`,
+        `SELECT COUNT(*)::bigint as count FROM dds_records dr ${joinClause} ${whereClause}`,
         ...values
       ),
       db.$queryRawUnsafe<CountRow[]>(
-        `SELECT COUNT(*)::bigint as count FROM dds_participants dp JOIN dds_records dr ON dp.dds_records_id = dr.id ${whereClause}`,
+        `SELECT COUNT(*)::bigint as count FROM dds_participants dp JOIN dds_records dr ON dp.dds_records_id = dr.id ${joinClause} ${whereClause}`,
         ...values
       ),
       db.$queryRawUnsafe<CountRow[]>(
-        `SELECT COUNT(*)::bigint as count FROM dds_participants dp JOIN dds_records dr ON dp.dds_records_id = dr.id ${whereClause} ${whereClause ? 'AND' : 'WHERE'} dp.signed_at IS NOT NULL`,
+        `SELECT COUNT(*)::bigint as count FROM dds_participants dp JOIN dds_records dr ON dp.dds_records_id = dr.id ${joinClause} ${whereClause} ${whereClause ? 'AND' : 'WHERE'} dp.signed_at IS NOT NULL`,
         ...values
       ),
       db.$queryRawUnsafe<{ avg: number | null }[]>(
@@ -1322,6 +1344,7 @@ export class SafetyService {
            SELECT COUNT(*) as participant_count
            FROM dds_participants dp
            JOIN dds_records dr ON dp.dds_records_id = dr.id
+           ${joinClause}
            ${whereClause}
            GROUP BY dp.dds_records_id
          ) subquery`,

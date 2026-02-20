@@ -4,13 +4,14 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
-import { safetyApi } from '../../services';
-import type { DdsRecord, DdsParticipant, DdsStatistics } from '../../types';
+import { safetyApi, teamsApi, projectsApi } from '../../services';
+import type { DdsRecord, DdsParticipant, DdsStatistics, Team, ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   ClipboardList,
@@ -49,9 +50,19 @@ export default function SafetyDDS() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTopic, setCreateTopic] = useState('');
   const [createDescription, setCreateDescription] = useState('');
-  const [createTeam, setCreateTeam] = useState('');
+  const [createTeamsId, setCreateTeamsId] = useState<number | undefined>(undefined);
   const [createDate, setCreateDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [createLoading, setCreateLoading] = useState(false);
+  const [createErrors, setCreateErrors] = useState<{ topic?: string; date?: string; project?: string }>({});
+
+  // ── Projects for dropdown ─────────────────────────────────────────────────
+  const [createProjectId, setCreateProjectId] = useState<number | undefined>(undefined);
+  const [projectOptions, setProjectOptions] = useState<ProjectInfo[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+
+  // ── Teams for dropdown ────────────────────────────────────────────────────
+  const [teamOptions, setTeamOptions] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
 
   // ── Add participant modal ─────────────────────────────────────────────────
   const [addParticipantDdsId, setAddParticipantDdsId] = useState<number | null>(null);
@@ -118,6 +129,33 @@ export default function SafetyDDS() {
     loadStats();
   }, [loadStats]);
 
+  useEffect(() => {
+    if (!showCreateModal) return;
+    setProjectsLoading(true);
+    projectsApi
+      .queryAllProjects({ per_page: 50 })
+      .then((data) => {
+        const items = Array.isArray(data) ? data : data.items || [];
+        setProjectOptions(items);
+        // Pre-select the globally selected project if one exists
+        if (projectsInfo?.id) {
+          setCreateProjectId(projectsInfo.id);
+        }
+      })
+      .catch((err) => console.error('Failed to load projects for DDS modal:', err))
+      .finally(() => setProjectsLoading(false));
+  }, [showCreateModal]);
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    setTeamsLoading(true);
+    teamsApi
+      .queryAllTeams({ per_page: 100 })
+      .then((data) => setTeamOptions(Array.isArray(data) ? data : data.items || []))
+      .catch((err) => console.error('Failed to load teams for DDS modal:', err))
+      .finally(() => setTeamsLoading(false));
+  }, [showCreateModal]);
+
   const handleToggleExpand = useCallback(
     async (ddsId: number) => {
       if (expandedRow === ddsId) {
@@ -140,21 +178,36 @@ export default function SafetyDDS() {
   );
 
   const handleCreateDds = async () => {
-    if (!createTopic.trim()) return;
+    const errors: { topic?: string; date?: string; project?: string } = {};
+    if (!createProjectId) errors.project = t('common.requiredField');
+    if (!createTopic.trim()) errors.topic = t('common.requiredField');
+    if (!createDate.trim()) errors.date = t('common.requiredField');
+    if (Object.keys(errors).length > 0) {
+      setCreateErrors(errors);
+      return;
+    }
+    setCreateErrors({});
     setCreateLoading(true);
+
+    const selectedTeam = teamOptions.find((t) => t.id === createTeamsId);
+
     try {
       await safetyApi.createDdsRecord({
         topic: createTopic.trim(),
-        description: createDescription.trim() || undefined,
-        team: createTeam.trim() || undefined,
+        content: createDescription.trim() || undefined,
+        team: selectedTeam?.name || undefined,
+        teams_id: createTeamsId ?? undefined,
         dds_date: createDate,
-        projects_id: projectsInfo?.id,
+        conducted_by: user?.id,
+        projects_id: createProjectId,
         company_id: user?.companyId,
       });
       setCreateTopic('');
       setCreateDescription('');
-      setCreateTeam('');
+      setCreateTeamsId(undefined);
+      setCreateProjectId(undefined);
       setCreateDate(new Date().toISOString().split('T')[0]);
+      setCreateErrors({});
       setShowCreateModal(false);
       showToast(t('dds.createSuccess'), 'success');
       loadRecords();
@@ -485,7 +538,15 @@ export default function SafetyDDS() {
 
       {/* Create DDS Modal */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setShowCreateModal(false);
+            setCreateErrors({});
+            setCreateTeamsId(undefined);
+            setCreateProjectId(undefined);
+          }}
+        >
           <div
             className="modal-content"
             style={{ padding: '24px', width: '480px' }}
@@ -496,14 +557,43 @@ export default function SafetyDDS() {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="input-group">
+                <label>{t('dds.project')} *</label>
+                <SearchableSelect
+                  options={projectOptions.map((p) => ({ value: p.id, label: p.name }))}
+                  value={createProjectId}
+                  onChange={(val) => {
+                    setCreateProjectId(val !== undefined ? Number(val) : undefined);
+                    if (createErrors.project) setCreateErrors((prev) => ({ ...prev, project: undefined }));
+                  }}
+                  placeholder={projectsLoading ? t('common.loading') : t('dds.projectPlaceholder')}
+                  searchPlaceholder={t('common.search')}
+                  allowClear
+                  style={createErrors.project ? { border: '1px solid var(--color-error)', borderRadius: '6px' } : { width: '100%' }}
+                />
+                {createErrors.project && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {createErrors.project}
+                  </span>
+                )}
+              </div>
+              <div className="input-group">
                 <label>{t('dds.topic')} *</label>
                 <input
                   className="input-field"
                   value={createTopic}
-                  onChange={(e) => setCreateTopic(e.target.value)}
+                  onChange={(e) => {
+                    setCreateTopic(e.target.value);
+                    if (createErrors.topic) setCreateErrors((prev) => ({ ...prev, topic: undefined }));
+                  }}
                   placeholder={t('dds.topicPlaceholder')}
                   autoFocus
+                  style={createErrors.topic ? { borderColor: 'var(--color-error)' } : undefined}
                 />
+                {createErrors.topic && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {createErrors.topic}
+                  </span>
+                )}
               </div>
               <div className="input-group">
                 <label>{t('dds.description')}</label>
@@ -519,11 +609,14 @@ export default function SafetyDDS() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>{t('dds.team')}</label>
-                  <input
-                    className="input-field"
-                    value={createTeam}
-                    onChange={(e) => setCreateTeam(e.target.value)}
-                    placeholder={t('dds.teamPlaceholder')}
+                  <SearchableSelect
+                    options={teamOptions.map((team) => ({ value: team.id, label: team.name }))}
+                    value={createTeamsId}
+                    onChange={(val) => setCreateTeamsId(val !== undefined ? Number(val) : undefined)}
+                    placeholder={teamsLoading ? t('common.loading') : t('dds.teamPlaceholder')}
+                    searchPlaceholder={t('common.search')}
+                    allowClear
+                    style={{ width: '100%' }}
                   />
                 </div>
                 <div className="input-group">
@@ -532,19 +625,36 @@ export default function SafetyDDS() {
                     type="date"
                     className="input-field"
                     value={createDate}
-                    onChange={(e) => setCreateDate(e.target.value)}
+                    onChange={(e) => {
+                      setCreateDate(e.target.value);
+                      if (createErrors.date) setCreateErrors((prev) => ({ ...prev, date: undefined }));
+                    }}
+                    style={createErrors.date ? { borderColor: 'var(--color-error)' } : undefined}
                   />
+                  {createErrors.date && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                      {createErrors.date}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateErrors({});
+                  setCreateTeamsId(undefined);
+                  setCreateProjectId(undefined);
+                }}
+              >
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreateDds}
-                disabled={createLoading || !createTopic.trim()}
+                disabled={createLoading}
               >
                 {createLoading ? <span className="spinner" /> : t('common.save')}
               </button>

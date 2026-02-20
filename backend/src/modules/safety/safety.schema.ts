@@ -272,18 +272,31 @@ export const getDdsByIdSchema = z.object({
 
 /**
  * Schema para criar registro de DDS
+ *
+ * Aceita nomes legados do frontend (conducted_by, content) e mapeia para os
+ * nomes reais das colunas da tabela (conducted_by_user_id, description).
+ * Os campos company_id e location nao existem na tabela e sao ignorados.
  */
 export const createDdsRecordSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
-  company_id: z.coerce.number().int().optional(),
-  conducted_by: z.coerce.number().int({ message: 'ID do responsavel pelo DDS e obrigatorio' }),
+  // Aceita tanto o nome legado quanto o nome correto da coluna
+  conducted_by: z.coerce.number().int({ message: 'ID do responsavel pelo DDS e obrigatorio' }).optional(),
+  conducted_by_user_id: z.coerce.number().int({ message: 'ID do responsavel pelo DDS e obrigatorio' }).optional(),
   dds_date: z.string({ required_error: 'Data do DDS e obrigatoria' }),
   topic: z.string().trim().min(1, 'Tema do DDS e obrigatorio'),
   duration_minutes: z.coerce.number().int().min(1).optional().default(15),
+  // Aceita tanto o nome legado quanto o nome correto da coluna
   content: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  teams_id: z.coerce.number().int().optional(),
+  // Campos ignorados (nao existem na tabela): company_id, location
+  company_id: z.coerce.number().int().optional(),
   location: z.string().trim().optional(),
   participants: z.array(z.coerce.number().int()).optional().default([]),
-});
+}).refine(
+  (data) => data.conducted_by !== undefined || data.conducted_by_user_id !== undefined,
+  { message: 'ID do responsavel pelo DDS e obrigatorio', path: ['conducted_by_user_id'] }
+);
 
 /**
  * Schema para adicionar participante a um DDS
