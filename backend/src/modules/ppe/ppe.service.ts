@@ -118,10 +118,17 @@ export class PpeService {
    * Campos reais: delivery_date (nao delivered_at), delivered_by_user_id (nao delivered_by_users_id)
    */
   static async listDeliveries(input: ListDeliveriesInput) {
-    const { users_id, ppe_types_id, search, start_date, end_date, page, per_page } = input;
+    const { company_id, users_id, ppe_types_id, search, start_date, end_date, page, per_page } = input;
     const skip = (page - 1) * per_page;
 
     const whereClause: any = {};
+
+    // Filtra por empresa via relacao ppe_type (ppe_deliveries nao tem company_id direto)
+    if (company_id) {
+      whereClause.ppe_type = {
+        company_id: BigInt(company_id),
+      };
+    }
 
     if (users_id) {
       whereClause.users_id = BigInt(users_id);

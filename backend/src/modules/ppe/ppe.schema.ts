@@ -39,6 +39,7 @@ export const updatePpeTypeSchema = z.object({
 // =============================================================================
 
 export const listDeliveriesSchema = z.object({
+  company_id: z.coerce.number().int().optional(),
   users_id: z.coerce.number().int().optional(),
   ppe_types_id: z.coerce.number().int().optional(),
   search: z.string().trim().optional(),

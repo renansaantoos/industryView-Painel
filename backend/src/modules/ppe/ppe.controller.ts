@@ -78,9 +78,13 @@ export class PpeController {
   }
 
   // Deliveries
-  static async listDeliveries(req: Request, res: Response, next: NextFunction) {
+  static async listDeliveries(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const input = listDeliveriesSchema.parse(req.query);
+      const input = listDeliveriesSchema.parse(req.query) as any;
+      // company_id SEMPRE vem do usuario autenticado
+      if (req.user?.companyId) {
+        input.company_id = req.user.companyId;
+      }
       const result = await PpeService.listDeliveries(input);
       res.json(serializeBigInt(result));
     } catch (error) {

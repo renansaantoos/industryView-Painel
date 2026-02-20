@@ -162,6 +162,7 @@ export class SafetyService {
    */
   static async listIncidents(input: ListIncidentsInput) {
     const { projects_id, severity, status, initial_date, final_date, page, per_page } = input;
+    const company_id = (input as any).company_id as number | undefined;
     const involved_user_id = (input as any).involved_user_id as number | undefined;
     const witness_user_id = (input as any).witness_user_id as number | undefined;
     const skip = (page - 1) * per_page;
@@ -169,6 +170,11 @@ export class SafetyService {
     const conditions: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
+
+    if (company_id) {
+      conditions.push(`projects_id IN (SELECT id FROM projects WHERE company_id = $${paramIndex++})`);
+      values.push(BigInt(company_id));
+    }
 
     if (projects_id) {
       conditions.push(`projects_id = $${paramIndex++}`);
@@ -440,6 +446,13 @@ export class SafetyService {
     const conditions: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
+
+    const company_id = (input as any).company_id as number | undefined;
+
+    if (company_id) {
+      conditions.push(`projects_id IN (SELECT id FROM projects WHERE company_id = $${paramIndex++})`);
+      values.push(BigInt(company_id));
+    }
 
     if (input.projects_id) {
       conditions.push(`projects_id = $${paramIndex++}`);

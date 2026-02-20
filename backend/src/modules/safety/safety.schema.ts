@@ -15,6 +15,7 @@ import { z } from 'zod';
  */
 export const listIncidentsSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
+  company_id: z.coerce.number().int().optional(),
   severity: z.enum(['quase_acidente', 'primeiros_socorros', 'sem_afastamento', 'com_afastamento', 'fatal']).optional(),
   status: z.enum(['registrado', 'em_investigacao', 'investigado', 'encerrado']).optional(),
   initial_date: z.string().optional(),
@@ -30,6 +31,7 @@ export const listIncidentsSchema = z.object({
  */
 export const getIncidentStatisticsSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
+  company_id: z.coerce.number().int().optional(),
 });
 
 /**

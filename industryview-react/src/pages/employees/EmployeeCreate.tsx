@@ -37,6 +37,7 @@ interface ViaCepResponse {
 
 const REQUIRED_HR_FIELDS: Record<string, { message: string; section: string }> = {
   // Dados Pessoais
+  nome_completo:       { message: 'Nome completo é obrigatório',      section: 'pessoal' },
   cpf:                 { message: 'CPF é obrigatório',                section: 'pessoal' },
   data_nascimento:     { message: 'Data de nascimento é obrigatória', section: 'pessoal' },
   // Endereço
@@ -223,7 +224,6 @@ export default function EmployeeCreate() {
   const navigate = useNavigate();
 
   // Basic user fields
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
@@ -237,7 +237,7 @@ export default function EmployeeCreate() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    basico: true, pessoal: true, endereco: false, profissional: false,
+    pessoal: true, endereco: false, profissional: false,
     cnh: false, bancario: false, emergencia: false, escolaridade: false, observacoes: false,
   });
 
@@ -265,12 +265,13 @@ export default function EmployeeCreate() {
   }
 
   function countSectionErrors(section: string): number {
-    if (section === 'basico') {
-      return (fieldErrors.name ? 1 : 0) + (fieldErrors.email ? 1 : 0);
-    }
-    return Object.entries(REQUIRED_HR_FIELDS)
+    let count = Object.entries(REQUIRED_HR_FIELDS)
       .filter(([field, cfg]) => cfg.section === section && fieldErrors[field])
       .length;
+    if (section === 'pessoal') {
+      count += fieldErrors.email ? 1 : 0;
+    }
+    return count;
   }
 
   const lastFetchedCep = useRef('');
@@ -310,7 +311,6 @@ export default function EmployeeCreate() {
     const errors: Record<string, string> = {};
 
     // ── Basic fields ──
-    if (!name.trim()) errors.name = 'Nome é obrigatório';
     if (!email.trim()) {
       errors.email = 'Email é obrigatório';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -336,7 +336,7 @@ export default function EmployeeCreate() {
     if (Object.keys(errors).length > 0) {
       // Collect sections that have errors and open them
       const sectionsWithErrors = new Set<string>();
-      if (errors.name || errors.email) sectionsWithErrors.add('basico');
+      if (errors.email) sectionsWithErrors.add('pessoal');
       for (const [field, config] of Object.entries(REQUIRED_HR_FIELDS)) {
         if (errors[field]) sectionsWithErrors.add(config.section);
       }
@@ -364,7 +364,7 @@ export default function EmployeeCreate() {
     try {
       // 1. Create user
       const newUser = await usersApi.addUser({
-        name: name.trim(),
+        name: (form.nome_completo ?? '').trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
       });
@@ -455,11 +455,12 @@ export default function EmployeeCreate() {
       )}
 
       <motion.div variants={fadeUpChild} className="card" style={{ padding: '24px' }}>
-        {/* ── Dados Básicos (Nome, Email, Telefone) ────────────────────── */}
-        <Section title={t('employees.basicData')} isOpen={openSections.basico} onToggle={() => toggleSection('basico')} errorCount={countSectionErrors('basico')}>
-          <Field label={t('employees.name')} required error={fieldErrors.name}>
-            <input className={`input-field${fieldErrors.name ? ' error' : ''}`} type="text" value={name} placeholder={t('employees.namePlaceholder')}
-              onChange={e => { setName(e.target.value); clearError('name'); }} />
+        {/* ── Dados Pessoais ─────────────────────────────────────────── */}
+        <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')} errorCount={countSectionErrors('pessoal')}>
+          <Field label="Nome Completo" required error={fieldErrors.nome_completo}>
+            <input className={`input-field${fieldErrors.nome_completo ? ' error' : ''}`} type="text"
+              value={form.nome_completo ?? ''} placeholder="Nome completo do funcionário"
+              onChange={e => handleChange('nome_completo', e.target.value)} />
           </Field>
           <Field label={t('employees.email')} required error={fieldErrors.email}>
             <input className={`input-field${fieldErrors.email ? ' error' : ''}`} type="email" value={email} placeholder={t('employees.emailPlaceholder')}
@@ -469,11 +470,6 @@ export default function EmployeeCreate() {
             <input className="input-field" type="text" value={phone} placeholder="(00) 00000-0000"
               onChange={e => setPhone(maskPhone(e.target.value))} />
           </Field>
-        </Section>
-
-        {/* ── Dados Pessoais ─────────────────────────────────────────── */}
-        <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')} errorCount={countSectionErrors('pessoal')}>
-          <Field label="Nome Completo">{textInput('nome_completo', 'Nome completo do funcionário')}</Field>
           <Field label="CPF" required error={fieldErrors.cpf}>
             <input className={`input-field${fieldErrors.cpf ? ' error' : ''}`} type="text"
               value={form.cpf ?? ''} placeholder="000.000.000-00"

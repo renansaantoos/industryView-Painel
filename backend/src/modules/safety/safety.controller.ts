@@ -51,7 +51,10 @@ export class SafetyController {
    */
   static async listIncidents(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const input = listIncidentsSchema.parse(req.query);
+      const input = listIncidentsSchema.parse(req.query) as any;
+      if (req.user?.companyId) {
+        input.company_id = req.user.companyId;
+      }
       const result = await SafetyService.listIncidents(input);
       res.json(serializeBigInt(result));
     } catch (error) {
@@ -65,7 +68,10 @@ export class SafetyController {
    */
   static async getIncidentStatistics(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const input = getIncidentStatisticsSchema.parse(req.query);
+      const input = getIncidentStatisticsSchema.parse(req.query) as any;
+      if (req.user?.companyId) {
+        input.company_id = req.user.companyId;
+      }
       const result = await SafetyService.getIncidentStatistics(input);
       res.json(serializeBigInt(result));
     } catch (error) {
