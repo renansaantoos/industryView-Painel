@@ -6,7 +6,6 @@ export interface PpeType {
   ca_number?: string;
   validity_months?: number;
   description?: string;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
