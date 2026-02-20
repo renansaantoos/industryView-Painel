@@ -10,14 +10,9 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { Plus, Trash2, Edit, Ruler, BookOpen } from 'lucide-react';
 
-interface UnityItem {
+interface SettingsItem {
   id: number;
-  name: string;
-}
-
-interface DisciplineItem {
-  id: number;
-  name: string;
+  displayName: string;
 }
 
 export default function Settings() {
@@ -25,14 +20,14 @@ export default function Settings() {
   const { setNavBarSelection } = useAppState();
 
   const [activeTab, setActiveTab] = useState<'unity' | 'discipline'>('unity');
-  const [unities, setUnities] = useState<UnityItem[]>([]);
-  const [disciplines, setDisciplines] = useState<DisciplineItem[]>([]);
+  const [unities, setUnities] = useState<SettingsItem[]>([]);
+  const [disciplines, setDisciplines] = useState<SettingsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number } | null>(null);
 
   // Add/Edit modal
   const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<{ id: number; name: string } | null>(null);
+  const [editingItem, setEditingItem] = useState<{ id: number } | null>(null);
   const [itemName, setItemName] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -47,8 +42,21 @@ export default function Settings() {
         tasksApi.getUnity().catch(() => []),
         tasksApi.getDisciplines().catch(() => []),
       ]);
-      setUnities(Array.isArray(unityData) ? unityData : []);
-      setDisciplines(Array.isArray(disciplineData) ? disciplineData : []);
+
+      const rawUnities = Array.isArray(unityData) ? unityData : [];
+      const rawDisciplines = Array.isArray(disciplineData) ? disciplineData : [];
+
+      // API retorna campo 'unity', não 'name'
+      setUnities(rawUnities.map((u: any) => ({
+        id: Number(u.id),
+        displayName: u.unity || u.name || `#${u.id}`,
+      })));
+
+      // API retorna campo 'discipline', não 'name'
+      setDisciplines(rawDisciplines.map((d: any) => ({
+        id: Number(d.id),
+        displayName: d.discipline || d.name || `#${d.id}`,
+      })));
     } catch (err) {
       console.error('Failed to load settings data:', err);
     } finally {
@@ -66,9 +74,9 @@ export default function Settings() {
     setShowModal(true);
   };
 
-  const handleOpenEditModal = (item: { id: number; name: string }) => {
-    setEditingItem(item);
-    setItemName(item.name);
+  const handleOpenEditModal = (item: SettingsItem) => {
+    setEditingItem({ id: item.id });
+    setItemName(item.displayName);
     setShowModal(true);
   };
 
@@ -138,6 +146,7 @@ export default function Settings() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            transition: 'all 0.2s ease',
           }}
         >
           <Ruler size={16} />
@@ -158,6 +167,7 @@ export default function Settings() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            transition: 'all 0.2s ease',
           }}
         >
           <BookOpen size={16} />
@@ -166,7 +176,10 @@ export default function Settings() {
       </div>
 
       {/* Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: 0 }}>
+          {currentItems.length} {currentItems.length === 1 ? 'item' : 'itens'}
+        </p>
         <button className="btn btn-primary" onClick={handleOpenCreateModal}>
           <Plus size={18} />
           {activeTab === 'unity' ? t('settings.addUnity') : t('settings.addDiscipline')}
@@ -191,16 +204,14 @@ export default function Settings() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
                 <th>{t('settings.name')}</th>
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
-            <motion.tbody variants={staggerParent} initial="initial" animate="animate">
+            <motion.tbody key={activeTab} variants={staggerParent} initial="initial" animate="animate">
               {currentItems.map((item) => (
                 <motion.tr key={item.id} variants={tableRowVariants}>
-                  <td style={{ color: 'var(--color-secondary-text)' }}>{item.id}</td>
-                  <td style={{ fontWeight: 500 }}>{item.name}</td>
+                  <td style={{ fontWeight: 500 }}>{item.displayName}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <button className="btn btn-icon" title={t('common.edit')} onClick={() => handleOpenEditModal(item)}>
@@ -224,8 +235,8 @@ export default function Settings() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginBottom: '16px' }}>
               {editingItem
                 ? (activeTab === 'unity' ? t('settings.editUnity') : t('settings.editDiscipline'))

@@ -589,7 +589,15 @@
     "subtitle": "Gestiona la configuración de la plataforma",
     "language": "Idioma",
     "theme": "Tema",
-    "notifications": "Notificaciones"
+    "notifications": "Notificaciones",
+    "unities": "Unidades",
+    "disciplines": "Disciplinas",
+    "name": "Nombre",
+    "addUnity": "Agregar Unidad",
+    "addDiscipline": "Agregar Disciplina",
+    "editUnity": "Editar Unidad",
+    "editDiscipline": "Editar Disciplina",
+    "confirmDelete": "¿Está seguro de que desea eliminar este elemento?"
   },
   "pricing": {
     "title": "Planes y Precios",
@@ -1004,5 +1012,22 @@
     "updateAction": "Actualización",
     "deleteAction": "Eliminación",
     "searchLogs": "Buscar registros..."
+  },
+  "account": {
+    "title": "Mi Cuenta",
+    "subtitle": "Gestiona tu información personal y preferencias",
+    "profile": "Perfil",
+    "changePassword": "Cambiar Contraseña",
+    "language": "Idioma",
+    "name": "Nombre",
+    "email": "Correo Electrónico",
+    "phone": "Teléfono",
+    "profileUpdated": "¡Perfil actualizado con éxito!",
+    "currentPassword": "Contraseña Actual",
+    "newPassword": "Nueva Contraseña",
+    "confirmPassword": "Confirmar Nueva Contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+    "passwordChanged": "¡Contraseña cambiada con éxito!"
   }
 }

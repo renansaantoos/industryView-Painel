@@ -118,12 +118,12 @@ export async function getUnity(): Promise<Unity[]> {
 }
 
 export async function addUnity(data: { name: string; abbreviation?: string }): Promise<Unity> {
-  const response = await apiClient.post(`${TASKS_BASE}/unity`, data);
+  const response = await apiClient.post(`${TASKS_BASE}/unity`, { unity: data.name });
   return response.data;
 }
 
 export async function editUnity(unityId: number, data: { name: string; abbreviation?: string }): Promise<Unity> {
-  const response = await apiClient.patch(`${TASKS_BASE}/unity/${unityId}`, data);
+  const response = await apiClient.patch(`${TASKS_BASE}/unity/${unityId}`, { unity: data.name });
   return response.data;
 }
 
@@ -139,12 +139,12 @@ export async function getDisciplines(): Promise<Discipline[]> {
 }
 
 export async function addDiscipline(data: { name: string }): Promise<Discipline> {
-  const response = await apiClient.post(`${TASKS_BASE}/discipline`, data);
+  const response = await apiClient.post(`${TASKS_BASE}/discipline`, { discipline: data.name });
   return response.data;
 }
 
 export async function editDiscipline(disciplineId: number, data: { name: string }): Promise<Discipline> {
-  const response = await apiClient.put(`${TASKS_BASE}/discipline/${disciplineId}`, data);
+  const response = await apiClient.put(`${TASKS_BASE}/discipline/${disciplineId}`, { discipline: data.name });
   return response.data;
 }
 

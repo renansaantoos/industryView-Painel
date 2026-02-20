@@ -589,7 +589,15 @@
     "subtitle": "Manage platform settings",
     "language": "Language",
     "theme": "Theme",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "unities": "Units",
+    "disciplines": "Disciplines",
+    "name": "Name",
+    "addUnity": "Add Unit",
+    "addDiscipline": "Add Discipline",
+    "editUnity": "Edit Unit",
+    "editDiscipline": "Edit Discipline",
+    "confirmDelete": "Are you sure you want to delete this item?"
   },
   "pricing": {
     "title": "Plans and Pricing",
@@ -1013,5 +1021,22 @@
     "updateAction": "Update",
     "deleteAction": "Delete",
     "searchLogs": "Search logs..."
+  },
+  "account": {
+    "title": "My Account",
+    "subtitle": "Manage your personal information and preferences",
+    "profile": "Profile",
+    "changePassword": "Change Password",
+    "language": "Language",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "profileUpdated": "Profile updated successfully!",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordChanged": "Password changed successfully!"
   }
 }
