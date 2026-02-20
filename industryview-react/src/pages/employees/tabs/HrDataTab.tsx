@@ -4,6 +4,7 @@ import { fadeUpChild } from '../../../lib/motion';
 import { employeesApi } from '../../../services';
 import type { EmployeeHrData } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import SearchableSelect from '../../../components/common/SearchableSelect';
 import { Save, ChevronDown, ChevronRight } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -374,16 +375,13 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
 
   function selectInput(field: keyof HrFormData, options: { value: string; label: string }[], placeholder?: string) {
     return (
-      <select
-        className="select-field"
-        value={(form[field] as string | undefined) ?? ''}
-        onChange={e => handleChange(field, e.target.value)}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
+      <SearchableSelect
+        options={options}
+        value={(form[field] as string | undefined) || undefined}
+        onChange={(val) => handleChange(field, String(val ?? ''))}
+        placeholder={placeholder}
+        allowClear
+      />
     );
   }
 

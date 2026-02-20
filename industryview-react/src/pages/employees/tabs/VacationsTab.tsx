@@ -8,6 +8,7 @@ import {
   modalContentVariants,
 } from '../../../lib/motion';
 import { employeesApi } from '../../../services';
+import SearchableSelect from '../../../components/common/SearchableSelect';
 import type { EmployeeVacation, VacationBalance } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
@@ -56,6 +57,12 @@ function calcDaysBetween(startStr: string, endStr: string): number {
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return 0;
   const diffMs = end.getTime() - start.getTime();
   return Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+}
+
+function toDateInput(dateStr: string | undefined | null): string {
+  if (!dateStr) return '';
+  // handle both "2026-01-15" and "2026-01-15T03:00:00.000Z"
+  return dateStr.substring(0, 10);
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -160,23 +167,25 @@ function VacationFormModal({
   const [form, setForm] = useState<VacationFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!isOpen) return;
     if (editTarget) {
       setForm({
         tipo: editTarget.tipo,
-        data_inicio: editTarget.data_inicio,
-        data_fim: editTarget.data_fim,
+        data_inicio: toDateInput(editTarget.data_inicio),
+        data_fim: toDateInput(editTarget.data_fim),
         dias_total: editTarget.dias_total,
-        periodo_aquisitivo_inicio: editTarget.periodo_aquisitivo_inicio ?? '',
-        periodo_aquisitivo_fim: editTarget.periodo_aquisitivo_fim ?? '',
+        periodo_aquisitivo_inicio: toDateInput(editTarget.periodo_aquisitivo_inicio),
+        periodo_aquisitivo_fim: toDateInput(editTarget.periodo_aquisitivo_fim),
         observacoes: editTarget.observacoes ?? '',
       });
     } else {
       setForm(EMPTY_FORM);
     }
     setError('');
+    setTouched({});
   }, [isOpen, editTarget]);
 
   // Auto-calculate dias_total whenever dates change
@@ -197,8 +206,13 @@ function VacationFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.data_inicio || !form.data_fim) {
-      setError('Informe a data de inicio e a data de fim.');
+    setTouched({ tipo: true, data_inicio: true, data_fim: true });
+    const errors: string[] = [];
+    if (!form.tipo) errors.push('Tipo de Ausencia');
+    if (!form.data_inicio) errors.push('Data de Inicio');
+    if (!form.data_fim) errors.push('Data de Fim');
+    if (errors.length > 0) {
+      setError(`Preencha os campos obrigatorios: ${errors.join(', ')}`);
       return;
     }
     if (form.dias_total <= 0) {
@@ -267,46 +281,63 @@ function VacationFormModal({
               {/* Tipo */}
               <div className="input-group" style={{ marginBottom: '14px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
-                  Tipo de Ausencia
+                  Tipo de Ausencia <span style={{ color: '#C0392B' }}>*</span>
                 </label>
-                <select
-                  className="select-field"
-                  value={form.tipo}
-                  onChange={e => handleFieldChange('tipo', e.target.value)}
-                >
-                  {TIPO_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={TIPO_OPTIONS}
+                  value={form.tipo || undefined}
+                  onChange={v => handleFieldChange('tipo', v != null ? String(v) : '')}
+                  placeholder="Selecione o tipo"
+                  style={{
+                    ...(touched.tipo && !form.tipo ? { borderColor: '#C0392B' } : {}),
+                  }}
+                />
+                {touched.tipo && !form.tipo && (
+                  <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                    Campo obrigatorio
+                  </span>
+                )}
               </div>
 
               {/* Dates row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div className="input-group">
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
-                    Data de Inicio
+                    Data de Inicio <span style={{ color: '#C0392B' }}>*</span>
                   </label>
                   <input
                     type="date"
                     className="input-field"
                     value={form.data_inicio}
                     onChange={e => handleDateChange('data_inicio', e.target.value)}
-                    required
+                    style={{
+                      ...(touched.data_inicio && !form.data_inicio ? { borderColor: '#C0392B' } : {}),
+                    }}
                   />
+                  {touched.data_inicio && !form.data_inicio && (
+                    <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                      Campo obrigatorio
+                    </span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
-                    Data de Fim
+                    Data de Fim <span style={{ color: '#C0392B' }}>*</span>
                   </label>
                   <input
                     type="date"
                     className="input-field"
                     value={form.data_fim}
                     onChange={e => handleDateChange('data_fim', e.target.value)}
-                    required
+                    style={{
+                      ...(touched.data_fim && !form.data_fim ? { borderColor: '#C0392B' } : {}),
+                    }}
                   />
+                  {touched.data_fim && !form.data_fim && (
+                    <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                      Campo obrigatorio
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -549,18 +580,14 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Filter size={16} style={{ color: 'var(--color-secondary-text)' }} />
-          <select
-            className="select-field"
-            value={statusFilter}
-            onChange={e => handleFilterChange(e.target.value)}
+          <SearchableSelect
+            options={STATUS_FILTER_OPTIONS.filter(o => o.value !== '')}
+            value={statusFilter || undefined}
+            onChange={v => handleFilterChange(v != null ? String(v) : '')}
+            placeholder="Todos os status"
+            allowClear
             style={{ minWidth: '180px' }}
-          >
-            {STATUS_FILTER_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <button className="btn btn-primary" onClick={openCreateModal}>
@@ -647,21 +674,25 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
                           </button>
                         </>
                       )}
-                      <button
-                        className="btn btn-icon"
-                        title="Editar"
-                        onClick={() => openEditModal(vacation)}
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        className="btn btn-icon"
-                        title="Excluir"
-                        onClick={() => setDeleteTarget(vacation)}
-                        style={{ color: '#C0392B' }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {vacation.status !== 'aprovado' && vacation.status !== 'cancelado' && (
+                        <button
+                          className="btn btn-icon"
+                          title="Editar"
+                          onClick={() => openEditModal(vacation)}
+                        >
+                          <Edit size={16} />
+                        </button>
+                      )}
+                      {vacation.status !== 'aprovado' && vacation.status !== 'cancelado' && (
+                        <button
+                          className="btn btn-icon"
+                          title="Excluir"
+                          onClick={() => setDeleteTarget(vacation)}
+                          style={{ color: '#C0392B' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </motion.tr>

@@ -929,16 +929,16 @@ export default function TaskList() {
               <div style={{ marginBottom: '12px' }}>
                 <div className="input-group" style={{ margin: 0, maxWidth: '200px' }}>
                   <label>Severidade</label>
-                  <select
-                    className="select-field"
+                  <SearchableSelect
+                    options={[
+                      { value: 'baixa', label: 'Baixa' },
+                      { value: 'media', label: 'Média' },
+                      { value: 'alta', label: 'Alta' },
+                      { value: 'critica', label: 'Crítica' },
+                    ]}
                     value={newRuleSeverity}
-                    onChange={(e) => setNewRuleSeverity(e.target.value)}
-                  >
-                    <option value="baixa">Baixa</option>
-                    <option value="media">Média</option>
-                    <option value="alta">Alta</option>
-                    <option value="critica">Crítica</option>
-                  </select>
+                    onChange={(val) => setNewRuleSeverity(String(val ?? 'baixa'))}
+                  />
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>

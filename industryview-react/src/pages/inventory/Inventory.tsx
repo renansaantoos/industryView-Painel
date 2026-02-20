@@ -585,26 +585,36 @@ export default function Inventory() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="input-group">
                         <label>{t('inventory.originIndicator', 'Indicador de Origem')}</label>
-                        <select className="select-field" value={originIndicator} onChange={(e) => setOriginIndicator(e.target.value)}>
-                          <option value="">{t('common.select', 'Selecione...')}</option>
-                          <option value="0">0 - Nacional</option>
-                          <option value="1">1 - Estrangeira (importação direta)</option>
-                          <option value="2">2 - Estrangeira (adquirida no mercado interno)</option>
-                          <option value="3">3 - Nacional (conteúdo importação &gt; 40%)</option>
-                          <option value="4">4 - Nacional (produção conforme processos básicos)</option>
-                          <option value="5">5 - Nacional (conteúdo importação &lt;= 40%)</option>
-                          <option value="6">6 - Estrangeira (importação direta, sem similar)</option>
-                          <option value="7">7 - Estrangeira (mercado interno, sem similar)</option>
-                          <option value="8">8 - Nacional (conteúdo importação &gt; 70%)</option>
-                        </select>
+                        <SearchableSelect
+                          options={[
+                            { value: '0', label: '0 - Nacional' },
+                            { value: '1', label: '1 - Estrangeira (importação direta)' },
+                            { value: '2', label: '2 - Estrangeira (adquirida no mercado interno)' },
+                            { value: '3', label: '3 - Nacional (conteúdo importação > 40%)' },
+                            { value: '4', label: '4 - Nacional (produção conforme processos básicos)' },
+                            { value: '5', label: '5 - Nacional (conteúdo importação <= 40%)' },
+                            { value: '6', label: '6 - Estrangeira (importação direta, sem similar)' },
+                            { value: '7', label: '7 - Estrangeira (mercado interno, sem similar)' },
+                            { value: '8', label: '8 - Nacional (conteúdo importação > 70%)' },
+                          ]}
+                          value={originIndicator || undefined}
+                          onChange={(val) => setOriginIndicator(String(val ?? ''))}
+                          placeholder={t('common.select', 'Selecione...')}
+                          allowClear
+                        />
                       </div>
                       <div className="input-group">
                         <label>{t('inventory.custodyType', 'Tipo de Custódia')}</label>
-                        <select className="select-field" value={custodyType} onChange={(e) => setCustodyType(e.target.value)}>
-                          <option value="">{t('common.select', 'Selecione...')}</option>
-                          <option value="own">{t('inventory.custodyOwn', 'Próprio')}</option>
-                          <option value="third_party">{t('inventory.custodyThirdParty', 'Terceiros')}</option>
-                        </select>
+                        <SearchableSelect
+                          options={[
+                            { value: 'own', label: t('inventory.custodyOwn', 'Próprio') },
+                            { value: 'third_party', label: t('inventory.custodyThirdParty', 'Terceiros') },
+                          ]}
+                          value={custodyType || undefined}
+                          onChange={(val) => setCustodyType(String(val ?? ''))}
+                          placeholder={t('common.select', 'Selecione...')}
+                          allowClear
+                        />
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

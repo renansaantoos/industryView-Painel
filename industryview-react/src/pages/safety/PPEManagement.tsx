@@ -11,6 +11,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Edit,
@@ -540,16 +541,14 @@ export default function PPEManagement() {
               />
             </div>
             <div className="input-group" style={{ margin: 0, flex: '0 0 200px' }}>
-              <select
-                className="select-field"
-                value={filterPpeTypeId}
-                onChange={(e) => { setFilterPpeTypeId(e.target.value); setDeliveryPage(1); }}
-              >
-                <option value="">Todos os tipos de EPI</option>
-                {ppeTypes.map((pt) => (
-                  <option key={pt.id} value={String(pt.id)}>{pt.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                options={ppeTypes.map((pt) => ({ value: String(pt.id), label: pt.name }))}
+                value={filterPpeTypeId || undefined}
+                onChange={(val) => { setFilterPpeTypeId(String(val ?? '')); setDeliveryPage(1); }}
+                placeholder="Todos os tipos de EPI"
+                allowClear
+                style={{ flex: '0 0 200px' }}
+              />
             </div>
             {(filterSearch || filterPpeTypeId) && (
               <button className="btn btn-icon" title="Limpar filtros" onClick={handleClearDeliveryFilters}>
@@ -726,16 +725,14 @@ export default function PPEManagement() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
                 <label>Tipo de EPI <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <select
-                  className={`select-field${deliveryErrors.ppe_types_id ? ' error' : ''}`}
-                  value={deliveryForm.ppe_types_id}
-                  onChange={(e) => handleDeliveryField('ppe_types_id', e.target.value)}
-                >
-                  <option value="">Selecione o tipo de EPI</option>
-                  {ppeTypes.map((pt) => (
-                    <option key={pt.id} value={String(pt.id)}>{pt.name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={ppeTypes.map((pt) => ({ value: String(pt.id), label: pt.name }))}
+                  value={deliveryForm.ppe_types_id || undefined}
+                  onChange={(val) => handleDeliveryField('ppe_types_id', String(val ?? ''))}
+                  placeholder="Selecione o tipo de EPI"
+                  allowClear
+                  style={deliveryErrors.ppe_types_id ? { border: '1px solid var(--color-error)', borderRadius: '6px' } : {}}
+                />
                 {deliveryErrors.ppe_types_id && <span className="input-error">{deliveryErrors.ppe_types_id}</span>}
               </div>
               <div className="input-group" ref={employeeDropdownRef} style={{ position: 'relative' }}>

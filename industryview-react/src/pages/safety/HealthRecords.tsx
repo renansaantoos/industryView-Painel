@@ -10,6 +10,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Edit,
@@ -360,16 +361,14 @@ export default function HealthRecords() {
           <span style={{ fontSize: '13px', fontWeight: 500 }}>Filtrar por tipo:</span>
         </div>
         <div className="input-group" style={{ margin: 0, flex: '0 0 220px' }}>
-          <select
-            className="select-field"
-            value={filterExamType}
-            onChange={(e) => { setFilterExamType(e.target.value); setPage(1); }}
-          >
-            <option value="">Todos os tipos de exame</option>
-            {EXAM_TYPES.map((et) => (
-              <option key={et.value} value={et.value}>{et.label}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            options={EXAM_TYPES.map((et) => ({ value: et.value, label: et.label }))}
+            value={filterExamType || undefined}
+            onChange={(val) => { setFilterExamType(String(val ?? '')); setPage(1); }}
+            placeholder="Todos os tipos de exame"
+            allowClear
+            style={{ flex: '0 0 220px' }}
+          />
         </div>
         {filterExamType && (
           <button className="btn btn-icon" title="Limpar filtro" onClick={handleClearFilters}>
@@ -594,16 +593,12 @@ export default function HealthRecords() {
               {/* Tipo de Exame */}
               <div className="input-group">
                 <label>Tipo de Exame <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <select
-                  className="select-field"
-                  value={form.exam_type}
-                  onChange={(e) => setForm((f) => ({ ...f, exam_type: e.target.value }))}
-                  style={{ borderColor: formTouched && formErrors.exam_type ? 'var(--color-error)' : undefined }}
-                >
-                  {EXAM_TYPES.map((et) => (
-                    <option key={et.value} value={et.value}>{et.label}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={EXAM_TYPES.map((et) => ({ value: et.value, label: et.label }))}
+                  value={form.exam_type || undefined}
+                  onChange={(val) => setForm((f) => ({ ...f, exam_type: String(val ?? '') }))}
+                  style={formTouched && formErrors.exam_type ? { border: '1px solid var(--color-error)', borderRadius: '6px' } : {}}
+                />
                 {formTouched && formErrors.exam_type && (
                   <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.exam_type}</span>
                 )}
@@ -638,16 +633,12 @@ export default function HealthRecords() {
               {/* Resultado */}
               <div className="input-group">
                 <label>Resultado <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <select
-                  className="select-field"
-                  value={form.result}
-                  onChange={(e) => setForm((f) => ({ ...f, result: e.target.value }))}
-                  style={{ borderColor: formTouched && formErrors.result ? 'var(--color-error)' : undefined }}
-                >
-                  {RESULT_OPTIONS.map((ro) => (
-                    <option key={ro.value} value={ro.value}>{ro.label}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={RESULT_OPTIONS.map((ro) => ({ value: ro.value, label: ro.label }))}
+                  value={form.result || undefined}
+                  onChange={(val) => setForm((f) => ({ ...f, result: String(val ?? '') }))}
+                  style={formTouched && formErrors.result ? { border: '1px solid var(--color-error)', borderRadius: '6px' } : {}}
+                />
                 {formTouched && formErrors.result && (
                   <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.result}</span>
                 )}

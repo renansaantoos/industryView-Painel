@@ -12,6 +12,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import StatusBadge from '../../components/common/StatusBadge';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { Plus, Edit, Trash2, X, LogIn, LogOut, BarChart2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -696,16 +697,13 @@ export default function WorkforceControl() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="input-group">
                 <label>Colaborador *</label>
-                <select
-                  className="select-field"
-                  value={createForm.users_id}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, users_id: e.target.value ? Number(e.target.value) : '' }))}
-                >
-                  <option value="">Selecione um colaborador</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={users.map((u) => ({ value: u.id, label: u.name }))}
+                  value={createForm.users_id || undefined}
+                  onChange={(val) => setCreateForm((p) => ({ ...p, users_id: val !== undefined ? Number(val) : '' }))}
+                  placeholder="Selecione um colaborador"
+                  allowClear
+                />
               </div>
               <div className="input-group">
                 <label>Data *</label>

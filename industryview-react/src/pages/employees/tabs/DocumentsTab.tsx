@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants, modalBackdropVariants, modalContentVariants } from '../../../lib/motion';
 import { AnimatePresence } from 'framer-motion';
-import { employeesApi } from '../../../services';
+import { employeesApi, safetyApi } from '../../../services';
 import type { EmployeeDocument } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmModal from '../../../components/common/ConfirmModal';
-import { Plus, Edit, Trash2, FileText, ExternalLink } from 'lucide-react';
+import SearchableSelect from '../../../components/common/SearchableSelect';
+import { Plus, Edit, Trash2, FileText, ExternalLink, Upload } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,11 @@ const STATUS_STYLE: Record<StatusDisplay, { backgroundColor: string; color: stri
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function toDateInput(dateStr: string | undefined | null): string {
+  if (!dateStr) return '';
+  return dateStr.substring(0, 10);
+}
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '-';
@@ -127,6 +133,8 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
   const [editingDocument, setEditingDocument] = useState<EmployeeDocument | null>(null);
   const [form, setForm] = useState<DocumentFormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [uploading, setUploading] = useState(false);
 
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
 
@@ -168,6 +176,7 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
     setEditingDocument(null);
     setForm(EMPTY_FORM);
     setFormError(null);
+    setTouched({});
     setIsModalOpen(true);
   };
 
@@ -178,11 +187,12 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
       nome: doc.nome,
       descricao: doc.descricao ?? '',
       numero_documento: doc.numero_documento ?? '',
-      data_emissao: doc.data_emissao ?? '',
-      data_validade: doc.data_validade ?? '',
+      data_emissao: toDateInput(doc.data_emissao),
+      data_validade: toDateInput(doc.data_validade),
       file_url: doc.file_url ?? '',
     });
     setFormError(null);
+    setTouched({});
     setIsModalOpen(true);
   };
 
@@ -191,6 +201,7 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
     setEditingDocument(null);
     setForm(EMPTY_FORM);
     setFormError(null);
+    setTouched({});
   };
 
   const updateField = <K extends keyof DocumentFormState>(key: K, value: DocumentFormState[K]) => {
@@ -200,12 +211,12 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
-    if (!form.nome.trim()) {
-      setFormError('O campo Nome e obrigatorio.');
-      return;
-    }
-    if (!form.tipo) {
-      setFormError('Selecione um tipo de documento.');
+    setTouched({ tipo: true, nome: true });
+    const errors: string[] = [];
+    if (!form.tipo) errors.push('Tipo');
+    if (!form.nome.trim()) errors.push('Nome');
+    if (errors.length > 0) {
+      setFormError(`Preencha os campos obrigatorios: ${errors.join(', ')}`);
       return;
     }
 
@@ -273,19 +284,14 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
           marginBottom: 20,
         }}
       >
-        <select
-          className="select-field"
-          value={filterTipo}
-          onChange={e => handleTipoFilterChange(e.target.value)}
+        <SearchableSelect
+          options={DOCUMENT_TYPES.map(dt => ({ value: dt.value, label: dt.label }))}
+          value={filterTipo || undefined}
+          onChange={v => handleTipoFilterChange(v != null ? String(v) : '')}
+          placeholder="Todos os tipos"
+          allowClear
           style={{ maxWidth: 200 }}
-        >
-          <option value="">Todos os tipos</option>
-          {DOCUMENT_TYPES.map(dt => (
-            <option key={dt.value} value={dt.value}>
-              {dt.label}
-            </option>
-          ))}
-        </select>
+        />
 
         <button className="btn btn-primary" onClick={openCreateModal} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={16} />
@@ -458,17 +464,18 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                   <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 4, display: 'block' }}>
                     Tipo <span style={{ color: 'var(--color-danger)' }}>*</span>
                   </label>
-                  <select
-                    className="select-field"
-                    value={form.tipo}
-                    onChange={e => updateField('tipo', e.target.value as DocumentTipo)}
-                  >
-                    {DOCUMENT_TYPES.map(dt => (
-                      <option key={dt.value} value={dt.value}>
-                        {dt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={DOCUMENT_TYPES.map(dt => ({ value: dt.value, label: dt.label }))}
+                    value={form.tipo || undefined}
+                    onChange={v => updateField('tipo', (v != null ? String(v) : '') as DocumentTipo)}
+                    placeholder="Selecione o tipo"
+                    style={{ ...(touched.tipo && !form.tipo ? { borderColor: '#C0392B' } : {}) }}
+                  />
+                  {touched.tipo && !form.tipo && (
+                    <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                      Campo obrigatorio
+                    </span>
+                  )}
                 </div>
 
                 {/* Nome */}
@@ -482,7 +489,13 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                     placeholder="Nome do documento"
                     value={form.nome}
                     onChange={e => updateField('nome', e.target.value)}
+                    style={{ ...(touched.nome && !form.nome.trim() ? { borderColor: '#C0392B' } : {}) }}
                   />
+                  {touched.nome && !form.nome.trim() && (
+                    <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                      Campo obrigatorio
+                    </span>
+                  )}
                 </div>
 
                 {/* Descricao */}
@@ -540,18 +553,69 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                   </div>
                 </div>
 
-                {/* URL do arquivo */}
+                {/* Documento (URL ou Upload) */}
                 <div className="input-group">
                   <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 4, display: 'block' }}>
-                    URL do arquivo
+                    Documento
                   </label>
-                  <input
-                    className="input-field"
-                    type="text"
-                    placeholder="https://..."
-                    value={form.file_url}
-                    onChange={e => updateField('file_url', e.target.value)}
-                  />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      className="input-field"
+                      type="text"
+                      placeholder="https://... ou faca upload"
+                      value={form.file_url}
+                      onChange={e => updateField('file_url', e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <label
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '8px 14px',
+                        background: 'var(--color-secondary-bg, #f3f4f6)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 6,
+                        cursor: uploading ? 'not-allowed' : 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--color-primary-text)',
+                        whiteSpace: 'nowrap',
+                        opacity: uploading ? 0.6 : 1,
+                      }}
+                    >
+                      <Upload size={15} />
+                      {uploading ? 'Enviando...' : 'Upload'}
+                      <input
+                        type="file"
+                        style={{ display: 'none' }}
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                        disabled={uploading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploading(true);
+                          try {
+                            const result = await safetyApi.uploadFile(file);
+                            updateField('file_url', result.file_url);
+                          } catch {
+                            setFormError('Erro ao fazer upload do arquivo. Tente novamente.');
+                          } finally {
+                            setUploading(false);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {form.file_url && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-secondary-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <ExternalLink size={12} />
+                      <a href={form.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                        {form.file_url.length > 50 ? form.file_url.substring(0, 50) + '...' : form.file_url}
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -567,7 +631,7 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                 <button className="btn btn-secondary" onClick={closeModal} disabled={saving}>
                   Cancelar
                 </button>
-                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving || uploading}>
                   {saving ? 'Salvando...' : editingDocument ? 'Salvar alteracoes' : 'Criar documento'}
                 </button>
               </div>

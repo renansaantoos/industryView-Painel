@@ -20,9 +20,6 @@ import {
   Gift,
   AlertTriangle,
   HeartPulse,
-  MessageSquare,
-  ClipboardCheck,
-  AlertOctagon,
 } from 'lucide-react';
 
 // Tab components
@@ -37,9 +34,6 @@ import CareerHistoryTab from './tabs/CareerHistoryTab';
 import BenefitsTab from './tabs/BenefitsTab';
 import IncidentsTab from './tabs/IncidentsTab';
 import HealthTab from './tabs/HealthTab';
-import DDSTab from './tabs/DDSTab';
-import WorkPermitsTab from './tabs/WorkPermitsTab';
-import NonConformancesTab from './tabs/NonConformancesTab';
 
 type TabKey =
   | 'dados'
@@ -52,10 +46,7 @@ type TabKey =
   | 'historico'
   | 'beneficios'
   | 'incidentes'
-  | 'saude'
-  | 'dds'
-  | 'permissoes'
-  | 'nao_conformidades';
+  | 'saude';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'dados', label: 'Dados Pessoais', icon: <User size={16} /> },
@@ -69,14 +60,11 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'beneficios', label: 'Beneficios', icon: <Gift size={16} /> },
   { key: 'saude', label: 'Saude', icon: <HeartPulse size={16} /> },
   { key: 'incidentes', label: 'Incidentes', icon: <AlertTriangle size={16} /> },
-  { key: 'dds', label: 'DDS', icon: <MessageSquare size={16} /> },
-  { key: 'permissoes', label: 'Permissoes de Trabalho', icon: <ClipboardCheck size={16} /> },
-  { key: 'nao_conformidades', label: 'Nao-Conformidades', icon: <AlertOctagon size={16} /> },
 ];
 
 interface SummaryData {
   vacationBalance: VacationBalance | null;
-  ppeStatus: { total_delivered: number; active: number; expired: number; returned: number } | null;
+  ppeStatus: { total_deliveries: number; active: number; expired: number; returned: number } | null;
   hrData: EmployeeHrData | null;
 }
 
@@ -147,7 +135,7 @@ export default function EmployeeProfile() {
   const displayDepartamento = hrData?.departamento || '-';
   const displayMatricula = hrData?.matricula || '-';
   const ppeExpired = summary.ppeStatus?.expired ?? 0;
-  const ppeTotal = summary.ppeStatus?.total_delivered ?? 0;
+  const ppeTotal = summary.ppeStatus?.total_deliveries ?? 0;
   const ppeActive = summary.ppeStatus?.active ?? 0;
   const initials = displayName
     .split(' ')
@@ -327,9 +315,6 @@ export default function EmployeeProfile() {
         {activeTab === 'beneficios' && <BenefitsTab usersId={usersId} />}
         {activeTab === 'saude' && <HealthTab usersId={usersId} />}
         {activeTab === 'incidentes' && <IncidentsTab usersId={usersId} />}
-        {activeTab === 'dds' && <DDSTab usersId={usersId} />}
-        {activeTab === 'permissoes' && <WorkPermitsTab usersId={usersId} />}
-        {activeTab === 'nao_conformidades' && <NonConformancesTab usersId={usersId} />}
       </motion.div>
     </motion.div>
   );

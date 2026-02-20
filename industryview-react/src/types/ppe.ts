@@ -24,6 +24,8 @@ export interface PpeDelivery {
   observation?: string;
   user_name?: string;
   ppe_type_name?: string;
+  /** Present when delivery comes from the enriched getUserPpeStatus endpoint */
+  expiry_date?: string | null;
   user?: { id: number; name: string; email?: string };
   ppe_type?: { id: number; name: string; ca_number?: string; validity_months?: number; description?: string };
   created_at: string;
@@ -39,15 +41,18 @@ export interface TaskRequiredPpe {
   created_at: string;
 }
 
-/** User PPE Status */
+/** User PPE Status — returned by GET /ppe/user-status/:userId */
 export interface UserPpeStatus {
-  users_id: number;
-  user_name?: string;
-  ppe_items: {
-    ppe_type_id: number;
-    ppe_type_name: string;
-    last_delivery_date?: string;
-    expiry_date?: string;
-    status: 'ok' | 'vencendo' | 'vencido' | 'pendente';
-  }[];
+  user_id: number;
+  total_deliveries: number;
+  active: number;
+  expired: number;
+  returned: number;
+  deliveries: (PpeDelivery & {
+    is_returned: boolean;
+    is_expired: boolean;
+    expiry_date: string | null;
+    days_until_expiry: number | null;
+    computed_status: 'ativo' | 'vencido' | 'devolvido';
+  })[];
 }

@@ -9,6 +9,7 @@ import type {
   NonConformanceStatistics,
   NonConformanceAttachment,
 } from '../../types';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -411,29 +412,25 @@ export default function NonConformances() {
           </div>
 
           <div className="input-group" style={{ flex: '1 1 160px', minWidth: '140px' }}>
-            <select
-              className="select-field"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">Todos os status</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{NC_STATUS_MAP[s]?.label || s}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={STATUS_OPTIONS.map((s) => ({ value: s, label: NC_STATUS_MAP[s]?.label || s }))}
+              value={filterStatus || undefined}
+              onChange={(val) => setFilterStatus(String(val ?? ''))}
+              placeholder="Todos os status"
+              allowClear
+              style={{ minWidth: '140px' }}
+            />
           </div>
 
           <div className="input-group" style={{ flex: '1 1 140px', minWidth: '120px' }}>
-            <select
-              className="select-field"
-              value={filterSeverity}
-              onChange={(e) => setFilterSeverity(e.target.value)}
-            >
-              <option value="">Todas as severidades</option>
-              {SEVERITY_OPTIONS.map((s) => (
-                <option key={s} value={s}>{NC_SEVERITY_MAP[s]?.label || s}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={SEVERITY_OPTIONS.map((s) => ({ value: s, label: NC_SEVERITY_MAP[s]?.label || s }))}
+              value={filterSeverity || undefined}
+              onChange={(val) => setFilterSeverity(String(val ?? ''))}
+              placeholder="Todas as severidades"
+              allowClear
+              style={{ minWidth: '120px' }}
+            />
           </div>
 
           <div className="input-group" style={{ flex: '1 1 180px', minWidth: '160px' }}>
@@ -659,33 +656,24 @@ export default function NonConformances() {
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
                     Origem
                   </label>
-                  <select
-                    className="select-field"
-                    value={createForm.origin}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, origin: e.target.value }))}
-                  >
-                    <option value="">Selecionar origem</option>
-                    {ORIGIN_OPTIONS.map((o) => (
-                      <option key={o} value={o} style={{ textTransform: 'capitalize' }}>
-                        {o.charAt(0).toUpperCase() + o.slice(1)}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={ORIGIN_OPTIONS.map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) }))}
+                    value={createForm.origin || undefined}
+                    onChange={(val) => setCreateForm((f) => ({ ...f, origin: String(val ?? '') }))}
+                    placeholder="Selecionar origem"
+                    allowClear
+                  />
                 </div>
 
                 <div className="input-group" style={{ flex: 1 }}>
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
                     Severidade *
                   </label>
-                  <select
-                    className="select-field"
+                  <SearchableSelect
+                    options={SEVERITY_OPTIONS.map((s) => ({ value: s, label: NC_SEVERITY_MAP[s]?.label || s }))}
                     value={createForm.severity}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, severity: e.target.value }))}
-                  >
-                    {SEVERITY_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{NC_SEVERITY_MAP[s]?.label || s}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setCreateForm((f) => ({ ...f, severity: String(val ?? '') }))}
+                  />
                 </div>
               </div>
 

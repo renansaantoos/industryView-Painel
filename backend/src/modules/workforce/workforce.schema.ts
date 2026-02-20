@@ -13,6 +13,7 @@ import { z } from 'zod';
 export const listDailyLogsSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
   teams_id: z.coerce.number().int().optional(),
+  users_id: z.coerce.number().int().optional(),
   company_id: z.coerce.number().int().optional(),
   date: z.string().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -24,13 +25,16 @@ export const getDailyLogByIdSchema = z.object({
 });
 
 export const createDailyLogSchema = z.object({
-  projects_id: z.coerce.number().int().min(1, 'projects_id e obrigatorio'),
+  projects_id: z.coerce.number().int().optional(),
   users_id: z.coerce.number().int().min(1, 'users_id e obrigatorio'),
   teams_id: z.coerce.number().int().optional(),
   log_date: z.string().min(1, 'log_date e obrigatorio'),
   status: z.string().trim().optional().default('presente'),
   hours_normal: z.coerce.number().min(0).max(24).optional().default(0),
   hours_overtime: z.coerce.number().min(0).max(24).optional().default(0),
+  check_in: z.string().optional(),
+  check_out: z.string().optional(),
+  observation: z.string().optional(),
 });
 
 export const updateDailyLogSchema = z.object({
@@ -39,6 +43,9 @@ export const updateDailyLogSchema = z.object({
   status: z.string().trim().optional(),
   hours_normal: z.coerce.number().min(0).max(24).optional(),
   hours_overtime: z.coerce.number().min(0).max(24).optional(),
+  check_in: z.string().optional(),
+  check_out: z.string().optional(),
+  observation: z.string().optional(),
 });
 
 // =============================================================================
@@ -56,7 +63,7 @@ export const getHistogramSchema = z.object({
 // =============================================================================
 
 export const checkInSchema = z.object({
-  projects_id: z.coerce.number().int().min(1, 'projects_id e obrigatorio'),
+  projects_id: z.coerce.number().int().optional(),
   users_id: z.coerce.number().int().min(1, 'users_id e obrigatorio'),
   teams_id: z.coerce.number().int().optional(),
 });

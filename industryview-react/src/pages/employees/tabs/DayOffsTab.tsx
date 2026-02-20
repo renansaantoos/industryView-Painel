@@ -7,6 +7,7 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmModal from '../../../components/common/ConfirmModal';
+import SearchableSelect from '../../../components/common/SearchableSelect';
 import { Plus, Edit, Trash2, Check, X, Clock, Calendar } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -118,6 +119,7 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
   const [actionLoading, setActionLoading] = useState(false);
 
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
@@ -173,6 +175,7 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
   const openCreateModal = () => {
     setEditingItem(null);
     setForm(EMPTY_FORM);
+    setTouched({});
     setShowModal(true);
   };
 
@@ -185,6 +188,7 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
       horas_banco: item.horas_banco != null ? String(item.horas_banco) : '',
       observacoes: item.observacoes ?? '',
     });
+    setTouched({});
     setShowModal(true);
   };
 
@@ -192,6 +196,7 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
     setShowModal(false);
     setEditingItem(null);
     setForm(EMPTY_FORM);
+    setTouched({});
   };
 
   const handleFormChange = (field: keyof DayOffFormData, value: string) => {
@@ -199,8 +204,12 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
   };
 
   const handleSave = async () => {
-    if (!form.tipo || !form.data) {
-      showToast('Tipo e data sao obrigatorios.', 'error');
+    setTouched({ tipo: true, data: true });
+    const errors: string[] = [];
+    if (!form.tipo) errors.push('Tipo');
+    if (!form.data) errors.push('Data');
+    if (errors.length > 0) {
+      showToast(`Preencha os campos obrigatorios: ${errors.join(', ')}`, 'error');
       return;
     }
     setModalLoading(true);
@@ -271,8 +280,8 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
 
   // ─── Filter change resets page ───────────────────────────────────────────────
 
-  const handleFilterChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setter(e.target.value);
+  const handleFilterChange = (setter: (v: string) => void) => (value: string | number | undefined) => {
+    setter(value != null ? String(value) : '');
     setPage(1);
   };
 
@@ -329,30 +338,28 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <select
-          className="select-field"
-          value={filterStatus}
+        <SearchableSelect
+          options={[
+            { value: 'pendente', label: 'Pendente' },
+            { value: 'aprovado', label: 'Aprovado' },
+            { value: 'rejeitado', label: 'Rejeitado' },
+            { value: 'cancelado', label: 'Cancelado' },
+          ]}
+          value={filterStatus || undefined}
           onChange={handleFilterChange(setFilterStatus)}
+          placeholder="Todos os Status"
+          allowClear
           style={{ minWidth: 140 }}
-        >
-          <option value="">Todos os Status</option>
-          <option value="pendente">Pendente</option>
-          <option value="aprovado">Aprovado</option>
-          <option value="rejeitado">Rejeitado</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
+        />
 
-        <select
-          className="select-field"
-          value={filterTipo}
+        <SearchableSelect
+          options={(Object.keys(TIPO_LABELS) as DayOffTipo[]).map(t => ({ value: t, label: TIPO_LABELS[t] }))}
+          value={filterTipo || undefined}
           onChange={handleFilterChange(setFilterTipo)}
+          placeholder="Todos os Tipos"
+          allowClear
           style={{ minWidth: 180 }}
-        >
-          <option value="">Todos os Tipos</option>
-          {(Object.keys(TIPO_LABELS) as DayOffTipo[]).map(t => (
-            <option key={t} value={t}>{TIPO_LABELS[t]}</option>
-          ))}
-        </select>
+        />
 
         <button className="btn btn-primary" onClick={openCreateModal} style={{ marginLeft: 'auto' }}>
           <Plus size={16} style={{ marginRight: 6 }} />
@@ -481,27 +488,46 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div className="input-group">
-                  <label>Tipo *</label>
-                  <select
-                    className="select-field"
-                    value={form.tipo}
-                    onChange={e => handleFormChange('tipo', e.target.value)}
-                  >
-                    <option value="">Selecione...</option>
-                    {(Object.keys(TIPO_LABELS) as DayOffTipo[]).map(t => (
-                      <option key={t} value={t}>{TIPO_LABELS[t]}</option>
-                    ))}
-                  </select>
+                  <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 6, display: 'block' }}>
+                    Tipo <span style={{ color: '#C0392B' }}>*</span>
+                  </label>
+                  <SearchableSelect
+                    options={(Object.keys(TIPO_LABELS) as DayOffTipo[]).map(t => ({ value: t, label: TIPO_LABELS[t] }))}
+                    value={form.tipo || undefined}
+                    onChange={v => {
+                      handleFormChange('tipo', v != null ? String(v) : '');
+                      setTouched(prev => ({ ...prev, tipo: false }));
+                    }}
+                    placeholder="Selecione..."
+                  />
+                  {touched.tipo && !form.tipo && (
+                    <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                      Campo obrigatorio
+                    </span>
+                  )}
                 </div>
 
                 <div className="input-group">
-                  <label>Data *</label>
+                  <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 6, display: 'block' }}>
+                    Data <span style={{ color: '#C0392B' }}>*</span>
+                  </label>
                   <input
                     type="date"
                     className="input-field"
                     value={form.data}
-                    onChange={e => handleFormChange('data', e.target.value)}
+                    onChange={e => {
+                      handleFormChange('data', e.target.value);
+                      setTouched(prev => ({ ...prev, data: false }));
+                    }}
+                    style={{
+                      ...(touched.data && !form.data ? { borderColor: '#C0392B' } : {}),
+                    }}
                   />
+                  {touched.data && !form.data && (
+                    <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                      Campo obrigatorio
+                    </span>
+                  )}
                 </div>
 
                 <div className="input-group">

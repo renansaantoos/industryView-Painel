@@ -12,6 +12,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Search,
@@ -1012,19 +1013,13 @@ export default function SafetyTraining() {
               </div>
               <div className="input-group">
                 <label>{t('safety.trainingTypes')} *</label>
-                <select
-                  className="select-field"
-                  value={trainingTypeId}
-                  onChange={(e) => setTrainingTypeId(e.target.value)}
-                >
-                  <option value="">— {t('common.type')} —</option>
-                  {trainingTypes.map((tt) => (
-                      <option key={tt.id} value={String(tt.id)}>
-                        {tt.name}
-                        {tt.nr_reference ? ` (${tt.nr_reference})` : ''}
-                      </option>
-                    ))}
-                </select>
+                <SearchableSelect
+                  options={trainingTypes.map((tt) => ({ value: String(tt.id), label: `${tt.name}${tt.nr_reference ? ` (${tt.nr_reference})` : ''}` }))}
+                  value={trainingTypeId || undefined}
+                  onChange={(val) => setTrainingTypeId(String(val ?? ''))}
+                  placeholder={`— ${t('common.type')} —`}
+                  allowClear
+                />
               </div>
               <div className="input-group">
                 <label>{t('safety.trainingDate')} *</label>

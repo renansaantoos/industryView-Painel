@@ -10,6 +10,7 @@ import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { ClipboardList, ChevronDown, ChevronUp, Search, Calendar, Filter } from 'lucide-react';
 import { formatDateTime } from '../../utils/dateUtils';
 
@@ -228,18 +229,13 @@ export default function AuditLogs() {
           {/* Action dropdown */}
           <div className="input-group" style={{ margin: 0, flex: '1 1 130px', minWidth: '120px' }}>
             <label style={{ fontSize: '12px' }}>{t('audit.action')}</label>
-            <select
-              className="select-field"
-              value={actionFilter}
-              onChange={(e) => handleFilterChange(setActionFilter, e.target.value)}
-            >
-              <option value="">{t('common.all', 'Todas')}</option>
-              {ACTION_OPTIONS.map((action) => (
-                <option key={action} value={action}>
-                  {getActionLabel(action, t)}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={ACTION_OPTIONS.map((action) => ({ value: action, label: getActionLabel(action, t) }))}
+              value={actionFilter || undefined}
+              onChange={(val) => handleFilterChange(setActionFilter, String(val ?? ''))}
+              placeholder={t('common.all', 'Todas')}
+              allowClear
+            />
           </div>
 
           {/* User ID */}

@@ -12,6 +12,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import StatusBadge from '../../components/common/StatusBadge';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { Plus, Edit, Trash2, ChevronDown, ChevronUp, Settings, ClipboardList, Award } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -525,16 +526,16 @@ export default function CommissioningManagement() {
                                           {item.due_date ? new Date(item.due_date).toLocaleDateString('pt-BR') : '-'}
                                         </td>
                                         <td style={{ padding: '8px 12px' }}>
-                                          <select
-                                            className="select-field"
+                                          <SearchableSelect
+                                            options={[
+                                              { value: 'aberto', label: 'Aberto' },
+                                              { value: 'em_andamento', label: 'Em Andamento' },
+                                              { value: 'concluido', label: 'Concluído' },
+                                            ]}
                                             value={item.status}
-                                            onChange={(e) => handleUpdatePunchStatus(item.id, e.target.value)}
-                                            style={{ fontSize: '12px', padding: '2px 6px', minWidth: '120px' }}
-                                          >
-                                            <option value="aberto">Aberto</option>
-                                            <option value="em_andamento">Em Andamento</option>
-                                            <option value="concluido">Concluído</option>
-                                          </select>
+                                            onChange={(val) => handleUpdatePunchStatus(item.id, String(val ?? 'aberto'))}
+                                            style={{ fontSize: '12px', minWidth: '120px' }}
+                                          />
                                         </td>
                                       </tr>
                                     ))}
@@ -698,17 +699,18 @@ export default function CommissioningManagement() {
                 </div>
                 <div className="input-group">
                   <label>Prioridade</label>
-                  <select
-                    className="select-field"
-                    value={punchPriority}
-                    onChange={(e) => setPunchPriority(e.target.value)}
-                  >
-                    <option value="">Selecione</option>
-                    <option value="baixa">Baixa</option>
-                    <option value="media">Média</option>
-                    <option value="alta">Alta</option>
-                    <option value="critica">Crítica</option>
-                  </select>
+                  <SearchableSelect
+                    options={[
+                      { value: 'baixa', label: 'Baixa' },
+                      { value: 'media', label: 'Média' },
+                      { value: 'alta', label: 'Alta' },
+                      { value: 'critica', label: 'Crítica' },
+                    ]}
+                    value={punchPriority || undefined}
+                    onChange={(val) => setPunchPriority(String(val ?? ''))}
+                    placeholder="Selecione"
+                    allowClear
+                  />
                 </div>
               </div>
               <div className="input-group">

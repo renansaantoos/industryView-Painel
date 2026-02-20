@@ -12,6 +12,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   ChevronDown,
@@ -341,38 +342,24 @@ export default function WorkPermits() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div className="input-group" style={{ margin: 0, minWidth: '200px' }}>
-          <select
-            className="select-field"
-            value={filterType}
-            onChange={(e) => {
-              setFilterType(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('workPermits.allTypes')}</option>
-            {PERMIT_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            options={PERMIT_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+            value={filterType || undefined}
+            onChange={(val) => { setFilterType(String(val ?? '')); setPage(1); }}
+            placeholder={t('workPermits.allTypes')}
+            allowClear
+            style={{ minWidth: '200px' }}
+          />
         </div>
         <div className="input-group" style={{ margin: 0, minWidth: '200px' }}>
-          <select
-            className="select-field"
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('workPermits.allStatuses')}</option>
-            {Object.entries(STATUS_COLOR_MAP).map(([value, cfg]) => (
-              <option key={value} value={value}>
-                {cfg.label}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            options={Object.entries(STATUS_COLOR_MAP).map(([value, cfg]) => ({ value, label: cfg.label }))}
+            value={filterStatus || undefined}
+            onChange={(val) => { setFilterStatus(String(val ?? '')); setPage(1); }}
+            placeholder={t('workPermits.allStatuses')}
+            allowClear
+            style={{ minWidth: '200px' }}
+          />
         </div>
       </div>
 
@@ -695,34 +682,26 @@ export default function WorkPermits() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="input-group">
                 <label>{t('common.project')} *</label>
-                <select
-                  className={`select-field${createErrors.project ? ' error' : ''}`}
-                  value={createProjectId}
-                  onChange={(e) => {
-                    setCreateProjectId(e.target.value ? Number(e.target.value) : '');
+                <SearchableSelect
+                  options={allProjects.map((p) => ({ value: p.id, label: p.name }))}
+                  value={createProjectId || undefined}
+                  onChange={(val) => {
+                    setCreateProjectId(val !== undefined ? Number(val) : '');
                     if (createErrors.project) setCreateErrors((prev) => { const { project, ...rest } = prev; return rest; });
                   }}
-                >
-                  <option value="">{t('workPermits.selectProject')}</option>
-                  {allProjects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                  placeholder={t('workPermits.selectProject')}
+                  allowClear
+                  style={createErrors.project ? { border: '1px solid var(--color-error)', borderRadius: '6px' } : {}}
+                />
                 {createErrors.project && <span className="input-error">{createErrors.project}</span>}
               </div>
               <div className="input-group">
                 <label>{t('workPermits.type')} *</label>
-                <select
-                  className="select-field"
+                <SearchableSelect
+                  options={PERMIT_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
                   value={createType}
-                  onChange={(e) => setCreateType(e.target.value)}
-                >
-                  {PERMIT_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setCreateType(String(val ?? ''))}
+                />
               </div>
               <div className="input-group">
                 <label>{t('workPermits.location')} *</label>

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { qualityApi } from '../../services';
 import type { Document, DocumentAcknowledgment } from '../../types';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -331,29 +332,25 @@ export default function DocumentManagement() {
               </div>
 
               <div className="input-group" style={{ flex: '1 1 180px', minWidth: '160px' }}>
-                <select
-                  className="select-field"
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                >
-                  <option value="">Todos os tipos</option>
-                  {DOC_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={DOC_TYPE_OPTIONS.map((t) => ({ value: t, label: t }))}
+                  value={filterType || undefined}
+                  onChange={(val) => setFilterType(String(val ?? ''))}
+                  placeholder="Todos os tipos"
+                  allowClear
+                  style={{ minWidth: '160px' }}
+                />
               </div>
 
               <div className="input-group" style={{ flex: '1 1 160px', minWidth: '140px' }}>
-                <select
-                  className="select-field"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="">Todos os status</option>
-                  {DOC_STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{DOC_STATUS_MAP[s]?.label || s}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={DOC_STATUS_OPTIONS.map((s) => ({ value: s, label: DOC_STATUS_MAP[s]?.label || s }))}
+                  value={filterStatus || undefined}
+                  onChange={(val) => setFilterStatus(String(val ?? ''))}
+                  placeholder="Todos os status"
+                  allowClear
+                  style={{ minWidth: '140px' }}
+                />
               </div>
 
               {hasActiveFilters && (
@@ -649,16 +646,13 @@ export default function DocumentManagement() {
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
                     Tipo de Documento
                   </label>
-                  <select
-                    className="select-field"
-                    value={form.document_type}
-                    onChange={(e) => setForm((f) => ({ ...f, document_type: e.target.value }))}
-                  >
-                    <option value="">Selecionar tipo</option>
-                    {DOC_TYPE_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={DOC_TYPE_OPTIONS.map((t) => ({ value: t, label: t }))}
+                    value={form.document_type || undefined}
+                    onChange={(val) => setForm((f) => ({ ...f, document_type: String(val ?? '') }))}
+                    placeholder="Selecionar tipo"
+                    allowClear
+                  />
                 </div>
 
                 <div className="input-group" style={{ flex: 1 }}>

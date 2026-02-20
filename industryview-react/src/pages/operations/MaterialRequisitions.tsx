@@ -12,6 +12,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
 import ApprovalActions from '../../components/common/ApprovalActions';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { Plus, ChevronDown, ChevronUp, ShoppingCart, Trash2, X } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -434,17 +435,18 @@ export default function MaterialRequisitions() {
                 </div>
                 <div className="input-group" style={{ marginBottom: 0, minWidth: '140px' }}>
                   <label>Prioridade</label>
-                  <select
-                    className="select-field"
-                    value={createPriority}
-                    onChange={(e) => setCreatePriority(e.target.value)}
-                  >
-                    <option value="">Selecione</option>
-                    <option value="baixa">Baixa</option>
-                    <option value="media">Média</option>
-                    <option value="alta">Alta</option>
-                    <option value="urgente">Urgente</option>
-                  </select>
+                  <SearchableSelect
+                    options={[
+                      { value: 'baixa', label: 'Baixa' },
+                      { value: 'media', label: 'Média' },
+                      { value: 'alta', label: 'Alta' },
+                      { value: 'urgente', label: 'Urgente' },
+                    ]}
+                    value={createPriority || undefined}
+                    onChange={(val) => setCreatePriority(String(val ?? ''))}
+                    placeholder="Selecione"
+                    allowClear
+                  />
                 </div>
               </div>
             </div>

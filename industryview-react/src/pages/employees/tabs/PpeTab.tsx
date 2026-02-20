@@ -18,9 +18,19 @@ type DeliveryStatus = 'ativo' | 'vencido' | 'devolvido';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function computeExpiry(delivery: PpeDelivery): string | null {
+  const months = delivery.ppe_type?.validity_months;
+  if (!months || !delivery.delivery_date) return null;
+  const d = new Date(delivery.delivery_date);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString();
+}
+
 function computeDeliveryStatus(delivery: PpeDelivery): DeliveryStatus {
   if (delivery.returned || delivery.return_date) return 'devolvido';
-  if (delivery.expiry_date && new Date(delivery.expiry_date) < new Date()) return 'vencido';
+  // Use expiry_date from the enriched endpoint when available, fall back to local computation
+  const expiry = delivery.expiry_date ?? computeExpiry(delivery);
+  if (expiry && new Date(expiry) < new Date()) return 'vencido';
   return 'ativo';
 }
 
@@ -33,14 +43,6 @@ const STATUS_CONFIG: Record<DeliveryStatus, { label: string; bg: string; color: 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('pt-BR');
-}
-
-function computeExpiry(delivery: PpeDelivery): string | null {
-  const months = delivery.ppe_type?.validity_months;
-  if (!months || !delivery.delivery_date) return null;
-  const d = new Date(delivery.delivery_date);
-  d.setMonth(d.getMonth() + months);
-  return d.toISOString();
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -148,16 +150,11 @@ export default function PpeTab({ usersId }: PpeTabProps) {
     }
   };
 
-  // Derive summary counts from ppeStatus or fall back to local computation
-  const ppeItems = ppeStatus?.ppe_items ?? [];
-  const summaryTotal    = ppeItems.length || totalItems;
-  const summaryActive   = ppeItems.length
-    ? ppeItems.filter((i) => i.status === 'ok').length
-    : deliveries.filter((d) => computeDeliveryStatus(d) === 'ativo').length;
-  const summaryExpired  = ppeItems.length
-    ? ppeItems.filter((i) => i.status === 'vencido').length
-    : deliveries.filter((d) => computeDeliveryStatus(d) === 'vencido').length;
-  const summaryReturned = deliveries.filter((d) => computeDeliveryStatus(d) === 'devolvido').length;
+  // Use backend-provided counts (covers ALL deliveries, not just the current page)
+  const summaryTotal    = ppeStatus?.total_deliveries ?? totalItems;
+  const summaryActive   = ppeStatus?.active ?? 0;
+  const summaryExpired  = ppeStatus?.expired ?? 0;
+  const summaryReturned = ppeStatus?.returned ?? 0;
 
   if (loading) return <LoadingSpinner />;
 

@@ -14,6 +14,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Edit,
@@ -731,20 +732,12 @@ export default function ChecklistManagement() {
                       />
 
                       {/* Type */}
-                      <select
-                        className="select-field"
+                      <SearchableSelect
+                        options={Object.entries(ITEM_TYPE_LABELS).map(([val, label]) => ({ value: val, label }))}
                         value={item.item_type}
-                        onChange={(e) =>
-                          updateDraftItem(item._key, { item_type: e.target.value as ItemType })
-                        }
-                        style={{ padding: '4px 6px', fontSize: '13px' }}
-                      >
-                        {Object.entries(ITEM_TYPE_LABELS).map(([val, label]) => (
-                          <option key={val} value={val}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => updateDraftItem(item._key, { item_type: String(val ?? '') as ItemType })}
+                        style={{ fontSize: '13px' }}
+                      />
 
                       {/* Required */}
                       <label

@@ -29,7 +29,7 @@ export class WorkforceService {
    * Lista logs diarios de mao de obra com paginacao e filtros
    */
   static async listDailyLogs(input: ListDailyLogsInput) {
-    const { projects_id, teams_id, date, page, per_page } = input;
+    const { projects_id, teams_id, users_id, date, page, per_page } = input;
     const company_id = (input as any).company_id;
     const skip = (page - 1) * per_page;
 
@@ -43,9 +43,15 @@ export class WorkforceService {
       whereClause.teams_id = BigInt(teams_id);
     }
 
-    // Isolamento multi-tenant via projects.company_id
+    if (users_id) {
+      whereClause.users_id = BigInt(users_id);
+    }
+
+    // Isolamento multi-tenant via worker.company_id
+    // Filtra pelo company_id do usuario (worker), evitando dependencia de projects_id
+    // que agora e opcional. Isso garante que logs sem projeto tambem sejam retornados.
     if (company_id && !projects_id) {
-      whereClause.projects = { company_id: BigInt(company_id) };
+      whereClause.worker = { company_id: BigInt(company_id) };
     }
 
     if (date) {
@@ -83,15 +89,40 @@ export class WorkforceService {
       throw new BadRequestError('registered_by_user_id e obrigatorio para criar um log.');
     }
 
+    // Parse check_in/check_out se fornecidos
+    let checkInDate: Date | null = null;
+    let checkOutDate: Date | null = null;
+    let hoursNormal = input.hours_normal ?? 0;
+    let hoursOvertime = input.hours_overtime ?? 0;
+
+    if (input.check_in) {
+      const parsed = new Date(input.check_in);
+      if (!isNaN(parsed.getTime())) checkInDate = parsed;
+    }
+    if (input.check_out) {
+      const parsed = new Date(input.check_out);
+      if (!isNaN(parsed.getTime())) checkOutDate = parsed;
+    }
+
+    // Calcula horas automaticamente se check_in e check_out fornecidos
+    // e nenhuma hora foi informada explicitamente pelo usuario
+    if (checkInDate && checkOutDate && checkOutDate > checkInDate && !input.hours_normal) {
+      const diffHours = (checkOutDate.getTime() - checkInDate.getTime()) / 3600000;
+      hoursNormal = Math.min(diffHours, 8);
+      hoursOvertime = Math.max(0, diffHours - 8);
+    }
+
     return db.workforce_daily_log.create({
       data: {
-        projects_id: BigInt(input.projects_id),
+        projects_id: input.projects_id ? BigInt(input.projects_id) : null,
         users_id: BigInt(input.users_id),
         teams_id: input.teams_id ? BigInt(input.teams_id) : null,
         log_date: new Date(input.log_date),
+        check_in: checkInDate,
+        check_out: checkOutDate,
         status: input.status ?? 'presente',
-        hours_normal: input.hours_normal ?? 0,
-        hours_overtime: input.hours_overtime ?? 0,
+        hours_normal: hoursNormal,
+        hours_overtime: hoursOvertime,
         registered_by_user_id: BigInt(registered_by_user_id),
       },
       include: {
@@ -114,14 +145,45 @@ export class WorkforceService {
       throw new NotFoundError('Log diario nao encontrado.');
     }
 
+    // Parse check_in/check_out se fornecidos no update
+    let checkInDate: Date | null | undefined = undefined;
+    let checkOutDate: Date | null | undefined = undefined;
+
+    if (input.check_in !== undefined) {
+      checkInDate = input.check_in ? new Date(input.check_in) : null;
+      if (checkInDate && isNaN(checkInDate.getTime())) checkInDate = null;
+    }
+    if (input.check_out !== undefined) {
+      checkOutDate = input.check_out ? new Date(input.check_out) : null;
+      if (checkOutDate && isNaN(checkOutDate.getTime())) checkOutDate = null;
+    }
+
+    // Recalcula horas se ambos check_in e check_out foram atualizados
+    // e nenhuma hora foi informada explicitamente
+    let hoursNormal = input.hours_normal;
+    let hoursOvertime = input.hours_overtime;
+
+    if (
+      checkInDate instanceof Date &&
+      checkOutDate instanceof Date &&
+      checkOutDate > checkInDate &&
+      input.hours_normal === undefined
+    ) {
+      const diffHours = (checkOutDate.getTime() - checkInDate.getTime()) / 3600000;
+      hoursNormal = Math.min(diffHours, 8);
+      hoursOvertime = Math.max(0, diffHours - 8);
+    }
+
     return db.workforce_daily_log.update({
       where: { id: BigInt(id) },
       data: {
         teams_id: input.teams_id ? BigInt(input.teams_id) : undefined,
         log_date: input.log_date ? new Date(input.log_date) : undefined,
         status: input.status,
-        hours_normal: input.hours_normal,
-        hours_overtime: input.hours_overtime,
+        hours_normal: hoursNormal,
+        hours_overtime: hoursOvertime,
+        ...(checkInDate !== undefined && { check_in: checkInDate }),
+        ...(checkOutDate !== undefined && { check_out: checkOutDate }),
         updated_at: new Date(),
       },
     });
@@ -224,14 +286,18 @@ export class WorkforceService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const existingLogWhere: any = {
+      users_id: BigInt(input.users_id),
+      log_date: { gte: today, lt: tomorrow },
+      check_in: { not: null },
+      check_out: null,
+    };
+    if (input.projects_id) {
+      existingLogWhere.projects_id = BigInt(input.projects_id);
+    }
+
     const existingLog = await db.workforce_daily_log.findFirst({
-      where: {
-        users_id: BigInt(input.users_id),
-        projects_id: BigInt(input.projects_id),
-        log_date: { gte: today, lt: tomorrow },
-        check_in: { not: null },
-        check_out: null,
-      },
+      where: existingLogWhere,
     });
 
     if (existingLog) {
@@ -240,7 +306,7 @@ export class WorkforceService {
 
     return db.workforce_daily_log.create({
       data: {
-        projects_id: BigInt(input.projects_id),
+        projects_id: input.projects_id ? BigInt(input.projects_id) : null,
         users_id: BigInt(input.users_id),
         teams_id: input.teams_id ? BigInt(input.teams_id) : null,
         log_date: today,
@@ -298,6 +364,93 @@ export class WorkforceService {
         teams: { select: { id: true, name: true } },
       },
     });
+  }
+  /**
+   * Importa registros de ponto a partir de dados parseados de Excel
+   */
+  static async importFromExcel(
+    rows: { log_date: string; check_in?: string; check_out?: string; status?: string; observation?: string }[],
+    users_id: number,
+    projects_id: number | null,
+    registered_by_user_id: number,
+  ) {
+    const results: { imported: number; errors: { row: number; message: string }[] } = {
+      imported: 0,
+      errors: [],
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // Excel row (1-indexed header + data)
+
+      try {
+        if (!row.log_date) {
+          results.errors.push({ row: rowNum, message: 'Data e obrigatoria' });
+          continue;
+        }
+
+        const logDate = new Date(row.log_date);
+        if (isNaN(logDate.getTime())) {
+          results.errors.push({ row: rowNum, message: `Data invalida: ${row.log_date}` });
+          continue;
+        }
+
+        let checkInDate: Date | undefined;
+        let checkOutDate: Date | undefined;
+        let hoursNormal = 0;
+        let hoursOvertime = 0;
+
+        if (row.check_in) {
+          const [h, m] = row.check_in.split(':').map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            checkInDate = new Date(logDate);
+            checkInDate.setHours(h, m, 0, 0);
+          }
+        }
+
+        if (row.check_out) {
+          const [h, m] = row.check_out.split(':').map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            checkOutDate = new Date(logDate);
+            checkOutDate.setHours(h, m, 0, 0);
+          }
+        }
+
+        // Calculate hours if both check_in and check_out exist
+        if (checkInDate && checkOutDate && checkOutDate > checkInDate) {
+          const diffHours = (checkOutDate.getTime() - checkInDate.getTime()) / 3600000;
+          hoursNormal = Math.min(diffHours, 8);
+          hoursOvertime = Math.max(0, diffHours - 8);
+        }
+
+        const status = row.status?.trim().toLowerCase() || 'presente';
+        const validStatuses = ['presente', 'ausente', 'meio_periodo'];
+        if (!validStatuses.includes(status)) {
+          results.errors.push({ row: rowNum, message: `Status invalido: ${row.status}. Use: presente, ausente, meio_periodo` });
+          continue;
+        }
+
+        await db.workforce_daily_log.create({
+          data: {
+            projects_id: projects_id ? BigInt(projects_id) : null,
+            users_id: BigInt(users_id),
+            log_date: logDate,
+            check_in: checkInDate ?? null,
+            check_out: checkOutDate ?? null,
+            hours_normal: hoursNormal,
+            hours_overtime: hoursOvertime,
+            status,
+            registered_by_user_id: BigInt(registered_by_user_id),
+          },
+        });
+
+        results.imported++;
+      } catch (err: any) {
+        results.errors.push({ row: rowNum, message: err.message || 'Erro desconhecido' });
+      }
+    }
+
+    return results;
   }
 }
 

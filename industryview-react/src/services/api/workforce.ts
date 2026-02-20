@@ -61,3 +61,17 @@ export async function getHistogram(params: {
   const response = await apiClient.get(`${BASE}/histogram`, { params });
   return response.data;
 }
+
+/** Import time tracking entries from Excel file */
+export async function importTimesheet(
+  file: File,
+  users_id: number,
+): Promise<{ imported: number; errors: { row: number; message: string }[] }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('users_id', String(users_id));
+  const response = await apiClient.post(`${BASE}/import`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}

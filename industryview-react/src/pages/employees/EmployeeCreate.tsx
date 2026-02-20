@@ -6,6 +6,7 @@ import { pageVariants, fadeUpChild } from '../../lib/motion';
 import { usersApi, employeesApi } from '../../services';
 import type { EmployeeHrData } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -413,12 +414,14 @@ export default function EmployeeCreate() {
   function selectInput(field: keyof HrFormData, options: { value: string; label: string }[], placeholder?: string) {
     const err = fieldErrors[field];
     return (
-      <select className={`select-field${err ? ' error' : ''}`}
-        value={(form[field] as string | undefined) ?? ''}
-        onChange={e => handleChange(field, e.target.value)}>
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-      </select>
+      <SearchableSelect
+        options={options}
+        value={(form[field] as string | undefined) || undefined}
+        onChange={(val) => handleChange(field, String(val ?? ''))}
+        placeholder={placeholder}
+        allowClear
+        style={err ? { border: '1px solid var(--color-error)', borderRadius: '6px' } : {}}
+      />
     );
   }
 

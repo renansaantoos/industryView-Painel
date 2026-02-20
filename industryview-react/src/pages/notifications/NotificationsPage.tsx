@@ -10,6 +10,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import { Bell, BellOff, Trash2, CheckCheck, Filter } from 'lucide-react';
 import { formatDateTime } from '../../utils/dateUtils';
 
@@ -179,19 +180,14 @@ export default function NotificationsPage() {
         </div>
 
         {/* Type dropdown */}
-        <select
-          className="select-field"
-          value={typeFilter}
-          onChange={(e) => handleFilterChange('type', e.target.value)}
+        <SearchableSelect
+          options={NOTIFICATION_TYPES.map((type) => ({ value: type, label: type.charAt(0).toUpperCase() + type.slice(1) }))}
+          value={typeFilter || undefined}
+          onChange={(val) => handleFilterChange('type', String(val ?? ''))}
+          placeholder={t('common.allTypes', 'Todos os tipos')}
+          allowClear
           style={{ minWidth: '160px' }}
-        >
-          <option value="">{t('common.allTypes', 'Todos os tipos')}</option>
-          {NOTIFICATION_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </option>
-          ))}
-        </select>
+        />
 
         {/* Read status toggle */}
         <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--color-alternate)' }}>

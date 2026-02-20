@@ -10,6 +10,7 @@ import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Trash2,
@@ -634,19 +635,11 @@ export default function PlanningBaseline() {
               </div>
               <div className="input-group">
                 <label>Tipo de Dependência</label>
-                <select
-                  className="select-field"
+                <SearchableSelect
+                  options={Object.entries(DEPENDENCY_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
                   value={depType}
-                  onChange={(e) =>
-                    setDepType(e.target.value as TaskDependency['dependency_type'])
-                  }
-                >
-                  {Object.entries(DEPENDENCY_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setDepType(String(val ?? '') as TaskDependency['dependency_type'])}
+                />
               </div>
               <div className="input-group">
                 <label>Lag (dias)</label>

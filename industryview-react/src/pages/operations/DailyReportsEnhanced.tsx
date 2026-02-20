@@ -12,6 +12,7 @@ import type {
   DailyReportEquipment,
 } from '../../types';
 import type { Project } from '../../types';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -867,20 +868,26 @@ export default function DailyReportsEnhanced() {
             ? undefined
             : (selectedReport.shift || '-'),
             editable && editingHeader
-              ? <select className="select-field" value={headerForm.shift || ''} onChange={(e) => setHeaderForm((p) => ({ ...p, shift: e.target.value }))}>
-                  <option value="">Selecione</option>
-                  {SHIFT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+              ? <SearchableSelect
+                  options={SHIFT_OPTIONS.map((s) => ({ value: s, label: s }))}
+                  value={headerForm.shift || undefined}
+                  onChange={(val) => setHeaderForm((p) => ({ ...p, shift: String(val ?? '') }))}
+                  placeholder="Selecione"
+                  allowClear
+                />
               : undefined,
           )}
           {renderInfoField('Clima', editable && editingHeader
             ? undefined
             : (selectedReport.weather || '-'),
             editable && editingHeader
-              ? <select className="select-field" value={headerForm.weather || ''} onChange={(e) => setHeaderForm((p) => ({ ...p, weather: e.target.value }))}>
-                  <option value="">Selecione</option>
-                  {WEATHER_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
-                </select>
+              ? <SearchableSelect
+                  options={WEATHER_OPTIONS.map((w) => ({ value: w, label: w }))}
+                  value={headerForm.weather || undefined}
+                  onChange={(val) => setHeaderForm((p) => ({ ...p, weather: String(val ?? '') }))}
+                  placeholder="Selecione"
+                  allowClear
+                />
               : undefined,
           )}
           {renderInfoField('Temp. Min (°C)', editable && editingHeader
@@ -1381,17 +1388,18 @@ export default function DailyReportsEnhanced() {
         </div>
         <div className="input-group" style={{ margin: 0, flex: '0 0 160px' }}>
           <label style={{ fontSize: '12px' }}>Status</label>
-          <select
-            className="select-field"
-            value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-          >
-            <option value="">Todos</option>
-            <option value="rascunho">Rascunho</option>
-            <option value="finalizado">Finalizado</option>
-            <option value="aprovado">Aprovado</option>
-            <option value="rejeitado">Rejeitado</option>
-          </select>
+          <SearchableSelect
+            options={[
+              { value: 'rascunho', label: 'Rascunho' },
+              { value: 'finalizado', label: 'Finalizado' },
+              { value: 'aprovado', label: 'Aprovado' },
+              { value: 'rejeitado', label: 'Rejeitado' },
+            ]}
+            value={filterStatus || undefined}
+            onChange={(val) => { setFilterStatus(String(val ?? '')); setPage(1); }}
+            placeholder="Todos"
+            allowClear
+          />
         </div>
         {(filterInitialDate || filterFinalDate || filterStatus) && (
           <button
@@ -1569,16 +1577,13 @@ export default function DailyReportsEnhanced() {
               {!projectsInfo && (
                 <div className="input-group">
                   <label>Projeto *</label>
-                  <select
-                    className="select-field"
-                    value={createForm.projects_id}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, projects_id: e.target.value ? Number(e.target.value) : '' }))}
-                  >
-                    <option value="">Selecione um projeto</option>
-                    {projects.map((proj) => (
-                      <option key={proj.id} value={proj.id}>{proj.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    options={projects.map((proj) => ({ value: proj.id, label: proj.name }))}
+                    value={createForm.projects_id || undefined}
+                    onChange={(val) => setCreateForm((p) => ({ ...p, projects_id: val !== undefined ? Number(val) : '' }))}
+                    placeholder="Selecione um projeto"
+                    allowClear
+                  />
                 </div>
               )}
               <div className="input-group">
@@ -1593,25 +1598,23 @@ export default function DailyReportsEnhanced() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>Turno</label>
-                  <select
-                    className="select-field"
-                    value={createForm.shift}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, shift: e.target.value }))}
-                  >
-                    <option value="">Selecione</option>
-                    {SHIFT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={SHIFT_OPTIONS.map((s) => ({ value: s, label: s }))}
+                    value={createForm.shift || undefined}
+                    onChange={(val) => setCreateForm((p) => ({ ...p, shift: String(val ?? '') }))}
+                    placeholder="Selecione"
+                    allowClear
+                  />
                 </div>
                 <div className="input-group">
                   <label>Clima</label>
-                  <select
-                    className="select-field"
-                    value={createForm.weather}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, weather: e.target.value }))}
-                  >
-                    <option value="">Selecione</option>
-                    {WEATHER_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={WEATHER_OPTIONS.map((w) => ({ value: w, label: w }))}
+                    value={createForm.weather || undefined}
+                    onChange={(val) => setCreateForm((p) => ({ ...p, weather: String(val ?? '') }))}
+                    placeholder="Selecione"
+                    allowClear
+                  />
                 </div>
                 <div className="input-group">
                   <label>Temp. Mín (°C)</label>

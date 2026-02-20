@@ -7,6 +7,7 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmModal from '../../../components/common/ConfirmModal';
+import SearchableSelect from '../../../components/common/SearchableSelect';
 import { Plus, Edit, Trash2, ArrowRight, TrendingUp } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -100,6 +101,31 @@ function formatSalary(value?: number): string {
   return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 }
 
+/**
+ * Formata centavos inteiros para string monetaria pt-BR.
+ * Ex: 123456 → "1.234,56"  |  0 → ""  |  5 → "0,05"
+ */
+function centsToDisplay(cents: number): string {
+  if (cents === 0) return '';
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Converte string de display (ex: "1.234,56") de volta para centavos inteiros.
+ */
+function displayToCents(display: string): number {
+  const digits = display.replace(/\D/g, '');
+  return parseInt(digits, 10) || 0;
+}
+
+/**
+ * Converte centavos inteiros para valor decimal (para envio ao backend).
+ * Ex: 123456 → 1234.56
+ */
+function centsToDecimal(cents: number): number {
+  return cents / 100;
+}
+
 interface ChangeRowProps {
   label: string;
   before?: string;
@@ -136,6 +162,7 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
   const [actionLoading, setActionLoading] = useState(false);
 
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // ─── Data fetching ──────────────────────────────────────────────────────────
 
@@ -173,6 +200,7 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
   const openCreateModal = () => {
     setEditingItem(null);
     setForm(EMPTY_FORM);
+    setTouched({});
     setShowModal(true);
   };
 
@@ -184,12 +212,13 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
       cargo_novo: item.cargo_novo ?? '',
       departamento_anterior: item.departamento_anterior ?? '',
       departamento_novo: item.departamento_novo ?? '',
-      salario_anterior: item.salario_anterior != null ? String(item.salario_anterior) : '',
-      salario_novo: item.salario_novo != null ? String(item.salario_novo) : '',
+      salario_anterior: item.salario_anterior != null ? centsToDisplay(Math.round(item.salario_anterior * 100)) : '',
+      salario_novo: item.salario_novo != null ? centsToDisplay(Math.round(item.salario_novo * 100)) : '',
       data_efetivacao: item.data_efetivacao.slice(0, 10),
       motivo: item.motivo ?? '',
       observacoes: item.observacoes ?? '',
     });
+    setTouched({});
     setShowModal(true);
   };
 
@@ -197,15 +226,29 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
     setShowModal(false);
     setEditingItem(null);
     setForm(EMPTY_FORM);
+    setTouched({});
   };
 
   const handleFormChange = (field: keyof CareerFormData, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (value) setTouched(prev => ({ ...prev, [field]: false }));
+  };
+
+  /** Handler especial para campos de salario - estilo caixa registradora */
+  const handleSalaryChange = (field: 'salario_anterior' | 'salario_novo', raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    const cents = parseInt(digits, 10) || 0;
+    const display = centsToDisplay(cents);
+    setForm(prev => ({ ...prev, [field]: display }));
   };
 
   const handleSave = async () => {
-    if (!form.tipo || !form.data_efetivacao) {
-      showToast('Tipo e data de efetivacao sao obrigatorios.', 'error');
+    setTouched({ tipo: true, data_efetivacao: true });
+    const errors: string[] = [];
+    if (!form.tipo) errors.push('Tipo');
+    if (!form.data_efetivacao) errors.push('Data de Efetivacao');
+    if (errors.length > 0) {
+      showToast(`Preencha os campos obrigatorios: ${errors.join(', ')}`, 'error');
       return;
     }
     setModalLoading(true);
@@ -216,8 +259,8 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
         cargo_novo: form.cargo_novo || undefined,
         departamento_anterior: form.departamento_anterior || undefined,
         departamento_novo: form.departamento_novo || undefined,
-        salario_anterior: form.salario_anterior ? Number(form.salario_anterior) : undefined,
-        salario_novo: form.salario_novo ? Number(form.salario_novo) : undefined,
+        salario_anterior: form.salario_anterior ? centsToDecimal(displayToCents(form.salario_anterior)) : undefined,
+        salario_novo: form.salario_novo ? centsToDecimal(displayToCents(form.salario_novo)) : undefined,
         data_efetivacao: form.data_efetivacao,
         motivo: form.motivo || undefined,
         observacoes: form.observacoes || undefined,
@@ -472,26 +515,32 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div className="input-group" style={{ flex: 1 }}>
-                    <label>Tipo *</label>
-                    <select
-                      className="select-field"
-                      value={form.tipo}
-                      onChange={e => handleFormChange('tipo', e.target.value)}
-                    >
-                      <option value="">Selecione...</option>
-                      {(Object.keys(TIPO_LABELS) as CareerTipo[]).map(t => (
-                        <option key={t} value={t}>{TIPO_LABELS[t]}</option>
-                      ))}
-                    </select>
+                    <label>Tipo <span style={{ color: '#dc2626' }}>*</span></label>
+                    <div style={{ ...(touched.tipo && !form.tipo ? { border: '1px solid #dc2626', borderRadius: 6 } : {}) }}>
+                      <SearchableSelect
+                        options={(Object.keys(TIPO_LABELS) as CareerTipo[]).map(t => ({ value: t, label: TIPO_LABELS[t] }))}
+                        value={form.tipo || undefined}
+                        onChange={(val) => handleFormChange('tipo', String(val ?? ''))}
+                        placeholder="Selecione..."
+                        allowClear
+                      />
+                    </div>
+                    {touched.tipo && !form.tipo && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', marginTop: 2, display: 'block' }}>Campo obrigatorio</span>
+                    )}
                   </div>
                   <div className="input-group" style={{ flex: 1 }}>
-                    <label>Data de Efetivacao *</label>
+                    <label>Data de Efetivacao <span style={{ color: '#dc2626' }}>*</span></label>
                     <input
                       type="date"
                       className="input-field"
                       value={form.data_efetivacao}
                       onChange={e => handleFormChange('data_efetivacao', e.target.value)}
+                      style={{ ...(touched.data_efetivacao && !form.data_efetivacao ? { borderColor: '#dc2626' } : {}) }}
                     />
+                    {touched.data_efetivacao && !form.data_efetivacao && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', marginTop: 2, display: 'block' }}>Campo obrigatorio</span>
+                    )}
                   </div>
                 </div>
 
@@ -545,25 +594,23 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
                   <div className="input-group" style={{ flex: 1 }}>
                     <label>Salario Anterior (R$)</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       className="input-field"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
+                      placeholder="0,00"
                       value={form.salario_anterior}
-                      onChange={e => handleFormChange('salario_anterior', e.target.value)}
+                      onChange={e => handleSalaryChange('salario_anterior', e.target.value)}
                     />
                   </div>
                   <div className="input-group" style={{ flex: 1 }}>
                     <label>Salario Novo (R$)</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       className="input-field"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
+                      placeholder="0,00"
                       value={form.salario_novo}
-                      onChange={e => handleFormChange('salario_novo', e.target.value)}
+                      onChange={e => handleSalaryChange('salario_novo', e.target.value)}
                     />
                   </div>
                 </div>

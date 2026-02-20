@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../../contexts/AppStateContext';
 import { planningApi } from '../../services';
 import type { ScheduleHealthData, CurveSData, ScheduleBaseline, GanttItem } from '../../types';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
@@ -647,18 +648,12 @@ export default function CronogramaView() {
                 <label style={{ fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap' }}>
                   Baseline:
                 </label>
-                <select
-                  className="select-field"
+                <SearchableSelect
+                  options={baselines.map((b) => ({ value: b.id, label: `${b.name} — ${formatDate(b.snapshot_date)}` }))}
+                  value={selectedBaselineId ?? undefined}
+                  onChange={(val) => setSelectedBaselineId(Number(val))}
                   style={{ maxWidth: '320px' }}
-                  value={selectedBaselineId ?? ''}
-                  onChange={(e) => setSelectedBaselineId(Number(e.target.value))}
-                >
-                  {baselines.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} — {formatDate(b.snapshot_date)}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               {/* Chart */}

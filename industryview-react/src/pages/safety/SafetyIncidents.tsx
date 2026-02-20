@@ -12,6 +12,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Search,
@@ -577,39 +578,35 @@ export default function SafetyIncidents() {
         </div>
 
         {/* Severity filter */}
-        <select
-          className="select-field"
+        <SearchableSelect
+          options={[
+            { value: 'quase_acidente', label: severityLabel.quase_acidente },
+            { value: 'primeiros_socorros', label: severityLabel.primeiros_socorros },
+            { value: 'sem_afastamento', label: severityLabel.sem_afastamento },
+            { value: 'com_afastamento', label: severityLabel.com_afastamento },
+            { value: 'fatal', label: severityLabel.fatal },
+          ]}
+          value={filterSeverity || undefined}
+          onChange={(val) => { setFilterSeverity(String(val ?? '')); handleFilterChange(); }}
+          placeholder={`${t('common.severity')} — ${t('common.filter')}`}
+          allowClear
           style={{ maxWidth: '180px' }}
-          value={filterSeverity}
-          onChange={(e) => {
-            setFilterSeverity(e.target.value);
-            handleFilterChange();
-          }}
-        >
-          <option value="">{t('common.severity')} — {t('common.filter')}</option>
-          <option value="quase_acidente">{severityLabel.quase_acidente}</option>
-          <option value="primeiros_socorros">{severityLabel.primeiros_socorros}</option>
-          <option value="sem_afastamento">{severityLabel.sem_afastamento}</option>
-          <option value="com_afastamento">{severityLabel.com_afastamento}</option>
-          <option value="fatal">{severityLabel.fatal}</option>
-        </select>
+        />
 
         {/* Status filter */}
-        <select
-          className="select-field"
+        <SearchableSelect
+          options={[
+            { value: 'registrado', label: statusLabel.registrado },
+            { value: 'em_investigacao', label: statusLabel.em_investigacao },
+            { value: 'investigado', label: statusLabel.investigado },
+            { value: 'encerrado', label: statusLabel.encerrado },
+          ]}
+          value={filterStatus || undefined}
+          onChange={(val) => { setFilterStatus(String(val ?? '')); handleFilterChange(); }}
+          placeholder={`${t('common.status')} — ${t('common.filter')}`}
+          allowClear
           style={{ maxWidth: '180px' }}
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            handleFilterChange();
-          }}
-        >
-          <option value="">{t('common.status')} — {t('common.filter')}</option>
-          <option value="registrado">{statusLabel.registrado}</option>
-          <option value="em_investigacao">{statusLabel.em_investigacao}</option>
-          <option value="investigado">{statusLabel.investigado}</option>
-          <option value="encerrado">{statusLabel.encerrado}</option>
-        </select>
+        />
 
         {/* Date range */}
         <input
@@ -1074,17 +1071,14 @@ export default function SafetyIncidents() {
               {/* Project dropdown */}
               <div className="input-group">
                 <label>{t('common.project', 'Projeto')} <span style={{ color: '#C0392B' }}>*</span></label>
-                <select
-                  className="select-field"
-                  value={formProjectId}
-                  onChange={(e) => setFormProjectId(e.target.value ? Number(e.target.value) : '')}
+                <SearchableSelect
+                  options={allProjects.map((p) => ({ value: p.id, label: p.name }))}
+                  value={formProjectId || undefined}
+                  onChange={(val) => setFormProjectId(val !== undefined ? Number(val) : '')}
+                  placeholder={t('safety.selectProject', 'Selecione um projeto...')}
+                  allowClear
                   style={formTouched && formErrors.project ? { borderColor: '#C0392B' } : {}}
-                >
-                  <option value="">{t('safety.selectProject', 'Selecione um projeto...')}</option>
-                  {allProjects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                />
                 {formTouched && formErrors.project && (
                   <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.project}</span>
                 )}
@@ -1125,31 +1119,32 @@ export default function SafetyIncidents() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>{t('safety.severity', 'Severidade')} <span style={{ color: '#C0392B' }}>*</span></label>
-                  <select
-                    className="select-field"
+                  <SearchableSelect
+                    options={[
+                      { value: 'quase_acidente', label: severityLabel.quase_acidente },
+                      { value: 'primeiros_socorros', label: severityLabel.primeiros_socorros },
+                      { value: 'sem_afastamento', label: severityLabel.sem_afastamento },
+                      { value: 'com_afastamento', label: severityLabel.com_afastamento },
+                      { value: 'fatal', label: severityLabel.fatal },
+                    ]}
                     value={formSeverity}
-                    onChange={(e) => setFormSeverity(e.target.value as Severity)}
-                  >
-                    <option value="quase_acidente">{severityLabel.quase_acidente}</option>
-                    <option value="primeiros_socorros">{severityLabel.primeiros_socorros}</option>
-                    <option value="sem_afastamento">{severityLabel.sem_afastamento}</option>
-                    <option value="com_afastamento">{severityLabel.com_afastamento}</option>
-                    <option value="fatal">{severityLabel.fatal}</option>
-                  </select>
+                    onChange={(val) => setFormSeverity((val as Severity) ?? 'quase_acidente')}
+                  />
                 </div>
                 <div className="input-group">
                   <label>{t('safety.classification', 'Classificacao')} <span style={{ color: '#C0392B' }}>*</span></label>
-                  <select
-                    className="select-field"
-                    value={formClassification}
-                    onChange={(e) => setFormClassification(e.target.value as Classification)}
+                  <SearchableSelect
+                    options={[
+                      { value: 'tipico', label: classificationLabel.tipico },
+                      { value: 'trajeto', label: classificationLabel.trajeto },
+                      { value: 'doenca_ocupacional', label: classificationLabel.doenca_ocupacional },
+                    ]}
+                    value={formClassification || undefined}
+                    onChange={(val) => setFormClassification((val as Classification) ?? '')}
+                    placeholder={t('common.select', 'Selecione...')}
+                    allowClear
                     style={formTouched && formErrors.classification ? { borderColor: '#C0392B' } : {}}
-                  >
-                    <option value="">{t('common.select', 'Selecione...')}</option>
-                    <option value="tipico">{classificationLabel.tipico}</option>
-                    <option value="trajeto">{classificationLabel.trajeto}</option>
-                    <option value="doenca_ocupacional">{classificationLabel.doenca_ocupacional}</option>
-                  </select>
+                  />
                   {formTouched && formErrors.classification && (
                     <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.classification}</span>
                   )}
@@ -1185,16 +1180,13 @@ export default function SafetyIncidents() {
               {/* Involved user (optional) */}
               <div className="input-group">
                 <label>{t('safety.involvedUser', 'Funcionario Envolvido')}</label>
-                <select
-                  className="select-field"
-                  value={formInvolvedUserId}
-                  onChange={(e) => setFormInvolvedUserId(e.target.value ? Number(e.target.value) : '')}
-                >
-                  <option value="">{t('common.none', 'Nenhum')}</option>
-                  {allUsers.map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={allUsers.map((u) => ({ value: u.id, label: u.name }))}
+                  value={formInvolvedUserId || undefined}
+                  onChange={(val) => setFormInvolvedUserId(val !== undefined ? Number(val) : '')}
+                  placeholder={t('common.none', 'Nenhum')}
+                  allowClear
+                />
               </div>
             </div>
 

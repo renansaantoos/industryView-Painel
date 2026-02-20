@@ -10,6 +10,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import {
   Plus,
   Edit,
@@ -312,15 +313,11 @@ function ConditionsPanel({ license, onShowToast }: ConditionsPanelProps) {
             </p>
             <div className="input-group">
               <label>Status</label>
-              <select
-                className="select-field"
+              <SearchableSelect
+                options={CONDITION_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
                 value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value as EnvironmentalCondition['status'])}
-              >
-                {CONDITION_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+                onChange={(val) => setEditStatus(String(val ?? '') as EnvironmentalCondition['status'])}
+              />
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setEditingCondition(null)}>Cancelar</button>

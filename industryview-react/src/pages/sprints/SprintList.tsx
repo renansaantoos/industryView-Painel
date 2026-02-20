@@ -10,6 +10,7 @@ import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SearchableSelect from '../../components/common/SearchableSelect';
 import ProjectSelector from '../../components/common/ProjectSelector';
 import { Plus, Search, ArrowLeft, Eye, Trash2, Calendar, Kanban } from 'lucide-react';
 import { formatTimestamp } from '../../utils/dateUtils';
@@ -314,18 +315,15 @@ export default function SprintList() {
               </div>
               <div className="input-group">
                 <label>{t('sprints.status')}</label>
-                <select
-                  className="input-field"
-                  value={newSprintStatusId ?? ''}
-                  onChange={(e) => setNewSprintStatusId(e.target.value ? Number(e.target.value) : undefined)}
-                >
-                  <option value="">{t('sprints.selectStatus')}</option>
-                  {sprintStatuses
+                <SearchableSelect
+                  options={sprintStatuses
                     .filter((s) => s.status === 'Futura' || s.status === 'Ativa')
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>{s.status}</option>
-                    ))}
-                </select>
+                    .map((s) => ({ value: s.id, label: s.status }))}
+                  value={newSprintStatusId}
+                  onChange={(val) => setNewSprintStatusId(val !== undefined ? Number(val) : undefined)}
+                  placeholder={t('sprints.selectStatus')}
+                  allowClear
+                />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
