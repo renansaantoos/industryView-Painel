@@ -46,6 +46,7 @@ export const createHealthRecordSchema = z.object({
   physician_name: z.string().trim().optional(),
   physician_crm: z.string().trim().optional(),
   file_url: z.string().trim().optional(),
+  observation: z.string().trim().optional(),
 });
 
 export const updateHealthRecordSchema = z.object({
@@ -57,6 +58,7 @@ export const updateHealthRecordSchema = z.object({
   physician_name: z.string().trim().optional(),
   physician_crm: z.string().trim().optional(),
   file_url: z.string().trim().optional(),
+  observation: z.string().trim().optional(),
 });
 
 export const checkWorkerFitnessSchema = z.object({

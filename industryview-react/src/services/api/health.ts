@@ -69,6 +69,7 @@ export async function createRecord(data: {
     physician_name: data.doctor_name,
     physician_crm: data.crm,
     file_url: data.file_url,
+    observation: data.observation,
   };
   const response = await apiClient.post(`${BASE}/records`, payload);
   return response.data;
@@ -79,6 +80,11 @@ export async function updateRecord(id: number, data: Record<string, unknown>): P
   if ('doctor_name' in payload) { payload.physician_name = payload.doctor_name; delete payload.doctor_name; }
   if ('crm' in payload) { payload.physician_crm = payload.crm; delete payload.crm; }
   if ('restriction_description' in payload) { payload.restrictions = payload.restriction_description; delete payload.restriction_description; }
+  if ('observation' in payload) { payload.observation = payload.observation; }
   const response = await apiClient.patch(`${BASE}/records/${id}`, payload);
   return response.data;
+}
+
+export async function deleteRecord(id: number): Promise<void> {
+  await apiClient.delete(`${BASE}/records/${id}`);
 }

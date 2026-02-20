@@ -17,6 +17,7 @@ router.get('/records', authenticate, HealthController.listRecords);
 router.post('/records', authenticate, HealthController.createRecord);
 router.get('/records/:id', authenticate, HealthController.getRecordById);
 router.patch('/records/:id', authenticate, HealthController.updateRecord);
+router.delete('/records/:id', authenticate, HealthController.deleteRecord);
 
 export { router as healthRoutes };
 export default router;

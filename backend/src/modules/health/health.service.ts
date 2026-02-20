@@ -123,6 +123,7 @@ export class HealthService {
         physician_name: input.physician_name ?? null,
         physician_crm: input.physician_crm ?? null,
         file_url: input.file_url ?? null,
+        observation: input.observation ?? null,
       },
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -153,8 +154,26 @@ export class HealthService {
         physician_name: input.physician_name,
         physician_crm: input.physician_crm,
         file_url: input.file_url,
+        observation: input.observation,
         updated_at: new Date(),
       },
+    });
+  }
+
+  /**
+   * Remove registro de saude (hard delete - tabela nao tem deleted_at)
+   */
+  static async deleteRecord(id: number) {
+    const record = await db.worker_health_records.findFirst({
+      where: { id: BigInt(id) },
+    });
+
+    if (!record) {
+      throw new NotFoundError('Registro de saude nao encontrado.');
+    }
+
+    return db.worker_health_records.delete({
+      where: { id: BigInt(id) },
     });
   }
 

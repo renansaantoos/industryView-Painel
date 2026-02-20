@@ -75,6 +75,16 @@ export class HealthController {
     }
   }
 
+  static async deleteRecord(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = getHealthRecordByIdSchema.parse(req.params);
+      const result = await HealthService.deleteRecord(id);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async checkWorkerFitness(req: Request, res: Response, next: NextFunction) {
     try {
       const { user_id } = checkWorkerFitnessSchema.parse(req.params);
