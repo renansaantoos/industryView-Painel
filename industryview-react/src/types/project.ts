@@ -136,6 +136,8 @@ export interface CreateProjectRequest {
   destination?: string;
   project_work_type?: string;
   resulting_work_area?: string;
+  /** ID of the associated client (foreign key to clients table) */
+  client_id?: number;
 }
 
 /** Edit project request */

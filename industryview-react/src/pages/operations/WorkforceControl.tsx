@@ -20,10 +20,32 @@ import { Plus, Edit, Trash2, X, LogIn, LogOut, BarChart2 } from 'lucide-react';
 // ---------------------------------------------------------------------------
 
 const STATUS_COLOR_MAP: Record<string, { bg: string; color: string; label: string }> = {
-  presente:    { bg: '#dcfce7', color: '#15803d', label: 'Presente' },
-  ausente:     { bg: '#fee2e2', color: '#b91c1c', label: 'Ausente' },
+  presente:     { bg: '#dcfce7', color: '#15803d', label: 'Presente' },
+  ausente:      { bg: '#fee2e2', color: '#b91c1c', label: 'Ausente' },
   meio_periodo: { bg: '#fef9c3', color: '#a16207', label: 'Meio período' },
 };
+
+// ---------------------------------------------------------------------------
+// Date / time helpers
+// ---------------------------------------------------------------------------
+
+function formatDate(isoStr: string): string {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return isoStr;
+  return d.toLocaleDateString('pt-BR');
+}
+
+function formatTime(isoStr?: string): string {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) {
+    // May already be HH:MM format
+    if (/^\d{2}:\d{2}/.test(isoStr)) return isoStr.slice(0, 5);
+    return isoStr;
+  }
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 
 // ---------------------------------------------------------------------------
 // Sub-types for forms
@@ -338,8 +360,8 @@ export default function WorkforceControl() {
     setEditForm({
       users_id: log.users_id,
       log_date: log.log_date,
-      check_in: log.check_in || '',
-      team: log.team || '',
+      check_in: log.check_in ? formatTime(log.check_in) : '',
+      team: log.teams?.name || log.team || '',
       observation: log.observation || '',
     });
   };
@@ -381,9 +403,10 @@ export default function WorkforceControl() {
   };
 
   // ------------------------------------------------------------------
-  // Resolve user name
+  // Resolve user name — checks nested worker relation first
   // ------------------------------------------------------------------
   const resolveUserName = (log: WorkforceDailyLog): string => {
+    if (log.worker?.name) return log.worker.name;
     if (log.user_name) return log.user_name;
     const found = users.find((u) => u.id === log.users_id);
     return found ? found.name : String(log.users_id);
@@ -611,12 +634,12 @@ export default function WorkforceControl() {
                   <td>
                     <span style={{ fontWeight: 500 }}>{resolveUserName(log)}</span>
                   </td>
-                  <td>{log.log_date}</td>
+                  <td>{formatDate(log.log_date)}</td>
                   <td>
                     {log.check_in ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
                         <LogIn size={13} color="var(--color-success)" />
-                        {log.check_in}
+                        {formatTime(log.check_in)}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>-</span>
@@ -626,13 +649,15 @@ export default function WorkforceControl() {
                     {log.check_out ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
                         <LogOut size={13} color="var(--color-error)" />
-                        {log.check_out}
+                        {formatTime(log.check_out)}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>-</span>
                     )}
                   </td>
-                  <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{log.team || '-'}</td>
+                  <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                    {log.teams?.name || log.team || '-'}
+                  </td>
                   <td>
                     {log.status ? (
                       <StatusBadge status={log.status} colorMap={STATUS_COLOR_MAP} />

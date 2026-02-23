@@ -179,6 +179,23 @@
       "energy": "Energy",
       "mining": "Mining",
       "other": "Other"
+    },
+    "validation": {
+      "requiredField": "Required field",
+      "requiredLegalName": "Legal name is required",
+      "invalidCnpj": "Invalid CNPJ",
+      "incompleteCnpj": "Incomplete CNPJ (must have 14 digits)",
+      "invalidCep": "Invalid ZIP code (must have 8 digits)",
+      "incompleteCep": "Incomplete ZIP code (must have 8 digits)",
+      "cepNotFound": "ZIP code not found",
+      "invalidEmail": "Invalid email address",
+      "invalidPhone": "Invalid phone number (must have 10 or 11 digits)",
+      "incompletePhone": "Incomplete phone number",
+      "invalidState": "Invalid state (must be 2 letters)",
+      "invalidLatitude": "Invalid latitude (must be between -90 and 90)",
+      "invalidLongitude": "Invalid longitude (must be between -180 and 180)",
+      "singleError": "Fix the error indicated before saving",
+      "multipleErrors": "Fix the {{count}} errors indicated before saving"
     }
   },
   "auth": {
@@ -294,6 +311,13 @@
     "complement": "Complement",
     "selectStatus": "Select status...",
     "selectSituation": "Select situation...",
+    "clientSection": "Client",
+    "clientSectionSubtitle": "Select the client associated with this project",
+    "selectClient": "Select a client...",
+    "addNewClient": "New Client",
+    "noClientSelected": "No client selected",
+    "clientSelected": "Client selected",
+    "clientAutoFillInfo": "CNPJ auto-filled from the selected client's data",
     "allProjects": "All projects",
     "management": "Management",
     "ssmaSection": "SSMA",

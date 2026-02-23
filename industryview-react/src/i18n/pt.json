@@ -179,6 +179,23 @@
       "energy": "Energia",
       "mining": "Mineração",
       "other": "Outro"
+    },
+    "validation": {
+      "requiredField": "Campo obrigatório",
+      "requiredLegalName": "Razão Social é obrigatória",
+      "invalidCnpj": "CNPJ inválido",
+      "incompleteCnpj": "CNPJ incompleto (deve ter 14 dígitos)",
+      "invalidCep": "CEP inválido (deve ter 8 dígitos)",
+      "incompleteCep": "CEP incompleto (deve ter 8 dígitos)",
+      "cepNotFound": "CEP não encontrado",
+      "invalidEmail": "E-mail inválido",
+      "invalidPhone": "Telefone inválido (deve ter 10 ou 11 dígitos)",
+      "incompletePhone": "Telefone incompleto",
+      "invalidState": "UF inválida (deve ter 2 letras)",
+      "invalidLatitude": "Latitude inválida (deve estar entre -90 e 90)",
+      "invalidLongitude": "Longitude inválida (deve estar entre -180 e 180)",
+      "singleError": "Corrija o erro indicado antes de salvar",
+      "multipleErrors": "Corrija os {{count}} erros indicados antes de salvar"
     }
   },
   "auth": {
@@ -294,6 +311,13 @@
     "complement": "Complemento",
     "selectStatus": "Selecione o status...",
     "selectSituation": "Selecione a situação...",
+    "clientSection": "Cliente",
+    "clientSectionSubtitle": "Selecione o cliente associado a este projeto",
+    "selectClient": "Selecione o cliente...",
+    "addNewClient": "Novo Cliente",
+    "noClientSelected": "Nenhum cliente selecionado",
+    "clientSelected": "Cliente selecionado",
+    "clientAutoFillInfo": "CNPJ preenchido automaticamente com os dados do cliente selecionado",
     "allProjects": "Todos os projetos",
     "management": "Gerenciamento",
     "ssmaSection": "SSMA",
