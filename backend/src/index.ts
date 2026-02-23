@@ -63,6 +63,7 @@ import { materialRequisitionsRoutes } from './modules/material-requisitions';
 import { auditRoutes } from './modules/audit';
 import { employeesRoutes } from './modules/employees';
 import { scheduleImportRoutes } from './modules/schedule-import';
+import { clientsRoutes } from './modules/clients';
 
 // Import scheduled jobs
 import { registerJobs } from './jobs';
@@ -443,6 +444,7 @@ app.use(`${API_PREFIX}/material-requisitions`, materialRequisitionsRoutes);
 app.use(`${API_PREFIX}/audit`, auditRoutes);
 app.use(`${API_PREFIX}/employees`, employeesRoutes);
 app.use(`${API_PREFIX}/schedule-import`, scheduleImportRoutes);
+app.use(`${API_PREFIX}/clients`, clientsRoutes);
 
 // =============================================================================
 // File Upload Endpoint - Upload generico de arquivos
@@ -881,7 +883,7 @@ app.get(`${API_PREFIX}/cep/:cep`, async (req, res, next) => {
   }
 });
 
-// Equipment types endpoint
+// Equipment types endpoints
 app.get(`${API_PREFIX}/equipaments_types`, async (_req, res, next) => {
   try {
     const { db } = await import('./config/database');
@@ -891,6 +893,64 @@ app.get(`${API_PREFIX}/equipaments_types`, async (_req, res, next) => {
       orderBy: { type: 'asc' },
     });
     res.json(serializeBigInt(types));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(`${API_PREFIX}/equipaments_types`, authenticate, async (req, res, next) => {
+  try {
+    const { db } = await import('./config/database');
+    const { serializeBigInt } = await import('./utils/bigint');
+    const { type } = req.body;
+    if (!type || !type.trim()) {
+      res.status(400).json({ error: true, message: 'O campo type é obrigatório' });
+      return;
+    }
+    const created = await db.equipaments_types.create({
+      data: { type: type.trim() },
+    });
+    res.status(201).json(serializeBigInt(created));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch(`${API_PREFIX}/equipaments_types/:id`, authenticate, async (req, res, next) => {
+  try {
+    const { db } = await import('./config/database');
+    const { serializeBigInt } = await import('./utils/bigint');
+    const id = BigInt(req.params.id);
+    const { type } = req.body;
+    const existing = await db.equipaments_types.findFirst({ where: { id, deleted_at: null } });
+    if (!existing) {
+      res.status(404).json({ error: true, message: 'Categoria não encontrada' });
+      return;
+    }
+    const updated = await db.equipaments_types.update({
+      where: { id },
+      data: { type: type?.trim(), updated_at: new Date() },
+    });
+    res.json(serializeBigInt(updated));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete(`${API_PREFIX}/equipaments_types/:id`, authenticate, async (req, res, next) => {
+  try {
+    const { db } = await import('./config/database');
+    const id = BigInt(req.params.id);
+    const existing = await db.equipaments_types.findFirst({ where: { id, deleted_at: null } });
+    if (!existing) {
+      res.status(404).json({ error: true, message: 'Categoria não encontrada' });
+      return;
+    }
+    await db.equipaments_types.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

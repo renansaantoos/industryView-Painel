@@ -26,4 +26,5 @@ export * as healthApi from './api/health';
 export * as materialRequisitionsApi from './api/materialRequisitions';
 export * as auditApi from './api/audit';
 export * as employeesApi from './api/employees';
+export * as clientsApi from './api/clients';
 export { default as apiClient } from './api/apiClient';

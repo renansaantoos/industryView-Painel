@@ -355,21 +355,19 @@ export default function HealthRecords() {
       <ProjectFilterDropdown />
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-secondary-text)' }}>
-          <Filter size={16} />
-          <span style={{ fontSize: '13px', fontWeight: 500 }}>Filtrar por tipo:</span>
-        </div>
-        <div className="input-group" style={{ margin: 0, flex: '0 0 220px' }}>
-          <SearchableSelect
-            options={EXAM_TYPES.map((et) => ({ value: et.value, label: et.label }))}
-            value={filterExamType || undefined}
-            onChange={(val) => { setFilterExamType(String(val ?? '')); setPage(1); }}
-            placeholder="Todos os tipos de exame"
-            allowClear
-            style={{ flex: '0 0 220px' }}
-          />
-        </div>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: 'var(--color-secondary-text)', flexShrink: 0 }}>
+          <Filter size={15} />
+          Filtrar por tipo:
+        </span>
+        <SearchableSelect
+          options={EXAM_TYPES.map((et) => ({ value: et.value, label: et.label }))}
+          value={filterExamType || undefined}
+          onChange={(val) => { setFilterExamType(String(val ?? '')); setPage(1); }}
+          placeholder="Todos os tipos de exame"
+          allowClear
+          style={{ width: '220px' }}
+        />
         {filterExamType && (
           <button className="btn btn-icon" title="Limpar filtro" onClick={handleClearFilters}>
             <X size={16} />

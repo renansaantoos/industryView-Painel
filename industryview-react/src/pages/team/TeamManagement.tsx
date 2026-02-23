@@ -698,6 +698,7 @@ export default function TeamManagement() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showAddLeaderModal, setShowAddLeaderModal] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
+  const [createTeamErrors, setCreateTeamErrors] = useState<Record<string, string | undefined>>({});
   const [modalLoading, setModalLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number } | null>(null);
 
@@ -1000,7 +1001,14 @@ export default function TeamManagement() {
   /* --- Handlers --- */
 
   const handleCreateTeam = async () => {
-    if (!projectsInfo || !newTeamName.trim()) return;
+    if (!projectsInfo) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!newTeamName.trim()) errors.teamName = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setCreateTeamErrors(errors);
+      return;
+    }
+    setCreateTeamErrors({});
     setModalLoading(true);
     try {
       const team = await projectsApi.addTeam({ name: newTeamName.trim(), projects_id: projectsInfo.id });
@@ -1836,24 +1844,49 @@ export default function TeamManagement() {
 
       {/* Modal: Criar Equipe */}
       {showCreateTeamModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateTeamModal(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setShowCreateTeamModal(false);
+            setCreateTeamErrors({});
+            setNewTeamName('');
+          }}
+        >
           <div className="modal-content" style={{ padding: '24px', width: '400px' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginBottom: '16px' }}>{t('teams.createTeam')}</h3>
             <div className="input-group">
-              <label>{t('teams.teamName')}</label>
+              <label>
+                {t('teams.teamName')} <span style={{ color: 'var(--color-error)' }}>*</span>
+              </label>
               <input
                 className="input-field"
                 value={newTeamName}
-                onChange={(e) => setNewTeamName(e.target.value)}
+                onChange={(e) => {
+                  setNewTeamName(e.target.value);
+                  if (createTeamErrors.teamName) setCreateTeamErrors((prev) => ({ ...prev, teamName: undefined }));
+                }}
                 placeholder={t('teams.teamNamePlaceholder')}
+                style={createTeamErrors.teamName ? { borderColor: 'var(--color-error)' } : undefined}
                 autoFocus
               />
+              {createTeamErrors.teamName && (
+                <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                  {createTeamErrors.teamName}
+                </span>
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateTeamModal(false)}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowCreateTeamModal(false);
+                  setCreateTeamErrors({});
+                  setNewTeamName('');
+                }}
+              >
                 {t('common.cancel')}
               </button>
-              <button className="btn btn-primary" onClick={handleCreateTeam} disabled={modalLoading || !newTeamName.trim()}>
+              <button className="btn btn-primary" onClick={handleCreateTeam} disabled={modalLoading}>
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
             </div>

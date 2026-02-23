@@ -304,15 +304,17 @@ export const createDdsRecordSchema = z.object({
  * Schema para adicionar participante a um DDS
  */
 export const createDdsParticipantSchema = z.object({
-  user_id: z.coerce.number().int({ message: 'ID do participante e obrigatorio' }),
-});
+  user_id: z.coerce.number().int({ message: 'ID do participante e obrigatorio' }).optional(),
+  users_id: z.coerce.number().int().optional(),
+}).transform((data) => ({ user_id: data.user_id ?? data.users_id! }));
 
 /**
  * Schema para assinar participacao em DDS
  */
 export const signDdsParticipationSchema = z.object({
-  user_id: z.coerce.number().int({ message: 'ID do participante e obrigatorio' }),
-});
+  user_id: z.coerce.number().int({ message: 'ID do participante e obrigatorio' }).optional(),
+  users_id: z.coerce.number().int().optional(),
+}).transform((data) => ({ user_id: data.user_id ?? data.users_id! }));
 
 // =============================================================================
 // Type Exports

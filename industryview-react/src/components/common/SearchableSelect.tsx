@@ -105,7 +105,6 @@ export default function SearchableSelect({
           justifyContent: 'space-between',
           gap: '8px',
           width: '100%',
-          minWidth: '240px',
           height: '40px',
           padding: '0 12px',
           border: '1px solid var(--color-alternate)',

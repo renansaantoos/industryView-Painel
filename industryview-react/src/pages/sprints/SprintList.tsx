@@ -42,6 +42,7 @@ export default function SprintList() {
   const [newSprintStart, setNewSprintStart] = useState('');
   const [newSprintEnd, setNewSprintEnd] = useState('');
   const [newSprintStatusId, setNewSprintStatusId] = useState<number | undefined>(undefined);
+  const [createSprintErrors, setCreateSprintErrors] = useState<Record<string, string | undefined>>({});
   const [modalLoading, setModalLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
@@ -71,14 +72,23 @@ export default function SprintList() {
   }, []);
 
   const handleCreateSprint = async () => {
-    if (!projectsInfo || !newSprintName.trim()) return;
+    if (!projectsInfo) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!newSprintName.trim()) errors.sprintName = t('common.requiredField', 'Campo obrigatório');
+    if (!newSprintStart) errors.sprintStart = t('common.requiredField', 'Campo obrigatório');
+    if (!newSprintEnd) errors.sprintEnd = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setCreateSprintErrors(errors);
+      return;
+    }
+    setCreateSprintErrors({});
     setModalLoading(true);
     try {
       await sprintsApi.addSprint({
         title: newSprintName.trim(),
         projects_id: projectsInfo.id,
-        start_date: newSprintStart || new Date().toISOString().split('T')[0],
-        end_date: newSprintEnd || new Date().toISOString().split('T')[0],
+        start_date: newSprintStart,
+        end_date: newSprintEnd,
         sprints_statuses_id: newSprintStatusId,
       });
       setNewSprintName('');
@@ -293,25 +303,74 @@ export default function SprintList() {
 
       {/* Create Sprint Modal */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setShowCreateModal(false);
+            setCreateSprintErrors({});
+          }}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', minWidth: '400px' }}>
             <h3 style={{ marginBottom: '16px' }}>{t('sprints.createSprint')}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label>{t('sprints.sprintName')} *</label>
+                <label>
+                  {t('sprints.sprintName')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <input
                   className="input-field"
                   value={newSprintName}
-                  onChange={(e) => setNewSprintName(e.target.value)}
+                  onChange={(e) => {
+                    setNewSprintName(e.target.value);
+                    if (createSprintErrors.sprintName) setCreateSprintErrors((prev) => ({ ...prev, sprintName: undefined }));
+                  }}
+                  style={createSprintErrors.sprintName ? { borderColor: 'var(--color-error)' } : undefined}
                 />
+                {createSprintErrors.sprintName && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {createSprintErrors.sprintName}
+                  </span>
+                )}
               </div>
               <div className="input-group">
-                <label>{t('sprints.startDate')}</label>
-                <input type="date" className="input-field" value={newSprintStart} onChange={(e) => setNewSprintStart(e.target.value)} />
+                <label>
+                  {t('sprints.startDate')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={newSprintStart}
+                  onChange={(e) => {
+                    setNewSprintStart(e.target.value);
+                    if (createSprintErrors.sprintStart) setCreateSprintErrors((prev) => ({ ...prev, sprintStart: undefined }));
+                  }}
+                  style={createSprintErrors.sprintStart ? { borderColor: 'var(--color-error)' } : undefined}
+                />
+                {createSprintErrors.sprintStart && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {createSprintErrors.sprintStart}
+                  </span>
+                )}
               </div>
               <div className="input-group">
-                <label>{t('sprints.endDate')}</label>
-                <input type="date" className="input-field" value={newSprintEnd} onChange={(e) => setNewSprintEnd(e.target.value)} />
+                <label>
+                  {t('sprints.endDate')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={newSprintEnd}
+                  onChange={(e) => {
+                    setNewSprintEnd(e.target.value);
+                    if (createSprintErrors.sprintEnd) setCreateSprintErrors((prev) => ({ ...prev, sprintEnd: undefined }));
+                  }}
+                  style={createSprintErrors.sprintEnd ? { borderColor: 'var(--color-error)' } : undefined}
+                />
+                {createSprintErrors.sprintEnd && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {createSprintErrors.sprintEnd}
+                  </span>
+                )}
               </div>
               <div className="input-group">
                 <label>{t('sprints.status')}</label>
@@ -327,7 +386,13 @@ export default function SprintList() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateSprintErrors({});
+                }}
+              >
                 {t('common.cancel')}
               </button>
               <button className="btn btn-primary" onClick={handleCreateSprint} disabled={modalLoading}>

@@ -3,27 +3,31 @@ import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { tasksApi } from '../../services';
+import { tasksApi, equipamentTypesApi, manufacturersApi } from '../../services';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Trash2, Edit, Ruler, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Edit, Ruler, BookOpen, Tag, Factory } from 'lucide-react';
 
 interface SettingsItem {
   id: number;
   displayName: string;
 }
 
+type ActiveTab = 'unity' | 'discipline' | 'category' | 'manufacturer';
+
 export default function Settings() {
   const { t } = useTranslation();
   const { setNavBarSelection } = useAppState();
 
-  const [activeTab, setActiveTab] = useState<'unity' | 'discipline'>('unity');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('unity');
   const [unities, setUnities] = useState<SettingsItem[]>([]);
   const [disciplines, setDisciplines] = useState<SettingsItem[]>([]);
+  const [categories, setCategories] = useState<SettingsItem[]>([]);
+  const [manufacturers, setManufacturers] = useState<SettingsItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: ActiveTab; id: number } | null>(null);
 
   // Add/Edit modal
   const [showModal, setShowModal] = useState(false);
@@ -38,24 +42,40 @@ export default function Settings() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [unityData, disciplineData] = await Promise.all([
+      const [unityData, disciplineData, categoryData, manufacturerData] = await Promise.all([
         tasksApi.getUnity().catch(() => []),
         tasksApi.getDisciplines().catch(() => []),
+        equipamentTypesApi.queryAllEquipamentTypes().catch(() => []),
+        manufacturersApi.queryAllManufacturers({ per_page: 100 }).catch(() => ({ items: [] })),
       ]);
 
       const rawUnities = Array.isArray(unityData) ? unityData : [];
       const rawDisciplines = Array.isArray(disciplineData) ? disciplineData : [];
+      const rawCategories = Array.isArray(categoryData) ? categoryData : [];
+      const rawManufacturers = Array.isArray((manufacturerData as any)?.items)
+        ? (manufacturerData as any).items
+        : Array.isArray(manufacturerData)
+          ? manufacturerData
+          : [];
 
-      // API retorna campo 'unity', não 'name'
       setUnities(rawUnities.map((u: any) => ({
         id: Number(u.id),
         displayName: u.unity || u.name || `#${u.id}`,
       })));
 
-      // API retorna campo 'discipline', não 'name'
       setDisciplines(rawDisciplines.map((d: any) => ({
         id: Number(d.id),
         displayName: d.discipline || d.name || `#${d.id}`,
+      })));
+
+      setCategories(rawCategories.map((c: any) => ({
+        id: Number(c.id),
+        displayName: c.type || c.name || `#${c.id}`,
+      })));
+
+      setManufacturers(rawManufacturers.map((m: any) => ({
+        id: Number(m.id),
+        displayName: m.name || `#${m.id}`,
       })));
     } catch (err) {
       console.error('Failed to load settings data:', err);
@@ -90,11 +110,23 @@ export default function Settings() {
         } else {
           await tasksApi.addUnity({ name: itemName.trim() });
         }
-      } else {
+      } else if (activeTab === 'discipline') {
         if (editingItem) {
           await tasksApi.editDiscipline(editingItem.id, { name: itemName.trim() });
         } else {
           await tasksApi.addDiscipline({ name: itemName.trim() });
+        }
+      } else if (activeTab === 'category') {
+        if (editingItem) {
+          await equipamentTypesApi.editEquipamentType(editingItem.id, { type: itemName.trim() });
+        } else {
+          await equipamentTypesApi.addEquipamentType({ type: itemName.trim() });
+        }
+      } else if (activeTab === 'manufacturer') {
+        if (editingItem) {
+          await manufacturersApi.editManufacturer(editingItem.id, { name: itemName.trim() });
+        } else {
+          await manufacturersApi.addManufacturer({ name: itemName.trim() });
         }
       }
       setShowModal(false);
@@ -106,12 +138,16 @@ export default function Settings() {
     }
   };
 
-  const handleDelete = async (type: string, id: number) => {
+  const handleDelete = async (type: ActiveTab, id: number) => {
     try {
       if (type === 'unity') {
         await tasksApi.deleteUnity(id);
-      } else {
+      } else if (type === 'discipline') {
         await tasksApi.deleteDiscipline(id);
+      } else if (type === 'category') {
+        await equipamentTypesApi.deleteEquipamentType(id);
+      } else if (type === 'manufacturer') {
+        await manufacturersApi.deleteManufacturer(id);
       }
       loadData();
     } catch (err) {
@@ -120,7 +156,42 @@ export default function Settings() {
     setDeleteConfirm(null);
   };
 
-  const currentItems = activeTab === 'unity' ? unities : disciplines;
+  const currentItems: SettingsItem[] = (() => {
+    if (activeTab === 'unity') return unities;
+    if (activeTab === 'discipline') return disciplines;
+    if (activeTab === 'category') return categories;
+    return manufacturers;
+  })();
+
+  const getAddLabel = () => {
+    if (activeTab === 'unity') return t('settings.addUnity');
+    if (activeTab === 'discipline') return t('settings.addDiscipline');
+    if (activeTab === 'category') return t('settings.addCategory');
+    return t('settings.addManufacturer');
+  };
+
+  const getModalTitle = () => {
+    if (activeTab === 'unity') return editingItem ? t('settings.editUnity') : t('settings.addUnity');
+    if (activeTab === 'discipline') return editingItem ? t('settings.editDiscipline') : t('settings.addDiscipline');
+    if (activeTab === 'category') return editingItem ? t('settings.editCategory') : t('settings.addCategory');
+    return editingItem ? t('settings.editManufacturer') : t('settings.addManufacturer');
+  };
+
+  const tabStyle = (tab: ActiveTab) => ({
+    padding: '12px 24px',
+    fontSize: '14px',
+    fontWeight: 500 as const,
+    cursor: 'pointer',
+    border: 'none',
+    background: 'none',
+    color: activeTab === tab ? 'var(--color-primary)' : 'var(--color-secondary-text)',
+    borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
+    marginBottom: '-2px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    transition: 'all 0.2s ease',
+  });
 
   return (
     <div>
@@ -131,47 +202,21 @@ export default function Settings() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '0', marginBottom: '24px', borderBottom: '2px solid var(--color-alternate)' }}>
-        <button
-          onClick={() => setActiveTab('unity')}
-          style={{
-            padding: '12px 24px',
-            fontSize: '14px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            border: 'none',
-            background: 'none',
-            color: activeTab === 'unity' ? 'var(--color-primary)' : 'var(--color-secondary-text)',
-            borderBottom: activeTab === 'unity' ? '2px solid var(--color-primary)' : '2px solid transparent',
-            marginBottom: '-2px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease',
-          }}
-        >
+        <button onClick={() => setActiveTab('unity')} style={tabStyle('unity')}>
           <Ruler size={16} />
           {t('settings.unities')}
         </button>
-        <button
-          onClick={() => setActiveTab('discipline')}
-          style={{
-            padding: '12px 24px',
-            fontSize: '14px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            border: 'none',
-            background: 'none',
-            color: activeTab === 'discipline' ? 'var(--color-primary)' : 'var(--color-secondary-text)',
-            borderBottom: activeTab === 'discipline' ? '2px solid var(--color-primary)' : '2px solid transparent',
-            marginBottom: '-2px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease',
-          }}
-        >
+        <button onClick={() => setActiveTab('discipline')} style={tabStyle('discipline')}>
           <BookOpen size={16} />
           {t('settings.disciplines')}
+        </button>
+        <button onClick={() => setActiveTab('category')} style={tabStyle('category')}>
+          <Tag size={16} />
+          {t('settings.categories')}
+        </button>
+        <button onClick={() => setActiveTab('manufacturer')} style={tabStyle('manufacturer')}>
+          <Factory size={16} />
+          {t('settings.manufacturers')}
         </button>
       </div>
 
@@ -182,7 +227,7 @@ export default function Settings() {
         </p>
         <button className="btn btn-primary" onClick={handleOpenCreateModal}>
           <Plus size={18} />
-          {activeTab === 'unity' ? t('settings.addUnity') : t('settings.addDiscipline')}
+          {getAddLabel()}
         </button>
       </div>
 
@@ -195,7 +240,7 @@ export default function Settings() {
           action={
             <button className="btn btn-primary" onClick={handleOpenCreateModal}>
               <Plus size={18} />
-              {activeTab === 'unity' ? t('settings.addUnity') : t('settings.addDiscipline')}
+              {getAddLabel()}
             </button>
           }
         />
@@ -237,20 +282,22 @@ export default function Settings() {
       {showModal && (
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: '16px' }}>
-              {editingItem
-                ? (activeTab === 'unity' ? t('settings.editUnity') : t('settings.editDiscipline'))
-                : (activeTab === 'unity' ? t('settings.addUnity') : t('settings.addDiscipline'))}
-            </h3>
+            <h3 style={{ marginBottom: '16px' }}>{getModalTitle()}</h3>
             <div className="input-group">
               <label>{t('settings.name')} *</label>
-              <input className="input-field" value={itemName} onChange={(e) => setItemName(e.target.value)} />
+              <input
+                className="input-field"
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                autoFocus
+              />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
                 {t('common.cancel')}
               </button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={modalLoading}>
+              <button className="btn btn-primary" onClick={handleSave} disabled={modalLoading || !itemName.trim()}>
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
             </div>

@@ -55,6 +55,7 @@ export default function GoldenRulesManagement() {
   const [formSeverity, setFormSeverity] = useState<Severity>('media');
   const [formIsActive, setFormIsActive] = useState(true);
   const [modalLoading, setModalLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string | undefined>>({});
 
   // ── Delete state ──────────────────────────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState<GoldenRule | null>(null);
@@ -90,6 +91,7 @@ export default function GoldenRulesManagement() {
     setFormDescription('');
     setFormSeverity('media');
     setFormIsActive(true);
+    setFormErrors({});
     setShowModal(true);
   };
 
@@ -99,11 +101,19 @@ export default function GoldenRulesManagement() {
     setFormDescription(rule.description || '');
     setFormSeverity((rule.severity as Severity) || 'media');
     setFormIsActive(rule.is_active);
+    setFormErrors({});
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!formTitle.trim() || !formDescription.trim()) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!formTitle.trim()) errors.title = t('common.requiredField', 'Campo obrigatório');
+    if (!formDescription.trim()) errors.description = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     setModalLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -139,6 +149,12 @@ export default function GoldenRulesManagement() {
       showToast('Erro ao excluir regra de ouro', 'error');
     }
     setDeleteConfirm(null);
+  };
+
+  // ── Modal close ───────────────────────────────────────────────────────────────
+  const closeModal = () => {
+    setShowModal(false);
+    setFormErrors({});
   };
 
   // ── Severity badge helper ─────────────────────────────────────────────────────
@@ -281,7 +297,7 @@ export default function GoldenRulesManagement() {
 
       {/* ── Modal: Create / Edit Rule ─────────────────────────────────────────── */}
       {showModal && (
-        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
+        <div className="modal-backdrop" onClick={closeModal}>
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
@@ -299,7 +315,7 @@ export default function GoldenRulesManagement() {
               <h3>{editingRule ? 'Editar Regra de Ouro' : 'Nova Regra de Ouro'}</h3>
               <button
                 className="btn btn-icon"
-                onClick={() => setShowModal(false)}
+                onClick={closeModal}
                 title="Fechar"
               >
                 <X size={18} />
@@ -314,8 +330,17 @@ export default function GoldenRulesManagement() {
                   className="input-field"
                   placeholder="Ex.: Uso obrigatório de EPI"
                   value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
+                  onChange={(e) => {
+                    setFormTitle(e.target.value);
+                    if (formErrors.title) setFormErrors((prev) => ({ ...prev, title: undefined }));
+                  }}
+                  style={formErrors.title ? { borderColor: 'var(--color-error)' } : undefined}
                 />
+                {formErrors.title && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {formErrors.title}
+                  </span>
+                )}
               </div>
 
               <div className="input-group">
@@ -325,9 +350,17 @@ export default function GoldenRulesManagement() {
                   placeholder="Descreva a regra de ouro em detalhes..."
                   rows={4}
                   value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  style={{ resize: 'vertical' }}
+                  onChange={(e) => {
+                    setFormDescription(e.target.value);
+                    if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: undefined }));
+                  }}
+                  style={formErrors.description ? { resize: 'vertical', borderColor: 'var(--color-error)' } : { resize: 'vertical' }}
                 />
+                {formErrors.description && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {formErrors.description}
+                  </span>
+                )}
               </div>
 
               <div className="input-group">
@@ -366,13 +399,13 @@ export default function GoldenRulesManagement() {
                 marginTop: '20px',
               }}
             >
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+              <button className="btn btn-secondary" onClick={closeModal}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleSave}
-                disabled={modalLoading || !formTitle.trim() || !formDescription.trim()}
+                disabled={modalLoading}
               >
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>

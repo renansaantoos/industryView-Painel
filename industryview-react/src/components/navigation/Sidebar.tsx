@@ -77,6 +77,7 @@ export default function Sidebar() {
   const managementItems: NavItem[] = [
     { key: 'reports', label: t('nav.reports'), icon: <FileText size={18} />, path: '/relatorio', selectionIndex: 7, requireAuth: true },
     { key: 'employees', label: t('nav.employees'), icon: <UserCog size={18} />, path: '/funcionario', selectionIndex: 8, requireAuth: true },
+    { key: 'clients', label: t('nav.clients'), icon: <Building2 size={18} />, path: '/clientes', selectionIndex: 32, requireAuth: true },
     { key: 'inventory', label: t('nav.inventory'), icon: <Package size={18} />, path: '/estoque', selectionIndex: 9 },
     { key: 'planning', label: t('nav.planning'), icon: <BarChart3 size={18} />, path: '/planejamento', selectionIndex: 28, requireAuth: true },
   ];

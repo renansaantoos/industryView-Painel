@@ -157,6 +157,12 @@ export default function TaskList() {
   const [newChecklistSaving, setNewChecklistSaving] = useState(false);
 
   // ------------------------------------------------------------------
+  // Validation errors
+  // ------------------------------------------------------------------
+  const [createErrors, setCreateErrors] = useState<Record<string, string | undefined>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string | undefined>>({});
+
+  // ------------------------------------------------------------------
   // Shared modal loading / delete confirm
   // ------------------------------------------------------------------
   const [modalLoading, setModalLoading] = useState(false);
@@ -408,11 +414,18 @@ export default function TaskList() {
 
   const openCreateModal = () => {
     setCreateForm(EMPTY_FORM);
+    setCreateErrors({});
     setShowCreateModal(true);
   };
 
   const handleCreateTask = async () => {
-    if (!createForm.description.trim()) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!createForm.description.trim()) errors.description = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setCreateErrors(errors);
+      return;
+    }
+    setCreateErrors({});
     setModalLoading(true);
     try {
       const created = await tasksApi.addTask({
@@ -469,6 +482,7 @@ export default function TaskList() {
       installationMethod: task.installation_method ?? '',
       checklistTemplatesId: task.checklist_templates_id ?? '',
     });
+    setEditErrors({});
     setLinkedGoldenRules([]);
     setSelectedGoldenRuleId(undefined);
     loadLinkedGoldenRules(task.id);
@@ -476,7 +490,14 @@ export default function TaskList() {
   };
 
   const handleEditTask = async () => {
-    if (!editingTask || !editForm.description.trim()) return;
+    if (!editingTask) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!editForm.description.trim()) errors.description = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setEditErrors(errors);
+      return;
+    }
+    setEditErrors({});
     setModalLoading(true);
     try {
       await tasksApi.editTask(editingTask.id, {
@@ -532,6 +553,8 @@ export default function TaskList() {
     form: TaskFormState,
     onChange: (patch: Partial<TaskFormState>) => void,
     isEditMode: boolean,
+    errors: Record<string, string | undefined> = {},
+    onClearError: (field: string) => void = () => {},
   ) => (
     <motion.div variants={staggerParent} initial="initial" animate="animate">
       {/* Section 1 - Dados da Tarefa */}
@@ -552,8 +575,17 @@ export default function TaskList() {
               <input
                 className="input-field"
                 value={form.description}
-                onChange={(e) => onChange({ description: e.target.value })}
+                onChange={(e) => {
+                  onChange({ description: e.target.value });
+                  if (errors.description) onClearError('description');
+                }}
+                style={errors.description ? { borderColor: 'var(--color-error)' } : undefined}
               />
+              {errors.description && (
+                <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                  {errors.description}
+                </span>
+              )}
             </div>
             <div className="input-group">
               <label>{t('tasks.weight')}</label>
@@ -1234,23 +1266,26 @@ export default function TaskList() {
 
       {/* Create Task Modal */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', width: '95%', padding: '24px' }}>
             <h3 style={{ marginBottom: '16px' }}>{t('tasks.createTask')}</h3>
 
-            {renderModalSections(createForm, (patch) =>
-              setCreateForm((prev) => ({ ...prev, ...patch })),
+            {renderModalSections(
+              createForm,
+              (patch) => setCreateForm((prev) => ({ ...prev, ...patch })),
               false,
+              createErrors,
+              (field) => setCreateErrors((prev) => ({ ...prev, [field]: undefined })),
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreateTask}
-                disabled={modalLoading || !createForm.description.trim()}
+                disabled={modalLoading}
               >
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
@@ -1261,23 +1296,26 @@ export default function TaskList() {
 
       {/* Edit Task Modal */}
       {editingTask && (
-        <div className="modal-backdrop" onClick={() => setEditingTask(null)}>
+        <div className="modal-backdrop" onClick={() => { setEditingTask(null); setEditErrors({}); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', width: '95%', padding: '24px' }}>
             <h3 style={{ marginBottom: '16px' }}>{t('tasks.editTask')}</h3>
 
-            {renderModalSections(editForm, (patch) =>
-              setEditForm((prev) => ({ ...prev, ...patch })),
+            {renderModalSections(
+              editForm,
+              (patch) => setEditForm((prev) => ({ ...prev, ...patch })),
               true,
+              editErrors,
+              (field) => setEditErrors((prev) => ({ ...prev, [field]: undefined })),
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setEditingTask(null)}>
+              <button className="btn btn-secondary" onClick={() => { setEditingTask(null); setEditErrors({}); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleEditTask}
-                disabled={modalLoading || !editForm.description.trim()}
+                disabled={modalLoading}
               >
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>

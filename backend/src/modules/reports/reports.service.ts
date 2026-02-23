@@ -399,10 +399,7 @@ export class ReportsService {
   static async createDailyReport(input: CreateDailyReportInput) {
     const { projects_id, schedule_id, date } = input;
 
-    // Valida que ha pelo menos um lider
-    if (!schedule_id || schedule_id.length === 0) {
-      throw new BadRequestError('Voce nao pode criar um RDO sem nenhum lider.');
-    }
+    // schedule_id e opcional — se vazio, cria relatorio sem vincular agendamentos
 
     // Verifica se todos os schedules tem end_service = true
     // Equivalente ao bloco comentado do Xano (desabilitado)

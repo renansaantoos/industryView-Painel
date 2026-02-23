@@ -44,6 +44,7 @@ export default function Reports() {
   const [reportDescription, setReportDescription] = useState('');
   const [reportWeather, setReportWeather] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
+  const [createErrors, setCreateErrors] = useState<{ date?: string }>({});
 
   const { sortField, sortDirection, handleSort } = useBackendSort();
 
@@ -92,16 +93,24 @@ export default function Reports() {
 
   const handleCreateReport = async () => {
     if (!projectsId) return;
+    const errors: { date?: string } = {};
+    if (!reportDate.trim()) errors.date = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setCreateErrors(errors);
+      return;
+    }
+    setCreateErrors({});
     setModalLoading(true);
     try {
       await reportsApi.addDailyReport({
         projects_id: projectsId,
-        date: reportDate || new Date().toISOString().split('T')[0],
+        date: reportDate,
         schedule_id: [],
       });
       setReportDate('');
       setReportDescription('');
       setReportWeather('');
+      setCreateErrors({});
       setShowCreateModal(false);
       loadReports();
     } catch (err) {
@@ -263,13 +272,44 @@ export default function Reports() {
 
       {/* Create Report Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: '16px' }}>{t('reports.createReport')}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="input-group">
-                <label>{t('reports.date')} *</label>
-                <input type="date" className="input-field" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
+          <div
+            className="modal-content"
+            style={{ padding: '24px', width: '520px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>
+              {t('reports.createReport')}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="input-group">
+                  <label>{t('reports.date')} *</label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={reportDate}
+                    onChange={(e) => {
+                      setReportDate(e.target.value);
+                      if (createErrors.date) setCreateErrors((prev) => ({ ...prev, date: undefined }));
+                    }}
+                    style={createErrors.date ? { borderColor: 'var(--color-error)' } : undefined}
+                  />
+                  {createErrors.date && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                      {createErrors.date}
+                    </span>
+                  )}
+                </div>
+                <div className="input-group">
+                  <label>{t('reports.weather')}</label>
+                  <input
+                    className="input-field"
+                    value={reportWeather}
+                    onChange={(e) => setReportWeather(e.target.value)}
+                    placeholder={t('reports.weatherPlaceholder', 'Ex: Ensolarado, Chuvoso...')}
+                  />
+                </div>
               </div>
               <div className="input-group">
                 <label>{t('reports.description')}</label>
@@ -278,15 +318,13 @@ export default function Reports() {
                   rows={4}
                   value={reportDescription}
                   onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder={t('reports.descriptionPlaceholder', 'Descreva as atividades do dia...')}
+                  style={{ resize: 'vertical' }}
                 />
               </div>
-              <div className="input-group">
-                <label>{t('reports.weather')}</label>
-                <input className="input-field" value={reportWeather} onChange={(e) => setReportWeather(e.target.value)} />
-              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
                 {t('common.cancel')}
               </button>
               <button className="btn btn-primary" onClick={handleCreateReport} disabled={modalLoading}>

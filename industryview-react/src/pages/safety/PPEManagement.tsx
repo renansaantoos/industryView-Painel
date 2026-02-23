@@ -514,12 +514,12 @@ export default function PPEManagement() {
       {activeTab === 'deliveries' && (
         <>
           {/* Filters */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-secondary-text)' }}>
-              <Filter size={16} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-secondary-text)', flexShrink: 0 }}>
+              <Filter size={15} />
               <span style={{ fontSize: '13px', fontWeight: 500 }}>Filtros:</span>
             </div>
-            <div className="input-group" style={{ margin: 0, flex: '0 0 260px', position: 'relative' }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               <Search
                 size={14}
                 style={{
@@ -529,29 +529,29 @@ export default function PPEManagement() {
                   transform: 'translateY(-50%)',
                   color: 'var(--color-secondary-text)',
                   pointerEvents: 'none',
+                  zIndex: 1,
                 }}
               />
               <input
                 type="text"
                 className="input-field"
-                placeholder="Nome ou ID do colaborador"
+                placeholder="Buscar colaborador..."
                 value={filterSearch}
                 onChange={(e) => { setFilterSearch(e.target.value); setDeliveryPage(1); }}
-                style={{ paddingLeft: '32px' }}
+                style={{ paddingLeft: '32px', margin: 0, width: '220px', height: '40px' }}
               />
             </div>
-            <div className="input-group" style={{ margin: 0, flex: '0 0 200px' }}>
+            <div style={{ flexShrink: 0, width: '220px' }}>
               <SearchableSelect
                 options={ppeTypes.map((pt) => ({ value: String(pt.id), label: pt.name }))}
                 value={filterPpeTypeId || undefined}
                 onChange={(val) => { setFilterPpeTypeId(String(val ?? '')); setDeliveryPage(1); }}
                 placeholder="Todos os tipos de EPI"
                 allowClear
-                style={{ flex: '0 0 200px' }}
               />
             </div>
             {(filterSearch || filterPpeTypeId) && (
-              <button className="btn btn-icon" title="Limpar filtros" onClick={handleClearDeliveryFilters}>
+              <button className="btn btn-icon" title="Limpar filtros" onClick={handleClearDeliveryFilters} style={{ flexShrink: 0 }}>
                 <X size={16} />
               </button>
             )}

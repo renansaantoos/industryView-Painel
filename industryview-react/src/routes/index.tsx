@@ -66,6 +66,7 @@ import GoldenRulesManagement from '../pages/quality/GoldenRulesManagement';
 // Notifications & Audit pages
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import AuditLogs from '../pages/audit/AuditLogs';
+import Clients from '../pages/clients/Clients';
 
 /**
  * Application routes.
@@ -293,6 +294,12 @@ export const router = createBrowserRouter([
       {
         path: '/auditoria',
         element: <AuditLogs />,
+      },
+
+      // Clients
+      {
+        path: '/clientes',
+        element: <Clients />,
       },
 
       // Settings

@@ -4,8 +4,8 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
-import { safetyApi, teamsApi, projectsApi } from '../../services';
-import type { DdsRecord, DdsParticipant, DdsStatistics, Team, ProjectInfo } from '../../types';
+import { safetyApi, teamsApi, projectsApi, usersApi } from '../../services';
+import type { DdsRecord, DdsParticipant, DdsStatistics, Team, ProjectInfo, UserListItem } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -64,14 +64,18 @@ export default function SafetyDDS() {
   const [teamOptions, setTeamOptions] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
 
+  // ── Employees for participant/sign dropdowns ──────────────────────────────
+  const [employeeOptions, setEmployeeOptions] = useState<UserListItem[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+
   // ── Add participant modal ─────────────────────────────────────────────────
   const [addParticipantDdsId, setAddParticipantDdsId] = useState<number | null>(null);
-  const [participantUserId, setParticipantUserId] = useState('');
+  const [participantUserId, setParticipantUserId] = useState<number | undefined>(undefined);
   const [participantLoading, setParticipantLoading] = useState(false);
 
   // ── Sign participation modal ──────────────────────────────────────────────
   const [signDdsId, setSignDdsId] = useState<number | null>(null);
-  const [signUserId, setSignUserId] = useState('');
+  const [signUserId, setSignUserId] = useState<number | undefined>(undefined);
   const [signLoading, setSignLoading] = useState(false);
 
   // ── Toast ─────────────────────────────────────────────────────────────────
@@ -156,6 +160,18 @@ export default function SafetyDDS() {
       .finally(() => setTeamsLoading(false));
   }, [showCreateModal]);
 
+  // Load employees once when either participant or sign modal opens
+  useEffect(() => {
+    const isAnyModalOpen = addParticipantDdsId !== null || signDdsId !== null;
+    if (!isAnyModalOpen || employeeOptions.length > 0) return;
+    setEmployeesLoading(true);
+    usersApi
+      .getAllUsersDropdown()
+      .then((data) => setEmployeeOptions(data ?? []))
+      .catch((err) => console.error('Failed to load employees for DDS modal:', err))
+      .finally(() => setEmployeesLoading(false));
+  }, [addParticipantDdsId, signDdsId]);
+
   const handleToggleExpand = useCallback(
     async (ddsId: number) => {
       if (expandedRow === ddsId) {
@@ -221,18 +237,19 @@ export default function SafetyDDS() {
   };
 
   const handleAddParticipant = async () => {
-    if (!addParticipantDdsId || !participantUserId.trim()) return;
+    if (!addParticipantDdsId || participantUserId === undefined) return;
     setParticipantLoading(true);
     try {
       await safetyApi.addDdsParticipant(addParticipantDdsId, {
-        users_id: parseInt(participantUserId, 10),
+        users_id: participantUserId,
       });
       // Refresh the expanded row participants
       const full = await safetyApi.getDdsRecord(addParticipantDdsId);
+      const count = full.participants?.length ?? full.participants_count ?? full.participant_count ?? 0;
       setRecords((prev) =>
-        prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: full.participants_count } : r)),
+        prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
       );
-      setParticipantUserId('');
+      setParticipantUserId(undefined);
       setAddParticipantDdsId(null);
       showToast(t('dds.participantAdded'), 'success');
     } catch (err) {
@@ -244,18 +261,18 @@ export default function SafetyDDS() {
   };
 
   const handleSign = async () => {
-    if (!signDdsId || !signUserId.trim()) return;
+    if (!signDdsId || signUserId === undefined) return;
     setSignLoading(true);
     try {
       await safetyApi.signDdsParticipation(signDdsId, {
-        users_id: parseInt(signUserId, 10),
+        users_id: signUserId,
       });
       // Refresh participants list
       const full = await safetyApi.getDdsRecord(signDdsId);
       setRecords((prev) =>
         prev.map((r) => (r.id === signDdsId ? { ...r, participants: full.participants } : r)),
       );
-      setSignUserId('');
+      setSignUserId(undefined);
       setSignDdsId(null);
       showToast(t('dds.signedSuccess'), 'success');
     } catch (err) {
@@ -665,7 +682,7 @@ export default function SafetyDDS() {
 
       {/* Add Participant Modal */}
       {addParticipantDdsId !== null && (
-        <div className="modal-backdrop" onClick={() => setAddParticipantDdsId(null)}>
+        <div className="modal-backdrop" onClick={() => { setAddParticipantDdsId(null); setParticipantUserId(undefined); }}>
           <div
             className="modal-content"
             style={{ padding: '24px', width: '380px' }}
@@ -675,24 +692,31 @@ export default function SafetyDDS() {
               {t('dds.addParticipant')}
             </h3>
             <div className="input-group">
-              <label>{t('dds.userId')} *</label>
-              <input
-                type="number"
-                className="input-field"
+              <label>{t('dds.collaborator')} *</label>
+              <SearchableSelect
+                options={employeeOptions
+                  .filter((emp) => {
+                    const currentRecord = records.find((r) => r.id === addParticipantDdsId);
+                    const existingIds = (currentRecord?.participants || []).map((p: any) => Number(p.users_id));
+                    return !existingIds.includes(emp.id);
+                  })
+                  .map((emp) => ({ value: emp.id, label: emp.name }))}
                 value={participantUserId}
-                onChange={(e) => setParticipantUserId(e.target.value)}
-                placeholder={t('dds.userIdPlaceholder')}
-                autoFocus
+                onChange={(val) => setParticipantUserId(val !== undefined ? Number(val) : undefined)}
+                placeholder={employeesLoading ? t('common.loading') : t('dds.collaboratorPlaceholder')}
+                searchPlaceholder={t('common.search')}
+                allowClear
+                style={{ width: '100%' }}
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setAddParticipantDdsId(null)}>
+              <button className="btn btn-secondary" onClick={() => { setAddParticipantDdsId(null); setParticipantUserId(undefined); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleAddParticipant}
-                disabled={participantLoading || !participantUserId.trim()}
+                disabled={participantLoading || participantUserId === undefined}
               >
                 {participantLoading ? <span className="spinner" /> : t('common.add')}
               </button>
@@ -703,7 +727,7 @@ export default function SafetyDDS() {
 
       {/* Sign Participation Modal */}
       {signDdsId !== null && (
-        <div className="modal-backdrop" onClick={() => setSignDdsId(null)}>
+        <div className="modal-backdrop" onClick={() => { setSignDdsId(null); setSignUserId(undefined); }}>
           <div
             className="modal-content"
             style={{ padding: '24px', width: '380px' }}
@@ -713,24 +737,25 @@ export default function SafetyDDS() {
               {t('dds.signParticipation')}
             </h3>
             <div className="input-group">
-              <label>{t('dds.userId')} *</label>
-              <input
-                type="number"
-                className="input-field"
+              <label>{t('dds.collaborator')} *</label>
+              <SearchableSelect
+                options={employeeOptions.map((emp) => ({ value: emp.id, label: emp.name }))}
                 value={signUserId}
-                onChange={(e) => setSignUserId(e.target.value)}
-                placeholder={t('dds.userIdPlaceholder')}
-                autoFocus
+                onChange={(val) => setSignUserId(val !== undefined ? Number(val) : undefined)}
+                placeholder={employeesLoading ? t('common.loading') : t('dds.collaboratorPlaceholder')}
+                searchPlaceholder={t('common.search')}
+                allowClear
+                style={{ width: '100%' }}
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setSignDdsId(null)}>
+              <button className="btn btn-secondary" onClick={() => { setSignDdsId(null); setSignUserId(undefined); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleSign}
-                disabled={signLoading || !signUserId.trim()}
+                disabled={signLoading || signUserId === undefined}
               >
                 {signLoading ? <span className="spinner" /> : t('dds.sign')}
               </button>

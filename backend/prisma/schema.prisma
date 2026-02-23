@@ -307,6 +307,7 @@ model company {
   checklist_templates   checklist_templates[]
   documents             documents[]
   environmental_licenses environmental_licenses[]
+  clients               clients[]
 
   @@index([created_at(sort: Desc)], map: "idx_company_created_at")
   @@index([status_payment_id], map: "idx_company_status_payment_id")
@@ -505,6 +506,7 @@ model projects {
   projects_statuses_id         BigInt?
   projects_works_situations_id BigInt?
   company_id                   BigInt?
+  client_id                    BigInt?
   created_at                   DateTime                   @default(now()) @db.Timestamptz(6)
   updated_at                   DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at                   DateTime?                  @db.Timestamptz(6)
@@ -513,6 +515,7 @@ model projects {
   inventory_logs               inventory_logs[]
   product_inventory            product_inventory[]
   company                      company?                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  client                       clients?                   @relation(fields: [client_id], references: [id], onUpdate: NoAction)
   projects_statuses            projects_statuses?         @relation(fields: [projects_statuses_id], references: [id], onUpdate: NoAction)
   projects_works_situations    projects_works_situations? @relation(fields: [projects_works_situations_id], references: [id], onUpdate: NoAction)
   projects_backlogs            projects_backlogs[]
@@ -537,6 +540,7 @@ model projects {
   schedule_imports             schedule_imports[]
 
   @@index([company_id], map: "idx_projects_company_id")
+  @@index([client_id], map: "idx_projects_client_id")
   @@index([created_at(sort: Desc)], map: "idx_projects_created_at")
   @@index([name_normalized], map: "idx_projects_name_normalized")
   @@index([projects_statuses_id], map: "idx_projects_projects_statuses_id")
@@ -2639,4 +2643,90 @@ model employees_career_history {
 
   @@index([users_id], map: "idx_employees_career_history_users_id")
   @@index([data_efetivacao], map: "idx_employees_career_history_data_efetivacao")
+}
+
+// =============================================================================
+// Clients (Clientes)
+// =============================================================================
+
+model clients {
+  id              BigInt    @id @default(autoincrement())
+  company_id      BigInt
+
+  // Campo de exibicao (auto-populado de trade_name ou legal_name)
+  name            String
+  name_normalized String?
+
+  // ==========================================================================
+  // Dados Cadastrais e Fiscais
+  // ==========================================================================
+  legal_name              String
+  trade_name              String?
+  cnpj                    String?   @db.VarChar(18)
+  state_registration      String?
+  state_registration_type String?   @db.VarChar(20)
+  main_cnae               String?   @db.VarChar(10)
+
+  // ==========================================================================
+  // Localizacao - Endereco de Faturamento
+  // ==========================================================================
+  billing_address      String?
+  billing_number       String?   @db.VarChar(20)
+  billing_complement   String?
+  billing_neighborhood String?
+  billing_city         String?
+  billing_state        String?   @db.Char(2)
+  billing_cep          String?   @db.VarChar(9)
+
+  // ==========================================================================
+  // Localizacao - Endereco de Entrega
+  // ==========================================================================
+  delivery_address          String?
+  delivery_number           String?   @db.VarChar(20)
+  delivery_complement       String?
+  delivery_neighborhood     String?
+  delivery_city             String?
+  delivery_state            String?   @db.Char(2)
+  delivery_cep              String?   @db.VarChar(9)
+  delivery_same_as_billing  Boolean   @default(true)
+  receiving_hours           String?
+  vehicle_restrictions      String?
+  latitude                  Decimal?  @db.Decimal(10, 8)
+  longitude                 Decimal?  @db.Decimal(11, 8)
+
+  // ==========================================================================
+  // Contatos Operacionais
+  // ==========================================================================
+  purchasing_contact_name  String?
+  purchasing_contact_email String?
+  purchasing_contact_phone String?   @db.VarChar(20)
+  financial_contact_name   String?
+  financial_contact_email  String?
+  financial_contact_phone  String?   @db.VarChar(20)
+  warehouse_contact_name   String?
+  warehouse_contact_email  String?
+  warehouse_contact_phone  String?   @db.VarChar(20)
+
+  // ==========================================================================
+  // Parametros de Negocio
+  // ==========================================================================
+  industry_segment       String?
+  purchase_potential     String?
+  default_payment_terms  String?
+  responsible_salesperson String?
+
+  // ==========================================================================
+  // Observacoes e Auditoria
+  // ==========================================================================
+  notes      String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+
+  company  company    @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects projects[]
+
+  @@index([company_id], map: "idx_clients_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_clients_created_at")
+  @@index([name_normalized], map: "idx_clients_name_normalized")
 }

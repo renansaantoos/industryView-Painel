@@ -1,3 +1,9 @@
+/** Nested relation returned by Prisma include */
+export interface WorkforceRelation {
+  id: number;
+  name: string;
+}
+
 /** Workforce Daily Log */
 export interface WorkforceDailyLog {
   id: number;
@@ -11,6 +17,12 @@ export interface WorkforceDailyLog {
   status?: 'presente' | 'ausente' | 'meio_periodo';
   observation?: string;
   user_name?: string;
+  hours_normal?: number;
+  hours_overtime?: number;
+  // Nested relations from Prisma includes
+  worker?: WorkforceRelation | null;
+  teams?: WorkforceRelation | null;
+  projects?: WorkforceRelation | null;
   created_at: string;
   updated_at: string;
 }

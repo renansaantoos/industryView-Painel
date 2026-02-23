@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
+import { useAuth } from '../../hooks/useAuth';
 import { usersApi } from '../../services';
 import type { UserFull } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
@@ -18,6 +19,7 @@ export default function Employees() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setNavBarSelection } = useAppState();
+  const { user } = useAuth();
 
   const [employees, setEmployees] = useState<UserFull[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,9 +170,11 @@ export default function Employees() {
                       <button className="btn btn-icon" title={t('common.edit')} onClick={() => navigate(`/funcionario/${emp.id}`)}>
                         <Edit size={16} color="var(--color-secondary-text)" />
                       </button>
-                      <button className="btn btn-icon" title={t('common.delete')} onClick={() => setDeleteConfirm(emp.id)}>
-                        <Trash2 size={16} color="var(--color-error)" />
-                      </button>
+                      {emp.id !== user?.id && (
+                        <button className="btn btn-icon" title={t('common.delete')} onClick={() => setDeleteConfirm(emp.id)}>
+                          <Trash2 size={16} color="var(--color-error)" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </motion.tr>

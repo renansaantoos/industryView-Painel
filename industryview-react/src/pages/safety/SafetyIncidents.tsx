@@ -612,7 +612,7 @@ export default function SafetyIncidents() {
         <input
           type="date"
           className="input-field"
-          style={{ maxWidth: '150px' }}
+          style={{ width: '170px', flex: '0 0 170px' }}
           value={dateFrom}
           onChange={(e) => {
             setDateFrom(e.target.value);
@@ -623,7 +623,7 @@ export default function SafetyIncidents() {
         <input
           type="date"
           className="input-field"
-          style={{ maxWidth: '150px' }}
+          style={{ width: '170px', flex: '0 0 170px' }}
           value={dateTo}
           onChange={(e) => {
             setDateTo(e.target.value);

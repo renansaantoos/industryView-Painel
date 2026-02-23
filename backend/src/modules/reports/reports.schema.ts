@@ -51,7 +51,7 @@ export const getDailyReportByIdSchema = z.object({
  */
 export const createDailyReportSchema = z.object({
   projects_id: z.coerce.number().int().optional(),
-  schedule_id: z.array(z.coerce.number().int()).min(1, 'Voce nao pode criar um RDO sem nenhum lider.'),
+  schedule_id: z.array(z.coerce.number().int()).optional().default([]),
   date: z.string().optional(),
 });
 

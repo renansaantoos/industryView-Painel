@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { pageVariants, fadeUpChild, staggerParent } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
 import { usersApi, employeesApi, ppeApi } from '../../services';
 import type { UserFull, EmployeeHrData, VacationBalance } from '../../types';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { generateBadgePDF } from '../../utils/badgeGenerator';
 import {
   ArrowLeft,
   User,
   Calendar,
-  ShieldCheck,
   FileText,
   HardHat,
   GraduationCap,
@@ -20,6 +21,7 @@ import {
   Gift,
   AlertTriangle,
   HeartPulse,
+  IdCard,
 } from 'lucide-react';
 
 // Tab components
@@ -72,11 +74,13 @@ export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { setNavBarSelection } = useAppState();
+  const { t } = useTranslation();
   const usersId = Number(id);
 
   const [user, setUser] = useState<UserFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('dados');
+  const [isBadgeGenerating, setIsBadgeGenerating] = useState(false);
   const [summary, setSummary] = useState<SummaryData>({
     vacationBalance: null,
     ppeStatus: null,
@@ -118,6 +122,26 @@ export default function EmployeeProfile() {
       console.error('Failed to load profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateBadge = async () => {
+    if (isBadgeGenerating) return;
+    setIsBadgeGenerating(true);
+    try {
+      await generateBadgePDF({
+        id: usersId,
+        name: user?.name || summary.hrData?.nome_completo || user?.email || 'Funcionário',
+        matricula: summary.hrData?.matricula ?? null,
+        cargo: summary.hrData?.cargo ?? null,
+        departamento: summary.hrData?.departamento ?? null,
+        profile_picture: user?.url ?? null,
+        email: user?.email ?? null,
+      });
+    } catch (err) {
+      console.error('Erro ao gerar crachá:', err);
+    } finally {
+      setIsBadgeGenerating(false);
     }
   };
 
@@ -182,9 +206,9 @@ export default function EmployeeProfile() {
               flexShrink: 0,
             }}
           >
-            {user?.profile_picture ? (
+            {user?.url ? (
               <img
-                src={user.profile_picture}
+                src={user.url}
                 alt={displayName}
                 style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
               />
@@ -210,18 +234,38 @@ export default function EmployeeProfile() {
             )}
           </div>
 
-          {/* Status badge */}
-          <div
-            style={{
-              padding: '6px 14px',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: 600,
-              background: hrData?.data_demissao ? 'var(--color-error-bg, #fee)' : 'var(--color-success-bg, #efe)',
-              color: hrData?.data_demissao ? 'var(--color-error, #c00)' : 'var(--color-success, #080)',
-            }}
-          >
-            {hrData?.data_demissao ? 'Inativo' : 'Ativo'}
+          {/* Status badge + actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: 600,
+                background: hrData?.data_demissao ? 'var(--color-error-bg, #fee)' : 'var(--color-success-bg, #efe)',
+                color: hrData?.data_demissao ? 'var(--color-error, #c00)' : 'var(--color-success, #080)',
+              }}
+            >
+              {hrData?.data_demissao ? 'Inativo' : 'Ativo'}
+            </div>
+
+            <button
+              className="btn btn-secondary"
+              onClick={handleGenerateBadge}
+              disabled={isBadgeGenerating}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '13px',
+                opacity: isBadgeGenerating ? 0.6 : 1,
+                cursor: isBadgeGenerating ? 'not-allowed' : 'pointer',
+              }}
+              title={t('employees.generateBadge')}
+            >
+              <IdCard size={15} />
+              {isBadgeGenerating ? t('common.loading') : t('employees.generateBadge')}
+            </button>
           </div>
         </div>
 

@@ -68,6 +68,7 @@ export default function PlanningBaseline() {
   const [baselineName, setBaselineName] = useState('');
   const [baselineDescription, setBaselineDescription] = useState('');
   const [baselineModalLoading, setBaselineModalLoading] = useState(false);
+  const [baselineErrors, setBaselineErrors] = useState<Record<string, string | undefined>>({});
 
   // Curve S drawer state
   const [selectedBaseline, setSelectedBaseline] = useState<ScheduleBaseline | null>(null);
@@ -83,6 +84,7 @@ export default function PlanningBaseline() {
   const [depType, setDepType] = useState<TaskDependency['dependency_type']>('FS');
   const [depLagDays, setDepLagDays] = useState('0');
   const [depModalLoading, setDepModalLoading] = useState(false);
+  const [depErrors, setDepErrors] = useState<Record<string, string | undefined>>({});
   const [deleteDepConfirm, setDeleteDepConfirm] = useState<number | null>(null);
 
   // ── Toast helper ─────────────────────────────────────────────────────────────
@@ -163,11 +165,19 @@ export default function PlanningBaseline() {
   const handleOpenBaselineModal = () => {
     setBaselineName('');
     setBaselineDescription('');
+    setBaselineErrors({});
     setShowBaselineModal(true);
   };
 
   const handleCreateBaseline = async () => {
-    if (!projectsInfo || !baselineName.trim()) return;
+    if (!projectsInfo) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!baselineName.trim()) errors.baselineName = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setBaselineErrors(errors);
+      return;
+    }
+    setBaselineErrors({});
     setBaselineModalLoading(true);
     try {
       await planningApi.createBaseline({
@@ -207,11 +217,20 @@ export default function PlanningBaseline() {
     setDepSuccessorId('');
     setDepType('FS');
     setDepLagDays('0');
+    setDepErrors({});
     setShowDepModal(true);
   };
 
   const handleCreateDependency = async () => {
-    if (!projectsInfo || !depPredecessorId || !depSuccessorId) return;
+    if (!projectsInfo) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!depPredecessorId) errors.depPredecessorId = t('common.requiredField', 'Campo obrigatório');
+    if (!depSuccessorId) errors.depSuccessorId = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setDepErrors(errors);
+      return;
+    }
+    setDepErrors({});
     setDepModalLoading(true);
     try {
       await planningApi.createDependency({
@@ -549,13 +568,13 @@ export default function PlanningBaseline() {
 
       {/* ── Modal: Create Baseline ────────────────────────────────────────────── */}
       {showBaselineModal && (
-        <div className="modal-backdrop" onClick={() => setShowBaselineModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowBaselineModal(false); setBaselineErrors({}); }}>
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ padding: '24px', minWidth: '400px', maxWidth: '480px' }}
+            style={{ padding: '24px', width: '480px' }}
           >
-            <h3 style={{ marginBottom: '20px' }}>Nova Baseline</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>Nova Baseline</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
                 <label>Nome *</label>
@@ -563,8 +582,17 @@ export default function PlanningBaseline() {
                   className="input-field"
                   placeholder="Ex.: Baseline Aprovada v1"
                   value={baselineName}
-                  onChange={(e) => setBaselineName(e.target.value)}
+                  onChange={(e) => {
+                    setBaselineName(e.target.value);
+                    if (baselineErrors.baselineName) setBaselineErrors((prev) => ({ ...prev, baselineName: undefined }));
+                  }}
+                  style={baselineErrors.baselineName ? { borderColor: 'var(--color-error)' } : undefined}
                 />
+                {baselineErrors.baselineName && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {baselineErrors.baselineName}
+                  </span>
+                )}
               </div>
               <div className="input-group">
                 <label>Descrição</label>
@@ -586,13 +614,13 @@ export default function PlanningBaseline() {
                 marginTop: '20px',
               }}
             >
-              <button className="btn btn-secondary" onClick={() => setShowBaselineModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowBaselineModal(false); setBaselineErrors({}); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreateBaseline}
-                disabled={baselineModalLoading || !baselineName.trim()}
+                disabled={baselineModalLoading}
               >
                 {baselineModalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
@@ -603,35 +631,55 @@ export default function PlanningBaseline() {
 
       {/* ── Modal: Create Dependency ──────────────────────────────────────────── */}
       {showDepModal && (
-        <div className="modal-backdrop" onClick={() => setShowDepModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowDepModal(false); setDepErrors({}); }}>
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ padding: '24px', minWidth: '400px', maxWidth: '480px' }}
+            style={{ padding: '24px', width: '480px' }}
           >
-            <h3 style={{ marginBottom: '20px' }}>Nova Dependência</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>Nova Dependência</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="input-group">
-                <label>ID do Predecessor (Backlog) *</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  placeholder="Ex.: 42"
-                  min={1}
-                  value={depPredecessorId}
-                  onChange={(e) => setDepPredecessorId(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>ID do Sucessor (Backlog) *</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  placeholder="Ex.: 43"
-                  min={1}
-                  value={depSuccessorId}
-                  onChange={(e) => setDepSuccessorId(e.target.value)}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="input-group">
+                  <label>ID do Predecessor *</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    placeholder="Ex.: 42"
+                    min={1}
+                    value={depPredecessorId}
+                    onChange={(e) => {
+                      setDepPredecessorId(e.target.value);
+                      if (depErrors.depPredecessorId) setDepErrors((prev) => ({ ...prev, depPredecessorId: undefined }));
+                    }}
+                    style={depErrors.depPredecessorId ? { borderColor: 'var(--color-error)' } : undefined}
+                  />
+                  {depErrors.depPredecessorId && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                      {depErrors.depPredecessorId}
+                    </span>
+                  )}
+                </div>
+                <div className="input-group">
+                  <label>ID do Sucessor *</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    placeholder="Ex.: 43"
+                    min={1}
+                    value={depSuccessorId}
+                    onChange={(e) => {
+                      setDepSuccessorId(e.target.value);
+                      if (depErrors.depSuccessorId) setDepErrors((prev) => ({ ...prev, depSuccessorId: undefined }));
+                    }}
+                    style={depErrors.depSuccessorId ? { borderColor: 'var(--color-error)' } : undefined}
+                  />
+                  {depErrors.depSuccessorId && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                      {depErrors.depSuccessorId}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="input-group">
                 <label>Tipo de Dependência</label>
@@ -646,6 +694,7 @@ export default function PlanningBaseline() {
                 <input
                   type="number"
                   className="input-field"
+                  placeholder="0"
                   min={0}
                   value={depLagDays}
                   onChange={(e) => setDepLagDays(e.target.value)}
@@ -660,13 +709,13 @@ export default function PlanningBaseline() {
                 marginTop: '20px',
               }}
             >
-              <button className="btn btn-secondary" onClick={() => setShowDepModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowDepModal(false); setDepErrors({}); }}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreateDependency}
-                disabled={depModalLoading || !depPredecessorId || !depSuccessorId}
+                disabled={depModalLoading}
               >
                 {depModalLoading ? <span className="spinner" /> : t('common.save')}
               </button>

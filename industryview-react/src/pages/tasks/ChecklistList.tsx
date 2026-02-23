@@ -92,6 +92,7 @@ export default function ChecklistList() {
   const [form, setForm] = useState<ChecklistFormState>(EMPTY_FORM);
   const [modalLoading, setModalLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string | undefined>>({});
 
   // ------------------------------------------------------------------
   // Bootstrap
@@ -148,11 +149,18 @@ export default function ChecklistList() {
 
   const openCreateModal = () => {
     setForm(EMPTY_FORM);
+    setFormErrors({});
     setShowCreateModal(true);
   };
 
   const handleCreate = async () => {
-    if (!form.name.trim()) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!form.name.trim()) errors.name = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     setModalLoading(true);
     try {
       const items = form.items
@@ -187,6 +195,7 @@ export default function ChecklistList() {
 
   const openEditModal = (checklist: ChecklistTemplate) => {
     setEditingChecklist(checklist);
+    setFormErrors({});
     setForm({
       name: checklist.name,
       description: checklist.description ?? '',
@@ -195,7 +204,14 @@ export default function ChecklistList() {
   };
 
   const handleEdit = async () => {
-    if (!editingChecklist || !form.name.trim()) return;
+    if (!editingChecklist) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!form.name.trim()) errors.name = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     setModalLoading(true);
     try {
       // Build items: delete existing, create new
@@ -271,10 +287,11 @@ export default function ChecklistList() {
   const closeModal = () => {
     setShowCreateModal(false);
     setEditingChecklist(null);
+    setFormErrors({});
   };
 
   const handleModalSubmit = isEditMode ? handleEdit : handleCreate;
-  const isSubmitDisabled = modalLoading || !form.name.trim();
+  const isSubmitDisabled = modalLoading;
 
   // ------------------------------------------------------------------
   // JSX
@@ -429,9 +446,18 @@ export default function ChecklistList() {
                   <input
                     className="input-field"
                     value={form.name}
-                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => {
+                      setForm((prev) => ({ ...prev, name: e.target.value }));
+                      if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: undefined }));
+                    }}
                     placeholder={t('tasks.checklistNamePlaceholder')}
+                    style={formErrors.name ? { borderColor: 'var(--color-error)' } : undefined}
                   />
+                  {formErrors.name && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                      {formErrors.name}
+                    </span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label>{t('tasks.description')}</label>
