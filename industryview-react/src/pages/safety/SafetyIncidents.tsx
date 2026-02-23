@@ -50,6 +50,9 @@ const STATUS_CONFIG: Record<Status, { bg: string; color: string; label: string }
   encerrado: { bg: '#F4FEF9', color: '#028F58', label: '' },
 };
 
+const today = new Date();
+const TODAY_DATE = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {
@@ -180,7 +183,7 @@ export default function SafetyIncidents() {
   const [formDate, setFormDate] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formLocation, setFormLocation] = useState('');
-  const [formSeverity, setFormSeverity] = useState<Severity>('quase_acidente');
+  const [formSeverity, setFormSeverity] = useState<Severity | ''>('');
   const [formClassification, setFormClassification] = useState<Classification | ''>('');
   const [formCategory, setFormCategory] = useState('');
   const [formInvolvedUserId, setFormInvolvedUserId] = useState<number | ''>('');
@@ -290,7 +293,7 @@ export default function SafetyIncidents() {
     setFormDate('');
     setFormDescription('');
     setFormLocation('');
-    setFormSeverity('quase_acidente');
+    setFormSeverity('');
     setFormClassification('');
     setFormCategory('');
     setFormInvolvedUserId('');
@@ -307,6 +310,8 @@ export default function SafetyIncidents() {
     const errors: Record<string, string> = {};
     if (!formProjectId) errors.project = t('safety.validation.projectRequired', 'Selecione um projeto');
     if (!formDate) errors.date = t('safety.validation.dateRequired', 'Data do incidente e obrigatoria');
+    if (formDate && formDate > TODAY_DATE) errors.date = t('safety.validation.dateMaxToday', 'Data do incidente nao pode ser futura');
+    if (!formSeverity) errors.severity = t('safety.validation.severityRequired', 'Severidade e obrigatoria');
     if (!formDescription.trim()) errors.description = t('safety.validation.descriptionRequired', 'Descricao e obrigatoria');
     if (formDescription.trim().length > 0 && formDescription.trim().length < 10) errors.description = t('safety.validation.descriptionMin', 'Descricao deve ter ao menos 10 caracteres');
     if (!formClassification) errors.classification = t('safety.validation.classificationRequired', 'Classificacao e obrigatoria');
@@ -326,7 +331,7 @@ export default function SafetyIncidents() {
         reported_by: user.id,
         incident_date: formDate,
         description: formDescription.trim(),
-        severity: formSeverity,
+        severity: formSeverity as Severity,
         classification: formClassification as Classification,
         category: formCategory.trim(),
         projects_id: Number(formProjectId),
@@ -1091,6 +1096,7 @@ export default function SafetyIncidents() {
                   type="date"
                   className="input-field"
                   value={formDate}
+                  max={TODAY_DATE}
                   onChange={(e) => setFormDate(e.target.value)}
                   style={formTouched && formErrors.date ? { borderColor: '#C0392B' } : {}}
                 />
@@ -1127,9 +1133,15 @@ export default function SafetyIncidents() {
                       { value: 'com_afastamento', label: severityLabel.com_afastamento },
                       { value: 'fatal', label: severityLabel.fatal },
                     ]}
-                    value={formSeverity}
-                    onChange={(val) => setFormSeverity((val as Severity) ?? 'quase_acidente')}
+                    value={formSeverity || undefined}
+                    onChange={(val) => setFormSeverity((val as Severity) ?? '')}
+                    placeholder={t('common.select', 'Selecione...')}
+                    allowClear
+                    style={formTouched && formErrors.severity ? { borderColor: '#C0392B' } : {}}
                   />
+                  {formTouched && formErrors.severity && (
+                    <span style={{ color: '#C0392B', fontSize: '12px', marginTop: '4px' }}>{formErrors.severity}</span>
+                  )}
                 </div>
                 <div className="input-group">
                   <label>{t('safety.classification', 'Classificacao')} <span style={{ color: '#C0392B' }}>*</span></label>

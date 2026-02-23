@@ -384,7 +384,16 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
         });
         showToast('Incidente registrado com sucesso.', 'success');
       }
-      closeModal();
+      closeModal(); <tr>
+                <th>Data</th>
+                <th>N Incidente</th>
+                <th>Severidade</th>
+                <th>Classificacao</th>
+                <th>Parte do Corpo</th>
+                <th>Dias Perdidos</th>
+                <th>Status</th>
+                <th>Acoes</th>
+              </tr>
       loadData();
     } catch (err) {
       console.error('Failed to save incident:', err);
