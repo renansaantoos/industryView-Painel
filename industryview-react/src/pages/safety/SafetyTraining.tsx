@@ -361,18 +361,6 @@ export default function SafetyTraining() {
     setTypeApiError('');
     if (!validateTypeForm()) return;
 
-    // Check for duplicate NR reference
-    const refTrimmed = typeNrReference.trim().toLowerCase();
-    const duplicate = trainingTypes.find(
-      (tt) =>
-        (tt.nr_reference || '').toLowerCase() === refTrimmed &&
-        (!editingType || tt.id !== editingType.id),
-    );
-    if (duplicate) {
-      setTypeApiError(t('safety.validation.duplicateReference'));
-      return;
-    }
-
     setTypeModalLoading(true);
     try {
       const payload: Record<string, unknown> = {
