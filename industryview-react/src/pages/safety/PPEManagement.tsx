@@ -51,6 +51,19 @@ interface DeliveryForm {
   observation: string;
 }
 
+function getTodayIsoDate(): string {
+  const now = new Date();
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
+function isFutureIsoDate(dateIso: string): boolean {
+  if (!dateIso) return false;
+  const selected = new Date(`${dateIso}T00:00:00`);
+  const today = new Date(`${getTodayIsoDate()}T00:00:00`);
+  return selected.getTime() > today.getTime();
+}
+
 const EMPTY_PPE_TYPE_FORM: PpeTypeForm = {
   name: '',
   ca_number: '',
@@ -62,7 +75,7 @@ const EMPTY_DELIVERY_FORM: DeliveryForm = {
   ppe_types_id: '',
   users_id: '',
   quantity: '1',
-  delivery_date: new Date().toISOString().slice(0, 10),
+  delivery_date: getTodayIsoDate(),
   observation: '',
 };
 
@@ -252,6 +265,7 @@ export default function PPEManagement() {
     if (!deliveryForm.users_id.trim()) errors.users_id = 'Colaborador é obrigatório';
     if (!deliveryForm.quantity.trim() || parseInt(deliveryForm.quantity, 10) < 1) errors.quantity = 'Quantidade mínima é 1';
     if (!deliveryForm.delivery_date) errors.delivery_date = 'Data de entrega é obrigatória';
+    else if (isFutureIsoDate(deliveryForm.delivery_date)) errors.delivery_date = 'Data de entrega não pode ser futura';
     setDeliveryErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -329,7 +343,7 @@ export default function PPEManagement() {
      ========================================= */
 
   const openCreateDelivery = () => {
-    setDeliveryForm(EMPTY_DELIVERY_FORM);
+    setDeliveryForm({ ...EMPTY_DELIVERY_FORM, delivery_date: getTodayIsoDate() });
     setDeliveryErrors({});
     setSelectedEmployeeName('');
     setEmployeeSearch('');
@@ -879,9 +893,14 @@ export default function PPEManagement() {
                   <label>Data de Entrega <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
                     type="date"
+                    max={getTodayIsoDate()}
                     className={`input-field${deliveryErrors.delivery_date ? ' error' : ''}`}
                     value={deliveryForm.delivery_date}
-                    onChange={(e) => handleDeliveryField('delivery_date', e.target.value)}
+                    onChange={(e) => {
+                      const selectedDate = e.target.value;
+                      const normalizedDate = isFutureIsoDate(selectedDate) ? getTodayIsoDate() : selectedDate;
+                      handleDeliveryField('delivery_date', normalizedDate);
+                    }}
                   />
                   {deliveryErrors.delivery_date && <span className="input-error">{deliveryErrors.delivery_date}</span>}
                 </div>
