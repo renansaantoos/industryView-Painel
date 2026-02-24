@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { pageVariants, fadeUpChild, staggerParent } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
-import { usersApi, employeesApi, ppeApi } from '../../services';
+import { usersApi, employeesApi, ppeApi, safetyApi } from '../../services';
 import type { UserFull, EmployeeHrData, VacationBalance } from '../../types';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { generateBadgePDF } from '../../utils/badgeGenerator';
@@ -129,14 +129,30 @@ export default function EmployeeProfile() {
     if (isBadgeGenerating) return;
     setIsBadgeGenerating(true);
     try {
+      const hrUser = summary.hrData?.user;
+
+      const trainingsResult = await safetyApi.listWorkerTrainings({
+        users_id: usersId,
+        page: 1,
+        per_page: 10,
+      }).catch(() => null);
+
+      const trainings = (trainingsResult?.items ?? []).map((t) => ({
+        name: t.training_type_name || '—',
+        date: t.training_date,
+        validity: t.expiry_date ?? null,
+      }));
+
       await generateBadgePDF({
         id: usersId,
-        name: user?.name || summary.hrData?.nome_completo || user?.email || 'Funcionário',
+        name: user?.name || summary.hrData?.nome_completo || hrUser?.name || user?.email || hrUser?.email || 'Funcionário',
+        cpf: summary.hrData?.cpf ?? null,
         matricula: summary.hrData?.matricula ?? null,
         cargo: summary.hrData?.cargo ?? null,
         departamento: summary.hrData?.departamento ?? null,
         profile_picture: user?.url ?? null,
-        email: user?.email ?? null,
+        email: user?.email || hrUser?.email || null,
+        trainings,
       });
     } catch (err) {
       console.error('Erro ao gerar crachá:', err);
