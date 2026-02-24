@@ -196,7 +196,12 @@
       "invalidLongitude": "Invalid longitude (must be between -180 and 180)",
       "singleError": "Fix the error indicated before saving",
       "multipleErrors": "Fix the {{count}} errors indicated before saving"
-    }
+    },
+    "linkProjects": "Link Projects",
+    "selectProjects": "Select projects...",
+    "projectsSelected": "{{count}} project(s) selected",
+    "noProjectsAvailable": "No projects available",
+    "linkedProjects": "Linked Projects"
   },
   "auth": {
     "welcome": "Welcome!",
@@ -315,6 +320,7 @@
     "clientSectionSubtitle": "Select the client associated with this project",
     "selectClient": "Select a client...",
     "addNewClient": "New Client",
+    "clientRequired": "Please select a client before saving the project",
     "noClientSelected": "No client selected",
     "clientSelected": "Client selected",
     "clientAutoFillInfo": "CNPJ auto-filled from the selected client's data",
@@ -770,12 +776,19 @@
     "sign": "Sign",
     "searchIncidents": "Search incidents...",
     "confirmDelete": "Are you sure you want to delete?",
+    "trainingLabel": "Training",
+    "filterByEmployee": "Filter by employee",
     "validation": {
       "nameRequired": "Training name is required",
       "nameMinLength": "Name must be at least 3 characters",
       "validityMin": "Validity must be at least 1 month",
       "workloadMin": "Workload cannot be negative",
-      "saveFailed": "Failed to save training type. Please try again."
+      "saveFailed": "Failed to save training type. Please try again.",
+      "referenceRequired": "NR Reference is required",
+      "validityRequired": "Validity is required",
+      "workloadRequired": "Workload is required",
+      "descriptionRequired": "Description is required",
+      "duplicateReference": "A training type with this NR reference already exists"
     }
   },
   "quality": {

@@ -77,6 +77,7 @@ export default function CreateProject() {
 
   // Client creation modal
   const [showClientModal, setShowClientModal] = useState(false);
+  const [clientError, setClientError] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -144,6 +145,7 @@ export default function CreateProject() {
     const client = allClients.find((c) => c.id === id) ?? null;
     setSelectedClientId(id);
     setSelectedClient(client);
+    setClientError(false);
 
     if (client?.cnpj) {
       const digits = client.cnpj.replace(/\D/g, '').slice(0, 14);
@@ -171,6 +173,13 @@ export default function CreateProject() {
   // ── Form submission ───────────────────────────────────────────────────────
 
   const onSubmit = async (data: CreateProjectRequest) => {
+    // Validate required client
+    if (!selectedClientId) {
+      setClientError(true);
+      showToast(t('projects.clientRequired'), 'error');
+      return;
+    }
+    setClientError(false);
     setLoading(true);
     setError('');
     try {
@@ -291,18 +300,25 @@ export default function CreateProject() {
               {/* Dropdown row */}
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                 <div className="input-group" style={{ flex: 1 }}>
-                  <label>{t('projects.clientSection')}</label>
-                  <SearchableSelect
-                    options={clientOptions}
-                    value={selectedClientId}
-                    onChange={handleClientSelect}
-                    placeholder={
-                      clientsLoading
-                        ? t('common.loading')
-                        : t('projects.selectClient')
-                    }
-                    searchPlaceholder={t('common.search')}
-                  />
+                  <label>{t('projects.clientSection')} *</label>
+                  <div style={clientError ? { border: '1.5px solid var(--color-error, #C0392B)', borderRadius: '8px' } : undefined}>
+                    <SearchableSelect
+                      options={clientOptions}
+                      value={selectedClientId}
+                      onChange={handleClientSelect}
+                      placeholder={
+                        clientsLoading
+                          ? t('common.loading')
+                          : t('projects.selectClient')
+                      }
+                      searchPlaceholder={t('common.search')}
+                    />
+                  </div>
+                  {clientError && (
+                    <span style={{ color: 'var(--color-error, #C0392B)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      {t('projects.clientRequired')}
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"

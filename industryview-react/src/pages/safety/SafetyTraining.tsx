@@ -22,6 +22,9 @@ import {
   Clock,
   Award,
   AlertTriangle,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 // ── Validity helpers ─────────────────────────────────────────────────────────
@@ -56,6 +59,46 @@ function ValidityBadge({ status, label }: { status: ValidityStatus; label: strin
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('pt-BR');
+}
+
+// ── Sort helpers ─────────────────────────────────────────────────────────────
+
+type SortDir = 'asc' | 'desc';
+interface SortState<T extends string> {
+  field: T;
+  dir: SortDir;
+}
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+}) {
+  return (
+    <th
+      onClick={onClick}
+      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+    >
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        {label}
+        {active ? (
+          dir === 'asc' ? (
+            <ArrowUp size={13} color="var(--color-primary)" />
+          ) : (
+            <ArrowDown size={13} color="var(--color-primary)" />
+          )
+        ) : (
+          <ArrowUpDown size={13} color="var(--color-secondary-text)" style={{ opacity: 0.5 }} />
+        )}
+      </div>
+    </th>
+  );
 }
 
 // ── Tab button ───────────────────────────────────────────────────────────────
@@ -106,6 +149,18 @@ export default function SafetyTraining() {
   const [typesSearch, setTypesSearch] = useState('');
   const [deleteTypeConfirm, setDeleteTypeConfirm] = useState<number | null>(null);
 
+  // Sort state for training types
+  type TypeSortField = 'name' | 'nr_reference' | 'validity_months' | 'workload_hours';
+  const [typeSort, setTypeSort] = useState<SortState<TypeSortField>>({ field: 'name', dir: 'asc' });
+
+  function toggleTypeSort(field: TypeSortField) {
+    setTypeSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { field, dir: 'asc' },
+    );
+  }
+
   // Create/Edit type modal
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [editingType, setEditingType] = useState<TrainingType | null>(null);
@@ -130,6 +185,20 @@ export default function SafetyTraining() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [deleteTrainingConfirm, setDeleteTrainingConfirm] = useState<number | null>(null);
+  const [filterEmployeeId, setFilterEmployeeId] = useState<number | null>(null);
+  const [filterEmployees, setFilterEmployees] = useState<UserFull[]>([]);
+
+  // Sort state for worker trainings
+  type TrainingSortField = 'user_name' | 'training_type_name' | 'training_date' | 'expiry_date' | 'instructor' | 'status';
+  const [trainingSort, setTrainingSort] = useState<SortState<TrainingSortField>>({ field: 'user_name', dir: 'asc' });
+
+  function toggleTrainingSort(field: TrainingSortField) {
+    setTrainingSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { field, dir: 'asc' },
+    );
+  }
 
   // Register training modal
   const [showTrainingModal, setShowTrainingModal] = useState(false);
@@ -149,6 +218,14 @@ export default function SafetyTraining() {
 
   useEffect(() => {
     setNavBarSelection(15);
+  }, []);
+
+  // Load all employees once for the filter dropdown
+  useEffect(() => {
+    usersApi
+      .queryAllUsers({ per_page: 100 })
+      .then((res) => setFilterEmployees(res.items || []))
+      .catch(() => {});
   }, []);
 
   // ── Loaders ──────────────────────────────────────────────────────────────
@@ -179,6 +256,9 @@ export default function SafetyTraining() {
       if (user?.companyId) {
         params.company_id = user.companyId;
       }
+      if (filterEmployeeId) {
+        params.users_id = filterEmployeeId;
+      }
       const data = await safetyApi.listWorkerTrainings(params);
       setWorkerTrainings(data.items || []);
       setTotalPages(data.pageTotal || 1);
@@ -188,7 +268,7 @@ export default function SafetyTraining() {
     } finally {
       setTrainingsLoading(false);
     }
-  }, [user, page, perPage]);
+  }, [user, page, perPage, filterEmployeeId]);
 
   useEffect(() => {
     loadTrainingTypes();
@@ -213,13 +293,19 @@ export default function SafetyTraining() {
         if (!value.trim()) return t('safety.validation.nameRequired');
         if (value.trim().length < 3) return t('safety.validation.nameMinLength');
         return '';
+      case 'nr_reference':
+        if (!value.trim()) return t('safety.validation.referenceRequired');
+        return '';
       case 'validity_months':
-        if (value && (isNaN(Number(value)) || Number(value) < 1))
-          return t('safety.validation.validityMin');
+        if (!value.trim()) return t('safety.validation.validityRequired');
+        if (isNaN(Number(value)) || Number(value) < 1) return t('safety.validation.validityMin');
         return '';
       case 'workload_hours':
-        if (value && (isNaN(Number(value)) || Number(value) < 0))
-          return t('safety.validation.workloadMin');
+        if (!value.trim()) return t('safety.validation.workloadRequired');
+        if (isNaN(Number(value)) || Number(value) < 0) return t('safety.validation.workloadMin');
+        return '';
+      case 'description':
+        if (!value.trim()) return t('safety.validation.descriptionRequired');
         return '';
       default:
         return '';
@@ -230,10 +316,14 @@ export default function SafetyTraining() {
     const errors: Record<string, string> = {};
     const nameError = validateTypeField('name', typeName);
     if (nameError) errors.name = nameError;
+    const referenceError = validateTypeField('nr_reference', typeNrReference);
+    if (referenceError) errors.nr_reference = referenceError;
     const validityError = validateTypeField('validity_months', typeValidityMonths);
     if (validityError) errors.validity_months = validityError;
     const workloadError = validateTypeField('workload_hours', typeWorkloadHours);
     if (workloadError) errors.workload_hours = workloadError;
+    const descriptionError = validateTypeField('description', typeDescription);
+    if (descriptionError) errors.description = descriptionError;
     setTypeFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -271,14 +361,26 @@ export default function SafetyTraining() {
     setTypeApiError('');
     if (!validateTypeForm()) return;
 
+    // Check for duplicate NR reference
+    const refTrimmed = typeNrReference.trim().toLowerCase();
+    const duplicate = trainingTypes.find(
+      (tt) =>
+        (tt.nr_reference || '').toLowerCase() === refTrimmed &&
+        (!editingType || tt.id !== editingType.id),
+    );
+    if (duplicate) {
+      setTypeApiError(t('safety.validation.duplicateReference'));
+      return;
+    }
+
     setTypeModalLoading(true);
     try {
       const payload: Record<string, unknown> = {
         name: typeName.trim(),
-        nr_reference: typeNrReference.trim() || undefined,
-        validity_months: typeValidityMonths ? parseInt(typeValidityMonths, 10) : undefined,
-        workload_hours: typeWorkloadHours ? parseFloat(typeWorkloadHours) : undefined,
-        description: typeDescription.trim() || undefined,
+        nr_reference: typeNrReference.trim(),
+        validity_months: parseInt(typeValidityMonths, 10),
+        workload_hours: parseFloat(typeWorkloadHours),
+        description: typeDescription.trim(),
       };
       if (user?.companyId) {
         payload.company_id = user.companyId;
@@ -386,22 +488,61 @@ export default function SafetyTraining() {
     vencido: t('safety.expiredStatus'),
   };
 
-  // Filtered training types by search
-  const filteredTypes = trainingTypes.filter(
-    (tt) =>
-      !typesSearch ||
-      tt.name.toLowerCase().includes(typesSearch.toLowerCase()) ||
-      (tt.nr_reference || '').toLowerCase().includes(typesSearch.toLowerCase()),
-  );
+  // Filtered training types by search, with dynamic sort
+  const filteredTypes = trainingTypes
+    .filter(
+      (tt) =>
+        !typesSearch ||
+        tt.name.toLowerCase().includes(typesSearch.toLowerCase()) ||
+        (tt.nr_reference || '').toLowerCase().includes(typesSearch.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const mul = typeSort.dir === 'asc' ? 1 : -1;
+      switch (typeSort.field) {
+        case 'name':
+          return mul * a.name.localeCompare(b.name, 'pt-BR');
+        case 'nr_reference':
+          return mul * (a.nr_reference || '').localeCompare(b.nr_reference || '', 'pt-BR');
+        case 'validity_months':
+          return mul * ((a.validity_months ?? 0) - (b.validity_months ?? 0));
+        case 'workload_hours':
+          return mul * ((a.workload_hours ?? 0) - (b.workload_hours ?? 0));
+        default:
+          return 0;
+      }
+    });
 
-  // Filtered worker trainings by search
-  const filteredTrainings = workerTrainings.filter(
-    (wt) =>
-      !trainingsSearch ||
-      (wt.user_name || '').toLowerCase().includes(trainingsSearch.toLowerCase()) ||
-      (wt.training_type_name || '').toLowerCase().includes(trainingsSearch.toLowerCase()) ||
-      (wt.instructor || '').toLowerCase().includes(trainingsSearch.toLowerCase()),
-  );
+  // Filtered worker trainings by search, with dynamic sort
+  const filteredTrainings = workerTrainings
+    .filter(
+      (wt) =>
+        !trainingsSearch ||
+        (wt.user_name || '').toLowerCase().includes(trainingsSearch.toLowerCase()) ||
+        (wt.training_type_name || '').toLowerCase().includes(trainingsSearch.toLowerCase()) ||
+        (wt.instructor || '').toLowerCase().includes(trainingsSearch.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const mul = trainingSort.dir === 'asc' ? 1 : -1;
+      switch (trainingSort.field) {
+        case 'user_name':
+          return mul * (a.user_name || '').localeCompare(b.user_name || '', 'pt-BR');
+        case 'training_type_name':
+          return mul * (a.training_type_name || '').localeCompare(b.training_type_name || '', 'pt-BR');
+        case 'training_date':
+          return mul * (a.training_date || '').localeCompare(b.training_date || '');
+        case 'expiry_date':
+          return mul * (a.expiry_date || '').localeCompare(b.expiry_date || '');
+        case 'instructor':
+          return mul * (a.instructor || '').localeCompare(b.instructor || '', 'pt-BR');
+        case 'status': {
+          const sa = a.status || computeValidityStatus(a.expiry_date);
+          const sb = b.status || computeValidityStatus(b.expiry_date);
+          return mul * sa.localeCompare(sb);
+        }
+        default:
+          return 0;
+      }
+    });
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -492,10 +633,30 @@ export default function SafetyTraining() {
               <table>
                 <thead>
                   <tr>
-                    <th>{t('common.name')}</th>
-                    <th>{t('safety.nrReference')}</th>
-                    <th>{t('safety.validityMonths')}</th>
-                    <th>{t('safety.workloadHours')}</th>
+                    <SortableHeader
+                      label={t('safety.trainingLabel')}
+                      active={typeSort.field === 'name'}
+                      dir={typeSort.dir}
+                      onClick={() => toggleTypeSort('name')}
+                    />
+                    <SortableHeader
+                      label={t('safety.nrReference')}
+                      active={typeSort.field === 'nr_reference'}
+                      dir={typeSort.dir}
+                      onClick={() => toggleTypeSort('nr_reference')}
+                    />
+                    <SortableHeader
+                      label={t('safety.validityMonths')}
+                      active={typeSort.field === 'validity_months'}
+                      dir={typeSort.dir}
+                      onClick={() => toggleTypeSort('validity_months')}
+                    />
+                    <SortableHeader
+                      label={t('safety.workloadHours')}
+                      active={typeSort.field === 'workload_hours'}
+                      dir={typeSort.dir}
+                      onClick={() => toggleTypeSort('workload_hours')}
+                    />
                     <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
@@ -600,8 +761,8 @@ export default function SafetyTraining() {
             </div>
           )}
 
-          {/* Search */}
-          <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
+          {/* Search and employee filter */}
+          <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, maxWidth: '360px', position: 'relative' }}>
               <Search
                 size={16}
@@ -625,6 +786,18 @@ export default function SafetyTraining() {
                 style={{ paddingLeft: '32px' }}
               />
             </div>
+            <div style={{ minWidth: '220px' }}>
+              <SearchableSelect
+                options={filterEmployees.map((emp) => ({ value: String(emp.id), label: emp.name }))}
+                value={filterEmployeeId ? String(filterEmployeeId) : undefined}
+                onChange={(val) => {
+                  setFilterEmployeeId(val ? Number(val) : null);
+                  setPage(1);
+                }}
+                placeholder={t('safety.filterByEmployee')}
+                allowClear
+              />
+            </div>
           </div>
 
           {trainingsLoading ? (
@@ -643,12 +816,42 @@ export default function SafetyTraining() {
               <table>
                 <thead>
                   <tr>
-                    <th>{t('safety.workerTrainings').split(' ')[0]}</th>
-                    <th>{t('safety.trainingTypes').split(' ')[0]}</th>
-                    <th>{t('safety.trainingDate')}</th>
-                    <th>{t('safety.expiryDate')}</th>
-                    <th>{t('safety.instructor')}</th>
-                    <th>{t('common.status')}</th>
+                    <SortableHeader
+                      label={t('safety.workerTrainings').split(' ')[0]}
+                      active={trainingSort.field === 'user_name'}
+                      dir={trainingSort.dir}
+                      onClick={() => toggleTrainingSort('user_name')}
+                    />
+                    <SortableHeader
+                      label={t('safety.trainingTypes').split(' ')[0]}
+                      active={trainingSort.field === 'training_type_name'}
+                      dir={trainingSort.dir}
+                      onClick={() => toggleTrainingSort('training_type_name')}
+                    />
+                    <SortableHeader
+                      label={t('safety.trainingDate')}
+                      active={trainingSort.field === 'training_date'}
+                      dir={trainingSort.dir}
+                      onClick={() => toggleTrainingSort('training_date')}
+                    />
+                    <SortableHeader
+                      label={t('safety.expiryDate')}
+                      active={trainingSort.field === 'expiry_date'}
+                      dir={trainingSort.dir}
+                      onClick={() => toggleTrainingSort('expiry_date')}
+                    />
+                    <SortableHeader
+                      label={t('safety.instructor')}
+                      active={trainingSort.field === 'instructor'}
+                      dir={trainingSort.dir}
+                      onClick={() => toggleTrainingSort('instructor')}
+                    />
+                    <SortableHeader
+                      label={t('common.status')}
+                      active={trainingSort.field === 'status'}
+                      dir={trainingSort.dir}
+                      onClick={() => toggleTrainingSort('status')}
+                    />
                     <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
@@ -781,7 +984,7 @@ export default function SafetyTraining() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
                 <label>
-                  {t('common.name')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                  {t('safety.trainingLabel')} <span style={{ color: 'var(--color-error)' }}>*</span>
                 </label>
                 <input
                   className="input-field"
@@ -810,18 +1013,39 @@ export default function SafetyTraining() {
               </div>
 
               <div className="input-group">
-                <label>{t('safety.nrReference')}</label>
+                <label>
+                  {t('safety.nrReference')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <input
                   className="input-field"
                   value={typeNrReference}
-                  onChange={(e) => setTypeNrReference(e.target.value)}
+                  onChange={(e) => {
+                    setTypeNrReference(e.target.value);
+                    if (typeFormTouched.nr_reference || typeFormSubmitAttempted) {
+                      const err = validateTypeField('nr_reference', e.target.value);
+                      setTypeFormErrors((prev) => ({ ...prev, nr_reference: err }));
+                    }
+                  }}
+                  onBlur={() => handleTypeFieldBlur('nr_reference', typeNrReference)}
                   placeholder="Ex: NR-35"
+                  style={
+                    (typeFormTouched.nr_reference || typeFormSubmitAttempted) && typeFormErrors.nr_reference
+                      ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                      : undefined
+                  }
                 />
+                {(typeFormTouched.nr_reference || typeFormSubmitAttempted) && typeFormErrors.nr_reference && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px' }}>
+                    {typeFormErrors.nr_reference}
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
-                  <label>{t('safety.validityMonths')}</label>
+                  <label>
+                    {t('safety.validityMonths')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                  </label>
                   <input
                     type="number"
                     className="input-field"
@@ -849,7 +1073,9 @@ export default function SafetyTraining() {
                   )}
                 </div>
                 <div className="input-group">
-                  <label>{t('safety.workloadHours')}</label>
+                  <label>
+                    {t('safety.workloadHours')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                  </label>
                   <input
                     type="number"
                     className="input-field"
@@ -880,15 +1106,34 @@ export default function SafetyTraining() {
               </div>
 
               <div className="input-group">
-                <label>{t('common.description')}</label>
+                <label>
+                  {t('common.description')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <textarea
                   className="input-field"
                   rows={2}
                   value={typeDescription}
-                  onChange={(e) => setTypeDescription(e.target.value)}
+                  onChange={(e) => {
+                    setTypeDescription(e.target.value);
+                    if (typeFormTouched.description || typeFormSubmitAttempted) {
+                      const err = validateTypeField('description', e.target.value);
+                      setTypeFormErrors((prev) => ({ ...prev, description: err }));
+                    }
+                  }}
+                  onBlur={() => handleTypeFieldBlur('description', typeDescription)}
                   placeholder={t('common.description')}
-                  style={{ resize: 'vertical' }}
+                  style={{
+                    resize: 'vertical',
+                    ...((typeFormTouched.description || typeFormSubmitAttempted) && typeFormErrors.description
+                      ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                      : {}),
+                  }}
                 />
+                {(typeFormTouched.description || typeFormSubmitAttempted) && typeFormErrors.description && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px' }}>
+                    {typeFormErrors.description}
+                  </span>
+                )}
               </div>
             </div>
 

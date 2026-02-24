@@ -54,6 +54,9 @@ export class TasksController {
         search: req.body.search,
         equipaments_types_id: req.body.equipaments_types_id,
         company_id: companyId,
+        discipline_id: req.body.discipline_id,
+        sort_field: req.body.sort_field,
+        sort_direction: req.body.sort_direction,
       };
       const result = await TasksService.list(input);
       res.status(200).json(serializeBigInt(result));
@@ -92,7 +95,13 @@ export class TasksController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const result = await TasksService.create(req.body);
+      // Injeta company_id do usuario autenticado
+      const companyId = req.user?.companyId ?? undefined;
+      const input = {
+        ...req.body,
+        company_id: companyId,
+      };
+      const result = await TasksService.create(input);
       res.status(201).json(serializeBigInt(result));
     } catch (error) {
       next(error);

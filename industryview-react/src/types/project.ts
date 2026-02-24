@@ -42,6 +42,8 @@ export interface ProjectInfo {
   schedule_completed_tasks?: number;
   schedule_in_progress_tasks?: number;
   schedule_actual_progress?: number;
+  /** ID of the client linked to this project (foreign key to clients table) */
+  client_id?: number | null;
 }
 
 export interface LastTeamCreated {

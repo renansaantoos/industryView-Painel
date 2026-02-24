@@ -196,7 +196,12 @@
       "invalidLongitude": "Longitud inválida (debe estar entre -180 y 180)",
       "singleError": "Corrija el error indicado antes de guardar",
       "multipleErrors": "Corrija los {{count}} errores indicados antes de guardar"
-    }
+    },
+    "linkProjects": "Vincular Proyectos",
+    "selectProjects": "Seleccionar proyectos...",
+    "projectsSelected": "{{count}} proyecto(s) seleccionado(s)",
+    "noProjectsAvailable": "No hay proyectos disponibles",
+    "linkedProjects": "Proyectos Vinculados"
   },
   "auth": {
     "welcome": "¡Bienvenido!",
@@ -315,6 +320,7 @@
     "clientSectionSubtitle": "Seleccione el cliente asociado a este proyecto",
     "selectClient": "Seleccione un cliente...",
     "addNewClient": "Nuevo Cliente",
+    "clientRequired": "Seleccione un cliente antes de guardar el proyecto",
     "noClientSelected": "Ningún cliente seleccionado",
     "clientSelected": "Cliente seleccionado",
     "clientAutoFillInfo": "CNPJ rellenado automáticamente con los datos del cliente seleccionado",
@@ -767,7 +773,21 @@
     "addParticipant": "Agregar Participante",
     "sign": "Firmar",
     "searchIncidents": "Buscar incidentes...",
-    "confirmDelete": "¿Estás seguro de que deseas eliminar?"
+    "confirmDelete": "¿Estás seguro de que deseas eliminar?",
+    "trainingLabel": "Capacitación",
+    "filterByEmployee": "Filtrar por empleado",
+    "validation": {
+      "nameRequired": "El nombre de la capacitación es obligatorio",
+      "nameMinLength": "El nombre debe tener al menos 3 caracteres",
+      "validityMin": "La validez debe ser de al menos 1 mes",
+      "workloadMin": "La carga horaria no puede ser negativa",
+      "saveFailed": "Error al guardar el tipo de capacitación. Inténtelo de nuevo.",
+      "referenceRequired": "Referencia NR es obligatoria",
+      "validityRequired": "Validez es obligatoria",
+      "workloadRequired": "Carga horaria es obligatoria",
+      "descriptionRequired": "Descripción es obligatoria",
+      "duplicateReference": "Ya existe un tipo de capacitación con esta referencia NR"
+    }
   },
   "quality": {
     "title": "Calidad",

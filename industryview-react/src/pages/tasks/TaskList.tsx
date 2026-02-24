@@ -421,6 +421,8 @@ export default function TaskList() {
   const handleCreateTask = async () => {
     const errors: Record<string, string | undefined> = {};
     if (!createForm.description.trim()) errors.description = t('common.requiredField', 'Campo obrigatório');
+    if (!createForm.disciplineId) errors.disciplineId = t('common.requiredField', 'Campo obrigatório');
+    if (!createForm.unityId) errors.unityId = t('common.requiredField', 'Campo obrigatório');
     if (Object.keys(errors).length > 0) {
       setCreateErrors(errors);
       return;
@@ -493,6 +495,8 @@ export default function TaskList() {
     if (!editingTask) return;
     const errors: Record<string, string | undefined> = {};
     if (!editForm.description.trim()) errors.description = t('common.requiredField', 'Campo obrigatório');
+    if (!editForm.disciplineId) errors.disciplineId = t('common.requiredField', 'Campo obrigatório');
+    if (!editForm.unityId) errors.unityId = t('common.requiredField', 'Campo obrigatório');
     if (Object.keys(errors).length > 0) {
       setEditErrors(errors);
       return;
@@ -599,32 +603,7 @@ export default function TaskList() {
               />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '24px', marginTop: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                id={`fixed-checkbox-${isEditMode ? 'edit' : 'create'}`}
-                type="checkbox"
-                checked={form.fixed}
-                onChange={(e) => onChange({ fixed: e.target.checked })}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <label htmlFor={`fixed-checkbox-${isEditMode ? 'edit' : 'create'}`} style={{ marginBottom: 0, cursor: 'pointer' }}>
-                {t('tasks.fixed')}
-              </label>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                id={`inspection-checkbox-${isEditMode ? 'edit' : 'create'}`}
-                type="checkbox"
-                checked={form.isInspection}
-                onChange={(e) => onChange({ isInspection: e.target.checked })}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <label htmlFor={`inspection-checkbox-${isEditMode ? 'edit' : 'create'}`} style={{ marginBottom: 0, cursor: 'pointer' }}>
-                {t('tasks.isInspection')}
-              </label>
-            </div>
-          </div>
+          {/* Flags Fixa e Inspeção ocultas por decisão de produto */}
         </div>
       </motion.div>
 
@@ -642,24 +621,40 @@ export default function TaskList() {
         <div style={sectionBodyStyle}>
           <div style={gridStyle}>
             <div className="input-group">
-              <label>{t('tasks.discipline')}</label>
+              <label>{t('tasks.discipline')} <span style={{ color: 'var(--color-error)' }}>*</span></label>
               <SearchableSelect
                 options={disciplines.map((d) => ({ value: d.id, label: d.discipline || d.name || '' }))}
                 value={form.disciplineId || undefined}
-                onChange={(value) => onChange({ disciplineId: value ? Number(value) : '' })}
+                onChange={(value) => {
+                  onChange({ disciplineId: value ? Number(value) : '' });
+                  if (errors.disciplineId) onClearError('disciplineId');
+                }}
                 placeholder={t('tasks.selectDiscipline')}
                 searchPlaceholder={t('common.search')}
               />
+              {errors.disciplineId && (
+                <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                  {errors.disciplineId}
+                </span>
+              )}
             </div>
             <div className="input-group">
-              <label>{t('tasks.unity')}</label>
+              <label>{t('tasks.unity')} <span style={{ color: 'var(--color-error)' }}>*</span></label>
               <SearchableSelect
                 options={unities.map((u) => { const uName = u.unity || u.name || ''; return { value: u.id, label: u.abbreviation ? `${uName} (${u.abbreviation})` : uName }; })}
                 value={form.unityId || undefined}
-                onChange={(value) => onChange({ unityId: value ? Number(value) : '' })}
+                onChange={(value) => {
+                  onChange({ unityId: value ? Number(value) : '' });
+                  if (errors.unityId) onClearError('unityId');
+                }}
                 placeholder={t('tasks.selectUnity')}
                 searchPlaceholder={t('common.search')}
               />
+              {errors.unityId && (
+                <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                  {errors.unityId}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1197,10 +1192,6 @@ export default function TaskList() {
                 <SortableHeader label={t('tasks.taskName')} field="description" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('tasks.discipline')} field="discipline_id" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('tasks.unity')} field="unity_id" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('tasks.weight')} field="weight" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('tasks.priority')} field="priority" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('tasks.fixed')} field="fixed" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} style={{ textAlign: 'center' }} />
-                <SortableHeader label={t('tasks.isInspection')} field="is_inspection" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} style={{ textAlign: 'center' }} />
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
@@ -1217,16 +1208,6 @@ export default function TaskList() {
                   </td>
                   <td>{task.discipline?.discipline || '-'}</td>
                   <td>{task.unity?.unity || '-'}</td>
-                  <td>{task.weight ?? '-'}</td>
-                  <td>
-                    {task.priority ? (
-                      <span className="badge">{resolvePriorityName(task.priority)}</span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'center' }}>{renderBoolIcon(task.fixed)}</td>
-                  <td style={{ textAlign: 'center' }}>{renderBoolIcon(task.is_inspection)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <button

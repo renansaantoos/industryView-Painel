@@ -46,7 +46,7 @@ export class TasksService {
    * Equivalente a: query tasks_list verb=POST do Xano (endpoint 427)
    */
   static async list(input: ListTasksInput) {
-    const { page, per_page, search, equipaments_types_id, company_id, sort_field, sort_direction } = input;
+    const { page, per_page, search, equipaments_types_id, company_id, discipline_id, sort_field, sort_direction } = input;
 
     // Base query conditions
     const whereConditions: any = {
@@ -58,12 +58,14 @@ export class TasksService {
       whereConditions.equipaments_types_id = { in: equipaments_types_id };
     }
 
-    // Filtro por company (tasks fixas ou da empresa)
+    // Filtro por company: exibe SOMENTE tasks da empresa do usuario autenticado
     if (company_id) {
-      whereConditions.OR = [
-        { fixed: true },
-        { company_id: company_id },
-      ];
+      whereConditions.company_id = company_id;
+    }
+
+    // Filtro por disciplina
+    if (discipline_id) {
+      whereConditions.discipline_id = discipline_id;
     }
 
     // Filtro de busca

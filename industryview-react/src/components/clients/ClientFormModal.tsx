@@ -15,9 +15,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalBackdropVariants, modalContentVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
-import { clientsApi } from '../../services';
+import { clientsApi, projectsApi } from '../../services';
 import type { Client, ClientPayload } from '../../services/api/clients';
-import { X, Check } from 'lucide-react';
+import type { ProjectInfo } from '../../types/project';
+import { X, Check, ChevronDown } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -320,6 +321,13 @@ export function ClientFormModal({
   const [billingCepSuccess, setBillingCepSuccess] = useState(false);
   const [deliveryCepSuccess, setDeliveryCepSuccess] = useState(false);
 
+  // Project linking state
+  const [availableProjects, setAvailableProjects] = useState<ProjectInfo[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
+  const [initialProjectIds, setInitialProjectIds] = useState<number[]>([]);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement | null>(null);
+
   const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Inject keyframe animations once
@@ -363,6 +371,51 @@ export function ClientFormModal({
       document.head.appendChild(style);
     }
   }, []);
+
+  // Close project dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        projectDropdownRef.current &&
+        !projectDropdownRef.current.contains(event.target as Node)
+      ) {
+        setProjectDropdownOpen(false);
+      }
+    }
+    if (projectDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [projectDropdownOpen]);
+
+  // Load available projects and pre-select linked ones when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setSelectedProjectIds([]);
+    setInitialProjectIds([]);
+    setProjectDropdownOpen(false);
+
+    projectsApi
+      .queryAllProjects({ per_page: 100 })
+      .then((response) => {
+        const projects = response.items ?? [];
+        setAvailableProjects(projects);
+
+        if (editingClient) {
+          const linked = projects
+            .filter((p) => p.client_id === editingClient.id)
+            .map((p) => p.id);
+          setSelectedProjectIds(linked);
+          setInitialProjectIds(linked);
+        }
+      })
+      .catch(() => {
+        setAvailableProjects([]);
+      });
+  }, [isOpen, editingClient]);
 
   // Populate form when editingClient changes or modal opens
   useEffect(() => {
@@ -730,6 +783,28 @@ export function ClientFormModal({
         savedClient = await clientsApi.updateClient(editingClient.id, payload);
       } else {
         savedClient = await clientsApi.createClient(payload);
+      }
+
+      // Link newly selected projects and unlink removed ones as a best-effort side effect.
+      // Even if some project updates fail, the client record is already saved.
+      const toLink = selectedProjectIds.filter((id) => !initialProjectIds.includes(id));
+      const toUnlink = initialProjectIds.filter((id) => !selectedProjectIds.includes(id));
+
+      const linkingCalls = [
+        ...toLink.map((id) =>
+          projectsApi.editProject(id, { client_id: savedClient.id }).catch((err) =>
+            console.error(`Failed to link project ${id} to client:`, err),
+          ),
+        ),
+        ...toUnlink.map((id) =>
+          projectsApi.editProject(id, { client_id: undefined }).catch((err) =>
+            console.error(`Failed to unlink project ${id} from client:`, err),
+          ),
+        ),
+      ];
+
+      if (linkingCalls.length > 0) {
+        await Promise.allSettled(linkingCalls);
       }
 
       onSave(savedClient);
@@ -1448,6 +1523,140 @@ export function ClientFormModal({
                       ))}
                     </select>
                   </FormField>
+
+                  {/* Project multi-select */}
+                  <div className="input-group">
+                    <label style={{ fontSize: '0.82rem', fontWeight: 500 }}>
+                      {t('clients.linkProjects')}
+                    </label>
+                    <div ref={projectDropdownRef} style={{ position: 'relative' }}>
+                      {/* Trigger button */}
+                      <button
+                        type="button"
+                        onClick={() => setProjectDropdownOpen((prev) => !prev)}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          fontSize: '14px',
+                          border: '1px solid var(--color-border, rgba(0,0,0,0.15))',
+                          borderRadius: '6px',
+                          background: 'var(--color-surface, #fff)',
+                          cursor: 'pointer',
+                          color:
+                            selectedProjectIds.length > 0
+                              ? 'var(--color-text)'
+                              : 'var(--color-secondary-text)',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span>
+                          {selectedProjectIds.length > 0
+                            ? t('clients.projectsSelected', { count: selectedProjectIds.length })
+                            : t('clients.selectProjects')}
+                        </span>
+                        <ChevronDown
+                          size={16}
+                          style={{
+                            flexShrink: 0,
+                            marginLeft: '8px',
+                            transition: 'transform 0.15s ease',
+                            transform: projectDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            color: 'var(--color-secondary-text)',
+                          }}
+                        />
+                      </button>
+
+                      {/* Dropdown panel */}
+                      {projectDropdownOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            left: 0,
+                            right: 0,
+                            zIndex: 100,
+                            background: 'var(--color-surface, #fff)',
+                            border: '1px solid var(--color-border, rgba(0,0,0,0.15))',
+                            borderRadius: '6px',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                          }}
+                        >
+                          {availableProjects.length === 0 ? (
+                            <div
+                              style={{
+                                padding: '12px 14px',
+                                fontSize: '13px',
+                                color: 'var(--color-secondary-text)',
+                              }}
+                            >
+                              {t('clients.noProjectsAvailable')}
+                            </div>
+                          ) : (
+                            availableProjects.map((project) => {
+                              const isChecked = selectedProjectIds.includes(project.id);
+                              return (
+                                <label
+                                  key={project.id}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    padding: '9px 14px',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    borderBottom:
+                                      '1px solid var(--color-border, rgba(0,0,0,0.06))',
+                                    background: isChecked
+                                      ? 'var(--color-alternate, rgba(0,0,0,0.04))'
+                                      : 'transparent',
+                                    transition: 'background 0.1s ease',
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      setSelectedProjectIds((prev) =>
+                                        isChecked
+                                          ? prev.filter((id) => id !== project.id)
+                                          : [...prev, project.id],
+                                      );
+                                    }}
+                                    style={{ width: '15px', height: '15px', flexShrink: 0 }}
+                                  />
+                                  <span style={{ minWidth: 0 }}>
+                                    <span
+                                      style={{
+                                        fontWeight: isChecked ? 600 : 400,
+                                        color: 'var(--color-text)',
+                                      }}
+                                    >
+                                      {project.name}
+                                    </span>
+                                    {project.registrationNumber && (
+                                      <span
+                                        style={{
+                                          marginLeft: '6px',
+                                          color: 'var(--color-secondary-text)',
+                                        }}
+                                      >
+                                        — {project.registrationNumber}
+                                      </span>
+                                    )}
+                                  </span>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   <FormField label={t('clients.purchasePotential')}>
                     <input

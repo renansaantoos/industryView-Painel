@@ -20,6 +20,7 @@ export const listTasksSchema = z.object({
   search: z.string().trim().optional(),
   equipaments_types_id: z.array(z.number().int()).optional(),
   company_id: z.number().int().optional(),
+  discipline_id: z.number().int().optional(),
   sort_field: z.string().optional(),
   sort_direction: z.enum(['asc', 'desc']).optional(),
 });

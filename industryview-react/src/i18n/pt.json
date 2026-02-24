@@ -196,7 +196,12 @@
       "invalidLongitude": "Longitude inválida (deve estar entre -180 e 180)",
       "singleError": "Corrija o erro indicado antes de salvar",
       "multipleErrors": "Corrija os {{count}} erros indicados antes de salvar"
-    }
+    },
+    "linkProjects": "Vincular Projetos",
+    "selectProjects": "Selecionar projetos...",
+    "projectsSelected": "{{count}} projeto(s) selecionado(s)",
+    "noProjectsAvailable": "Nenhum projeto disponível",
+    "linkedProjects": "Projetos Vinculados"
   },
   "auth": {
     "welcome": "Bem-vindo!",
@@ -315,6 +320,7 @@
     "clientSectionSubtitle": "Selecione o cliente associado a este projeto",
     "selectClient": "Selecione o cliente...",
     "addNewClient": "Novo Cliente",
+    "clientRequired": "Selecione um cliente antes de salvar o projeto",
     "noClientSelected": "Nenhum cliente selecionado",
     "clientSelected": "Cliente selecionado",
     "clientAutoFillInfo": "CNPJ preenchido automaticamente com os dados do cliente selecionado",
@@ -775,12 +781,19 @@
     "sign": "Assinar",
     "searchIncidents": "Pesquisar incidentes...",
     "confirmDelete": "Tem certeza que deseja excluir?",
+    "trainingLabel": "Treinamento",
+    "filterByEmployee": "Filtrar por funcionário",
     "validation": {
       "nameRequired": "Nome do treinamento é obrigatório",
       "nameMinLength": "Nome deve ter pelo menos 3 caracteres",
       "validityMin": "Validade deve ser de pelo menos 1 mês",
       "workloadMin": "Carga horária não pode ser negativa",
-      "saveFailed": "Erro ao salvar tipo de treinamento. Tente novamente."
+      "saveFailed": "Erro ao salvar tipo de treinamento. Tente novamente.",
+      "referenceRequired": "Referência NR é obrigatória",
+      "validityRequired": "Validade é obrigatória",
+      "workloadRequired": "Carga horária é obrigatória",
+      "descriptionRequired": "Descrição é obrigatória",
+      "duplicateReference": "Já existe um tipo de treinamento com esta referência NR"
     }
   },
   "quality": {
