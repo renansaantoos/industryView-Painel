@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Save } from 'lucide-react';
-import type { CompanyBranch, BranchPayload } from '../../types/company';
+import { X, Save, Plus, Trash2 } from 'lucide-react';
+import type { CompanyBranch, BranchPayload, RepresentanteLegal } from '../../types/company';
 import CepLookup, { type CepAddress } from './CepLookup';
 import CnpjInput from './CnpjInput';
 
@@ -20,6 +20,7 @@ interface FormState {
   cnae: string;
   phone: string;
   email: string;
+  contact_name: string;
   website: string;
   cep: string;
   address_line: string;
@@ -29,9 +30,17 @@ interface FormState {
   city: string;
   state: string;
   pais: string;
-  responsavel_legal: string;
-  responsavel_cpf: string;
+  representantes_legais: RepresentanteLegal[];
   ativo: boolean;
+}
+
+function formatCpfMask(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  let masked = digits;
+  if (digits.length > 3) masked = digits.slice(0, 3) + '.' + digits.slice(3);
+  if (digits.length > 6) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6);
+  if (digits.length > 9) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-' + digits.slice(9);
+  return masked;
 }
 
 const emptyForm: FormState = {
@@ -43,6 +52,7 @@ const emptyForm: FormState = {
   cnae: '',
   phone: '',
   email: '',
+  contact_name: '',
   website: '',
   cep: '',
   address_line: '',
@@ -52,12 +62,25 @@ const emptyForm: FormState = {
   city: '',
   state: '',
   pais: 'Brasil',
-  responsavel_legal: '',
-  responsavel_cpf: '',
+  representantes_legais: [],
   ativo: true,
 };
 
 function branchToForm(branch: CompanyBranch): FormState {
+  // Build representantes list from new field or fallback to legacy fields
+  let representantes: RepresentanteLegal[] = [];
+  if (branch.representantes_legais && branch.representantes_legais.length > 0) {
+    representantes = branch.representantes_legais.map(r => ({
+      nome: r.nome || '',
+      cpf: r.cpf || '',
+    }));
+  } else if (branch.responsavel_legal) {
+    representantes = [{
+      nome: branch.responsavel_legal || '',
+      cpf: branch.responsavel_cpf || '',
+    }];
+  }
+
   return {
     brand_name: branch.brand_name || '',
     legal_name: branch.legal_name || '',
@@ -67,6 +90,7 @@ function branchToForm(branch: CompanyBranch): FormState {
     cnae: branch.cnae || '',
     phone: branch.phone || '',
     email: branch.email || '',
+    contact_name: branch.contact_name || '',
     website: branch.website || '',
     cep: branch.cep || '',
     address_line: branch.address_line || '',
@@ -76,8 +100,7 @@ function branchToForm(branch: CompanyBranch): FormState {
     city: branch.city || '',
     state: branch.state || '',
     pais: branch.pais || 'Brasil',
-    responsavel_legal: branch.responsavel_legal || '',
-    responsavel_cpf: branch.responsavel_cpf || '',
+    representantes_legais: representantes,
     ativo: branch.ativo,
   };
 }
@@ -85,10 +108,10 @@ function branchToForm(branch: CompanyBranch): FormState {
 type Tab = 'identificacao' | 'contato' | 'endereco' | 'responsavel';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'identificacao', label: 'Identificação' },
+  { key: 'identificacao', label: 'Identificacao' },
   { key: 'contato', label: 'Contato' },
-  { key: 'endereco', label: 'Endereço' },
-  { key: 'responsavel', label: 'Responsável' },
+  { key: 'endereco', label: 'Endereco' },
+  { key: 'responsavel', label: 'Responsavel' },
 ];
 
 // Map fields to their tabs
@@ -105,11 +128,10 @@ const FIELD_TAB_MAP: Record<string, Tab> = {
   bairro: 'endereco',
   city: 'endereco',
   state: 'endereco',
-  responsavel_legal: 'responsavel',
-  responsavel_cpf: 'responsavel',
+  representantes_legais: 'responsavel',
 };
 
-type FieldErrors = Partial<Record<keyof FormState, string>>;
+type FieldErrors = Partial<Record<string, string>>;
 
 export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
   const isEditing = branch !== null;
@@ -155,40 +177,74 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
     });
   }, []);
 
+  // Representantes helpers
+  const addRepresentante = () => {
+    setForm(prev => ({
+      ...prev,
+      representantes_legais: [...prev.representantes_legais, { nome: '', cpf: '' }],
+    }));
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next.representantes_legais;
+      return next;
+    });
+  };
+
+  const removeRepresentante = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      representantes_legais: prev.representantes_legais.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateRepresentante = (index: number, field: keyof RepresentanteLegal, value: string) => {
+    setForm(prev => ({
+      ...prev,
+      representantes_legais: prev.representantes_legais.map((r, i) =>
+        i === index ? { ...r, [field]: value } : r
+      ),
+    }));
+  };
+
+  const normalizeWebsite = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const validate = (): boolean => {
     const errors: FieldErrors = {};
 
-    // Identificação
-    if (!form.brand_name.trim()) errors.brand_name = 'Nome Fantasia é obrigatório';
-    if (!form.legal_name.trim()) errors.legal_name = 'Razão Social é obrigatória';
-    if (!form.cnpj.replace(/\D/g, '')) errors.cnpj = 'CNPJ é obrigatório';
-    else if (form.cnpj.replace(/\D/g, '').length !== 14) errors.cnpj = 'CNPJ deve ter 14 dígitos';
-    if (!form.cnae.replace(/\D/g, '')) errors.cnae = 'CNAE é obrigatório';
-    else if (form.cnae.replace(/\D/g, '').length !== 7) errors.cnae = 'CNAE deve ter 7 dígitos';
+    // Identificacao
+    if (!form.brand_name.trim()) errors.brand_name = 'Nome Fantasia e obrigatorio';
+    if (!form.legal_name.trim()) errors.legal_name = 'Razao Social e obrigatoria';
+    if (!form.cnpj.replace(/\D/g, '')) errors.cnpj = 'CNPJ e obrigatorio';
+    else if (form.cnpj.replace(/\D/g, '').length !== 14) errors.cnpj = 'CNPJ deve ter 14 digitos';
+    if (!form.cnae.replace(/\D/g, '')) errors.cnae = 'CNAE e obrigatorio';
+    else if (form.cnae.replace(/\D/g, '').length !== 7) errors.cnae = 'CNAE deve ter 7 digitos';
 
     // Contato
-    if (!form.phone.replace(/\D/g, '')) errors.phone = 'Telefone é obrigatório';
-    else if (form.phone.replace(/\D/g, '').length < 10) errors.phone = 'Telefone inválido';
-    if (!form.email.trim()) errors.email = 'E-mail é obrigatório';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'E-mail inválido';
+    if (!form.phone.replace(/\D/g, '')) errors.phone = 'Telefone e obrigatorio';
+    else if (form.phone.replace(/\D/g, '').length < 10) errors.phone = 'Telefone invalido';
+    if (!form.email.trim()) errors.email = 'E-mail e obrigatorio';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'E-mail invalido';
 
-    // Endereço
-    if (!form.cep.replace(/\D/g, '')) errors.cep = 'CEP é obrigatório';
-    if (!form.address_line.trim()) errors.address_line = 'Logradouro é obrigatório';
-    if (!form.numero.trim()) errors.numero = 'Número é obrigatório';
-    if (!form.bairro.trim()) errors.bairro = 'Bairro é obrigatório';
-    if (!form.city.trim()) errors.city = 'Cidade é obrigatória';
-    if (!form.state.trim()) errors.state = 'UF é obrigatória';
+    // Endereco
+    if (!form.cep.replace(/\D/g, '')) errors.cep = 'CEP e obrigatorio';
+    if (!form.address_line.trim()) errors.address_line = 'Logradouro e obrigatorio';
+    if (!form.numero.trim()) errors.numero = 'Numero e obrigatorio';
+    if (!form.bairro.trim()) errors.bairro = 'Bairro e obrigatorio';
+    if (!form.city.trim()) errors.city = 'Cidade e obrigatoria';
+    if (!form.state.trim()) errors.state = 'UF e obrigatoria';
 
-    // Responsável
-    if (!form.responsavel_legal.trim()) errors.responsavel_legal = 'Nome do responsável é obrigatório';
-    if (!form.responsavel_cpf.replace(/\D/g, '')) errors.responsavel_cpf = 'CPF é obrigatório';
-    else if (form.responsavel_cpf.replace(/\D/g, '').length !== 11) errors.responsavel_cpf = 'CPF deve ter 11 dígitos';
+    // Responsavel - at least one representante with nome filled
+    const validReps = form.representantes_legais.filter(r => r.nome.trim());
+    if (validReps.length === 0) errors.representantes_legais = 'Pelo menos um representante legal e obrigatorio';
 
     setFieldErrors(errors);
 
     if (Object.keys(errors).length > 0) {
-      // Navigate to the first tab that has errors
       const firstErrorField = Object.keys(errors)[0];
       const targetTab = FIELD_TAB_MAP[firstErrorField];
       if (targetTab) setActiveTab(targetTab);
@@ -204,6 +260,17 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
     setSaving(true);
     setError('');
     try {
+      // Build representantes - filter out empty entries and strip CPF mask
+      const representantes = form.representantes_legais
+        .filter(r => r.nome.trim())
+        .map(r => ({
+          nome: r.nome.trim(),
+          cpf: r.cpf.replace(/\D/g, ''),
+        }));
+
+      // Keep legacy fields in sync
+      const firstRep = representantes[0];
+
       const payload: BranchPayload = {
         brand_name: form.brand_name.trim(),
         legal_name: form.legal_name.trim() || undefined,
@@ -213,7 +280,8 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
         cnae: form.cnae.trim() || undefined,
         phone: form.phone.trim() || undefined,
         email: form.email.trim() || undefined,
-        website: form.website.trim() || undefined,
+        contact_name: form.contact_name.trim() || null,
+        website: normalizeWebsite(form.website),
         cep: form.cep.replace(/\D/g, '') || undefined,
         address_line: form.address_line.trim() || undefined,
         complemento: form.complemento.trim() || undefined,
@@ -222,8 +290,9 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
         city: form.city.trim() || undefined,
         state: form.state.trim() || undefined,
         pais: form.pais.trim() || undefined,
-        responsavel_legal: form.responsavel_legal.trim() || undefined,
-        responsavel_cpf: form.responsavel_cpf.replace(/\D/g, '') || undefined,
+        responsavel_legal: firstRep?.nome || undefined,
+        responsavel_cpf: firstRep?.cpf || undefined,
+        representantes_legais: representantes.length > 0 ? representantes : null,
         ativo: form.ativo,
       };
       await onSave(payload);
@@ -329,15 +398,15 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
           {activeTab === 'identificacao' && (
             <>
               {inputField('Nome Fantasia', 'brand_name', { placeholder: 'Nome Fantasia', required: true })}
-              {inputField('Razão Social', 'legal_name', { placeholder: 'Razão Social', required: true })}
+              {inputField('Razao Social', 'legal_name', { placeholder: 'Razao Social', required: true })}
               <CnpjInput
                 value={form.cnpj}
                 onChange={v => setField('cnpj', v)}
                 error={fieldErrors.cnpj}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {inputField('Inscrição Estadual', 'inscricao_estadual', { placeholder: 'Inscrição Estadual' })}
-                {inputField('Inscrição Municipal', 'inscricao_municipal', { placeholder: 'Inscrição Municipal' })}
+                {inputField('Inscricao Estadual', 'inscricao_estadual', { placeholder: 'Inscricao Estadual' })}
+                {inputField('Inscricao Municipal', 'inscricao_municipal', { placeholder: 'Inscricao Municipal' })}
               </div>
               <div className="input-group">
                 <label>CNAE <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
@@ -401,6 +470,7 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
 
           {activeTab === 'contato' && (
             <>
+              {inputField('Nome do Contato', 'contact_name', { placeholder: 'Nome da pessoa de contato' })}
               <div className="input-group">
                 <label>Telefone <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
                 <input
@@ -436,12 +506,15 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
               <div className="input-group">
                 <label>Website</label>
                 <input
-                  type="url"
+                  type="text"
                   className="input-field"
                   value={form.website}
                   onChange={e => setField('website', e.target.value)}
-                  placeholder="https://www.empresa.com.br"
+                  placeholder="www.empresa.com.br"
                 />
+                <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
+                  O protocolo https:// sera adicionado automaticamente se nao informado
+                </span>
               </div>
             </>
           )}
@@ -459,7 +532,7 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
                   {inputField('Logradouro', 'address_line', { placeholder: 'Rua, Avenida...', required: true })}
                 </div>
                 <div style={{ width: '100px' }}>
-                  {inputField('Número', 'numero', { placeholder: 'Nº', required: true })}
+                  {inputField('Numero', 'numero', { placeholder: 'No', required: true })}
                 </div>
               </div>
               {inputField('Complemento', 'complemento', { placeholder: 'Apto, Sala...' })}
@@ -468,32 +541,91 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
                 <div>{inputField('Cidade', 'city', { placeholder: 'Cidade', required: true })}</div>
                 <div>{inputField('UF', 'state', { placeholder: 'SP', required: true })}</div>
               </div>
-              {inputField('País', 'pais', { placeholder: 'Brasil' })}
+              {inputField('Pais', 'pais', { placeholder: 'Brasil' })}
             </>
           )}
 
           {activeTab === 'responsavel' && (
             <>
-              {inputField('Nome do Responsável Legal', 'responsavel_legal', { placeholder: 'Nome completo', required: true })}
-              <div className="input-group">
-                <label>CPF do Responsável <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
-                <input
-                  type="text"
-                  className={`input-field ${fieldErrors.responsavel_cpf ? 'error' : ''}`}
-                  value={form.responsavel_cpf}
-                  onChange={e => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-                    let masked = digits;
-                    if (digits.length > 3) masked = digits.slice(0, 3) + '.' + digits.slice(3);
-                    if (digits.length > 6) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6);
-                    if (digits.length > 9) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-' + digits.slice(9);
-                    setField('responsavel_cpf', masked);
-                  }}
-                  placeholder="000.000.000-00"
-                  maxLength={14}
-                />
-                {fieldErrors.responsavel_cpf && <span className="input-error">{fieldErrors.responsavel_cpf}</span>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 500 }}>
+                  Representantes Legais <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={addRepresentante}
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                >
+                  <Plus size={14} /> Adicionar
+                </button>
               </div>
+
+              {fieldErrors.representantes_legais && (
+                <span className="input-error">{fieldErrors.representantes_legais}</span>
+              )}
+
+              {form.representantes_legais.length === 0 && (
+                <div style={{
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: 'var(--color-secondary-text)',
+                  fontSize: '13px',
+                  border: `1px dashed ${fieldErrors.representantes_legais ? 'var(--color-error)' : 'var(--color-alternate)'}`,
+                  borderRadius: '8px',
+                }}>
+                  Nenhum representante legal adicionado. Clique em "Adicionar" para incluir.
+                </div>
+              )}
+
+              {form.representantes_legais.map((rep, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid var(--color-alternate)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)' }}>
+                      Representante {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-icon"
+                      onClick={() => removeRepresentante(index)}
+                      title="Remover representante"
+                    >
+                      <Trash2 size={14} color="var(--color-error)" />
+                    </button>
+                  </div>
+                  <div className="input-group">
+                    <label>Nome</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={rep.nome}
+                      onChange={e => updateRepresentante(index, 'nome', e.target.value)}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>CPF</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={rep.cpf}
+                      onChange={e => updateRepresentante(index, 'cpf', formatCpfMask(e.target.value))}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                    />
+                  </div>
+                </div>
+              ))}
             </>
           )}
         </div>

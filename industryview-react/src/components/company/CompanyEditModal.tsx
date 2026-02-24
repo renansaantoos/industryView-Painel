@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Plus, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { CompanyFull, CompanyUpdatePayload, RegimeTributario } from '../../types/company';
+import type { CompanyFull, CompanyUpdatePayload, RegimeTributario, RepresentanteLegal } from '../../types/company';
 import CepLookup, { type CepAddress } from './CepLookup';
 import CnpjInput from './CnpjInput';
 import SearchableSelect from '../common/SearchableSelect';
@@ -24,6 +24,7 @@ interface FormState {
   regime_tributario: RegimeTributario | '';
   phone: string;
   email: string;
+  contact_name: string;
   website: string;
   cep: string;
   address_line: string;
@@ -33,8 +34,7 @@ interface FormState {
   city: string;
   state: string;
   pais: string;
-  responsavel_legal: string;
-  responsavel_cpf: string;
+  representantes_legais: RepresentanteLegal[];
 }
 
 const REGIME_OPTIONS: { value: RegimeTributario; label: string }[] = [
@@ -54,7 +54,30 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'responsavel', label: 'Responsavel Legal' },
 ];
 
+function formatCpfMask(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  let masked = digits;
+  if (digits.length > 3) masked = digits.slice(0, 3) + '.' + digits.slice(3);
+  if (digits.length > 6) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6);
+  if (digits.length > 9) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-' + digits.slice(9);
+  return masked;
+}
+
 function companyToForm(company: CompanyFull): FormState {
+  // Build representantes list from new field or fallback to legacy fields
+  let representantes: RepresentanteLegal[] = [];
+  if (company.representantes_legais && company.representantes_legais.length > 0) {
+    representantes = company.representantes_legais.map(r => ({
+      nome: r.nome || '',
+      cpf: r.cpf || '',
+    }));
+  } else if (company.responsavel_legal) {
+    representantes = [{
+      nome: company.responsavel_legal || '',
+      cpf: company.responsavel_cpf || '',
+    }];
+  }
+
   return {
     brand_name: company.brand_name || '',
     legal_name: company.legal_name || '',
@@ -65,6 +88,7 @@ function companyToForm(company: CompanyFull): FormState {
     regime_tributario: company.regime_tributario || '',
     phone: company.phone || '',
     email: company.email || '',
+    contact_name: company.contact_name || '',
     website: company.website || '',
     cep: company.cep || '',
     address_line: company.address_line || '',
@@ -74,8 +98,7 @@ function companyToForm(company: CompanyFull): FormState {
     city: company.city || '',
     state: company.state || '',
     pais: company.pais || 'Brasil',
-    responsavel_legal: company.responsavel_legal || '',
-    responsavel_cpf: company.responsavel_cpf || '',
+    representantes_legais: representantes,
   };
 }
 
@@ -104,6 +127,37 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
     }));
   }, []);
 
+  // Representantes helpers
+  const addRepresentante = () => {
+    setForm(prev => ({
+      ...prev,
+      representantes_legais: [...prev.representantes_legais, { nome: '', cpf: '' }],
+    }));
+  };
+
+  const removeRepresentante = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      representantes_legais: prev.representantes_legais.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateRepresentante = (index: number, field: keyof RepresentanteLegal, value: string) => {
+    setForm(prev => ({
+      ...prev,
+      representantes_legais: prev.representantes_legais.map((r, i) =>
+        i === index ? { ...r, [field]: value } : r
+      ),
+    }));
+  };
+
+  const normalizeWebsite = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const handleSubmit = async () => {
     if (!form.brand_name.trim()) {
       setError('O Nome Fantasia e obrigatorio');
@@ -114,6 +168,17 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
     setSaving(true);
     setError('');
     try {
+      // Build representantes - filter out empty entries and strip CPF mask
+      const representantes = form.representantes_legais
+        .filter(r => r.nome.trim())
+        .map(r => ({
+          nome: r.nome.trim(),
+          cpf: r.cpf.replace(/\D/g, ''),
+        }));
+
+      // Keep legacy fields in sync for backward compatibility
+      const firstRep = representantes[0];
+
       const payload: CompanyUpdatePayload = {
         brand_name: form.brand_name.trim(),
         legal_name: form.legal_name.trim() || undefined,
@@ -124,7 +189,8 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
         regime_tributario: (form.regime_tributario as RegimeTributario) || undefined,
         phone: form.phone.trim() || undefined,
         email: form.email.trim() || undefined,
-        website: form.website.trim() || undefined,
+        contact_name: form.contact_name.trim() || null,
+        website: normalizeWebsite(form.website),
         cep: form.cep.replace(/\D/g, '') || undefined,
         address_line: form.address_line.trim() || undefined,
         complemento: form.complemento.trim() || undefined,
@@ -133,8 +199,9 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
         city: form.city.trim() || undefined,
         state: form.state.trim() || undefined,
         pais: form.pais.trim() || undefined,
-        responsavel_legal: form.responsavel_legal.trim() || undefined,
-        responsavel_cpf: form.responsavel_cpf.replace(/\D/g, '') || undefined,
+        responsavel_legal: firstRep?.nome || null,
+        responsavel_cpf: firstRep?.cpf || null,
+        representantes_legais: representantes.length > 0 ? representantes : null,
       };
       await onSave(payload);
     } catch (err) {
@@ -264,6 +331,7 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
 
               {activeTab === 'contato' && (
                 <>
+                  {inputField('Nome do Contato', 'contact_name', { placeholder: 'Nome da pessoa de contato' })}
                   <div className="input-group">
                     <label>Telefone</label>
                     <input
@@ -297,12 +365,15 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
                   <div className="input-group">
                     <label>Website</label>
                     <input
-                      type="url"
+                      type="text"
                       className="input-field"
                       value={form.website}
                       onChange={e => setField('website', e.target.value)}
-                      placeholder="https://www.empresa.com.br"
+                      placeholder="www.empresa.com.br"
                     />
+                    <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
+                      O protocolo https:// sera adicionado automaticamente se nao informado
+                    </span>
                   </div>
                 </>
               )}
@@ -330,25 +401,79 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
 
               {activeTab === 'responsavel' && (
                 <>
-                  {inputField('Nome do Responsavel Legal', 'responsavel_legal', { placeholder: 'Nome completo' })}
-                  <div className="input-group">
-                    <label>CPF do Responsavel</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      value={form.responsavel_cpf}
-                      onChange={e => {
-                        const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-                        let masked = digits;
-                        if (digits.length > 3) masked = digits.slice(0, 3) + '.' + digits.slice(3);
-                        if (digits.length > 6) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6);
-                        if (digits.length > 9) masked = digits.slice(0, 3) + '.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-' + digits.slice(9);
-                        setField('responsavel_cpf', masked);
-                      }}
-                      placeholder="000.000.000-00"
-                      maxLength={14}
-                    />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 500 }}>Representantes Legais</label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={addRepresentante}
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                    >
+                      <Plus size={14} /> Adicionar
+                    </button>
                   </div>
+
+                  {form.representantes_legais.length === 0 && (
+                    <div style={{
+                      padding: '20px',
+                      textAlign: 'center',
+                      color: 'var(--color-secondary-text)',
+                      fontSize: '13px',
+                      border: '1px dashed var(--color-alternate)',
+                      borderRadius: '8px',
+                    }}>
+                      Nenhum representante legal adicionado. Clique em "Adicionar" para incluir.
+                    </div>
+                  )}
+
+                  {form.representantes_legais.map((rep, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: '12px',
+                        border: '1px solid var(--color-alternate)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)' }}>
+                          Representante {index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-icon"
+                          onClick={() => removeRepresentante(index)}
+                          title="Remover representante"
+                        >
+                          <Trash2 size={14} color="var(--color-error)" />
+                        </button>
+                      </div>
+                      <div className="input-group">
+                        <label>Nome</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={rep.nome}
+                          onChange={e => updateRepresentante(index, 'nome', e.target.value)}
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label>CPF</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          value={rep.cpf}
+                          onChange={e => updateRepresentante(index, 'cpf', formatCpfMask(e.target.value))}
+                          placeholder="000.000.000-00"
+                          maxLength={14}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </>
               )}
             </div>

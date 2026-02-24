@@ -118,6 +118,8 @@ export class CompanyService {
       'regime_tributario',
       'responsavel_legal',
       'responsavel_cpf',
+      'representantes_legais',
+      'contact_name',
       'website',
       'logo_url',
     ];
@@ -211,6 +213,8 @@ export class CompanyService {
         pais: input.pais ?? 'Brasil',
         responsavel_legal: input.responsavel_legal ?? null,
         responsavel_cpf: input.responsavel_cpf ?? null,
+        representantes_legais: input.representantes_legais ?? undefined,
+        contact_name: input.contact_name ?? null,
         ativo: input.ativo ?? true,
         created_at: new Date(),
         updated_at: new Date(),
@@ -295,6 +299,8 @@ export class CompanyService {
       'pais',
       'responsavel_legal',
       'responsavel_cpf',
+      'representantes_legais',
+      'contact_name',
       'ativo',
     ];
 

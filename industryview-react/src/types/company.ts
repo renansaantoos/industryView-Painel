@@ -7,6 +7,11 @@ export type RegimeTributario =
 
 export type CompanyType = 'matriz' | 'filial';
 
+export interface RepresentanteLegal {
+  nome: string;
+  cpf: string;
+}
+
 export interface CompanyFull {
   id: number;
   brand_name: string;
@@ -15,6 +20,7 @@ export interface CompanyFull {
   company_type?: CompanyType;
   phone?: string;
   email?: string;
+  contact_name?: string;
   website?: string;
   logo_url?: string;
   cep?: string;
@@ -31,6 +37,7 @@ export interface CompanyFull {
   regime_tributario?: RegimeTributario;
   responsavel_legal?: string;
   responsavel_cpf?: string;
+  representantes_legais?: RepresentanteLegal[];
   created_at: string;
   updated_at: string;
   branches?: CompanyBranch[];
@@ -47,6 +54,7 @@ export interface CompanyBranch {
   cnae?: string;
   phone?: string;
   email?: string;
+  contact_name?: string;
   website?: string;
   cep?: string;
   address_line?: string;
@@ -58,6 +66,7 @@ export interface CompanyBranch {
   pais?: string;
   responsavel_legal?: string;
   responsavel_cpf?: string;
+  representantes_legais?: RepresentanteLegal[];
   ativo: boolean;
   created_at: string;
   updated_at: string;
@@ -69,7 +78,8 @@ export interface CompanyUpdatePayload {
   cnpj?: string;
   phone?: string;
   email?: string;
-  website?: string;
+  contact_name?: string | null;
+  website?: string | null;
   logo_url?: string;
   cep?: string;
   address_line?: string;
@@ -85,6 +95,7 @@ export interface CompanyUpdatePayload {
   regime_tributario?: RegimeTributario;
   responsavel_legal?: string;
   responsavel_cpf?: string;
+  representantes_legais?: RepresentanteLegal[] | null;
 }
 
 export interface BranchPayload {
@@ -96,7 +107,8 @@ export interface BranchPayload {
   cnae?: string;
   phone?: string;
   email?: string;
-  website?: string;
+  contact_name?: string | null;
+  website?: string | null;
   cep?: string;
   address_line?: string;
   complemento?: string;
@@ -107,5 +119,6 @@ export interface BranchPayload {
   pais?: string;
   responsavel_legal?: string;
   responsavel_cpf?: string;
+  representantes_legais?: RepresentanteLegal[] | null;
   ativo?: boolean;
 }

@@ -29,6 +29,26 @@ const cepSchema = z
   .optional()
   .nullable();
 
+// Helper: Website - aceita com ou sem protocolo, normaliza adicionando https://
+const websiteSchema = z.preprocess(
+  (val) => {
+    if (val === null || val === undefined || val === '') return val;
+    const str = String(val).trim();
+    if (!str) return null;
+    if (!/^https?:\/\//i.test(str)) return `https://${str}`;
+    return str;
+  },
+  z.string().url('URL do website invalida').max(255).optional().nullable()
+);
+
+// Helper: Representante legal (item do array)
+const representanteLegalSchema = z.object({
+  nome: z.string().trim().max(120, 'Nome deve ter no maximo 120 caracteres'),
+  cpf: z.string().trim().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$|^\d{11}$|^$/, 'CPF invalido'),
+});
+
+export type RepresentanteLegal = z.infer<typeof representanteLegalSchema>;
+
 /**
  * Params schema para rotas com company_id
  */
@@ -78,7 +98,9 @@ export const updateCompanySchema = z.object({
     .nullable(),
   responsavel_legal: z.string().trim().max(120).optional().nullable(),
   responsavel_cpf: cpfSchema,
-  website: z.string().trim().url('URL do website invalida').max(255).optional().nullable(),
+  representantes_legais: z.array(representanteLegalSchema).optional().nullable(),
+  contact_name: z.string().trim().max(120).optional().nullable(),
+  website: websiteSchema,
   logo_url: z.string().trim().url('URL do logo invalida').optional().nullable(),
 });
 
@@ -97,7 +119,8 @@ export const createBranchSchema = z.object({
   cnae: z.string().trim().max(10).optional().nullable(),
   phone: z.string().trim().max(20).optional().nullable(),
   email: z.string().email('Email invalido').trim().toLowerCase().optional().nullable(),
-  website: z.string().trim().url('URL do website invalida').max(255).optional().nullable(),
+  contact_name: z.string().trim().max(120).optional().nullable(),
+  website: websiteSchema,
   cep: cepSchema,
   address_line: z.string().trim().optional().nullable(),
   complemento: z.string().trim().max(100).optional().nullable(),
@@ -108,6 +131,7 @@ export const createBranchSchema = z.object({
   pais: z.string().trim().max(60).optional().nullable(),
   responsavel_legal: z.string().trim().max(120).optional().nullable(),
   responsavel_cpf: cpfSchema,
+  representantes_legais: z.array(representanteLegalSchema).optional().nullable(),
   ativo: z.boolean().optional().default(true),
 });
 
@@ -126,7 +150,8 @@ export const updateBranchSchema = z.object({
   cnae: z.string().trim().max(10).optional().nullable(),
   phone: z.string().trim().max(20).optional().nullable(),
   email: z.string().email('Email invalido').trim().toLowerCase().optional().nullable(),
-  website: z.string().trim().url('URL do website invalida').max(255).optional().nullable(),
+  contact_name: z.string().trim().max(120).optional().nullable(),
+  website: websiteSchema,
   cep: cepSchema,
   address_line: z.string().trim().optional().nullable(),
   complemento: z.string().trim().max(100).optional().nullable(),
@@ -137,6 +162,7 @@ export const updateBranchSchema = z.object({
   pais: z.string().trim().max(60).optional().nullable(),
   responsavel_legal: z.string().trim().max(120).optional().nullable(),
   responsavel_cpf: cpfSchema,
+  representantes_legais: z.array(representanteLegalSchema).optional().nullable(),
   ativo: z.boolean().optional(),
 });
 

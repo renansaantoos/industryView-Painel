@@ -284,6 +284,8 @@ model company {
   regime_tributario     String?            @db.VarChar(30)
   responsavel_legal     String?            @db.VarChar(120)
   responsavel_cpf       String?            @db.VarChar(14)
+  representantes_legais Json?
+  contact_name          String?            @db.VarChar(120)
   website               String?            @db.VarChar(255)
   logo_url              String?
   created_at            DateTime           @default(now()) @db.Timestamptz(6)
@@ -335,6 +337,8 @@ model company_branches {
   pais                String?   @default("Brasil") @db.VarChar(60)
   responsavel_legal   String?   @db.VarChar(120)
   responsavel_cpf     String?   @db.VarChar(14)
+  representantes_legais Json?
+  contact_name        String?   @db.VarChar(120)
   ativo               Boolean   @default(true)
   created_at          DateTime  @default(now()) @db.Timestamptz(6)
   updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)

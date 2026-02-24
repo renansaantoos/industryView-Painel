@@ -4,7 +4,7 @@ import { staggerParent, fadeUpChild, tableRowVariants } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuth } from '../../hooks/useAuth';
 import * as companyApi from '../../services/api/company';
-import type { CompanyFull, CompanyBranch, CompanyUpdatePayload, BranchPayload } from '../../types/company';
+import type { CompanyFull, CompanyBranch, CompanyUpdatePayload, BranchPayload, RepresentanteLegal } from '../../types/company';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
@@ -42,16 +42,34 @@ function formatCnpj(cnpj?: string): string {
   return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
 }
 
+function formatCpf(cpf?: string): string {
+  if (!cpf) return '-';
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return cpf;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
 function buildAddressLine(company: CompanyFull | CompanyBranch): string {
   const parts = [
     company.address_line,
-    company.numero && `nº ${company.numero}`,
+    company.numero && `no ${company.numero}`,
     company.complemento,
     company.bairro,
     company.city && company.state ? `${company.city} - ${company.state}` : company.city || company.state,
     company.pais && company.pais !== 'Brasil' ? company.pais : null,
   ].filter(Boolean);
   return parts.join(', ') || '-';
+}
+
+/** Get the list of representantes from new field or fallback to legacy fields */
+function getRepresentantes(entity: CompanyFull | CompanyBranch): RepresentanteLegal[] {
+  if (entity.representantes_legais && entity.representantes_legais.length > 0) {
+    return entity.representantes_legais;
+  }
+  if (entity.responsavel_legal) {
+    return [{ nome: entity.responsavel_legal, cpf: entity.responsavel_cpf || '' }];
+  }
+  return [];
 }
 
 interface InfoItemProps {
@@ -123,7 +141,7 @@ function CompanyProfile() {
     try {
       const data = await companyApi.getCompany(user.companyId);
       setCompany(data);
-      // A resposta já inclui branches embutidas
+      // A resposta ja inclui branches embutidas
       if (data.branches && Array.isArray(data.branches)) {
         setBranches(data.branches);
       }
@@ -202,7 +220,7 @@ function CompanyProfile() {
     if (!user?.companyId || !deleteConfirm) return;
     try {
       await companyApi.deleteBranch(user.companyId, deleteConfirm.id);
-      showToast('Filial excluída com sucesso', 'success');
+      showToast('Filial excluida com sucesso', 'success');
       loadBranches();
     } catch {
       showToast('Erro ao excluir filial', 'error');
@@ -216,20 +234,21 @@ function CompanyProfile() {
   if (!company) {
     return (
       <div>
-        <PageHeader title="Empresa" subtitle="Gestão de matriz e filiais" />
-        <EmptyState message="Dados da empresa não encontrados" />
+        <PageHeader title="Empresa" subtitle="Gestao de matriz e filiais" />
+        <EmptyState message="Dados da empresa nao encontrados" />
       </div>
     );
   }
 
   const fullAddress = buildAddressLine(company);
+  const companyRepresentantes = getRepresentantes(company);
 
   return (
     <div>
       <PageHeader
         title="Empresa"
         subtitle="Gerencie os dados da sua empresa e filiais"
-        breadcrumb="Configurações"
+        breadcrumb="Configuracoes"
       />
 
       {/* Toast notification */}
@@ -307,11 +326,12 @@ function CompanyProfile() {
 
         {/* Info grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
-          {(company.phone || company.email || company.website) && (
+          {(company.contact_name || company.phone || company.email || company.website) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
                 Contato
               </div>
+              {company.contact_name && <InfoItem icon={<User size={16} />} label="Nome do Contato" value={company.contact_name} />}
               {company.phone && <InfoItem icon={<Phone size={16} />} label="Telefone" value={company.phone} />}
               {company.email && <InfoItem icon={<Mail size={16} />} label="E-mail" value={company.email} />}
               {company.website && <InfoItem icon={<Globe size={16} />} label="Website" value={company.website} isLink />}
@@ -321,9 +341,9 @@ function CompanyProfile() {
           {fullAddress !== '-' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
-                Endereço
+                Endereco
               </div>
-              <InfoItem icon={<MapPin size={16} />} label="Endereço completo" value={fullAddress} />
+              <InfoItem icon={<MapPin size={16} />} label="Endereco completo" value={fullAddress} />
               {company.cep && <InfoItem icon={<MapPin size={16} />} label="CEP" value={company.cep} />}
             </div>
           )}
@@ -334,19 +354,26 @@ function CompanyProfile() {
                 Fiscal
               </div>
               {company.cnae && <InfoItem icon={<FileText size={16} />} label="CNAE" value={company.cnae} />}
-              {company.regime_tributario && <InfoItem icon={<FileText size={16} />} label="Regime Tributário" value={REGIME_LABELS[company.regime_tributario] || company.regime_tributario} />}
-              {company.inscricao_estadual && <InfoItem icon={<FileText size={16} />} label="Inscrição Estadual" value={company.inscricao_estadual} />}
-              {company.inscricao_municipal && <InfoItem icon={<FileText size={16} />} label="Inscrição Municipal" value={company.inscricao_municipal} />}
+              {company.regime_tributario && <InfoItem icon={<FileText size={16} />} label="Regime Tributario" value={REGIME_LABELS[company.regime_tributario] || company.regime_tributario} />}
+              {company.inscricao_estadual && <InfoItem icon={<FileText size={16} />} label="Inscricao Estadual" value={company.inscricao_estadual} />}
+              {company.inscricao_municipal && <InfoItem icon={<FileText size={16} />} label="Inscricao Municipal" value={company.inscricao_municipal} />}
             </div>
           )}
 
-          {(company.responsavel_legal || company.responsavel_cpf) && (
+          {companyRepresentantes.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
-                Responsável Legal
+                {companyRepresentantes.length === 1 ? 'Representante Legal' : 'Representantes Legais'}
               </div>
-              {company.responsavel_legal && <InfoItem icon={<User size={16} />} label="Nome" value={company.responsavel_legal} />}
-              {company.responsavel_cpf && <InfoItem icon={<User size={16} />} label="CPF" value={company.responsavel_cpf} />}
+              {companyRepresentantes.map((rep, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <InfoItem icon={<User size={16} />} label="Nome" value={rep.nome || '-'} />
+                  <InfoItem icon={<User size={16} />} label="CPF" value={formatCpf(rep.cpf)} />
+                  {idx < companyRepresentantes.length - 1 && (
+                    <div style={{ borderBottom: '1px solid var(--color-alternate)', margin: '4px 0' }} />
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -400,70 +427,77 @@ function CompanyProfile() {
                 <th>Nome Fantasia</th>
                 <th>CNPJ</th>
                 <th>Cidade / UF</th>
-                <th>Responsável</th>
+                <th>Responsavel</th>
                 <th>Status</th>
-                <th style={{ width: '120px' }}>Ações</th>
+                <th style={{ width: '120px' }}>Acoes</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {branches.map(branch => (
-                <motion.tr key={branch.id} variants={tableRowVariants}>
-                  <td>
-                    <div style={{ fontWeight: 500 }}>{branch.brand_name}</div>
-                    {branch.legal_name && (
-                      <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{branch.legal_name}</div>
-                    )}
-                  </td>
-                  <td style={{ color: 'var(--color-secondary-text)' }}>
-                    {formatCnpj(branch.cnpj)}
-                  </td>
-                  <td style={{ color: 'var(--color-secondary-text)' }}>
-                    {[branch.city, branch.state].filter(Boolean).join(' / ') || '-'}
-                  </td>
-                  <td style={{ color: 'var(--color-secondary-text)' }}>
-                    {branch.responsavel_legal || '-'}
-                  </td>
-                  <td>
-                    <span
-                      className="badge"
-                      style={{
-                        background: branch.ativo ? 'var(--color-status-04)' : 'var(--color-status-05)',
-                        color: branch.ativo ? 'var(--color-success)' : 'var(--color-error)',
-                      }}
-                    >
-                      {branch.ativo ? 'Ativa' : 'Inativa'}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '2px' }}>
-                      <button
-                        className="btn btn-icon"
-                        title="Editar filial"
-                        onClick={() => handleOpenEditBranch(branch)}
+              {branches.map(branch => {
+                const branchReps = getRepresentantes(branch);
+                const repDisplay = branchReps.length > 0
+                  ? branchReps.map(r => r.nome).join(', ')
+                  : '-';
+
+                return (
+                  <motion.tr key={branch.id} variants={tableRowVariants}>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{branch.brand_name}</div>
+                      {branch.legal_name && (
+                        <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{branch.legal_name}</div>
+                      )}
+                    </td>
+                    <td style={{ color: 'var(--color-secondary-text)' }}>
+                      {formatCnpj(branch.cnpj)}
+                    </td>
+                    <td style={{ color: 'var(--color-secondary-text)' }}>
+                      {[branch.city, branch.state].filter(Boolean).join(' / ') || '-'}
+                    </td>
+                    <td style={{ color: 'var(--color-secondary-text)' }}>
+                      {repDisplay}
+                    </td>
+                    <td>
+                      <span
+                        className="badge"
+                        style={{
+                          background: branch.ativo ? 'var(--color-status-04)' : 'var(--color-status-05)',
+                          color: branch.ativo ? 'var(--color-success)' : 'var(--color-error)',
+                        }}
                       >
-                        <Edit size={15} color="var(--color-secondary-text)" />
-                      </button>
-                      <button
-                        className="btn btn-icon"
-                        title={branch.ativo ? 'Desativar filial' : 'Ativar filial'}
-                        onClick={() => handleToggleBranchStatus(branch)}
-                      >
-                        {branch.ativo
-                          ? <ToggleRight size={15} color="var(--color-success)" />
-                          : <ToggleLeft size={15} color="var(--color-secondary-text)" />
-                        }
-                      </button>
-                      <button
-                        className="btn btn-icon"
-                        title="Excluir filial"
-                        onClick={() => setDeleteConfirm(branch)}
-                      >
-                        <Trash2 size={15} color="var(--color-error)" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+                        {branch.ativo ? 'Ativa' : 'Inativa'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        <button
+                          className="btn btn-icon"
+                          title="Editar filial"
+                          onClick={() => handleOpenEditBranch(branch)}
+                        >
+                          <Edit size={15} color="var(--color-secondary-text)" />
+                        </button>
+                        <button
+                          className="btn btn-icon"
+                          title={branch.ativo ? 'Desativar filial' : 'Ativar filial'}
+                          onClick={() => handleToggleBranchStatus(branch)}
+                        >
+                          {branch.ativo
+                            ? <ToggleRight size={15} color="var(--color-success)" />
+                            : <ToggleLeft size={15} color="var(--color-secondary-text)" />
+                          }
+                        </button>
+                        <button
+                          className="btn btn-icon"
+                          title="Excluir filial"
+                          onClick={() => setDeleteConfirm(branch)}
+                        >
+                          <Trash2 size={15} color="var(--color-error)" />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              })}
             </motion.tbody>
           </table>
         </div>
@@ -493,7 +527,7 @@ function CompanyProfile() {
       {deleteConfirm && (
         <ConfirmModal
           title="Excluir Filial"
-          message={`Tem certeza que deseja excluir a filial "${deleteConfirm.brand_name}"? Esta ação não pode ser desfeita.`}
+          message={`Tem certeza que deseja excluir a filial "${deleteConfirm.brand_name}"? Esta acao nao pode ser desfeita.`}
           confirmLabel="Excluir"
           variant="danger"
           onConfirm={handleDeleteBranch}
