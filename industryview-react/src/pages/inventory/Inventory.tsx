@@ -17,6 +17,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Pencil,
   Package,
   MinusCircle,
   PlusCircle,
@@ -30,6 +31,7 @@ import { formatNumber } from '../../utils/formatters';
 import { downloadCsv } from '../../utils/csvUtils';
 
 export default function Inventory() {
+  const ADD_MANUFACTURER_OPTION = '__add_new_manufacturer__';
   const { t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
@@ -65,6 +67,11 @@ export default function Inventory() {
   const [productManufacturerId, setProductManufacturerId] = useState<number | undefined>();
   const [productProjectId, setProductProjectId] = useState<number | undefined>();
   const [modalLoading, setModalLoading] = useState(false);
+  const [showAddManufacturerModal, setShowAddManufacturerModal] = useState(false);
+  const [newManufacturerName, setNewManufacturerName] = useState('');
+  const [manufacturerModalLoading, setManufacturerModalLoading] = useState(false);
+  const [editingManufacturerId, setEditingManufacturerId] = useState<number | null>(null);
+  const [deleteManufacturerConfirm, setDeleteManufacturerConfirm] = useState<Manufacturer | null>(null);
 
   // Bloco K fields
   const [showBlocoK, setShowBlocoK] = useState(false);
@@ -94,30 +101,34 @@ export default function Inventory() {
     setNavBarSelection(9);
   }, []);
 
+  const loadManufacturers = useCallback(async () => {
+    try {
+      const response = await manufacturersApi.queryAllManufacturers({ per_page: 100 });
+      setManufacturerOptions(Array.isArray(response.items) ? response.items : []);
+    } catch {
+      setManufacturerOptions([]);
+    }
+  }, []);
+
   // Load reference data
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const [unityData, categoryData, manufacturerData, projectsData] = await Promise.all([
+        const [unityData, categoryData, projectsData] = await Promise.all([
           unityApi.queryAllUnity().catch(() => []),
           equipamentTypesApi.queryAllEquipamentTypes().catch(() => []),
-          manufacturersApi.queryAllManufacturers().then(res => {
-            return (res as any).items || res || [];
-          }).catch(() => []),
-          projectsApi.queryAllProjects({ per_page: 100 }).then(res => {
-            return (res as any).items || res || [];
-          }).catch(() => []),
+          projectsApi.queryAllProjects({ per_page: 100 }).then(res => res.items || []).catch(() => []),
         ]);
         setUnityOptions(Array.isArray(unityData) ? unityData : []);
         setCategoryOptions(Array.isArray(categoryData) ? categoryData : []);
-        setManufacturerOptions(Array.isArray(manufacturerData) ? manufacturerData : []);
         setProjectOptions(Array.isArray(projectsData) ? projectsData : []);
+        await loadManufacturers();
       } catch (err) {
         console.error('Failed to load reference data:', err);
       }
     };
     loadReferenceData();
-  }, []);
+  }, [loadManufacturers]);
 
   const loadProducts = useCallback(async () => {
     if (!projectsInfo) return;
@@ -202,6 +213,51 @@ export default function Inventory() {
       console.error('Failed to add product:', err);
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  const closeManufacturerModal = () => {
+    setShowAddManufacturerModal(false);
+    setNewManufacturerName('');
+    setEditingManufacturerId(null);
+  };
+
+  const handleOpenEditManufacturerModal = (manufacturer: Manufacturer) => {
+    setEditingManufacturerId(manufacturer.id);
+    setNewManufacturerName(manufacturer.name || '');
+    setShowAddManufacturerModal(true);
+  };
+
+  const handleSaveManufacturer = async () => {
+    if (!newManufacturerName.trim()) return;
+    setManufacturerModalLoading(true);
+    try {
+      const created = editingManufacturerId
+        ? await manufacturersApi.editManufacturer(editingManufacturerId, { name: newManufacturerName.trim() })
+        : await manufacturersApi.addManufacturer({ name: newManufacturerName.trim() });
+      await loadManufacturers();
+      setProductManufacturerId(created?.id ? Number(created.id) : undefined);
+      closeManufacturerModal();
+    } catch (err) {
+      console.error('Failed to save manufacturer:', err);
+    } finally {
+      setManufacturerModalLoading(false);
+    }
+  };
+
+  const handleDeleteManufacturer = async (manufacturerId: number) => {
+    setManufacturerModalLoading(true);
+    try {
+      await manufacturersApi.deleteManufacturer(manufacturerId);
+      if (productManufacturerId === manufacturerId) {
+        setProductManufacturerId(undefined);
+      }
+      await loadManufacturers();
+    } catch (err) {
+      console.error('Failed to delete manufacturer:', err);
+    } finally {
+      setDeleteManufacturerConfirm(null);
+      setManufacturerModalLoading(false);
     }
   };
 
@@ -524,9 +580,37 @@ export default function Inventory() {
               <div className="input-group">
                 <label>{t('inventory.manufacturer', 'Fabricante')}</label>
                 <SearchableSelect
-                  options={manufacturerOptions.map(m => ({ value: m.id, label: m.name }))}
+                  options={[
+                    { value: ADD_MANUFACTURER_OPTION, label: t('inventory.addManufacturerOption', 'Cadastrar novo fabricante'), dividerBelow: true, icon: <Plus size={16} /> },
+                    ...manufacturerOptions.map(m => ({
+                      value: m.id,
+                      label: m.name || `#${m.id}`,
+                      actions: [
+                        {
+                          id: `edit-${m.id}`,
+                          title: t('common.edit'),
+                          icon: <Pencil size={14} />,
+                          onClick: () => handleOpenEditManufacturerModal(m),
+                        },
+                        {
+                          id: `delete-${m.id}`,
+                          title: t('common.delete'),
+                          icon: <Trash2 size={14} />,
+                          onClick: () => setDeleteManufacturerConfirm(m),
+                        },
+                      ],
+                    })),
+                  ]}
                   value={productManufacturerId}
-                  onChange={(v) => setProductManufacturerId(v as number | undefined)}
+                  onChange={(v) => {
+                    if (v === ADD_MANUFACTURER_OPTION) {
+                      setEditingManufacturerId(null);
+                      setNewManufacturerName('');
+                      setShowAddManufacturerModal(true);
+                      return;
+                    }
+                    setProductManufacturerId(v as number | undefined);
+                  }}
                   placeholder={t('common.select', 'Selecione...')}
                 />
               </div>
@@ -649,6 +733,46 @@ export default function Inventory() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add Manufacturer Modal */}
+      {showAddManufacturerModal && (
+        <div className="modal-backdrop" onClick={closeManufacturerModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', minWidth: '320px', maxWidth: '480px', width: '90%' }}>
+            <h3 style={{ marginBottom: '16px' }}>
+              {editingManufacturerId ? t('inventory.editManufacturer', 'Editar fabricante') : t('inventory.addManufacturer', 'Cadastrar fabricante')}
+            </h3>
+            <div className="input-group">
+              <label>{t('inventory.manufacturer', 'Fabricante')} *</label>
+              <input
+                className="input-field"
+                value={newManufacturerName}
+                onChange={(e) => setNewManufacturerName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveManufacturer()}
+                placeholder={t('inventory.manufacturerNamePlaceholder', 'Nome do fabricante')}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={closeManufacturerModal}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveManufacturer} disabled={manufacturerModalLoading || !newManufacturerName.trim()}>
+                {manufacturerModalLoading ? <span className="spinner" /> : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Manufacturer Confirm */}
+      {deleteManufacturerConfirm && (
+        <ConfirmModal
+          title={t('common.confirmDelete')}
+          message={t('inventory.confirmDeleteManufacturer', 'Deseja excluir este fabricante?')}
+          onConfirm={() => handleDeleteManufacturer(deleteManufacturerConfirm.id)}
+          onCancel={() => setDeleteManufacturerConfirm(null)}
+        />
       )}
 
       {/* Adjust Quantity Modal */}

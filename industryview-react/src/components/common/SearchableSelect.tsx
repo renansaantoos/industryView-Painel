@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -7,6 +7,14 @@ import { dropdownVariants } from '../../lib/motion';
 interface Option {
   value: string | number;
   label: string;
+  dividerBelow?: boolean;
+  icon?: ReactNode;
+  actions?: {
+    id: string;
+    icon: ReactNode;
+    title?: string;
+    onClick: () => void;
+  }[];
 }
 
 interface SearchableSelectProps {
@@ -234,6 +242,7 @@ export default function SearchableSelect({
                         onClick={() => handleSelect(opt)}
                         style={{
                           padding: '10px 12px',
+                          borderBottom: opt.dividerBelow ? '1px solid var(--color-alternate)' : 'none',
                           fontSize: 'var(--font-size-md)',
                           fontFamily: 'var(--font-family)',
                           color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
@@ -241,6 +250,10 @@ export default function SearchableSelect({
                           fontWeight: isSelected ? 500 : 400,
                           cursor: 'pointer',
                           transition: 'background-color var(--transition-fast)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
                         }}
                         onMouseEnter={(e) => {
                           if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--color-secondary)';
@@ -249,7 +262,37 @@ export default function SearchableSelect({
                           e.currentTarget.style.backgroundColor = isSelected ? 'var(--color-tertiary-bg)' : 'transparent';
                         }}
                       >
-                        {opt.label}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          {opt.icon}
+                          {opt.label}
+                        </span>
+                        {opt.actions && opt.actions.length > 0 && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            {opt.actions.map((action) => (
+                              <button
+                                key={action.id}
+                                type="button"
+                                title={action.title}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  action.onClick();
+                                }}
+                                style={{
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: 'var(--color-secondary-text)',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  padding: '2px',
+                                }}
+                              >
+                                {action.icon}
+                              </button>
+                            ))}
+                          </span>
+                        )}
                       </div>
                     );
                   })

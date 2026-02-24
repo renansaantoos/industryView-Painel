@@ -3,19 +3,19 @@ import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { tasksApi, equipamentTypesApi, manufacturersApi } from '../../services';
+import { tasksApi, equipamentTypesApi } from '../../services';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Trash2, Edit, Ruler, BookOpen, Tag, Factory } from 'lucide-react';
+import { Plus, Trash2, Edit, Ruler, BookOpen, Tag } from 'lucide-react';
 
 interface SettingsItem {
   id: number;
   displayName: string;
 }
 
-type ActiveTab = 'unity' | 'discipline' | 'category' | 'manufacturer';
+type ActiveTab = 'unity' | 'discipline' | 'category';
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -25,7 +25,6 @@ export default function Settings() {
   const [unities, setUnities] = useState<SettingsItem[]>([]);
   const [disciplines, setDisciplines] = useState<SettingsItem[]>([]);
   const [categories, setCategories] = useState<SettingsItem[]>([]);
-  const [manufacturers, setManufacturers] = useState<SettingsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: ActiveTab; id: number } | null>(null);
 
@@ -42,41 +41,39 @@ export default function Settings() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [unityData, disciplineData, categoryData, manufacturerData] = await Promise.all([
+      const [unityData, disciplineData, categoryData] = await Promise.all([
         tasksApi.getUnity().catch(() => []),
         tasksApi.getDisciplines().catch(() => []),
         equipamentTypesApi.queryAllEquipamentTypes().catch(() => []),
-        manufacturersApi.queryAllManufacturers({ per_page: 100 }).catch(() => ({ items: [] })),
       ]);
 
       const rawUnities = Array.isArray(unityData) ? unityData : [];
       const rawDisciplines = Array.isArray(disciplineData) ? disciplineData : [];
       const rawCategories = Array.isArray(categoryData) ? categoryData : [];
-      const rawManufacturers = Array.isArray((manufacturerData as any)?.items)
-        ? (manufacturerData as any).items
-        : Array.isArray(manufacturerData)
-          ? manufacturerData
-          : [];
 
-      setUnities(rawUnities.map((u: any) => ({
-        id: Number(u.id),
-        displayName: u.unity || u.name || `#${u.id}`,
-      })));
+      setUnities(rawUnities.map((u) => {
+        const row = u as { id?: number | string; unity?: string; name?: string };
+        return {
+          id: Number(row.id),
+          displayName: row.unity || row.name || `#${row.id}`,
+        };
+      }));
 
-      setDisciplines(rawDisciplines.map((d: any) => ({
-        id: Number(d.id),
-        displayName: d.discipline || d.name || `#${d.id}`,
-      })));
+      setDisciplines(rawDisciplines.map((d) => {
+        const row = d as { id?: number | string; discipline?: string; name?: string };
+        return {
+          id: Number(row.id),
+          displayName: row.discipline || row.name || `#${row.id}`,
+        };
+      }));
 
-      setCategories(rawCategories.map((c: any) => ({
-        id: Number(c.id),
-        displayName: c.type || c.name || `#${c.id}`,
-      })));
-
-      setManufacturers(rawManufacturers.map((m: any) => ({
-        id: Number(m.id),
-        displayName: m.name || `#${m.id}`,
-      })));
+      setCategories(rawCategories.map((c) => {
+        const row = c as { id?: number | string; type?: string; name?: string };
+        return {
+          id: Number(row.id),
+          displayName: row.type || row.name || `#${row.id}`,
+        };
+      }));
     } catch (err) {
       console.error('Failed to load settings data:', err);
     } finally {
@@ -122,12 +119,6 @@ export default function Settings() {
         } else {
           await equipamentTypesApi.addEquipamentType({ type: itemName.trim() });
         }
-      } else if (activeTab === 'manufacturer') {
-        if (editingItem) {
-          await manufacturersApi.editManufacturer(editingItem.id, { name: itemName.trim() });
-        } else {
-          await manufacturersApi.addManufacturer({ name: itemName.trim() });
-        }
       }
       setShowModal(false);
       loadData();
@@ -146,8 +137,6 @@ export default function Settings() {
         await tasksApi.deleteDiscipline(id);
       } else if (type === 'category') {
         await equipamentTypesApi.deleteEquipamentType(id);
-      } else if (type === 'manufacturer') {
-        await manufacturersApi.deleteManufacturer(id);
       }
       loadData();
     } catch (err) {
@@ -159,22 +148,19 @@ export default function Settings() {
   const currentItems: SettingsItem[] = (() => {
     if (activeTab === 'unity') return unities;
     if (activeTab === 'discipline') return disciplines;
-    if (activeTab === 'category') return categories;
-    return manufacturers;
+    return categories;
   })();
 
   const getAddLabel = () => {
     if (activeTab === 'unity') return t('settings.addUnity');
     if (activeTab === 'discipline') return t('settings.addDiscipline');
-    if (activeTab === 'category') return t('settings.addCategory');
-    return t('settings.addManufacturer');
+    return t('settings.addCategory');
   };
 
   const getModalTitle = () => {
     if (activeTab === 'unity') return editingItem ? t('settings.editUnity') : t('settings.addUnity');
     if (activeTab === 'discipline') return editingItem ? t('settings.editDiscipline') : t('settings.addDiscipline');
-    if (activeTab === 'category') return editingItem ? t('settings.editCategory') : t('settings.addCategory');
-    return editingItem ? t('settings.editManufacturer') : t('settings.addManufacturer');
+    return editingItem ? t('settings.editCategory') : t('settings.addCategory');
   };
 
   const tabStyle = (tab: ActiveTab) => ({
@@ -213,10 +199,6 @@ export default function Settings() {
         <button onClick={() => setActiveTab('category')} style={tabStyle('category')}>
           <Tag size={16} />
           {t('settings.categories')}
-        </button>
-        <button onClick={() => setActiveTab('manufacturer')} style={tabStyle('manufacturer')}>
-          <Factory size={16} />
-          {t('settings.manufacturers')}
         </button>
       </div>
 
