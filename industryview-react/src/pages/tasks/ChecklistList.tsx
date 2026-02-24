@@ -11,6 +11,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import SortableHeader from '../../components/common/SortableHeader';
 import { Plus, Search, Edit, Trash2, CheckSquare, X } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -83,6 +84,8 @@ export default function ChecklistList() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(PER_PAGE_DEFAULT);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
 
   // ------------------------------------------------------------------
   // Modal state
@@ -124,14 +127,38 @@ export default function ChecklistList() {
   // Client-side filtering + pagination
   // ------------------------------------------------------------------
 
-  const filtered = allChecklists.filter((cl) => {
-    if (!search.trim()) return true;
-    const term = search.toLowerCase();
-    return (
-      cl.name.toLowerCase().includes(term) ||
-      (cl.description ?? '').toLowerCase().includes(term)
-    );
-  });
+  const filtered = (() => {
+    let result = allChecklists.filter((cl) => {
+      if (!search.trim()) return true;
+      const term = search.toLowerCase();
+      return (
+        cl.name.toLowerCase().includes(term) ||
+        (cl.description ?? '').toLowerCase().includes(term)
+      );
+    });
+
+    if (sortField && sortDirection) {
+      result = [...result].sort((a, b) => {
+        let aVal: string | number = '';
+        let bVal: string | number = '';
+        if (sortField === 'name') {
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+        } else if (sortField === 'description') {
+          aVal = (a.description ?? '').toLowerCase();
+          bVal = (b.description ?? '').toLowerCase();
+        } else if (sortField === 'items') {
+          aVal = a.items?.length ?? 0;
+          bVal = b.items?.length ?? 0;
+        }
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  })();
 
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
@@ -142,6 +169,17 @@ export default function ChecklistList() {
   useEffect(() => {
     setPage(1);
   }, [search, perPage]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortField(null); setSortDirection(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   // ------------------------------------------------------------------
   // Create
@@ -352,9 +390,9 @@ export default function ChecklistList() {
           <table>
             <thead>
               <tr>
-                <th>{t('common.name')}</th>
-                <th>{t('tasks.description')}</th>
-                <th>{t('tasks.checklistItemsCount')}</th>
+                <SortableHeader label={t('common.name')} field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('tasks.description')} field="description" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('tasks.checklistItemsCount')} field="items" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>

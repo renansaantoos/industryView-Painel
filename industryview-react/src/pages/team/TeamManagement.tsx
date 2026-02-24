@@ -16,9 +16,9 @@ import SearchableSelect from '../../components/common/SearchableSelect';
 import SortableHeader from '../../components/common/SortableHeader';
 import ProjectSelector from '../../components/common/ProjectSelector';
 import {
-  Plus, Search, ArrowLeft, Trash2, UserPlus, Crown, Users,
+  Plus, Search, ArrowLeft, Trash2, UserPlus, Crown, Users, Edit,
   ChevronLeft, ChevronRight, UserCheck, FolderOpen,
-  Link2, Unlink, History, ChevronDown, ChevronUp, Filter, X,
+  Link2, Unlink, History, ChevronDown, ChevronUp, X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild, tableRowVariants } from '../../lib/motion';
@@ -689,9 +689,10 @@ export default function TeamManagement() {
   const [leadersPage, setLeadersPage] = useState(1);
   const [membersPage, setMembersPage] = useState(1);
 
-  // Members sort state
+  // Members sort & search state
   const [membersSortField, setMembersSortField] = useState<string | null>(null);
   const [membersSortDirection, setMembersSortDirection] = useState<'asc' | 'desc' | null>(null);
+  const [memberSearch, setMemberSearch] = useState('');
 
   // Modal states
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -699,6 +700,8 @@ export default function TeamManagement() {
   const [showAddLeaderModal, setShowAddLeaderModal] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
   const [createTeamErrors, setCreateTeamErrors] = useState<Record<string, string | undefined>>({});
+  const [editingTeam, setEditingTeam] = useState<{ id: number; name: string } | null>(null);
+  const [editTeamName, setEditTeamName] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number } | null>(null);
 
@@ -732,58 +735,27 @@ export default function TeamManagement() {
   const [leadersHistoryTotal, setLeadersHistoryTotal] = useState(0);
   const [leadersHistoryTotalPages, setLeadersHistoryTotalPages] = useState(1);
 
-  // Project filter state (-1 = "sem projeto")
-  const [projectFilter, setProjectFilter] = useState<number[]>([]);
-  const [showProjectFilter, setShowProjectFilter] = useState(false);
-  const [filterSearch, setFilterSearch] = useState('');
-  const projectFilterRef = useRef<HTMLDivElement>(null);
-  const filterSearchRef = useRef<HTMLInputElement>(null);
+  // Link team to project modal
+  const [showLinkTeamModal, setShowLinkTeamModal] = useState(false);
+  const [linkTeamSearch, setLinkTeamSearch] = useState('');
+  const [pendingLinkTeamId, setPendingLinkTeamId] = useState<number | null>(null);
 
-  // Close filter dropdown on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (projectFilterRef.current && !projectFilterRef.current.contains(e.target as Node)) {
-        setShowProjectFilter(false);
-        setFilterSearch('');
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  // Auto-focus search input when filter opens
-  useEffect(() => {
-    if (showProjectFilter) {
-      setTimeout(() => filterSearchRef.current?.focus(), 50);
-    }
-  }, [showProjectFilter]);
-
-  // All company projects for the filter dropdown
-  const availableProjectsForFilter = useMemo(() => {
-    const mapped = allProjects
-      .map((p) => ({ id: Number(p.id), name: p.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    if (!filterSearch.trim()) return mapped;
-    return mapped.filter((p) => fuzzyMatch(p.name, filterSearch.trim()));
-  }, [allProjects, filterSearch]);
-
-  const toggleProjectFilter = (id: number) => {
-    setProjectFilter((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-    setTeamsPage(1);
-  };
-
-  // Reset teams pagination when search or filter changes
+  // Reset teams pagination when search changes
   useEffect(() => {
     setTeamsPage(1);
-  }, [globalSearch, projectFilter]);
+  }, [globalSearch]);
 
-  // Reset leaders/members pagination when team changes
+  // Reset leaders/members pagination and search when team changes
   useEffect(() => {
     setLeadersPage(1);
     setMembersPage(1);
+    setMemberSearch('');
   }, [teamId]);
+
+  // Reset members pagination when member search changes
+  useEffect(() => {
+    setMembersPage(1);
+  }, [memberSearch]);
 
   // projectsInfo guard is handled by the early return below
 
@@ -928,42 +900,49 @@ export default function TeamManagement() {
   const filteredTeams = useMemo(() => {
     let result = teams;
 
-    // Apply project filter
-    if (projectFilter.length > 0) {
-      const wantNoProject = projectFilter.includes(-1);
-      const projectIds = projectFilter.filter((id) => id !== -1);
-
+    // Filter only teams linked to the current project
+    if (projectsInfo) {
+      const currentProjectId = Number(projectsInfo.id);
       result = result.filter((team) => {
         const rawLinks = (team as any).teams_projects;
-        const teamProjectIds: number[] = [];
-        if (Array.isArray(rawLinks)) {
-          rawLinks.forEach((lp: any) => {
-            if (lp.projects?.id) teamProjectIds.push(Number(lp.projects.id));
-          });
-        }
-        const hasNoProject = teamProjectIds.length === 0;
-        if (wantNoProject && hasNoProject) return true;
-        if (projectIds.length > 0 && projectIds.some((pid) => teamProjectIds.includes(pid))) return true;
-        return false;
+        if (!Array.isArray(rawLinks)) return false;
+        return rawLinks.some((lp: any) => Number(lp.projects?.id) === currentProjectId);
       });
     }
 
-    // Apply text search - search in team name AND linked project names
+    // Apply text search
     if (searchTrimmed) {
-      result = result.filter((t) => {
-        if (fuzzyMatch(t.name, searchTrimmed)) return true;
-        const rawLinks = (t as any).teams_projects;
-        if (Array.isArray(rawLinks)) {
-          for (const lp of rawLinks) {
-            if (lp.projects?.name && fuzzyMatch(lp.projects.name, searchTrimmed)) return true;
-          }
-        }
-        return false;
-      });
+      result = result.filter((t) => fuzzyMatch(t.name, searchTrimmed));
     }
 
     return result;
-  }, [teams, searchTrimmed, projectFilter]);
+  }, [teams, searchTrimmed, projectsInfo]);
+
+  // Teams NOT linked to the current project (for "Link Team" modal)
+  const unlinkedTeams = useMemo(() => {
+    if (!projectsInfo) return [];
+    const currentProjectId = Number(projectsInfo.id);
+    let result = teams.filter((team) => {
+      const rawLinks = (team as any).teams_projects;
+      if (!Array.isArray(rawLinks) || rawLinks.length === 0) return true;
+      return !rawLinks.some((lp: any) => Number(lp.projects?.id) === currentProjectId);
+    });
+    if (linkTeamSearch.trim()) {
+      result = result.filter((t) => fuzzyMatch(t.name, linkTeamSearch.trim()));
+    }
+    return result;
+  }, [teams, projectsInfo, linkTeamSearch]);
+
+  // Auto-select first team of the current project when teams load
+  useEffect(() => {
+    if (!loading && filteredTeams.length > 0) {
+      const currentIsInList = teamId > 0 && filteredTeams.some((t) => t.id === teamId);
+      if (!currentIsInList) {
+        setTeamId(filteredTeams[0].id);
+        setSelectedTeamName(filteredTeams[0].name);
+      }
+    }
+  }, [loading, filteredTeams, teamId, setTeamId]);
 
   const filteredLeaders = useMemo(() => {
     if (!searchTrimmed) return leaders;
@@ -974,11 +953,13 @@ export default function TeamManagement() {
   }, [leaders, searchTrimmed]);
 
   const filteredMembers = useMemo(() => {
+    const term = memberSearch.trim();
     let result = members;
-    if (searchTrimmed) {
+    if (term) {
       result = result.filter((m) =>
-        fuzzyMatch(m.userName || '', searchTrimmed) ||
-        fuzzyMatch(m.userEmail || '', searchTrimmed)
+        fuzzyMatch(m.userName || '', term) ||
+        fuzzyMatch(m.userEmail || '', term) ||
+        fuzzyMatch(m.roleName || '', term)
       );
     }
     if (membersSortField && membersSortDirection) {
@@ -992,7 +973,7 @@ export default function TeamManagement() {
       });
     }
     return result;
-  }, [members, searchTrimmed, membersSortField, membersSortDirection]);
+  }, [members, memberSearch, membersSortField, membersSortDirection]);
 
   const teamsPag = paginate(filteredTeams, teamsPage, TEAMS_PER_PAGE);
   const leadersPag = paginate(filteredLeaders, leadersPage, LEADERS_PER_PAGE);
@@ -1019,6 +1000,34 @@ export default function TeamManagement() {
       loadTeams();
     } catch (err) {
       console.error('Erro ao criar equipe:', err);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openEditTeam = (team: { id: number; name: string }) => {
+    setEditingTeam(team);
+    setEditTeamName(team.name);
+    setCreateTeamErrors({});
+  };
+
+  const handleEditTeam = async () => {
+    if (!editingTeam) return;
+    const errors: Record<string, string | undefined> = {};
+    if (!editTeamName.trim()) errors.teamName = t('common.requiredField', 'Campo obrigatório');
+    if (Object.keys(errors).length > 0) {
+      setCreateTeamErrors(errors);
+      return;
+    }
+    setCreateTeamErrors({});
+    setModalLoading(true);
+    try {
+      await projectsApi.editTeam(editingTeam.id, { name: editTeamName.trim() });
+      if (teamId === editingTeam.id) setSelectedTeamName(editTeamName.trim());
+      setEditingTeam(null);
+      loadTeams();
+    } catch (err) {
+      console.error('Erro ao editar equipe:', err);
     } finally {
       setModalLoading(false);
     }
@@ -1107,6 +1116,45 @@ export default function TeamManagement() {
     if (allProjects.length === 0) await loadAllProjects();
     setProjectSearch('');
     setShowLinkProjectModal(true);
+  };
+
+  const handleOpenLinkTeamModal = () => {
+    setLinkTeamSearch('');
+    setShowLinkTeamModal(true);
+  };
+
+  const handleLinkTeamToProject = async (targetTeamId: number) => {
+    if (!projectsInfo) return;
+    setLinkLoading(true);
+    try {
+      const conflicts = await projectsApi.checkTeamConflicts(targetTeamId);
+      if (conflicts.has_conflicts) {
+        setConflictData(conflicts);
+        setPendingLinkTeamId(targetTeamId);
+        setLinkLoading(false);
+        return;
+      }
+      await doLinkTeamToProject(targetTeamId);
+    } catch (err) {
+      console.error('Erro ao vincular equipe:', err);
+      setLinkLoading(false);
+    }
+  };
+
+  const doLinkTeamToProject = async (targetTeamId: number) => {
+    if (!projectsInfo) return;
+    setLinkLoading(true);
+    try {
+      await projectsApi.linkTeamToProject({ teams_id: targetTeamId, projects_id: Number(projectsInfo.id) });
+      setShowLinkTeamModal(false);
+      setConflictData(null);
+      setPendingLinkTeamId(null);
+      loadTeams();
+    } catch (err) {
+      console.error('Erro ao vincular equipe:', err);
+    } finally {
+      setLinkLoading(false);
+    }
   };
 
   const handleLinkProject = async (projectId: number) => {
@@ -1215,8 +1263,8 @@ export default function TeamManagement() {
         }
       />
 
-      {/* Search + Project Filter + Chips - compact row */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* Search bar */}
+      <div style={{ marginBottom: '12px' }}>
         <div style={{ position: 'relative', width: '340px' }}>
           <Search
             size={16}
@@ -1246,217 +1294,53 @@ export default function TeamManagement() {
             </button>
           )}
         </div>
-
-        {/* Project Filter Dropdown */}
-        <div ref={projectFilterRef} style={{ position: 'relative' }}>
-          <button
-            className={`btn ${projectFilter.length > 0 ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => {
-              setShowProjectFilter(!showProjectFilter);
-              if (showProjectFilter) setFilterSearch('');
-            }}
-            style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', whiteSpace: 'nowrap', padding: '0 12px' }}
-          >
-            <Filter size={15} />
-            {t('teams.inProject')}
-            {projectFilter.length > 0 && (
-              <span style={{
-                background: 'rgba(255,255,255,0.25)', borderRadius: '10px',
-                padding: '1px 7px', fontSize: '11px', fontWeight: 600,
-              }}>
-                {projectFilter.length}
-              </span>
-            )}
-          </button>
-          {showProjectFilter && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
-              width: '320px',
-              backgroundColor: 'var(--color-secondary-bg)',
-              border: '1px solid var(--color-alternate)',
-              borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)',
-              overflow: 'hidden', animation: 'fadeIn 0.15s ease',
-            }}>
-              {/* Header with title and count */}
-              <div style={{
-                padding: '10px 12px', borderBottom: '1px solid var(--color-alternate)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)' }}>
-                  {t('teams.inProject')}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', background: 'var(--color-secondary)', padding: '1px 6px', borderRadius: '8px' }}>
-                  {allProjects.length} {allProjects.length === 1 ? 'projeto' : 'projetos'}
-                </span>
-              </div>
-
-              {/* Search inside filter */}
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--color-alternate)' }}>
-                <div style={{ position: 'relative' }}>
-                  <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)' }} />
-                  <input
-                    ref={filterSearchRef}
-                    type="text"
-                    className="input-field"
-                    placeholder="Buscar projeto..."
-                    value={filterSearch}
-                    onChange={(e) => setFilterSearch(e.target.value)}
-                    style={{ paddingLeft: '28px', fontSize: '12px', height: '30px', borderRadius: '6px', width: '100%' }}
-                  />
-                  {filterSearch && (
-                    <button
-                      onClick={() => setFilterSearch('')}
-                      style={{
-                        position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
-                        background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary-text)',
-                        fontSize: '14px', lineHeight: 1, padding: '2px',
-                      }}
-                    >
-                      &times;
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Scrollable project list */}
-              <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                {/* Sem projeto option - only show when not searching */}
-                {!filterSearch.trim() && (
-                  <label
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '8px',
-                      padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
-                      backgroundColor: projectFilter.includes(-1) ? 'var(--color-tertiary-bg)' : 'transparent',
-                      borderBottom: '1px solid var(--color-alternate)',
-                    }}
-                    onMouseEnter={(e) => { if (!projectFilter.includes(-1)) e.currentTarget.style.backgroundColor = 'var(--color-secondary)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = projectFilter.includes(-1) ? 'var(--color-tertiary-bg)' : 'transparent'; }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={projectFilter.includes(-1)}
-                      onChange={() => toggleProjectFilter(-1)}
-                      style={{ accentColor: 'var(--color-primary)', flexShrink: 0 }}
-                    />
-                    <FolderOpen size={14} color="var(--color-accent4)" style={{ flexShrink: 0 }} />
-                    <span style={{ fontStyle: 'italic', color: 'var(--color-accent4)' }}>{t('teams.noProject')}</span>
-                  </label>
-                )}
-                {availableProjectsForFilter.length === 0 ? (
-                  <div style={{ padding: '16px 12px', textAlign: 'center', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                    {filterSearch ? `Nenhum projeto encontrado para "${filterSearch}"` : 'Nenhum projeto disponivel'}
-                  </div>
-                ) : (
-                  availableProjectsForFilter.map((p) => {
-                    const isChecked = projectFilter.includes(p.id);
-                    // Count teams linked to this project
-                    const linkedTeamsCount = teams.filter((team) => {
-                      const rawLinks = (team as any).teams_projects;
-                      if (!Array.isArray(rawLinks)) return false;
-                      return rawLinks.some((lp: any) => Number(lp.projects?.id) === p.id);
-                    }).length;
-
-                    return (
-                      <label
-                        key={p.id}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '8px',
-                          padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
-                          backgroundColor: isChecked ? 'var(--color-tertiary-bg)' : 'transparent',
-                          transition: 'background-color 0.1s ease',
-                        }}
-                        onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = 'var(--color-secondary)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isChecked ? 'var(--color-tertiary-bg)' : 'transparent'; }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleProjectFilter(p.id)}
-                          style={{ accentColor: 'var(--color-primary)', flexShrink: 0 }}
-                        />
-                        <FolderOpen size={14} color={linkedTeamsCount > 0 ? 'var(--color-success)' : 'var(--color-secondary-text)'} style={{ flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{p.name}</span>
-                        {linkedTeamsCount > 0 && (
-                          <span style={{
-                            fontSize: '10px', color: 'var(--color-secondary-text)',
-                            background: 'var(--color-secondary)', padding: '1px 5px',
-                            borderRadius: '6px', flexShrink: 0,
-                          }}>
-                            {linkedTeamsCount} {linkedTeamsCount === 1 ? 'equipe' : 'equipes'}
-                          </span>
-                        )}
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Footer with clear action */}
-              {projectFilter.length > 0 && (
-                <div style={{ padding: '8px 12px', borderTop: '1px solid var(--color-alternate)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>
-                    {projectFilter.length} {projectFilter.length === 1 ? 'selecionado' : 'selecionados'}
-                  </span>
-                  <button
-                    onClick={() => { setProjectFilter([]); setTeamsPage(1); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: '12px', color: 'var(--color-error)', fontWeight: 500,
-                    }}
-                  >
-                    <X size={14} /> {t('common.clear')}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Active filter chips */}
-        {projectFilter.length > 0 && projectFilter.map((id) => {
-          const label = id === -1 ? t('teams.noProject') : allProjects.find((p) => Number(p.id) === id)?.name || `#${id}`;
-          return (
-            <span
-              key={id}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                padding: '3px 10px', borderRadius: '16px', fontSize: '12px', fontWeight: 500,
-                background: 'var(--color-tertiary-bg)', border: '1px solid var(--color-primary)',
-                color: 'var(--color-primary)',
-              }}
-            >
-              {label}
-              <X
-                size={12}
-                style={{ cursor: 'pointer' }}
-                onClick={() => toggleProjectFilter(id)}
-              />
-            </span>
-          );
-        })}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', height: 'calc(100vh - 220px)', minHeight: '500px' }}>
         {/* ========== Left Column: Teams List ========== */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
-              {t('teams.teamsList')}
-            </h3>
-            <span style={{
-              fontSize: '11px', color: 'var(--color-secondary-text)',
-              background: 'var(--color-secondary)', padding: '2px 8px',
-              borderRadius: 'var(--radius-full)',
-            }}>
-              {filteredTeams.length}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
+                {t('teams.teamsList')}
+              </h3>
+              <span style={{
+                fontSize: '11px', color: 'var(--color-secondary-text)',
+                background: 'var(--color-secondary)', padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+              }}>
+                {filteredTeams.length}
+              </span>
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={handleOpenLinkTeamModal}
+              style={{ fontSize: '12px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Link2 size={14} /> Vincular Equipe
+            </button>
           </div>
 
           {loading ? (
             <LoadingSpinner />
           ) : filteredTeams.length === 0 ? (
-            <EmptyState message={globalSearch ? `Nenhuma equipe encontrada para "${globalSearch}"` : t('common.noData')} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px 16px' }}>
+              <Users size={32} color="var(--color-secondary-text)" style={{ opacity: 0.4 }} />
+              <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                {globalSearch
+                  ? `Nenhuma equipe encontrada para "${globalSearch}"`
+                  : 'Nenhuma equipe vinculada a este projeto'}
+              </p>
+              {!globalSearch && (
+                <button
+                  className="btn btn-primary"
+                  onClick={handleOpenLinkTeamModal}
+                  style={{ fontSize: '13px', padding: '8px 16px' }}
+                >
+                  <Link2 size={15} /> Vincular Equipe
+                </button>
+              )}
+            </div>
           ) : (
             <>
               <div
@@ -1526,16 +1410,30 @@ export default function TeamManagement() {
                           </div>
                         )}
                       </div>
-                      <button
-                        className="btn btn-icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirm({ type: 'team', id: team.id });
-                        }}
-                        style={{ flexShrink: 0 }}
-                      >
-                        <Trash2 size={14} color="var(--color-error)" />
-                      </button>
+                      <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                        <button
+                          className="btn btn-icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditTeam({ id: team.id, name: team.name });
+                          }}
+                          title={t('common.edit')}
+                          style={{ padding: '4px' }}
+                        >
+                          <Edit size={13} color="var(--color-secondary-text)" />
+                        </button>
+                        <button
+                          className="btn btn-icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirm({ type: 'team', id: team.id });
+                          }}
+                          title={t('common.delete')}
+                          style={{ padding: '4px' }}
+                        >
+                          <Trash2 size={13} color="var(--color-error)" />
+                        </button>
+                      </div>
                     </motion.div>
                   );
                 })}
@@ -1782,10 +1680,41 @@ export default function TeamManagement() {
                 </div>
               )}
             </div>
+            {teamId > 0 && members.length > 0 && (
+              <div style={{ marginBottom: '12px', position: 'relative', maxWidth: '300px' }}>
+                <Search
+                  size={15}
+                  style={{
+                    position: 'absolute', left: '10px', top: '50%',
+                    transform: 'translateY(-50%)', color: 'var(--color-secondary-text)',
+                  }}
+                />
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Buscar membro..."
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  style={{ paddingLeft: '32px', fontSize: '12px', height: '32px', borderRadius: '8px' }}
+                />
+                {memberSearch && (
+                  <button
+                    onClick={() => setMemberSearch('')}
+                    style={{
+                      position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary-text)',
+                      fontSize: '14px', lineHeight: 1, padding: '2px',
+                    }}
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+            )}
             {teamId === 0 ? (
               <EmptyState message={t('teams.noTeamSelected')} />
             ) : filteredMembers.length === 0 ? (
-              <EmptyState message={globalSearch ? `Nenhum membro encontrado para "${globalSearch}"` : t('teams.noMembers')} />
+              <EmptyState message={memberSearch.trim() ? `Nenhum membro encontrado para "${memberSearch.trim()}"` : t('teams.noMembers')} />
             ) : (
               <>
                 <div className="table-container" style={{ flex: 1, overflowY: 'auto' }}>
@@ -1798,7 +1727,7 @@ export default function TeamManagement() {
                         <th style={{ width: '60px', position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>{t('common.actions')}</th>
                       </tr>
                     </thead>
-                    <motion.tbody key={members.map((m) => m.id).join()} variants={staggerParent} initial="initial" animate="animate">
+                    <motion.tbody key={membersPag.items.map((m) => m.id).join()} variants={staggerParent} initial="initial" animate="animate">
                       {membersPag.items.map((member) => (
                         <motion.tr key={member.id} variants={tableRowVariants}>
                           <td>
@@ -1887,6 +1816,50 @@ export default function TeamManagement() {
                 {t('common.cancel')}
               </button>
               <button className="btn btn-primary" onClick={handleCreateTeam} disabled={modalLoading}>
+                {modalLoading ? <span className="spinner" /> : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Equipe */}
+      {editingTeam && (
+        <div
+          className="modal-backdrop"
+          onClick={() => { setEditingTeam(null); setCreateTeamErrors({}); }}
+        >
+          <div className="modal-content" style={{ padding: '24px', width: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: '16px' }}>{t('common.edit')} - {editingTeam.name}</h3>
+            <div className="input-group">
+              <label>
+                {t('teams.teamName')} <span style={{ color: 'var(--color-error)' }}>*</span>
+              </label>
+              <input
+                className="input-field"
+                value={editTeamName}
+                onChange={(e) => {
+                  setEditTeamName(e.target.value);
+                  if (createTeamErrors.teamName) setCreateTeamErrors((prev) => ({ ...prev, teamName: undefined }));
+                }}
+                placeholder={t('teams.teamNamePlaceholder')}
+                style={createTeamErrors.teamName ? { borderColor: 'var(--color-error)' } : undefined}
+                autoFocus
+              />
+              {createTeamErrors.teamName && (
+                <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                  {createTeamErrors.teamName}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setEditingTeam(null); setCreateTeamErrors({}); }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn-primary" onClick={handleEditTeam} disabled={modalLoading}>
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
             </div>
@@ -1998,7 +1971,7 @@ export default function TeamManagement() {
       )}
 
       {/* Modal: Conflito de vinculação */}
-      {conflictData && pendingLinkProjectId && (
+      {conflictData && (pendingLinkProjectId || pendingLinkTeamId) && (
         <ConfirmModal
           title={t('teams.conflictWarningTitle')}
           message={t('teams.conflictWarningMessage', {
@@ -2007,8 +1980,14 @@ export default function TeamManagement() {
           })}
           variant="warning"
           confirmLabel={t('teams.linkAnyway')}
-          onConfirm={() => doLinkProject(pendingLinkProjectId)}
-          onCancel={() => { setConflictData(null); setPendingLinkProjectId(null); }}
+          onConfirm={() => {
+            if (pendingLinkTeamId) {
+              doLinkTeamToProject(pendingLinkTeamId);
+            } else if (pendingLinkProjectId) {
+              doLinkProject(pendingLinkProjectId);
+            }
+          }}
+          onCancel={() => { setConflictData(null); setPendingLinkProjectId(null); setPendingLinkTeamId(null); }}
         />
       )}
 
@@ -2212,6 +2191,94 @@ export default function TeamManagement() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setShowMembersHistoryModal(false)}>
                 {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Vincular Equipe ao Projeto */}
+      {showLinkTeamModal && (
+        <div className="modal-backdrop" onClick={() => setShowLinkTeamModal(false)}>
+          <div
+            className="modal-content"
+            style={{ padding: '24px', width: '460px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link2 size={18} color="var(--color-primary)" />
+              Vincular Equipe ao Projeto
+            </h3>
+            <div className="input-group" style={{ marginBottom: '12px' }}>
+              <div style={{ position: 'relative' }}>
+                <Search
+                  size={16}
+                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)' }}
+                />
+                <input
+                  className="input-field"
+                  value={linkTeamSearch}
+                  onChange={(e) => setLinkTeamSearch(e.target.value)}
+                  placeholder="Buscar equipe..."
+                  style={{ paddingLeft: '32px' }}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--color-alternate)', borderRadius: '8px' }}>
+              {unlinkedTeams.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                  {linkTeamSearch.trim()
+                    ? `Nenhuma equipe encontrada para "${linkTeamSearch}"`
+                    : 'Todas as equipes ja estao vinculadas a este projeto'}
+                </div>
+              ) : (
+                unlinkedTeams.slice(0, 20).map((team) => {
+                  const teamProjectLinks: string[] = [];
+                  const rawLinks = (team as any).teams_projects;
+                  if (Array.isArray(rawLinks)) {
+                    rawLinks.forEach((lp: any) => {
+                      if (lp.projects?.name) teamProjectLinks.push(lp.projects.name);
+                    });
+                  }
+                  return (
+                    <div
+                      key={team.id}
+                      onClick={() => handleLinkTeamToProject(team.id)}
+                      style={{
+                        padding: '10px 12px', cursor: 'pointer',
+                        borderBottom: '1px solid var(--color-alternate)',
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-tertiary-bg)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <Users size={16} color="var(--color-primary)" style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {team.name}
+                        </div>
+                        {teamProjectLinks.length > 0 ? (
+                          <div style={{ fontSize: '10px', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <FolderOpen size={10} />
+                            {teamProjectLinks.join(', ')}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '10px', color: 'var(--color-accent4)', fontStyle: 'italic', marginTop: '2px' }}>
+                            {t('teams.noProject')}
+                          </div>
+                        )}
+                      </div>
+                      {linkLoading && <span className="spinner" style={{ width: 16, height: 16 }} />}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowLinkTeamModal(false)}>
+                {t('common.cancel')}
               </button>
             </div>
           </div>
