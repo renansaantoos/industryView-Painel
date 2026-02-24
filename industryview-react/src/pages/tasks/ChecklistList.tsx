@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { qualityApi } from '../../services';
-import type { ChecklistTemplate, ChecklistTemplateItem } from '../../types';
+import type { ChecklistTemplate } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -217,6 +217,7 @@ export default function ChecklistList() {
       // Build items: delete existing, create new
       const deleteItems = (editingChecklist.items || []).map((i) => ({
         id: i.id,
+        description: i.description,
         _action: 'delete' as const,
       }));
       const createItems = form.items
