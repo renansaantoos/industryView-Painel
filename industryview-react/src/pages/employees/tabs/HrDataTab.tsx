@@ -55,6 +55,7 @@ const EMPTY_FORM: HrFormData = {
   data_demissao: '',
   tipo_contrato: '',
   cargo: '',
+  nivel: '',
   departamento: '',
   salario: undefined,
   jornada_trabalho: '',
@@ -150,6 +151,12 @@ function Field({ label, children }: FieldProps) {
   );
 }
 
+function getTodayIsoDate(): string {
+  const now = new Date();
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function HrDataTab({ usersId }: HrDataTabProps) {
@@ -181,7 +188,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
       'genero', 'estado_civil', 'tipo_contrato', 'banco_tipo_conta', 'escolaridade',
     ]);
     // cnh_categoria is uppercase (A, B, AB, etc.)
-    const upperEnumFields = new Set(['cnh_categoria']);
+    const upperEnumFields = new Set(['cnh_categoria', 'nivel']);
 
     // Normalize DB values to match option values: strip accents, lowercase, replace spaces/hyphens with _
     // e.g. "União Estável" → "uniao_estavel", "Pós-Graduação" → "pos_graduacao", "Viúvo(a)" → "viuvo"
@@ -192,7 +199,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         .trim()
         .replace(/\(.*?\)/g, '')       // remove parentheses content like (a)
         .trim()
-        .replace(/[\s\-]+/g, '_')      // spaces and hyphens → underscore
+        .replace(/[\s-]+/g, '_')       // spaces and hyphens → underscore
         .replace(/_+$/, '');            // trailing underscores
       // Strip common prefixes: "ensino_" (e.g. "Ensino Médio Completo" → "medio_completo")
       normalized = normalized.replace(/^ensino_/, '');
@@ -367,6 +374,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
       <input
         className="input-field"
         type="date"
+        max={getTodayIsoDate()}
         value={(form[field] as string | undefined) ?? ''}
         onChange={e => handleChange(field, e.target.value)}
       />
@@ -483,6 +491,22 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
           ], 'Selecione')}
         </Field>
         <Field label="Cargo">{textInput('cargo')}</Field>
+        <Field label="Senioridade">
+          {selectInput('nivel', [
+            { value: 'JR', label: 'JR' },
+            { value: 'PL', label: 'PL' },
+            { value: 'SR', label: 'SR' },
+          ], 'Selecione')}
+        </Field>
+        <Field label="Nível">
+          {selectInput('nivel', [
+            { value: 'I', label: 'I' },
+            { value: 'II', label: 'II' },
+            { value: 'III', label: 'III' },
+            { value: 'IV', label: 'IV' },
+            { value: 'V', label: 'V' },
+          ], 'Selecione')}
+        </Field>
         <Field label="Departamento">{textInput('departamento')}</Field>
         <Field label="Salário (R$)">
           <input
