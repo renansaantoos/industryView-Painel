@@ -58,6 +58,12 @@ function isExpired(dateStr?: string): boolean {
   return new Date(dateStr) < new Date();
 }
 
+function getTodayIsoDate(): string {
+  const now = new Date();
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
 function resolveStatusDisplay(doc: EmployeeDocument): StatusDisplay {
   if (doc.status === 'cancelado') return 'cancelado';
   if (isExpired(doc.data_validade)) return 'vencido';
@@ -217,6 +223,14 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
     if (!form.nome.trim()) errors.push('Nome');
     if (errors.length > 0) {
       setFormError(`Preencha os campos obrigatorios: ${errors.join(', ')}`);
+      return;
+    }
+    if (form.data_emissao && form.data_emissao > getTodayIsoDate()) {
+      setFormError('Data de emissao nao pode ser futura.');
+      return;
+    }
+    if (form.data_emissao && form.data_validade && form.data_validade < form.data_emissao) {
+      setFormError('Data de validade nao pode ser menor que a data de emissao.');
       return;
     }
 
@@ -538,6 +552,7 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                       type="date"
                       value={form.data_emissao}
                       onChange={e => updateField('data_emissao', e.target.value)}
+                      max={getTodayIsoDate()}
                     />
                   </div>
                   <div className="input-group">
@@ -549,6 +564,7 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                       type="date"
                       value={form.data_validade}
                       onChange={e => updateField('data_validade', e.target.value)}
+                      min={form.data_emissao || undefined}
                     />
                   </div>
                 </div>

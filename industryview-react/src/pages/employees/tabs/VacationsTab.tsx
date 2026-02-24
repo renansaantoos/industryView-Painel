@@ -65,6 +65,11 @@ function toDateInput(dateStr: string | undefined | null): string {
   return dateStr.substring(0, 10);
 }
 
+function isEndBeforeStart(startStr: string, endStr: string): boolean {
+  if (!startStr || !endStr) return false;
+  return endStr < startStr;
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 interface BalanceCardProps {
@@ -219,6 +224,18 @@ function VacationFormModal({
       setError('A data de fim deve ser posterior a data de inicio.');
       return;
     }
+    if (isEndBeforeStart(form.data_inicio, form.data_fim)) {
+      setError('A data de fim nao pode ser menor que a data de inicio.');
+      return;
+    }
+    if (
+      form.periodo_aquisitivo_inicio &&
+      form.periodo_aquisitivo_fim &&
+      form.periodo_aquisitivo_fim < form.periodo_aquisitivo_inicio
+    ) {
+      setError('Periodo aquisitivo fim nao pode ser menor que o inicio.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -329,6 +346,7 @@ function VacationFormModal({
                     className="input-field"
                     value={form.data_fim}
                     onChange={e => handleDateChange('data_fim', e.target.value)}
+                    min={form.data_inicio || undefined}
                     style={{
                       ...(touched.data_fim && !form.data_fim ? { borderColor: '#C0392B' } : {}),
                     }}
@@ -377,6 +395,7 @@ function VacationFormModal({
                     className="input-field"
                     value={form.periodo_aquisitivo_fim}
                     onChange={e => handleFieldChange('periodo_aquisitivo_fim', e.target.value)}
+                    min={form.periodo_aquisitivo_inicio || undefined}
                   />
                 </div>
               </div>
