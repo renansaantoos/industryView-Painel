@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
@@ -6,14 +6,46 @@ import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi } from '../../services';
 import type { ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
-import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
+import SortableHeader from '../../components/common/SortableHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
-import { Plus, Search, Eye, Edit, Trash2, CheckCircle2, Clock, ListTodo } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, CheckCircle2, Clock, ListTodo, XCircle, PauseCircle, PlayCircle, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 
+/* =========================================
+   Status helpers
+   ========================================= */
+
+const STATUS_CONFIG: Record<string, { bg: string; color: string; icon: typeof Zap }> = {
+  ativo:          { bg: 'rgba(59,130,246,0.1)',   color: '#3b82f6',  icon: Zap },
+  'em andamento': { bg: 'rgba(245,158,11,0.1)',   color: '#f59e0b',  icon: PlayCircle },
+  inativo:        { bg: 'rgba(148,163,184,0.12)',  color: '#64748b',  icon: PauseCircle },
+  cancelado:      { bg: 'rgba(239,68,68,0.1)',     color: '#ef4444',  icon: XCircle },
+  concluido:      { bg: 'rgba(34,197,94,0.1)',     color: '#22c55e',  icon: CheckCircle2 },
+};
+
+function getStatusConfig(statusName: string) {
+  const key = statusName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return STATUS_CONFIG[key] || STATUS_CONFIG[statusName.toLowerCase()] || { bg: 'rgba(148,163,184,0.1)', color: '#64748b', icon: PauseCircle };
+}
+
+function normalizeStatus(statusName: string): string {
+  return statusName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+const FILTER_OPTIONS = [
+  { key: 'todos',          label: 'Todos' },
+  { key: 'ativo',          label: 'Ativos',         color: '#3b82f6', icon: Zap },
+  { key: 'em andamento',   label: 'Em andamento',   color: '#f59e0b', icon: PlayCircle },
+  { key: 'inativo',        label: 'Inativos',       color: '#64748b', icon: PauseCircle },
+  { key: 'concluido',      label: 'Concluídos',     color: '#22c55e', icon: CheckCircle2 },
+];
+
+/* =========================================
+   Component
+   ========================================= */
 
 export default function ProjectList() {
   const { t } = useTranslation();
@@ -21,15 +53,27 @@ export default function ProjectList() {
   const { token } = useAuth();
   const { setProjectsInfo, setNavBarSelection } = useAppState();
 
-  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ativo');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
 
-  const { sortField, sortDirection, handleSort } = useBackendSort();
+  // Sort state
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortField(null); setSortDirection(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   useEffect(() => {
     setNavBarSelection(2);
@@ -38,20 +82,75 @@ export default function ProjectList() {
   const loadProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await projectsApi.queryAllProjects({ page, per_page: perPage, search, sort_field: sortField || undefined, sort_direction: sortDirection || undefined });
-      setProjects(data.items || []);
-      setTotalPages(data.pageTotal || 1);
-      setTotalItems(data.itemsTotal || 0);
+      const data = await projectsApi.queryAllProjects({ per_page: 200 });
+      setAllProjects(data.items || []);
     } catch (err) {
       console.error('Failed to load projects:', err);
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, search, token, sortField, sortDirection]);
+  }, [token]);
 
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  // Status counts for cards
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { ativo: 0, 'em andamento': 0, inativo: 0, cancelado: 0, concluido: 0 };
+    allProjects.forEach((p) => {
+      const key = normalizeStatus(p.status_name || '');
+      if (key in counts) counts[key]++;
+    });
+    return counts;
+  }, [allProjects]);
+
+  // Client-side filter + search + sort + pagination
+  const filtered = useMemo(() => {
+    let result = allProjects;
+
+    // Status filter
+    if (statusFilter !== 'todos') {
+      result = result.filter((p) => normalizeStatus(p.status_name || '') === statusFilter);
+    }
+
+    // Text search
+    const term = search.trim().toLowerCase();
+    if (term) {
+      result = result.filter((p) =>
+        (p.name || '').toLowerCase().includes(term) ||
+        (p.responsible || '').toLowerCase().includes(term) ||
+        (p.status_name || '').toLowerCase().includes(term)
+      );
+    }
+
+    // Sort
+    if (sortField && sortDirection) {
+      result = [...result].sort((a, b) => {
+        let aVal: string | number = '';
+        let bVal: string | number = '';
+        if (sortField === 'name') { aVal = (a.name || '').toLowerCase(); bVal = (b.name || '').toLowerCase(); }
+        else if (sortField === 'responsible') { aVal = (a.responsible || '').toLowerCase(); bVal = (b.responsible || '').toLowerCase(); }
+        else if (sortField === 'status_name') { aVal = (a.status_name || '').toLowerCase(); bVal = (b.status_name || '').toLowerCase(); }
+        else if (sortField === 'completionPercentage') { aVal = a.schedule_actual_progress ?? 0; bVal = b.schedule_actual_progress ?? 0; }
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [allProjects, statusFilter, search, sortField, sortDirection]);
+
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+  const safePage = Math.min(page, totalPages);
+  const displayedProjects = filtered.slice((safePage - 1) * perPage, safePage * perPage);
+
+  // Reset page on filter/search change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, perPage]);
 
   const handleViewProject = (project: ProjectInfo) => {
     setProjectsInfo(project);
@@ -86,31 +185,111 @@ export default function ProjectList() {
         }
       />
 
+      {/* Status filter cards */}
+      {!loading && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+          {FILTER_OPTIONS.filter((o) => o.key !== 'todos').map((opt) => {
+            const count = statusCounts[opt.key] || 0;
+            const isActive = statusFilter === opt.key;
+            const IconComp = opt.icon!;
+            return (
+              <div
+                key={opt.key}
+                onClick={() => setStatusFilter(isActive ? 'todos' : opt.key)}
+                style={{
+                  padding: '16px',
+                  borderRadius: '14px',
+                  border: `1.5px solid ${isActive ? opt.color! : 'var(--color-alternate)'}`,
+                  background: isActive ? `${opt.color!}08` : 'var(--color-surface)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: isActive ? `0 4px 16px ${opt.color!}18` : 'none',
+                }}
+              >
+                {isActive && (
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+                    background: opt.color!, borderRadius: '14px 14px 0 0',
+                  }} />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{
+                      fontSize: '26px', fontWeight: 800, lineHeight: 1,
+                      color: isActive ? opt.color! : 'var(--color-primary-text)',
+                      transition: 'color 0.2s ease',
+                    }}>
+                      {count}
+                    </div>
+                    <div style={{
+                      fontSize: '12px', fontWeight: 600, marginTop: '6px',
+                      color: isActive ? opt.color! : 'var(--color-secondary-text)',
+                      letterSpacing: '0.02em',
+                      transition: 'color 0.2s ease',
+                    }}>
+                      {opt.label}
+                    </div>
+                  </div>
+                  <div style={{
+                    width: '42px', height: '42px', borderRadius: '12px',
+                    background: `${opt.color!}${isActive ? '18' : '0a'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.2s ease',
+                  }}>
+                    <IconComp size={20} color={opt.color!} style={{ opacity: isActive ? 1 : 0.6 }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Search bar */}
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <div style={{ flex: 1, maxWidth: '400px', position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)' }} />
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ maxWidth: '400px', position: 'relative' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
           <input
             type="text"
             className="input-field"
             placeholder={t('projects.searchProjects')}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            style={{ paddingLeft: '36px' }}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ paddingLeft: '36px', height: '40px', borderRadius: '10px' }}
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{
+                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--color-secondary-text)', fontSize: '16px', lineHeight: 1, padding: '2px',
+              }}
+            >
+              &times;
+            </button>
+          )}
         </div>
       </div>
 
       {/* Table */}
       {loading ? (
         <LoadingSpinner />
-      ) : projects.length === 0 ? (
+      ) : displayedProjects.length === 0 ? (
         <EmptyState
-          message={t('common.noData')}
+          message={search ? `Nenhum projeto encontrado para "${search}"` : statusFilter !== 'todos' ? `Nenhum projeto com status "${FILTER_OPTIONS.find(o => o.key === statusFilter)?.label}"` : t('common.noData')}
           action={
-            <button className="btn btn-primary" onClick={() => navigate('/criar-projeto')}>
-              <Plus size={18} /> {t('projects.createProject')}
-            </button>
+            statusFilter !== 'todos' ? (
+              <button className="btn btn-secondary" onClick={() => setStatusFilter('todos')}>
+                Mostrar todos
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => navigate('/criar-projeto')}>
+                <Plus size={18} /> {t('projects.createProject')}
+              </button>
+            )
           }
         />
       ) : (
@@ -126,21 +305,15 @@ export default function ProjectList() {
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
-            <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {projects.map(project => {
+            <motion.tbody key={displayedProjects.map(p => p.id).join()} variants={staggerParent} initial="initial" animate="animate">
+              {displayedProjects.map(project => {
                 const totalTasks = project.schedule_total_tasks ?? 0;
                 const completedTasks = project.schedule_completed_tasks ?? 0;
                 const inProgressTasks = project.schedule_in_progress_tasks ?? 0;
                 const actualProgress = project.schedule_actual_progress ?? 0;
                 const progressColor = actualProgress >= 100 ? '#22c55e' : actualProgress > 0 ? '#3b82f6' : 'var(--color-secondary-text)';
                 const statusName = project.status_name || 'Pendente';
-                const statusColor = (() => {
-                  const s = statusName.toLowerCase();
-                  if (s === 'ativo' || s === 'em andamento') return { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' };
-                  if (s === 'concluido' || s === 'concluído') return { bg: 'rgba(34,197,94,0.1)', color: '#22c55e' };
-                  if (s === 'cancelado') return { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' };
-                  return { bg: 'rgba(148,163,184,0.1)', color: 'var(--color-secondary-text)' };
-                })();
+                const sc = getStatusConfig(statusName);
 
                 return (
                   <motion.tr key={project.id} variants={tableRowVariants}>
@@ -162,9 +335,9 @@ export default function ProjectList() {
                           fontWeight: 600,
                           padding: '3px 10px',
                           borderRadius: '12px',
-                          background: statusColor.bg,
-                          color: statusColor.color,
-                          border: `1px solid ${statusColor.color}33`,
+                          background: sc.bg,
+                          color: sc.color,
+                          border: `1px solid ${sc.color}33`,
                           whiteSpace: 'nowrap',
                         }}
                       >
@@ -229,7 +402,7 @@ export default function ProjectList() {
             </motion.tbody>
           </table>
           <Pagination
-            currentPage={page}
+            currentPage={safePage}
             totalPages={totalPages}
             perPage={perPage}
             totalItems={totalItems}
