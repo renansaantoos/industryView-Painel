@@ -11,7 +11,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { Plus, Edit, Trash2, ShieldAlert, X } from 'lucide-react';
+import { Plus, Edit, Trash2, ShieldAlert, X, Search } from 'lucide-react';
 
 type Severity = 'baixa' | 'media' | 'alta' | 'critica';
 
@@ -44,6 +44,7 @@ export default function GoldenRulesManagement() {
   }, []);
 
   const [rules, setRules] = useState<GoldenRule[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
 
@@ -168,12 +169,26 @@ export default function GoldenRulesManagement() {
     );
   };
 
+  const filteredRules = rules.filter((rule) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    const title = (rule.title || '').toLowerCase();
+    const description = (rule.description || '').toLowerCase();
+    return title.includes(term) || description.includes(term);
+  });
+
   return (
     <div>
       <PageHeader
         title="Regras de Ouro"
         subtitle="Gerencie as regras de ouro de segurança e qualidade da empresa"
         breadcrumb="Qualidade"
+        actions={(
+          <button className="btn btn-primary" onClick={openCreateModal}>
+            <Plus size={18} />
+            Nova Regra de Ouro
+          </button>
+        )}
       />
 
       {/* Toast */}
@@ -200,20 +215,36 @@ export default function GoldenRulesManagement() {
       )}
 
       {/* Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-        <button className="btn btn-primary" onClick={openCreateModal}>
-          <Plus size={18} />
-          Nova Regra de Ouro
-        </button>
+      <div style={{ display: 'flex', marginBottom: '16px' }}>
+        <div style={{ flex: 1, maxWidth: '380px', position: 'relative' }}>
+          <Search
+            size={16}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--color-secondary-text)',
+            }}
+          />
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Pesquisar regra de ouro..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '36px', margin: 0 }}
+          />
+        </div>
       </div>
 
       {/* Table */}
       {loading ? (
         <LoadingSpinner />
-      ) : rules.length === 0 ? (
+      ) : filteredRules.length === 0 ? (
         <EmptyState
           icon={<ShieldAlert size={48} />}
-          message="Nenhuma regra de ouro cadastrada."
+          message={rules.length === 0 ? 'Nenhuma regra de ouro cadastrada.' : 'Nenhuma regra encontrada para a pesquisa.'}
           action={
             <button className="btn btn-primary" onClick={openCreateModal}>
               <Plus size={18} />
@@ -234,7 +265,7 @@ export default function GoldenRulesManagement() {
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {rules.map((rule) => (
+              {filteredRules.map((rule) => (
                 <motion.tr key={rule.id} variants={tableRowVariants}>
                   <td style={{ fontWeight: 500 }}>{rule.title}</td>
                   <td

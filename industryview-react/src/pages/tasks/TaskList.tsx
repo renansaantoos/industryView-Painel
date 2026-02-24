@@ -13,7 +13,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Search, Edit, Trash2, ClipboardList, Check, X, Layers, Shield, Info, Wrench, CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ClipboardList, Check, X, Layers, Shield, Wrench, CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
