@@ -259,6 +259,15 @@ export async function createDdsRecord(data: Record<string, unknown>): Promise<Dd
   return response.data;
 }
 
+/** Update a DDS record */
+export async function updateDdsRecord(
+  id: number,
+  data: { topic?: string; description?: string | null; dds_date?: string; teams_id?: number | null },
+): Promise<DdsRecord> {
+  const response = await apiClient.patch(`${SAFETY_BASE}/dds/${id}`, data);
+  return response.data;
+}
+
 /** Add a participant to a DDS record */
 export async function addDdsParticipant(
   ddsId: number,

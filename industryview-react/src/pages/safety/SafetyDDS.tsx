@@ -21,6 +21,7 @@ import {
   ChevronRight,
   UserPlus,
   PenLine,
+  Pencil,
 } from 'lucide-react';
 
 interface ToastState {
@@ -77,6 +78,14 @@ export default function SafetyDDS() {
   const [signDdsId, setSignDdsId] = useState<number | null>(null);
   const [signUserId, setSignUserId] = useState<number | undefined>(undefined);
   const [signLoading, setSignLoading] = useState(false);
+
+  // ── Edit DDS modal ────────────────────────────────────────────────────────
+  const [editTarget, setEditTarget] = useState<DdsRecord | null>(null);
+  const [editTopic, setEditTopic] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTeamsId, setEditTeamsId] = useState<number | undefined>(undefined);
+  const [editLoading, setEditLoading] = useState(false);
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -151,14 +160,15 @@ export default function SafetyDDS() {
   }, [showCreateModal]);
 
   useEffect(() => {
-    if (!showCreateModal) return;
+    const isOpen = showCreateModal || editTarget !== null;
+    if (!isOpen || teamOptions.length > 0) return;
     setTeamsLoading(true);
     teamsApi
       .queryAllTeams({ per_page: 100 })
       .then((data) => setTeamOptions(Array.isArray(data) ? data : data.items || []))
       .catch((err) => console.error('Failed to load teams for DDS modal:', err))
       .finally(() => setTeamsLoading(false));
-  }, [showCreateModal]);
+  }, [showCreateModal, editTarget]);
 
   // Load employees once when either participant or sign modal opens
   useEffect(() => {
@@ -275,11 +285,41 @@ export default function SafetyDDS() {
       setSignUserId(undefined);
       setSignDdsId(null);
       showToast(t('dds.signedSuccess'), 'success');
-    } catch (err) {
-      console.error('Failed to sign DDS participation:', err);
-      showToast(t('common.errorSaving'), 'error');
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(apiMessage ?? t('common.errorSaving'), 'error');
     } finally {
       setSignLoading(false);
+    }
+  };
+
+  const openEditModal = (record: DdsRecord) => {
+    setEditTarget(record);
+    setEditTopic(record.topic);
+    setEditDescription(record.description || '');
+    setEditDate(record.dds_date.split('T')[0]);
+    setEditTeamsId(record.teams_id ?? undefined);
+  };
+
+  const handleEditDds = async () => {
+    if (!editTarget) return;
+    setEditLoading(true);
+    try {
+      const updated = await safetyApi.updateDdsRecord(editTarget.id, {
+        topic: editTopic.trim() || undefined,
+        description: editDescription.trim() || null,
+        dds_date: editDate || undefined,
+        teams_id: editTeamsId ?? null,
+      });
+      setEditTarget(null);
+      showToast(t('dds.editSuccess', 'DDS atualizado com sucesso.'), 'success');
+      loadRecords();
+      loadStats();
+    } catch (err) {
+      console.error('Failed to update DDS record:', err);
+      showToast(t('common.errorSaving'), 'error');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -445,6 +485,13 @@ export default function SafetyDDS() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          className="btn btn-icon"
+                          title={t('common.edit')}
+                          onClick={() => openEditModal(record)}
+                        >
+                          <Pencil size={16} color="var(--color-secondary-text)" />
+                        </button>
                         <button
                           className="btn btn-icon"
                           title={t('dds.addParticipant')}
@@ -758,6 +805,79 @@ export default function SafetyDDS() {
                 disabled={signLoading || signUserId === undefined}
               >
                 {signLoading ? <span className="spinner" /> : t('dds.sign')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit DDS Modal */}
+      {editTarget && (
+        <div className="modal-backdrop" onClick={() => setEditTarget(null)}>
+          <div
+            className="modal-content"
+            style={{ padding: '24px', width: '480px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>
+              {t('dds.editDds', 'Editar DDS')}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="input-group">
+                <label>{t('dds.topic')} *</label>
+                <input
+                  className="input-field"
+                  value={editTopic}
+                  onChange={(e) => setEditTopic(e.target.value)}
+                  placeholder={t('dds.topicPlaceholder')}
+                  autoFocus
+                />
+              </div>
+              <div className="input-group">
+                <label>{t('dds.description')}</label>
+                <textarea
+                  className="input-field"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder={t('dds.descriptionPlaceholder')}
+                  rows={3}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="input-group">
+                  <label>{t('dds.team')}</label>
+                  <SearchableSelect
+                    options={teamOptions.map((team) => ({ value: team.id, label: team.name }))}
+                    value={editTeamsId}
+                    onChange={(val) => setEditTeamsId(val !== undefined ? Number(val) : undefined)}
+                    placeholder={t('dds.teamPlaceholder')}
+                    searchPlaceholder={t('common.search')}
+                    allowClear
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>{t('dds.date')} *</label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setEditTarget(null)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleEditDds}
+                disabled={editLoading || !editTopic.trim() || !editDate}
+              >
+                {editLoading ? <span className="spinner" /> : t('common.save')}
               </button>
             </div>
           </div>
