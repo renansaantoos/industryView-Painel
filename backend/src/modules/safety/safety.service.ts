@@ -62,6 +62,9 @@ interface SafetyIncidentRow {
   closed_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  reporter_name?: string | null;
+  investigator_name?: string | null;
+  involved_user_name?: string | null;
 }
 
 interface TrainingTypeRow {
@@ -213,17 +216,36 @@ export class SafetyService {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    // Prefix ambiguous 'id' in witness subquery with table alias
+    const whereWithAlias = whereClause.replace(
+      /\bid IN \(SELECT safety_incidents_id/g,
+      'si.id IN (SELECT safety_incidents_id'
+    );
+
+    const selectQuery = `
+      SELECT
+        si.*,
+        u_reporter.name AS reporter_name,
+        u_investigator.name AS investigator_name,
+        u_involved.name AS involved_user_name
+      FROM safety_incidents si
+      LEFT JOIN users u_reporter ON u_reporter.id = si.reported_by_user_id
+      LEFT JOIN users u_investigator ON u_investigator.id = si.investigated_by_user_id
+      LEFT JOIN users u_involved ON u_involved.id = si.involved_user_id
+      ${whereWithAlias}
+      ORDER BY si.created_at DESC
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*)::bigint as count
+      FROM safety_incidents si
+      ${whereWithAlias}
+    `;
+
     const [items, totalResult] = await Promise.all([
-      db.$queryRawUnsafe<SafetyIncidentRow[]>(
-        `SELECT * FROM safety_incidents ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-        ...values,
-        per_page,
-        skip
-      ),
-      db.$queryRawUnsafe<CountRow[]>(
-        `SELECT COUNT(*)::bigint as count FROM safety_incidents ${whereClause}`,
-        ...values
-      ),
+      db.$queryRawUnsafe<SafetyIncidentRow[]>(selectQuery, ...values, per_page, skip),
+      db.$queryRawUnsafe<CountRow[]>(countQuery, ...values),
     ]);
 
     const total = Number(totalResult[0]?.count ?? 0);
@@ -235,7 +257,16 @@ export class SafetyService {
    */
   static async getIncidentById(id: number) {
     const incidents = await db.$queryRaw<SafetyIncidentRow[]>`
-      SELECT * FROM safety_incidents WHERE id = ${BigInt(id)}
+      SELECT
+        si.*,
+        u_reporter.name    AS reporter_name,
+        u_investigator.name AS investigator_name,
+        u_involved.name    AS involved_user_name
+      FROM safety_incidents si
+      LEFT JOIN users u_reporter    ON u_reporter.id    = si.reported_by_user_id
+      LEFT JOIN users u_investigator ON u_investigator.id = si.investigated_by_user_id
+      LEFT JOIN users u_involved    ON u_involved.id    = si.involved_user_id
+      WHERE si.id = ${BigInt(id)}
     `;
 
     if (!incidents || incidents.length === 0) {
@@ -529,6 +560,38 @@ export class SafetyService {
         ratio_description: 'Para cada acidente fatal, esperam-se ~10 com afastamento, ~30 sem afastamento e ~600 primeiros socorros (Heinrich/Bird)',
       },
     };
+  }
+
+  /**
+   * Remove incidente de seguranca (hard delete)
+   * Bloqueado para incidentes em_investigacao ou encerrado
+   */
+  static async deleteIncident(id: number) {
+    const bigId = BigInt(id);
+
+    const existing = await db.$queryRaw<SafetyIncidentRow[]>`
+      SELECT id, status FROM safety_incidents WHERE id = ${bigId}
+    `;
+
+    if (!existing || existing.length === 0) {
+      throw new NotFoundError('Incidente nao encontrado.');
+    }
+
+    const { status } = existing[0];
+
+    if (status === 'em_investigacao') {
+      throw new BadRequestError('Não é possível excluir um incidente que está em investigação.');
+    }
+
+    if (status === 'encerrado') {
+      throw new BadRequestError('Não é possível excluir um incidente que já foi encerrado.');
+    }
+
+    await db.$executeRaw`
+      DELETE FROM safety_incidents WHERE id = ${bigId}
+    `;
+
+    return { success: true, id };
   }
 
   // ===========================================================================

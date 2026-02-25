@@ -257,6 +257,28 @@ router.post('/incidents/:id/investigate', authenticate, SafetyController.investi
 
 /**
  * @swagger
+ * /api/v1/safety/incidents/{id}:
+ *   delete:
+ *     summary: Remove incidente de seguranca
+ *     tags: [Safety]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Incidente removido com sucesso
+ *       404:
+ *         description: Incidente nao encontrado
+ */
+router.delete('/incidents/:id', authenticate, SafetyController.deleteIncident);
+
+/**
+ * @swagger
  * /api/v1/safety/incidents/{id}/close:
  *   post:
  *     summary: Encerra incidente com causa raiz e acoes corretivas

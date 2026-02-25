@@ -155,6 +155,20 @@ export class SafetyController {
   }
 
   /**
+   * Remove incidente de seguranca
+   * Route: DELETE /api/v1/safety/incidents/:id
+   */
+  static async deleteIncident(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = getIncidentByIdSchema.parse(req.params);
+      const result = await SafetyService.deleteIncident(id);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Adiciona testemunha a um incidente
    * Route: POST /api/v1/safety/incidents/:id/witnesses
    */
