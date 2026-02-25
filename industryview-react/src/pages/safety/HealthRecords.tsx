@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   Search,
 } from 'lucide-react';
+import SortableHeader from '../../components/common/SortableHeader';
+import type { SortDirection } from '../../components/common/SortableHeader';
 
 /* =========================================
    Constants
@@ -139,6 +141,10 @@ export default function HealthRecords() {
 
   const [filterExamType, setFilterExamType] = useState('');
 
+  type SortField = 'user_name' | 'exam_type' | 'exam_date' | 'expiry_date' | 'result' | 'doctor_name';
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDirection>(null);
+
   const [showModal, setShowModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
   const [form, setForm] = useState<RecordForm>(EMPTY_FORM);
@@ -240,6 +246,31 @@ export default function HealthRecords() {
     }
     return errors;
   }, [form]);
+
+  /* =========================================
+     Sorting
+     ========================================= */
+
+  const sortedRecords = useMemo(() => {
+    if (!sortField || !sortDir) return records;
+    return [...records].sort((a, b) => {
+      const aVal = a[sortField] ?? '';
+      const bVal = b[sortField] ?? '';
+      const cmp = String(aVal).localeCompare(String(bVal), 'pt-BR', { sensitivity: 'base' });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [records, sortField, sortDir]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else if (sortDir === 'desc') { setSortField(null); setSortDir(null); }
+      else setSortDir('asc');
+    } else {
+      setSortField(field as SortField);
+      setSortDir('asc');
+    }
+  };
 
   /* =========================================
      Handlers
@@ -392,17 +423,17 @@ export default function HealthRecords() {
           <table>
             <thead>
               <tr>
-                <th>Colaborador</th>
-                <th>Tipo de Exame</th>
-                <th>Data do Exame</th>
-                <th>Data de Validade</th>
-                <th>Resultado</th>
-                <th>Médico / CRM</th>
+                <SortableHeader label="Colaborador"      field="user_name"   currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label="Tipo de Exame"    field="exam_type"   currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label="Data do Exame"    field="exam_date"   currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label="Data de Validade" field="expiry_date" currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label="Resultado"        field="result"      currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label="Médico / CRM"     field="doctor_name" currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
                 <th>Ações</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {records.map((record) => {
+              {sortedRecords.map((record) => {
                 const expiryStatus = getExpiryStatus(record.expiry_date);
                 const rowBg = getRowBackground(expiryStatus);
                 return (

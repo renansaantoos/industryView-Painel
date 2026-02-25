@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 import React, { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+=======
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+>>>>>>> Stashed changes
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +18,8 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
+import SortableHeader from '../../components/common/SortableHeader';
+import type { SortDirection } from '../../components/common/SortableHeader';
 import {
   Plus,
   Search,
@@ -33,8 +39,8 @@ import {
 
 type Severity = SafetyIncident['severity'];
 type Status = SafetyIncident['status'];
-
 type Classification = SafetyIncident['classification'];
+type IncidentSortField = 'incident_date' | 'description' | 'severity' | 'classification' | 'status';
 
 const SEVERITY_CONFIG: Record<Severity, { bg: string; color: string; label: string }> = {
   quase_acidente: { bg: '#F0F0F0', color: '#555555', label: '' },
@@ -189,6 +195,31 @@ export default function SafetyIncidents() {
 
   // Toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Sort
+  const [sortField, setSortField] = useState<IncidentSortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDirection>(null);
+
+  const sortedIncidents = useMemo(() => {
+    if (!sortField || !sortDir) return incidents;
+    return [...incidents].sort((a, b) => {
+      const aVal = String(a[sortField] ?? '');
+      const bVal = String(b[sortField] ?? '');
+      const cmp = aVal.localeCompare(bVal, 'pt-BR', { sensitivity: 'base' });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [incidents, sortField, sortDir]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else if (sortDir === 'desc') { setSortField(null); setSortDir(null); }
+      else setSortDir('asc');
+    } else {
+      setSortField(field as IncidentSortField);
+      setSortDir('asc');
+    }
+  };
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -767,17 +798,25 @@ export default function SafetyIncidents() {
             <thead>
               <tr>
                 <th style={{ width: '36px' }} />
+<<<<<<< Updated upstream
                 <SortableHeader label={t('common.project')} field="project" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('common.date')} field="date" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('common.description')} field="description" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('safety.severity')} field="severity" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('safety.classification')} field="classification" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('common.status')} field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+=======
+                <SortableHeader label={t('common.date')}            field="incident_date"  currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('common.description')}     field="description"    currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('safety.severity')}        field="severity"       currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('safety.classification')}  field="classification" currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+                <SortableHeader label={t('common.status')}          field="status"         currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
+>>>>>>> Stashed changes
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {incidents
+              {sortedIncidents
                 .filter(
                   (inc) =>
                     !search ||
@@ -816,7 +855,11 @@ export default function SafetyIncidents() {
                   return 0;
                 })
                 .map((incident) => (
+<<<<<<< Updated upstream
                   <Fragment key={incident.id}>
+=======
+                  <React.Fragment key={incident.id}>
+>>>>>>> Stashed changes
                     <motion.tr variants={tableRowVariants}>
                       {/* Expand toggle */}
                       <td style={{ padding: '8px', textAlign: 'center' }}>
@@ -1172,7 +1215,11 @@ export default function SafetyIncidents() {
                         </td>
                       </tr>
                     )}
+<<<<<<< Updated upstream
                   </Fragment>
+=======
+                  </React.Fragment>
+>>>>>>> Stashed changes
                 ))}
             </motion.tbody>
           </table>
