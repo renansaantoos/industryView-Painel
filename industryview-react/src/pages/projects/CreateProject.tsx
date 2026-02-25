@@ -13,7 +13,7 @@ import { staggerParent, fadeUpChild } from '../../lib/motion';
 import {
   Save,
   ArrowLeft,
-  Building2,
+  Building2, 
   FileText,
   HardHat,
   MapPin,

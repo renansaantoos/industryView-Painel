@@ -3,18 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { useAppState } from '../../contexts/AppStateContext';
-import { projectsApi } from '../../services';
+import { projectsApi, clientsApi } from '../../services';
+import type { Client } from '../../services/api/clients';
 import type { CreateProjectRequest, CepResponse, ProjectStatus, ProjectWorkSituation } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SearchableSelect from '../../components/common/SearchableSelect';
+import { ClientFormModal, maskCNPJ } from '../../components/clients/ClientFormModal';
 import {
   Save,
   ArrowLeft,
   Building2,
+  Users,
   FileText,
   HardHat,
   MapPin,
+  Plus,
+  X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
@@ -32,6 +37,29 @@ function formatDateForInput(val: unknown): string {
   return '';
 }
 
+/** Formats a raw CNPJ string (digits only) for display: 00.000.000/0000-00 */
+function applyInlineCnpjMask(digits: string): string {
+  let masked = digits;
+  if (digits.length > 2) masked = digits.slice(0, 2) + '.' + digits.slice(2);
+  if (digits.length > 5) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5);
+  if (digits.length > 8) {
+    masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8);
+  }
+  if (digits.length > 12) {
+    masked =
+      digits.slice(0, 2) +
+      '.' +
+      digits.slice(2, 5) +
+      '.' +
+      digits.slice(5, 8) +
+      '/' +
+      digits.slice(8, 12) +
+      '-' +
+      digits.slice(12);
+  }
+  return masked;
+}
+
 export default function EditProject() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -43,6 +71,12 @@ export default function EditProject() {
   const [workSituations, setWorkSituations] = useState<ProjectWorkSituation[]>([]);
   const [selectedStatusId, setSelectedStatusId] = useState<number | undefined>();
   const [selectedWorkSituationId, setSelectedWorkSituationId] = useState<number | undefined>();
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [clientError, setClientError] = useState(false);
 
   const { register, handleSubmit, setValue, reset } = useForm<CreateProjectRequest>();
 
@@ -52,13 +86,14 @@ export default function EditProject() {
       return;
     }
     loadDropdowns();
+    loadClients();
     // API returns snake_case keys — access them via bracket notation or cast
     const p = projectsInfo as any;
     reset({
       name: p.name,
       registration_number: p.registration_number,
       responsible: p.responsible,
-      cnpj: p.cnpj,
+      cnpj: p.cnpj ? applyInlineCnpjMask(String(p.cnpj).replace(/\D/g, '').slice(0, 14)) : '',
       start_date: p.start_date ? formatDateForInput(p.start_date) : '',
       art: p.art,
       rrt: p.rrt,
@@ -82,6 +117,7 @@ export default function EditProject() {
     });
     setSelectedStatusId(p.projects_statuses_id || undefined);
     setSelectedWorkSituationId(p.projects_works_situations_id || undefined);
+    setSelectedClientId(p.client_id || undefined);
   }, [projectsInfo]);
 
   const loadDropdowns = async () => {
@@ -95,8 +131,65 @@ export default function EditProject() {
     } catch { /* ignore */ }
   };
 
+  const loadClients = async () => {
+    setClientsLoading(true);
+    try {
+      const result = await clientsApi.listClients({ per_page: 100 });
+      const items = Array.isArray(result) ? result : (result?.items ?? []);
+      setAllClients(items);
+    } catch {
+      setAllClients([]);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedClientId) {
+      setSelectedClient(null);
+      return;
+    }
+    const client = allClients.find((c) => c.id === selectedClientId) ?? null;
+    setSelectedClient(client);
+  }, [selectedClientId, allClients]);
+
+  function handleClientSelect(clientId: string | number | undefined) {
+    if (!clientId) {
+      setSelectedClientId(undefined);
+      setSelectedClient(null);
+      setValue('cnpj', '');
+      return;
+    }
+
+    const id = Number(clientId);
+    const client = allClients.find((c) => c.id === id) ?? null;
+    setSelectedClientId(id);
+    setSelectedClient(client);
+    setClientError(false);
+
+    if (client?.cnpj) {
+      const digits = client.cnpj.replace(/\D/g, '').slice(0, 14);
+      setValue('cnpj', applyInlineCnpjMask(digits));
+    }
+  }
+
+  function handleNewClientSaved(newClient: Client) {
+    setShowClientModal(false);
+    setAllClients((prev) => {
+      const exists = prev.some((c) => c.id === newClient.id);
+      return exists ? prev : [...prev, newClient];
+    });
+    handleClientSelect(newClient.id);
+  }
+
   const onSubmit = async (data: CreateProjectRequest) => {
     if (!projectsInfo) return;
+    if (!selectedClientId) {
+      setClientError(true);
+      setError(t('projects.clientRequired'));
+      return;
+    }
+    setClientError(false);
     setLoading(true);
     setError('');
     try {
@@ -104,6 +197,7 @@ export default function EditProject() {
         ...data,
         projects_statuses_id: selectedStatusId,
         projects_works_situations_id: selectedWorkSituationId,
+        client_id: selectedClientId,
       });
       navigate('/projetos');
     } catch (err) {
@@ -165,6 +259,16 @@ export default function EditProject() {
     gap: '16px',
   };
 
+  const clientOptions = allClients.map((c) => ({
+    value: c.id,
+    label: [
+      c.trade_name || c.legal_name,
+      c.cnpj ? maskCNPJ(c.cnpj) : null,
+    ]
+      .filter(Boolean)
+      .join(' — '),
+  }));
+
   return (
     <div>
       <PageHeader
@@ -180,6 +284,122 @@ export default function EditProject() {
       {error && <div className="auth-error" style={{ marginBottom: '16px' }}>{error}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)}>
+        <motion.div variants={fadeUpChild} style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <div style={{ ...sectionIconStyle, background: 'rgba(var(--color-primary-rgb, 26,115,232), 0.1)' }}>
+                <Users size={18} color="var(--color-primary)" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>
+                  {t('projects.clientSection')}
+                </h3>
+                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                  {t('projects.clientSectionSubtitle')}
+                </span>
+              </div>
+            </div>
+            <div style={sectionBodyStyle}>
+              {/* Dropdown row */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label>{t('projects.clientSection')} *</label>
+                  <div style={clientError ? { border: '1.5px solid var(--color-error, #C0392B)', borderRadius: '8px' } : undefined}>
+                    <SearchableSelect
+                      options={clientOptions}
+                      value={selectedClientId}
+                      onChange={handleClientSelect}
+                      placeholder={
+                        clientsLoading
+                          ? t('common.loading')
+                          : t('projects.selectClient')
+                      }
+                      searchPlaceholder={t('common.search')}
+                    />
+                  </div>
+                  {clientError && (
+                    <span style={{ color: 'var(--color-error, #C0392B)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      {t('projects.clientRequired')}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowClientModal(true)}
+                  style={{ flexShrink: 0, height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  title={t('projects.addNewClient')}
+                >
+                  <Plus size={16} />
+                  {t('projects.addNewClient')}
+                </button>
+              </div>
+
+              {/* Selected client summary card */}
+              {selectedClient && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  style={{
+                    marginTop: '14px',
+                    padding: '14px 16px',
+                    borderRadius: '10px',
+                    background: 'var(--color-status-01, rgba(26,115,232,0.06))',
+                    border: '1px solid var(--color-alternate)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Building2 size={24} color="var(--color-primary)" />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                        {selectedClient.trade_name || selectedClient.legal_name}
+                      </div>
+                      {selectedClient.trade_name && selectedClient.legal_name && (
+                        <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                          {selectedClient.legal_name}
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--color-secondary-text)',
+                          display: 'flex',
+                          gap: '12px',
+                          marginTop: '2px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {selectedClient.cnpj && (
+                          <span>CNPJ: {maskCNPJ(selectedClient.cnpj)}</span>
+                        )}
+                        {(selectedClient.billing_city || selectedClient.billing_state) && (
+                          <span>
+                            {[selectedClient.billing_city, selectedClient.billing_state]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    onClick={() => handleClientSelect(undefined)}
+                    title={t('common.clear')}
+                    style={{ flexShrink: 0 }}
+                  >
+                    <X size={16} />
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+
         <motion.div variants={staggerParent} initial="initial" animate="animate">
         {/* Section 1: Dados do Projeto */}
         <motion.div variants={fadeUpChild} style={sectionStyle}>
@@ -208,7 +428,16 @@ export default function EditProject() {
               </div>
               <div className="input-group">
                 <label>{t('projects.cnpj')}</label>
-                <input className="input-field" {...register('cnpj')} />
+                <input
+                  className="input-field"
+                  {...register('cnpj')}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 14);
+                    setValue('cnpj', applyInlineCnpjMask(digits));
+                  }}
+                  placeholder="00.000.000/0000-00"
+                  maxLength={18}
+                />
               </div>
               <div className="input-group">
                 <label>{t('projects.startDate')}</label>
@@ -385,6 +614,12 @@ export default function EditProject() {
           </button>
         </div>
       </form>
+
+      <ClientFormModal
+        open={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        onSaved={handleNewClientSaved}
+      />
     </div>
   );
 }
