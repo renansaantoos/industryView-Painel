@@ -326,7 +326,7 @@ Authorization: Bearer <seu-token>
       },
     ],
   },
-  apis: ['./src/modules/**/routes.ts', './src/modules/**/*.routes.ts'],
+  apis: ['./src/index.ts', './src/modules/**/routes.ts', './src/modules/**/*.routes.ts'],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
