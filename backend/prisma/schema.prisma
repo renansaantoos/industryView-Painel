@@ -2493,6 +2493,8 @@ model employees_hr_data {
   data_demissao         DateTime? @db.Date
   tipo_contrato         String?   @db.VarChar(30)
   cargo                 String?   @db.VarChar(100)
+  senioridade           String?   @db.VarChar(5)
+  nivel                 String?   @db.VarChar(5)
   departamento          String?   @db.VarChar(100)
   salario               Decimal?  @db.Decimal(12, 2)
   jornada_trabalho      String?   @db.VarChar(30)

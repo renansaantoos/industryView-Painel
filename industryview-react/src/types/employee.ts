@@ -28,6 +28,7 @@ export interface EmployeeHrData {
   data_demissao?: string;
   tipo_contrato?: string;
   cargo?: string;
+  senioridade?: string;
   nivel?: string;
   departamento?: string;
   salario?: number;

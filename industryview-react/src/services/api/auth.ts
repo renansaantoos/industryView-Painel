@@ -48,11 +48,12 @@ export async function resetPassword(email: string, code: string, newPassword: st
 export async function changePassword(
   token: string,
   currentPassword: string,
-  newPassword: string
+  newPassword: string,
+  confirmPassword: string,
 ): Promise<{ message: string }> {
   const response = await apiClient.put(
     '/users/change-password',
-    { current_password: currentPassword, new_password: newPassword },
+    { current_password: currentPassword, new_password: newPassword, confirm_password: confirmPassword },
     { headers: { Authorization: `Bearer ${token}` } }
   );
   return response.data;

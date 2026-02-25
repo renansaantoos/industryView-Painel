@@ -41,6 +41,8 @@ export const upsertHrDataSchema = z.object({
   data_demissao: z.string().optional(),
   tipo_contrato: z.string().trim().optional(),
   cargo: z.string().trim().optional(),
+  senioridade: z.string().trim().optional(),
+  nivel: z.string().trim().optional(),
   departamento: z.string().trim().optional(),
   salario: z.coerce.number().optional(),
   jornada_trabalho: z.string().trim().optional(),

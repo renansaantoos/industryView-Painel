@@ -55,6 +55,7 @@ const EMPTY_FORM: HrFormData = {
   data_demissao: '',
   tipo_contrato: '',
   cargo: '',
+  senioridade: '',
   nivel: '',
   departamento: '',
   salario: undefined,
@@ -188,7 +189,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
       'genero', 'estado_civil', 'tipo_contrato', 'banco_tipo_conta', 'escolaridade',
     ]);
     // cnh_categoria is uppercase (A, B, AB, etc.)
-    const upperEnumFields = new Set(['cnh_categoria', 'nivel']);
+    const upperEnumFields = new Set(['cnh_categoria', 'senioridade', 'nivel']);
 
     // Normalize DB values to match option values: strip accents, lowercase, replace spaces/hyphens with _
     // e.g. "União Estável" → "uniao_estavel", "Pós-Graduação" → "pos_graduacao", "Viúvo(a)" → "viuvo"
@@ -492,7 +493,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         </Field>
         <Field label="Cargo">{textInput('cargo')}</Field>
         <Field label="Senioridade">
-          {selectInput('nivel', [
+          {selectInput('senioridade', [
             { value: 'JR', label: 'JR' },
             { value: 'PL', label: 'PL' },
             { value: 'SR', label: 'SR' },

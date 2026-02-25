@@ -70,13 +70,14 @@ export default function AccountManagement() {
     setPasswordSaving(true);
     try {
       const token = localStorage.getItem('ff_token') || '';
-      await authApi.changePassword(token, currentPassword, newPassword);
+      await authApi.changePassword(token, currentPassword, newPassword, confirmPassword);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setPasswordSuccess(t('account.passwordChanged'));
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : t('common.error'));
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setPasswordError(apiMessage ?? (err instanceof Error ? err.message : t('common.error')));
     } finally {
       setPasswordSaving(false);
     }

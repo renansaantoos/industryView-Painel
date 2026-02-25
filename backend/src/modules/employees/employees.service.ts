@@ -76,6 +76,8 @@ export class EmployeesService {
       data_demissao: data.data_demissao ? new Date(data.data_demissao) : undefined,
       tipo_contrato: data.tipo_contrato,
       cargo: data.cargo,
+      senioridade: data.senioridade,
+      nivel: data.nivel,
       departamento: data.departamento,
       salario: data.salario !== undefined ? data.salario : undefined,
       jornada_trabalho: data.jornada_trabalho,

@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-import React, { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
-=======
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
->>>>>>> Stashed changes
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -13,13 +9,12 @@ import type { SafetyIncident, SafetyIncidentStatistics, ProjectInfo, UserListIte
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import SortableHeader from '../../components/common/SortableHeader';
+import type { SortDirection } from '../../components/common/SortableHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import SortableHeader from '../../components/common/SortableHeader';
-import type { SortDirection } from '../../components/common/SortableHeader';
 import {
   Plus,
   Search,
@@ -155,21 +150,6 @@ export default function SafetyIncidents() {
   const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-
-  // ── Sort state ─────────────────────────────────────────────────────────────
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      if (sortDirection === 'asc') setSortDirection('desc');
-      else if (sortDirection === 'desc') { setSortField(null); setSortDirection(null); }
-      else setSortDirection('asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   // Statistics
   const [stats, setStats] = useState<SafetyIncidentStatistics | null>(null);
@@ -798,20 +778,12 @@ export default function SafetyIncidents() {
             <thead>
               <tr>
                 <th style={{ width: '36px' }} />
-<<<<<<< Updated upstream
-                <SortableHeader label={t('common.project')} field="project" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('common.date')} field="date" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('common.description')} field="description" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('safety.severity')} field="severity" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('safety.classification')} field="classification" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('common.status')} field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-=======
+                <SortableHeader label={t('common.project')}         field="project"        currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('common.date')}            field="incident_date"  currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('common.description')}     field="description"    currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('safety.severity')}        field="severity"       currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('safety.classification')}  field="classification" currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
                 <SortableHeader label={t('common.status')}          field="status"         currentField={sortField} currentDirection={sortDir} onSort={handleSort} />
->>>>>>> Stashed changes
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
@@ -824,42 +796,8 @@ export default function SafetyIncidents() {
                     (inc.location_description || '').toLowerCase().includes(search.toLowerCase()) ||
                     (inc.classification || '').toLowerCase().includes(search.toLowerCase()),
                 )
-                .sort((a, b) => {
-                  if (!sortField || !sortDirection) return 0;
-
-                  let aVal: string | number = '';
-                  let bVal: string | number = '';
-
-                  if (sortField === 'project') {
-                    aVal = (projectMap[a.projects_id] || '').toLowerCase();
-                    bVal = (projectMap[b.projects_id] || '').toLowerCase();
-                  } else if (sortField === 'date') {
-                    aVal = a.incident_date || '';
-                    bVal = b.incident_date || '';
-                  } else if (sortField === 'description') {
-                    aVal = (a.description || '').toLowerCase();
-                    bVal = (b.description || '').toLowerCase();
-                  } else if (sortField === 'severity') {
-                    aVal = (severityLabel[a.severity] || '').toLowerCase();
-                    bVal = (severityLabel[b.severity] || '').toLowerCase();
-                  } else if (sortField === 'classification') {
-                    aVal = (classificationLabel[a.classification] || '').toLowerCase();
-                    bVal = (classificationLabel[b.classification] || '').toLowerCase();
-                  } else if (sortField === 'status') {
-                    aVal = (statusLabel[a.status] || '').toLowerCase();
-                    bVal = (statusLabel[b.status] || '').toLowerCase();
-                  }
-
-                  if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-                  if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-                  return 0;
-                })
                 .map((incident) => (
-<<<<<<< Updated upstream
-                  <Fragment key={incident.id}>
-=======
                   <React.Fragment key={incident.id}>
->>>>>>> Stashed changes
                     <motion.tr variants={tableRowVariants}>
                       {/* Expand toggle */}
                       <td style={{ padding: '8px', textAlign: 'center' }}>
@@ -1215,11 +1153,7 @@ export default function SafetyIncidents() {
                         </td>
                       </tr>
                     )}
-<<<<<<< Updated upstream
-                  </Fragment>
-=======
                   </React.Fragment>
->>>>>>> Stashed changes
                 ))}
             </motion.tbody>
           </table>
