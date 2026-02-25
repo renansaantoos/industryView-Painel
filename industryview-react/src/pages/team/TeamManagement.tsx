@@ -334,7 +334,8 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
     await onSave(selectedUsers.map((u) => u.id));
   };
 
-  const modalWidth = showQuickRegister ? '520px' : '460px';
+  const modalWidth = showQuickRegister ? 'fit-content' : 'fit-content';
+  const modalMinWidth = showQuickRegister ? '520px' : '460px';
 
   const saveLabel = selectedUsers.length > 0
     ? `${t('common.save')} (${selectedUsers.length})`
@@ -348,7 +349,7 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
       `}</style>
       <div
         className="modal-content"
-        style={{ padding: '24px', width: modalWidth, transition: 'width 0.25s ease' }}
+        style={{ padding: '24px', width: modalWidth, minWidth: modalMinWidth, maxWidth: '95vw', transition: 'width 0.25s ease' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
@@ -530,8 +531,10 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {u.email}
+                          <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', display: 'flex', gap: '10px' }}>
+                            <span>Email: {u.email}</span>
+                            {u.cargo && <span>Função: <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>{u.cargo}</span></span>}
+                            {u.cpf_masked && <span>CPF: {u.cpf_masked}</span>}
                           </div>
                         </div>
                         {isSelected && !isInCurrentTeam && (
@@ -941,6 +944,10 @@ export default function TeamManagement() {
         setTeamId(filteredTeams[0].id);
         setSelectedTeamName(filteredTeams[0].name);
       }
+    } else if (!loading && filteredTeams.length === 0) {
+      // No teams linked to this project — reset to avoid showing stale data
+      setTeamId(0);
+      setSelectedTeamName('');
     }
   }, [loading, filteredTeams, teamId, setTeamId]);
 

@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
-import { projectsApi } from '../../services';
+import { projectsApi, clientsApi } from '../../services';
+import type { Client } from '../../services/api/clients';
 import type { ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SortableHeader from '../../components/common/SortableHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
-import { Plus, Search, Eye, Edit, Trash2, CheckCircle2, Clock, ListTodo, XCircle, PauseCircle, PlayCircle, Zap } from 'lucide-react';
+import SearchableSelect from '../../components/common/SearchableSelect';
+import { Plus, Search, Eye, Edit, Trash2, CheckCircle2, Clock, ListTodo, XCircle, PauseCircle, PlayCircle, Zap, LayoutGrid } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 
@@ -54,9 +56,11 @@ export default function ProjectList() {
   const { setProjectsInfo, setNavBarSelection } = useAppState();
 
   const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ativo');
+  const [clientFilter, setClientFilter] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
@@ -82,8 +86,12 @@ export default function ProjectList() {
   const loadProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await projectsApi.queryAllProjects({ per_page: 200 });
-      setAllProjects(data.items || []);
+      const [projectsData, clientsData] = await Promise.all([
+        projectsApi.queryAllProjects({ per_page: 200 }),
+        clientsApi.listClients({ per_page: 50 }),
+      ]);
+      setAllProjects(projectsData.items || []);
+      setClients(clientsData.items || []);
     } catch (err) {
       console.error('Failed to load projects:', err);
     } finally {
@@ -114,13 +122,19 @@ export default function ProjectList() {
       result = result.filter((p) => normalizeStatus(p.status_name || '') === statusFilter);
     }
 
+    // Client filter
+    if (clientFilter !== undefined) {
+      result = result.filter((p) => p.client_id === clientFilter);
+    }
+
     // Text search
     const term = search.trim().toLowerCase();
     if (term) {
       result = result.filter((p) =>
         (p.name || '').toLowerCase().includes(term) ||
         (p.responsible || '').toLowerCase().includes(term) ||
-        (p.status_name || '').toLowerCase().includes(term)
+        (p.status_name || '').toLowerCase().includes(term) ||
+        (p.client_name || '').toLowerCase().includes(term)
       );
     }
 
@@ -140,7 +154,7 @@ export default function ProjectList() {
     }
 
     return result;
-  }, [allProjects, statusFilter, search, sortField, sortDirection]);
+  }, [allProjects, statusFilter, clientFilter, search, sortField, sortDirection]);
 
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
@@ -150,7 +164,16 @@ export default function ProjectList() {
   // Reset page on filter/search change
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, perPage]);
+  }, [search, statusFilter, clientFilter, perPage]);
+
+  // Options for client SearchableSelect
+  const clientOptions = useMemo(() =>
+    clients.map((c) => ({
+      value: c.id,
+      label: c.trade_name || c.legal_name || String(c.id),
+    })),
+    [clients]
+  );
 
   const handleViewProject = (project: ProjectInfo) => {
     setProjectsInfo(project);
@@ -188,6 +211,62 @@ export default function ProjectList() {
       {/* Status filter cards */}
       {!loading && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+          {/* Card "Todos" */}
+          {(() => {
+            const totalCount = allProjects.length;
+            const isActive = statusFilter === 'todos';
+            const cardColor = '#8b5cf6';
+            return (
+              <div
+                onClick={() => setStatusFilter('todos')}
+                style={{
+                  padding: '16px',
+                  borderRadius: '14px',
+                  border: `1.5px solid ${isActive ? cardColor : 'var(--color-alternate)'}`,
+                  background: isActive ? `${cardColor}08` : 'var(--color-surface)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: isActive ? `0 4px 16px ${cardColor}18` : 'none',
+                }}
+              >
+                {isActive && (
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+                    background: cardColor, borderRadius: '14px 14px 0 0',
+                  }} />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{
+                      fontSize: '26px', fontWeight: 800, lineHeight: 1,
+                      color: isActive ? cardColor : 'var(--color-primary-text)',
+                      transition: 'color 0.2s ease',
+                    }}>
+                      {totalCount}
+                    </div>
+                    <div style={{
+                      fontSize: '12px', fontWeight: 600, marginTop: '6px',
+                      color: isActive ? cardColor : 'var(--color-secondary-text)',
+                      letterSpacing: '0.02em',
+                      transition: 'color 0.2s ease',
+                    }}>
+                      Todos
+                    </div>
+                  </div>
+                  <div style={{
+                    width: '42px', height: '42px', borderRadius: '12px',
+                    background: `${cardColor}${isActive ? '18' : '0a'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 0.2s ease',
+                  }}>
+                    <LayoutGrid size={20} color={cardColor} style={{ opacity: isActive ? 1 : 0.6 }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           {FILTER_OPTIONS.filter((o) => o.key !== 'todos').map((opt) => {
             const count = statusCounts[opt.key] || 0;
             const isActive = statusFilter === opt.key;
@@ -247,9 +326,9 @@ export default function ProjectList() {
         </div>
       )}
 
-      {/* Search bar */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ maxWidth: '400px', position: 'relative' }}>
+      {/* Search bar + Client filter */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ maxWidth: '400px', flex: '1 1 280px', position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
           <input
             type="text"
@@ -272,7 +351,46 @@ export default function ProjectList() {
             </button>
           )}
         </div>
+        <div style={{ minWidth: '220px' }}>
+          <SearchableSelect
+            options={clientOptions}
+            value={clientFilter}
+            onChange={(v) => setClientFilter(v !== undefined ? Number(v) : undefined)}
+            placeholder="Todos os clientes"
+            searchPlaceholder="Buscar cliente..."
+            allowClear
+          />
+        </div>
       </div>
+
+      {/* Active client filter chip */}
+      {clientFilter !== undefined && (() => {
+        const activeClient = clients.find((c) => c.id === clientFilter);
+        if (!activeClient) return null;
+        return (
+          <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>Filtrando por cliente:</span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              fontSize: '13px', fontWeight: 600, padding: '4px 12px',
+              borderRadius: '20px', background: 'rgba(59,130,246,0.1)',
+              color: '#3b82f6', border: '1px solid rgba(59,130,246,0.25)',
+            }}>
+              {activeClient.trade_name || activeClient.legal_name}
+              <button
+                onClick={() => setClientFilter(undefined)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#3b82f6', fontSize: '15px', lineHeight: 1, padding: 0,
+                  display: 'flex', alignItems: 'center',
+                }}
+              >
+                &times;
+              </button>
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Table */}
       {loading ? (
@@ -297,7 +415,9 @@ export default function ProjectList() {
           <table>
             <thead>
               <tr>
+                <th style={{ width: '60px' }}>ID</th>
                 <SortableHeader label={t('projects.projectName')} field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <th>Cliente</th>
                 <SortableHeader label={t('projects.responsible')} field="responsible" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('projects.status')} field="status_name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>Tarefas</th>
@@ -318,6 +438,11 @@ export default function ProjectList() {
                 return (
                   <motion.tr key={project.id} variants={tableRowVariants}>
                     <td>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)' }}>
+                        #{project.id}
+                      </span>
+                    </td>
+                    <td>
                       <div>
                         <div style={{ fontWeight: 500 }}>{project.name}</div>
                         {project.registrationNumber && (
@@ -326,6 +451,11 @@ export default function ProjectList() {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '13px' }}>
+                        {project.client_name || '-'}
+                      </span>
                     </td>
                     <td>{project.responsible || '-'}</td>
                     <td>

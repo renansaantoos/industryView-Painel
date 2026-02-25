@@ -61,6 +61,7 @@ export class ProjectsService {
       include: {
         projects_statuses: { select: { id: true, status: true } },
         projects_works_situations: { select: { id: true, status: true } },
+        client: { select: { id: true, legal_name: true, trade_name: true } },
       },
       orderBy: (() => {
         const ALLOWED_SORT_FIELDS = ['name', 'registration_number', 'responsible', 'projects_statuses_id', 'completion_percentage', 'created_at'];
@@ -132,11 +133,13 @@ export class ProjectsService {
         const stats = statsMap.get(Number(project.id));
         const statusName = project.projects_statuses?.status ?? null;
         const workSituationName = project.projects_works_situations?.status ?? null;
+        const clientName = project.client?.trade_name || project.client?.legal_name || null;
 
         return {
           ...project,
           status_name: statusName,
           work_situation_name: workSituationName,
+          client_name: clientName,
           last_team_created: lastTeam || null,
           schedule_total_tasks: stats?.total_tasks ?? 0,
           schedule_completed_tasks: stats?.completed_tasks ?? 0,
@@ -199,6 +202,7 @@ export class ProjectsService {
           project_work_type: input.project_work_type || null,
           resulting_work_area: input.resulting_work_area?.toString() || null,
           company_id: input.company_id ? BigInt(input.company_id) : null,
+          client_id: input.client_id ?? null,
           cno_file: fileUrl || null,
         },
       });
@@ -318,6 +322,7 @@ export class ProjectsService {
     if (input.destination !== undefined) updateData.destination = input.destination;
     if (input.project_work_type !== undefined) updateData.project_work_type = input.project_work_type;
     if (input.resulting_work_area !== undefined) updateData.resulting_work_area = input.resulting_work_area != null ? String(input.resulting_work_area) : null;
+    if (input.client_id !== undefined) updateData.client_id = input.client_id ?? null;
     if (fileUrl !== undefined) updateData.cno_file = fileUrl;
 
     const project = await db.projects.update({

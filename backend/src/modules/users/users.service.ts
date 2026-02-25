@@ -897,63 +897,63 @@ export class UsersService {
     });
 
     const skip = (page - 1) * per_page;
-    let items: { id: number; name: string; email: string; hasTeam: boolean; isMemberOfCurrentTeam: boolean }[] = [];
+    const hrSelect = { id: true, name: true, email: true, hr_data: { select: { cpf: true, cargo: true } } };
+
+    /** Mascara CPF mostrando apenas os 2 ultimos digitos: ***.***.**-34 */
+    const maskCpf = (cpf: string | null | undefined): string | null => {
+      if (!cpf) return null;
+      const digits = cpf.replace(/\D/g, '');
+      if (digits.length < 2) return null;
+      const last2 = digits.slice(-2);
+      return `***.***.**${digits.length >= 11 ? '-' : ''}${last2}`;
+    };
+
+    const mapUser = (u: any, hasTeam: boolean) => ({
+      id: Number(u.id),
+      name: u.name || '',
+      email: u.email || '',
+      cargo: u.hr_data?.cargo || null,
+      cpf_masked: maskCpf(u.hr_data?.cpf),
+      hasTeam,
+      isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
+    });
+
+    let items: { id: number; name: string; email: string; cargo: string | null; cpf_masked: string | null; hasTeam: boolean; isMemberOfCurrentTeam: boolean }[] = [];
 
     if (skip < countWithoutTeam) {
       // A pagina atual comeca no segmento "sem time"
       const fromWithout = await db.users.findMany({
         where: { ...whereConditions, ...withoutTeamFilter },
-        select: { id: true, name: true, email: true },
+        select: hrSelect,
         orderBy: { name: 'asc' },
         skip,
         take: per_page,
       });
-      items = fromWithout.map((u) => ({
-        id: Number(u.id),
-        name: u.name || '',
-        email: u.email || '',
-        hasTeam: false,
-        isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
-      }));
+      items = fromWithout.map((u) => mapUser(u, false));
 
       // Se precisar de mais itens para completar a pagina, busca do segmento "com time"
       if (items.length < per_page) {
         const remaining = per_page - items.length;
         const fromWith = await db.users.findMany({
           where: { ...whereConditions, ...withTeamFilter },
-          select: { id: true, name: true, email: true },
+          select: hrSelect,
           orderBy: { name: 'asc' },
           skip: 0,
           take: remaining,
         });
-        items = [
-          ...items,
-          ...fromWith.map((u) => ({
-            id: Number(u.id),
-            name: u.name || '',
-            email: u.email || '',
-            hasTeam: true,
-            isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
-          })),
-        ];
+        items = [...items, ...fromWith.map((u) => mapUser(u, true))];
       }
     } else {
       // A pagina atual esta inteiramente no segmento "com time"
       const adjustedSkip = skip - countWithoutTeam;
       const fromWith = await db.users.findMany({
         where: { ...whereConditions, ...withTeamFilter },
-        select: { id: true, name: true, email: true },
+        select: hrSelect,
         orderBy: { name: 'asc' },
         skip: adjustedSkip,
         take: per_page,
       });
-      items = fromWith.map((u) => ({
-        id: Number(u.id),
-        name: u.name || '',
-        email: u.email || '',
-        hasTeam: true,
-        isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
-      }));
+      items = fromWith.map((u) => mapUser(u, true));
     }
 
     return {

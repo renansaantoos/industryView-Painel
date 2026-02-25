@@ -24,6 +24,8 @@ export interface UserListItem {
   email: string;
   phone: string;
   url?: string;
+  cargo?: string | null;
+  cpf_masked?: string | null;
 }
 
 /** User detail (from User2Struct) */

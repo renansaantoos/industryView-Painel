@@ -44,6 +44,8 @@ export interface ProjectInfo {
   schedule_actual_progress?: number;
   /** ID of the client linked to this project (foreign key to clients table) */
   client_id?: number | null;
+  /** Client name (trade_name or legal_name, enriched by backend) */
+  client_name?: string | null;
 }
 
 export interface LastTeamCreated {

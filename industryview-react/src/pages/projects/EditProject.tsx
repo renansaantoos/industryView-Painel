@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi, clientsApi } from '../../services';
 import type { Client } from '../../services/api/clients';
@@ -9,20 +10,20 @@ import type { CreateProjectRequest, CepResponse, ProjectStatus, ProjectWorkSitua
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { ClientFormModal, maskCNPJ } from '../../components/clients/ClientFormModal';
+import { maskCNPJ } from '../../components/clients/ClientFormModal';
+import { staggerParent, fadeUpChild } from '../../lib/motion';
 import {
   Save,
   ArrowLeft,
   Building2,
-  Users,
   FileText,
   HardHat,
   MapPin,
-  Plus,
+  Users,
   X,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { staggerParent, fadeUpChild } from '../../lib/motion';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Convert a timestamp (ms) or ISO string to YYYY-MM-DD for date inputs */
 function formatDateForInput(val: unknown): string {
@@ -37,28 +38,14 @@ function formatDateForInput(val: unknown): string {
   return '';
 }
 
-/** Formats a raw CNPJ string (digits only) for display: 00.000.000/0000-00 */
-function applyInlineCnpjMask(digits: string): string {
-  let masked = digits;
-  if (digits.length > 2) masked = digits.slice(0, 2) + '.' + digits.slice(2);
-  if (digits.length > 5) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5);
-  if (digits.length > 8) {
-    masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8);
-  }
-  if (digits.length > 12) {
-    masked =
-      digits.slice(0, 2) +
-      '.' +
-      digits.slice(2, 5) +
-      '.' +
-      digits.slice(5, 8) +
-      '/' +
-      digits.slice(8, 12) +
-      '-' +
-      digits.slice(12);
-  }
-  return masked;
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function EditProject() {
   const { t } = useTranslation();
@@ -67,18 +54,33 @@ export default function EditProject() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Dropdowns
   const [statuses, setStatuses] = useState<ProjectStatus[]>([]);
   const [workSituations, setWorkSituations] = useState<ProjectWorkSituation[]>([]);
   const [selectedStatusId, setSelectedStatusId] = useState<number | undefined>();
   const [selectedWorkSituationId, setSelectedWorkSituationId] = useState<number | undefined>();
+
+  // Client
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [showClientModal, setShowClientModal] = useState(false);
-  const [clientError, setClientError] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { register, handleSubmit, setValue, reset } = useForm<CreateProjectRequest>();
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  // ── Data loading ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!projectsInfo) {
@@ -87,13 +89,14 @@ export default function EditProject() {
     }
     loadDropdowns();
     loadClients();
-    // API returns snake_case keys — access them via bracket notation or cast
+
+    // API returns snake_case keys — access them via cast
     const p = projectsInfo as any;
     reset({
       name: p.name,
       registration_number: p.registration_number,
       responsible: p.responsible,
-      cnpj: p.cnpj ? applyInlineCnpjMask(String(p.cnpj).replace(/\D/g, '').slice(0, 14)) : '',
+      cnpj: p.cnpj,
       start_date: p.start_date ? formatDateForInput(p.start_date) : '',
       art: p.art,
       rrt: p.rrt,
@@ -117,8 +120,19 @@ export default function EditProject() {
     });
     setSelectedStatusId(p.projects_statuses_id || undefined);
     setSelectedWorkSituationId(p.projects_works_situations_id || undefined);
-    setSelectedClientId(p.client_id || undefined);
+
+    // Pre-select the client that was previously saved
+    if (p.client_id) {
+      setSelectedClientId(Number(p.client_id));
+    }
   }, [projectsInfo]);
+
+  // After clients load, resolve the pre-selected client object for the summary card
+  useEffect(() => {
+    if (!selectedClientId || allClients.length === 0) return;
+    const client = allClients.find((c) => c.id === selectedClientId) ?? null;
+    setSelectedClient(client);
+  }, [selectedClientId, allClients]);
 
   const loadDropdowns = async () => {
     try {
@@ -138,58 +152,30 @@ export default function EditProject() {
       const items = Array.isArray(result) ? result : (result?.items ?? []);
       setAllClients(items);
     } catch {
-      setAllClients([]);
+      /* non-critical */
     } finally {
       setClientsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (!selectedClientId) {
-      setSelectedClient(null);
-      return;
-    }
-    const client = allClients.find((c) => c.id === selectedClientId) ?? null;
-    setSelectedClient(client);
-  }, [selectedClientId, allClients]);
+  // ── Client selection ──────────────────────────────────────────────────────
 
   function handleClientSelect(clientId: string | number | undefined) {
     if (!clientId) {
       setSelectedClientId(undefined);
       setSelectedClient(null);
-      setValue('cnpj', '');
       return;
     }
-
     const id = Number(clientId);
     const client = allClients.find((c) => c.id === id) ?? null;
     setSelectedClientId(id);
     setSelectedClient(client);
-    setClientError(false);
-
-    if (client?.cnpj) {
-      const digits = client.cnpj.replace(/\D/g, '').slice(0, 14);
-      setValue('cnpj', applyInlineCnpjMask(digits));
-    }
   }
 
-  function handleNewClientSaved(newClient: Client) {
-    setShowClientModal(false);
-    setAllClients((prev) => {
-      const exists = prev.some((c) => c.id === newClient.id);
-      return exists ? prev : [...prev, newClient];
-    });
-    handleClientSelect(newClient.id);
-  }
+  // ── Form submission ───────────────────────────────────────────────────────
 
   const onSubmit = async (data: CreateProjectRequest) => {
     if (!projectsInfo) return;
-    if (!selectedClientId) {
-      setClientError(true);
-      setError(t('projects.clientRequired'));
-      return;
-    }
-    setClientError(false);
     setLoading(true);
     setError('');
     try {
@@ -197,7 +183,7 @@ export default function EditProject() {
         ...data,
         projects_statuses_id: selectedStatusId,
         projects_works_situations_id: selectedWorkSituationId,
-        client_id: selectedClientId,
+        client_id: selectedClientId ?? null,
       });
       navigate('/projetos');
     } catch (err) {
@@ -206,6 +192,8 @@ export default function EditProject() {
       setLoading(false);
     }
   };
+
+  // ── CEP lookup ────────────────────────────────────────────────────────────
 
   const handleCepLookup = async (cep: string) => {
     if (cep.replace(/\D/g, '').length !== 8) return;
@@ -220,7 +208,11 @@ export default function EditProject() {
     } catch { /* ignore */ }
   };
 
+  // ── Early return ─────────────────────────────────────────────────────────
+
   if (!projectsInfo) return <LoadingSpinner fullPage />;
+
+  // ── Styles ────────────────────────────────────────────────────────────────
 
   const sectionStyle: React.CSSProperties = {
     marginBottom: '24px',
@@ -259,6 +251,7 @@ export default function EditProject() {
     gap: '16px',
   };
 
+  // Client options for the SearchableSelect
   const clientOptions = allClients.map((c) => ({
     value: c.id,
     label: [
@@ -268,6 +261,8 @@ export default function EditProject() {
       .filter(Boolean)
       .join(' — '),
   }));
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div>
@@ -284,7 +279,10 @@ export default function EditProject() {
       {error && <div className="auth-error" style={{ marginBottom: '16px' }}>{error}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <motion.div variants={fadeUpChild} style={sectionStyle}>
+        <motion.div variants={staggerParent} initial="initial" animate="animate">
+
+          {/* ── Section 0: Cliente ── */}
+          <motion.div variants={fadeUpChild} style={sectionStyle}>
             <div style={sectionHeaderStyle}>
               <div style={{ ...sectionIconStyle, background: 'rgba(var(--color-primary-rgb, 26,115,232), 0.1)' }}>
                 <Users size={18} color="var(--color-primary)" />
@@ -299,39 +297,19 @@ export default function EditProject() {
               </div>
             </div>
             <div style={sectionBodyStyle}>
-              {/* Dropdown row */}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label>{t('projects.clientSection')} *</label>
-                  <div style={clientError ? { border: '1.5px solid var(--color-error, #C0392B)', borderRadius: '8px' } : undefined}>
-                    <SearchableSelect
-                      options={clientOptions}
-                      value={selectedClientId}
-                      onChange={handleClientSelect}
-                      placeholder={
-                        clientsLoading
-                          ? t('common.loading')
-                          : t('projects.selectClient')
-                      }
-                      searchPlaceholder={t('common.search')}
-                    />
-                  </div>
-                  {clientError && (
-                    <span style={{ color: 'var(--color-error, #C0392B)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                      {t('projects.clientRequired')}
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowClientModal(true)}
-                  style={{ flexShrink: 0, height: '40px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  title={t('projects.addNewClient')}
-                >
-                  <Plus size={16} />
-                  {t('projects.addNewClient')}
-                </button>
+              <div className="input-group">
+                <label>{t('projects.clientSection')}</label>
+                <SearchableSelect
+                  options={clientOptions}
+                  value={selectedClientId}
+                  onChange={handleClientSelect}
+                  placeholder={
+                    clientsLoading
+                      ? t('common.loading')
+                      : t('projects.selectClient')
+                  }
+                  searchPlaceholder={t('common.search')}
+                />
               </div>
 
               {/* Selected client summary card */}
@@ -400,209 +378,201 @@ export default function EditProject() {
             </div>
           </motion.div>
 
-        <motion.div variants={staggerParent} initial="initial" animate="animate">
-        {/* Section 1: Dados do Projeto */}
-        <motion.div variants={fadeUpChild} style={sectionStyle}>
-          <div style={sectionHeaderStyle}>
-            <div style={{ ...sectionIconStyle, background: 'var(--color-status-01)' }}>
-              <Building2 size={18} color="var(--color-primary)" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.projectData')}</h3>
-              <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.projectDataDesc')}</span>
-            </div>
-          </div>
-          <div style={sectionBodyStyle}>
-            <div style={gridStyle}>
-              <div className="input-group">
-                <label>{t('projects.projectName')} *</label>
-                <input className="input-field" {...register('name', { required: true })} />
+          {/* ── Section 1: Dados do Projeto ── */}
+          <motion.div variants={fadeUpChild} style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <div style={{ ...sectionIconStyle, background: 'var(--color-status-01)' }}>
+                <Building2 size={18} color="var(--color-primary)" />
               </div>
-              <div className="input-group">
-                <label>{t('projects.registrationNumber')}</label>
-                <input className="input-field" {...register('registration_number')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.responsible')}</label>
-                <input className="input-field" {...register('responsible')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.cnpj')}</label>
-                <input
-                  className="input-field"
-                  {...register('cnpj')}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 14);
-                    setValue('cnpj', applyInlineCnpjMask(digits));
-                  }}
-                  placeholder="00.000.000/0000-00"
-                  maxLength={18}
-                />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.startDate')}</label>
-                <input type="date" className="input-field" {...register('start_date')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.category')}</label>
-                <input className="input-field" {...register('category')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.projectStatus')}</label>
-                <SearchableSelect
-                  options={statuses.map(s => ({ value: s.id, label: s.name }))}
-                  value={selectedStatusId}
-                  onChange={(v) => setSelectedStatusId(v ? Number(v) : undefined)}
-                  placeholder={t('projects.selectStatus')}
-                />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.workSituation')}</label>
-                <SearchableSelect
-                  options={workSituations.map(s => ({ value: s.id, label: s.name }))}
-                  value={selectedWorkSituationId}
-                  onChange={(v) => setSelectedWorkSituationId(v ? Number(v) : undefined)}
-                  placeholder={t('projects.selectSituation')}
-                />
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.projectData')}</h3>
+                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.projectDataDesc')}</span>
               </div>
             </div>
-          </div>
-        </motion.div>
+            <div style={sectionBodyStyle}>
+              <div style={gridStyle}>
+                <div className="input-group">
+                  <label>{t('projects.projectName')} *</label>
+                  <input className="input-field" {...register('name', { required: true })} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.registrationNumber')}</label>
+                  <input className="input-field" {...register('registration_number')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.responsible')}</label>
+                  <input className="input-field" {...register('responsible')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.cnpj')}</label>
+                  <input className="input-field" {...register('cnpj')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.startDate')}</label>
+                  <input type="date" className="input-field" {...register('start_date')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.category')}</label>
+                  <input className="input-field" {...register('category')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.projectStatus')}</label>
+                  <SearchableSelect
+                    options={statuses.map((s) => ({ value: s.id, label: s.name }))}
+                    value={selectedStatusId}
+                    onChange={(v) => setSelectedStatusId(v ? Number(v) : undefined)}
+                    placeholder={t('projects.selectStatus')}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.workSituation')}</label>
+                  <SearchableSelect
+                    options={workSituations.map((s) => ({ value: s.id, label: s.name }))}
+                    value={selectedWorkSituationId}
+                    onChange={(v) => setSelectedWorkSituationId(v ? Number(v) : undefined)}
+                    placeholder={t('projects.selectSituation')}
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-        {/* Section 2: Registros e Documentação */}
-        <motion.div variants={fadeUpChild} style={sectionStyle}>
-          <div style={sectionHeaderStyle}>
-            <div style={{ ...sectionIconStyle, background: 'var(--color-status-02)' }}>
-              <FileText size={18} color="var(--color-warning)" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.registrationDocs')}</h3>
-              <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.registrationDocsDesc')}</span>
-            </div>
-          </div>
-          <div style={sectionBodyStyle}>
-            <div style={gridStyle}>
-              <div className="input-group">
-                <label>{t('projects.art')}</label>
-                <input className="input-field" {...register('art')} />
+          {/* ── Section 2: Registros e Documentação ── */}
+          <motion.div variants={fadeUpChild} style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <div style={{ ...sectionIconStyle, background: 'var(--color-status-02)' }}>
+                <FileText size={18} color="var(--color-warning)" />
               </div>
-              <div className="input-group">
-                <label>{t('projects.rrt')}</label>
-                <input className="input-field" {...register('rrt')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.cib')}</label>
-                <input className="input-field" {...register('cib')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.cnae')}</label>
-                <input
-                  className="input-field"
-                  {...register('cnae')}
-                  onChange={e => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 7);
-                    let masked = digits;
-                    if (digits.length > 4) masked = digits.slice(0, 4) + '-' + digits.slice(4);
-                    if (digits.length > 5) masked = digits.slice(0, 4) + '-' + digits.slice(4, 5) + '/' + digits.slice(5);
-                    setValue('cnae', masked);
-                  }}
-                  placeholder="0000-0/00"
-                  maxLength={9}
-                />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.originRegistration')}</label>
-                <input className="input-field" {...register('origin_registration')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.realStateRegistration')}</label>
-                <input className="input-field" {...register('real_state_registration')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.permitNumber')}</label>
-                <input className="input-field" {...register('permit_number')} />
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.registrationDocs')}</h3>
+                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.registrationDocsDesc')}</span>
               </div>
             </div>
-          </div>
-        </motion.div>
+            <div style={sectionBodyStyle}>
+              <div style={gridStyle}>
+                <div className="input-group">
+                  <label>{t('projects.art')}</label>
+                  <input className="input-field" {...register('art')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.rrt')}</label>
+                  <input className="input-field" {...register('rrt')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.cib')}</label>
+                  <input className="input-field" {...register('cib')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.cnae')}</label>
+                  <input
+                    className="input-field"
+                    {...register('cnae')}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 7);
+                      let masked = digits;
+                      if (digits.length > 4) masked = digits.slice(0, 4) + '-' + digits.slice(4);
+                      if (digits.length > 5)
+                        masked = digits.slice(0, 4) + '-' + digits.slice(4, 5) + '/' + digits.slice(5);
+                      setValue('cnae', masked);
+                    }}
+                    placeholder="0000-0/00"
+                    maxLength={9}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.originRegistration')}</label>
+                  <input className="input-field" {...register('origin_registration')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.realStateRegistration')}</label>
+                  <input className="input-field" {...register('real_state_registration')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.permitNumber')}</label>
+                  <input className="input-field" {...register('permit_number')} />
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-        {/* Section 3: Detalhes da Obra */}
-        <motion.div variants={fadeUpChild} style={sectionStyle}>
-          <div style={sectionHeaderStyle}>
-            <div style={{ ...sectionIconStyle, background: 'var(--color-status-04)' }}>
-              <HardHat size={18} color="var(--color-success)" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.workDetails')}</h3>
-              <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.workDetailsDesc')}</span>
-            </div>
-          </div>
-          <div style={sectionBodyStyle}>
-            <div style={gridStyle}>
-              <div className="input-group">
-                <label>{t('projects.destination')}</label>
-                <input className="input-field" {...register('destination')} />
+          {/* ── Section 3: Detalhes da Obra ── */}
+          <motion.div variants={fadeUpChild} style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <div style={{ ...sectionIconStyle, background: 'var(--color-status-04)' }}>
+                <HardHat size={18} color="var(--color-success)" />
               </div>
-              <div className="input-group">
-                <label>{t('projects.projectWorkType')}</label>
-                <input className="input-field" {...register('project_work_type')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.resultingWorkArea')}</label>
-                <input type="number" step="0.01" className="input-field" {...register('resulting_work_area')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.situationDate')}</label>
-                <input type="date" className="input-field" {...register('situation_date')} />
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.workDetails')}</h3>
+                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.workDetailsDesc')}</span>
               </div>
             </div>
-          </div>
-        </motion.div>
+            <div style={sectionBodyStyle}>
+              <div style={gridStyle}>
+                <div className="input-group">
+                  <label>{t('projects.destination')}</label>
+                  <input className="input-field" {...register('destination')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.projectWorkType')}</label>
+                  <input className="input-field" {...register('project_work_type')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.resultingWorkArea')}</label>
+                  <input type="number" step="0.01" className="input-field" {...register('resulting_work_area')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.situationDate')}</label>
+                  <input type="date" className="input-field" {...register('situation_date')} />
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-        {/* Section 4: Endereço */}
-        <motion.div variants={fadeUpChild} style={sectionStyle}>
-          <div style={sectionHeaderStyle}>
-            <div style={{ ...sectionIconStyle, background: 'var(--color-status-03)' }}>
-              <MapPin size={18} color="var(--color-primary)" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.addressSection')}</h3>
-              <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.addressSectionDesc')}</span>
-            </div>
-          </div>
-          <div style={sectionBodyStyle}>
-            <div style={gridStyle}>
-              <div className="input-group">
-                <label>{t('projects.cep')}</label>
-                <input className="input-field" {...register('cep')} onBlur={(e) => handleCepLookup(e.target.value)} />
+          {/* ── Section 4: Endereço ── */}
+          <motion.div variants={fadeUpChild} style={sectionStyle}>
+            <div style={sectionHeaderStyle}>
+              <div style={{ ...sectionIconStyle, background: 'var(--color-status-03)' }}>
+                <MapPin size={18} color="var(--color-primary)" />
               </div>
-              <div className="input-group">
-                <label>{t('projects.street')}</label>
-                <input className="input-field" {...register('street')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.number')}</label>
-                <input className="input-field" {...register('number')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.neighborhood')}</label>
-                <input className="input-field" {...register('neighbourhood')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.city')}</label>
-                <input className="input-field" {...register('city')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.state')}</label>
-                <input className="input-field" {...register('state')} />
-              </div>
-              <div className="input-group">
-                <label>{t('projects.complement')}</label>
-                <input className="input-field" {...register('complement')} />
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>{t('projects.addressSection')}</h3>
+                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{t('projects.addressSectionDesc')}</span>
               </div>
             </div>
-          </div>
-        </motion.div>
+            <div style={sectionBodyStyle}>
+              <div style={gridStyle}>
+                <div className="input-group">
+                  <label>{t('projects.cep')}</label>
+                  <input className="input-field" {...register('cep')} onBlur={(e) => handleCepLookup(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.street')}</label>
+                  <input className="input-field" {...register('street')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.number')}</label>
+                  <input className="input-field" {...register('number')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.neighborhood')}</label>
+                  <input className="input-field" {...register('neighbourhood')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.city')}</label>
+                  <input className="input-field" {...register('city')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.state')}</label>
+                  <input className="input-field" {...register('state')} />
+                </div>
+                <div className="input-group">
+                  <label>{t('projects.complement')}</label>
+                  <input className="input-field" {...register('complement')} />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
         </motion.div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingBottom: '32px' }}>
@@ -615,11 +585,34 @@ export default function EditProject() {
         </div>
       </form>
 
-      <ClientFormModal
-        open={showClientModal}
-        onClose={() => setShowClientModal(false)}
-        onSaved={handleNewClientSaved}
-      />
+      {/* Toast notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
