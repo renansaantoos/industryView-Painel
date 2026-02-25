@@ -70,4 +70,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Script de entrypoint: aplica migrations pendentes e inicia o servidor.
 # prisma migrate deploy e idempotente (nao falha se nao houver migracao pendente).
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+# Se DIRECT_URL nao estiver definida, usa DATABASE_URL como fallback (necessario para Prisma directUrl).
+CMD ["sh", "-c", "export DIRECT_URL=${DIRECT_URL:-$DATABASE_URL} && npx prisma migrate deploy && npm start"]
