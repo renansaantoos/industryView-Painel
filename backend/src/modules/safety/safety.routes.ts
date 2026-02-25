@@ -911,6 +911,43 @@ router.post('/dds', authenticate, SafetyController.createDdsRecord);
 
 /**
  * @swagger
+ * /api/v1/safety/dds/{id}:
+ *   patch:
+ *     summary: Atualiza registro de DDS
+ *     tags: [Safety]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               topic:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               dds_date:
+ *                 type: string
+ *               teams_id:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: DDS atualizado com sucesso
+ *       404:
+ *         description: DDS nao encontrado
+ */
+router.patch('/dds/:id', authenticate, SafetyController.updateDdsRecord);
+
+/**
+ * @swagger
  * /api/v1/safety/dds/{id}/participants:
  *   post:
  *     summary: Adiciona participante a um DDS existente

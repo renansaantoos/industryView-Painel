@@ -30,6 +30,7 @@ import {
   ListDdsRecordsInput,
   GetDdsStatisticsInput,
   CreateDdsRecordInput,
+  UpdateDdsRecordInput,
 } from './safety.schema';
 
 // =============================================================================
@@ -1324,6 +1325,51 @@ export class SafetyService {
       ...ddsRecord,
       participants,
     };
+  }
+
+  /**
+   * Atualiza campos editaveis de um registro de DDS
+   */
+  static async updateDdsRecord(id: number, input: UpdateDdsRecordInput) {
+    const bigId = BigInt(id);
+
+    const existing = await db.$queryRaw<DdsRecordRow[]>`
+      SELECT id FROM dds_records WHERE id = ${bigId}
+    `;
+
+    if (!existing || existing.length === 0) {
+      throw new NotFoundError('Registro de DDS nao encontrado.');
+    }
+
+    const sets: string[] = ['updated_at = NOW()'];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    if (input.topic !== undefined) {
+      sets.push(`topic = $${idx++}`);
+      values.push(input.topic);
+    }
+    if (input.description !== undefined) {
+      sets.push(`description = $${idx++}`);
+      values.push(input.description);
+    }
+    if (input.dds_date !== undefined) {
+      sets.push(`dds_date = $${idx++}`);
+      values.push(new Date(input.dds_date));
+    }
+    if (input.teams_id !== undefined) {
+      sets.push(`teams_id = $${idx++}`);
+      values.push(input.teams_id !== null ? BigInt(input.teams_id) : null);
+    }
+
+    values.push(bigId);
+
+    const updated = await db.$queryRawUnsafe<DdsRecordRow[]>(
+      `UPDATE dds_records SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      ...values,
+    );
+
+    return updated[0];
   }
 
   /**

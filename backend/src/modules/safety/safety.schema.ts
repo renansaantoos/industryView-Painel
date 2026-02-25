@@ -301,6 +301,17 @@ export const createDdsRecordSchema = z.object({
 );
 
 /**
+ * Schema para atualizar registro de DDS
+ */
+export const updateDdsRecordSchema = z.object({
+  topic: z.string().trim().min(1).optional(),
+  description: z.string().optional().nullable(),
+  dds_date: z.string().optional(),
+  teams_id: z.coerce.number().int().optional().nullable(),
+});
+export type UpdateDdsRecordInput = z.infer<typeof updateDdsRecordSchema>;
+
+/**
  * Schema para adicionar participante a um DDS
  */
 export const createDdsParticipantSchema = z.object({

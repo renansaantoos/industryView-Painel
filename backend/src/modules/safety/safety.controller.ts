@@ -33,6 +33,7 @@ import {
   getDdsStatisticsSchema,
   getDdsByIdSchema,
   createDdsRecordSchema,
+  updateDdsRecordSchema,
   createDdsParticipantSchema,
   signDdsParticipationSchema,
 } from './safety.schema';
@@ -467,6 +468,21 @@ export class SafetyController {
       const input = createDdsRecordSchema.parse(body);
       const result = await SafetyService.createDdsRecord(input);
       res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Atualiza registro de DDS
+   * Route: PATCH /api/v1/safety/dds/:id
+   */
+  static async updateDdsRecord(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = getDdsByIdSchema.parse(req.params);
+      const input = updateDdsRecordSchema.parse(req.body);
+      const result = await SafetyService.updateDdsRecord(id, input);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
