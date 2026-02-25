@@ -7,6 +7,7 @@ const CLIENTS_BASE = '/clients';
 
 export interface Client {
   id: number;
+  units?: ClientUnit[];
   // Section 1: Dados Cadastrais e Fiscais
   legal_name: string;
   trade_name?: string | null;
@@ -53,6 +54,36 @@ export interface Client {
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ClientUnit {
+  id: number;
+  client_id: number;
+  unit_type: 'MATRIZ' | 'FILIAL';
+  label?: string | null;
+  cnpj?: string | null;
+  address?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  cep?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ClientUnitPayload {
+  unit_type: 'MATRIZ' | 'FILIAL';
+  label?: string;
+  cnpj?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  cep?: string;
 }
 
 export interface ClientPayload {
@@ -130,4 +161,23 @@ export async function updateClient(id: number, data: Partial<ClientPayload>): Pr
 
 export async function deleteClient(id: number): Promise<void> {
   await apiClient.delete(`${CLIENTS_BASE}/${id}`);
+}
+
+export async function listClientUnits(clientId: number): Promise<ClientUnit[]> {
+  const response = await apiClient.get(`${CLIENTS_BASE}/${clientId}/units`);
+  return response.data;
+}
+
+export async function createClientUnit(clientId: number, data: ClientUnitPayload): Promise<ClientUnit> {
+  const response = await apiClient.post(`${CLIENTS_BASE}/${clientId}/units`, data);
+  return response.data;
+}
+
+export async function updateClientUnit(clientId: number, unitId: number, data: Partial<ClientUnitPayload>): Promise<ClientUnit> {
+  const response = await apiClient.patch(`${CLIENTS_BASE}/${clientId}/units/${unitId}`, data);
+  return response.data;
+}
+
+export async function deleteClientUnit(clientId: number, unitId: number): Promise<void> {
+  await apiClient.delete(`${CLIENTS_BASE}/${clientId}/units/${unitId}`);
 }

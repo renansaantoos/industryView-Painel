@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { modalBackdropVariants, modalContentVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { clientsApi, projectsApi } from '../../services';
-import type { Client, ClientPayload } from '../../services/api/clients';
+import type { Client, ClientPayload, ClientUnit, ClientUnitPayload } from '../../services/api/clients';
 import type { ProjectInfo } from '../../types/project';
 import { X, Check, ChevronDown } from 'lucide-react';
 
@@ -143,6 +143,23 @@ function emptyDisplay(): MaskedDisplayState {
     purchasing_contact_phone: '',
     financial_contact_phone: '',
     warehouse_contact_phone: '',
+  };
+}
+
+// ── Empty unit form factory ───────────────────────────────────────────────────
+
+function emptyUnitForm(): ClientUnitPayload {
+  return {
+    unit_type: 'MATRIZ',
+    label: '',
+    cnpj: '',
+    address: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    cep: '',
   };
 }
 
@@ -321,6 +338,15 @@ export function ClientFormModal({
   const [billingCepSuccess, setBillingCepSuccess] = useState(false);
   const [deliveryCepSuccess, setDeliveryCepSuccess] = useState(false);
 
+  // Unidades (Matriz/Filiais) - gerenciadas localmente e sincronizadas com API
+  const [units, setUnits] = useState<ClientUnit[]>([]);
+  const [unitFormOpen, setUnitFormOpen] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<ClientUnit | null>(null);
+  const [savingUnit, setSavingUnit] = useState(false);
+  const [unitForm, setUnitForm] = useState<ClientUnitPayload>(emptyUnitForm());
+  const [unitCepDisplay, setUnitCepDisplay] = useState('');
+  const [unitCnpjDisplay, setUnitCnpjDisplay] = useState('');
+
   // Project linking state
   const [availableProjects, setAvailableProjects] = useState<ProjectInfo[]>([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
@@ -481,9 +507,17 @@ export function ClientFormModal({
         financial_contact_phone: maskPhone(rawFinancialPhone),
         warehouse_contact_phone: maskPhone(rawWarehousePhone),
       });
+      if (editingClient.id) {
+        clientsApi.listClientUnits(editingClient.id)
+          .then(setUnits)
+          .catch(() => {});
+      }
     } else {
       setFormData(emptyForm());
       setDisplay(emptyDisplay());
+      setUnits([]);
+      setUnitFormOpen(false);
+      setEditingUnit(null);
     }
 
     setFormErrors({});
@@ -731,6 +765,73 @@ export function ClientFormModal({
     return trimmed || undefined;
   }
 
+  // ── Unit management ───────────────────────────────────────────────────────
+
+  async function handleSaveUnit() {
+    if (!unitForm.unit_type) return;
+    setSavingUnit(true);
+    try {
+      if (editingUnit && editingClient) {
+        const updated = await clientsApi.updateClientUnit(editingClient.id, editingUnit.id, unitForm);
+        setUnits((prev) => prev.map((u) => u.id === updated.id ? updated : u));
+      } else if (editingClient) {
+        const created = await clientsApi.createClientUnit(editingClient.id, unitForm);
+        setUnits((prev) => [...prev, created]);
+      } else {
+        const tempUnit: ClientUnit = {
+          id: -(Date.now()),
+          client_id: 0,
+          ...unitForm,
+        } as ClientUnit;
+        if (editingUnit) {
+          setUnits((prev) => prev.map((u) => u.id === editingUnit.id ? tempUnit : u));
+        } else {
+          setUnits((prev) => [...prev, tempUnit]);
+        }
+      }
+      setUnitFormOpen(false);
+      setEditingUnit(null);
+      setUnitForm(emptyUnitForm());
+      setUnitCepDisplay('');
+      setUnitCnpjDisplay('');
+    } finally {
+      setSavingUnit(false);
+    }
+  }
+
+  async function handleDeleteUnit(unit: ClientUnit) {
+    if (editingClient && unit.id > 0) {
+      await clientsApi.deleteClientUnit(editingClient.id, unit.id);
+    }
+    setUnits((prev) => prev.filter((u) => u.id !== unit.id));
+  }
+
+  function handleOpenUnitForm(unit?: ClientUnit) {
+    if (unit) {
+      setEditingUnit(unit);
+      setUnitForm({
+        unit_type: unit.unit_type,
+        label: unit.label || '',
+        cnpj: unit.cnpj ? unit.cnpj.replace(/\D/g, '') : '',
+        address: unit.address || '',
+        number: unit.number || '',
+        complement: unit.complement || '',
+        neighborhood: unit.neighborhood || '',
+        city: unit.city || '',
+        state: unit.state || '',
+        cep: unit.cep ? unit.cep.replace(/\D/g, '') : '',
+      });
+      setUnitCepDisplay(unit.cep ? maskCEP(unit.cep) : '');
+      setUnitCnpjDisplay(unit.cnpj ? maskCNPJ(unit.cnpj) : '');
+    } else {
+      setEditingUnit(null);
+      setUnitForm(emptyUnitForm());
+      setUnitCepDisplay('');
+      setUnitCnpjDisplay('');
+    }
+    setUnitFormOpen(true);
+  }
+
   async function handleSave() {
     setFormSubmitted(true);
     if (!validateForm()) return;
@@ -783,6 +884,25 @@ export function ClientFormModal({
         savedClient = await clientsApi.updateClient(editingClient.id, payload);
       } else {
         savedClient = await clientsApi.createClient(payload);
+        // Salvar unidades locais
+        if (units.length > 0) {
+          await Promise.all(
+            units.map((u) =>
+              clientsApi.createClientUnit(Number(savedClient.id), {
+                unit_type: u.unit_type,
+                label: u.label || undefined,
+                cnpj: u.cnpj || undefined,
+                address: u.address || undefined,
+                number: u.number || undefined,
+                complement: u.complement || undefined,
+                neighborhood: u.neighborhood || undefined,
+                city: u.city || undefined,
+                state: u.state || undefined,
+                cep: u.cep || undefined,
+              })
+            )
+          );
+        }
       }
 
       // Link newly selected projects and unlink removed ones as a best-effort side effect.
@@ -1329,6 +1449,204 @@ export function ClientFormModal({
                       </div>
                     </>
                   )}
+
+                  {/* ── Unidades (Matriz / Filiais) ─────────────────────────── */}
+                  <div style={{ marginTop: '24px' }}>
+                    {/* Header da seção */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Matriz / Filiais
+                      </span>
+                      {!unitFormOpen && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenUnitForm()}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '4px',
+                            padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--color-border)',
+                            background: 'transparent', color: 'var(--color-primary)', fontSize: '0.8rem',
+                            fontWeight: 600, cursor: 'pointer',
+                          }}
+                        >
+                          + Adicionar
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Lista de unidades */}
+                    {units.map((unit) => (
+                      <div
+                        key={unit.id}
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                          padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)',
+                          marginBottom: '8px', background: 'var(--color-surface)',
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                            <span style={{
+                              fontSize: '0.72rem', fontWeight: 700, padding: '1px 7px',
+                              borderRadius: '4px', letterSpacing: '0.05em',
+                              background: unit.unit_type === 'MATRIZ' ? 'var(--color-primary)' : 'var(--color-surface-alt, #e8f0fe)',
+                              color: unit.unit_type === 'MATRIZ' ? '#fff' : 'var(--color-primary)',
+                              border: unit.unit_type === 'FILIAL' ? '1px solid var(--color-primary)' : 'none',
+                            }}>
+                              {unit.unit_type}
+                            </span>
+                            {unit.label && <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{unit.label}</span>}
+                          </div>
+                          {unit.cnpj && <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>{maskCNPJ(unit.cnpj)}</div>}
+                          {(unit.city || unit.state) && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                              {[unit.address, unit.number, unit.city, unit.state].filter(Boolean).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', marginLeft: '8px', flexShrink: 0 }}>
+                          <button type="button" onClick={() => handleOpenUnitForm(unit)}
+                            style={{ padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', fontSize: '0.75rem' }}>
+                            Editar
+                          </button>
+                          <button type="button" onClick={() => handleDeleteUnit(unit)}
+                            style={{ padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-error, #ef4444)', background: 'transparent', color: 'var(--color-error, #ef4444)', cursor: 'pointer', fontSize: '0.75rem' }}>
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Form inline de nova/editar unidade */}
+                    {unitFormOpen && (
+                      <div style={{ padding: '14px', borderRadius: '8px', border: '1px solid var(--color-primary)', background: 'var(--color-surface)', marginTop: '8px' }}>
+                        <div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '0.85rem' }}>
+                          {editingUnit ? 'Editar Unidade' : 'Nova Unidade'}
+                        </div>
+
+                        {/* Tipo (toggle) */}
+                        <div style={{ marginBottom: '12px' }}>
+                          <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '6px' }}>
+                            Tipo <span style={{ color: 'var(--color-error)' }}>*</span>
+                          </label>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {(['MATRIZ', 'FILIAL'] as const).map((t) => (
+                              <button key={t} type="button"
+                                onClick={() => setUnitForm((f) => ({ ...f, unit_type: t }))}
+                                style={{
+                                  flex: 1, padding: '7px', borderRadius: '6px',
+                                  border: '1.5px solid',
+                                  borderColor: unitForm.unit_type === t ? 'var(--color-primary)' : 'var(--color-border)',
+                                  background: unitForm.unit_type === t ? 'var(--color-primary)' : 'transparent',
+                                  color: unitForm.unit_type === t ? '#fff' : 'var(--color-text)',
+                                  fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer',
+                                }}>
+                                {t === 'MATRIZ' ? 'Matriz' : 'Filial'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Label e CNPJ */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Identificação</label>
+                            <input type="text" className="input-field" placeholder="Ex: Filial SP"
+                              value={unitForm.label || ''}
+                              onChange={(e) => setUnitForm((f) => ({ ...f, label: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>CNPJ</label>
+                            <input type="text" className="input-field" placeholder="00.000.000/0000-00"
+                              value={unitCnpjDisplay}
+                              inputMode="numeric" maxLength={18}
+                              onChange={(e) => {
+                                const masked = maskCNPJ(e.target.value);
+                                setUnitCnpjDisplay(masked);
+                                setUnitForm((f) => ({ ...f, cnpj: unmask(masked) }));
+                              }} />
+                          </div>
+                        </div>
+
+                        {/* CEP */}
+                        <div style={{ marginBottom: '10px' }}>
+                          <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>CEP</label>
+                          <input type="text" className="input-field" placeholder="00000-000"
+                            value={unitCepDisplay} inputMode="numeric" maxLength={9}
+                            onChange={(e) => {
+                              const masked = maskCEP(e.target.value);
+                              setUnitCepDisplay(masked);
+                              setUnitForm((f) => ({ ...f, cep: unmask(masked) }));
+                            }}
+                            onBlur={async () => {
+                              const cepDigits = unmask(unitCepDisplay);
+                              if (cepDigits.length === 8) {
+                                const addr = await fetchAddressByCEP(cepDigits);
+                                if (addr) {
+                                  setUnitForm((f) => ({
+                                    ...f,
+                                    address: addr.logradouro || f.address,
+                                    complement: addr.complemento || f.complement,
+                                    neighborhood: addr.bairro || f.neighborhood,
+                                    city: addr.localidade || f.city,
+                                    state: addr.uf || f.state,
+                                  }));
+                                }
+                              }
+                            }} />
+                        </div>
+
+                        {/* Endereço */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', marginBottom: '10px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Logradouro</label>
+                            <input type="text" className="input-field" placeholder="Rua, Av..."
+                              value={unitForm.address || ''}
+                              onChange={(e) => setUnitForm((f) => ({ ...f, address: e.target.value }))} />
+                          </div>
+                          <div style={{ width: '90px' }}>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Número</label>
+                            <input type="text" className="input-field"
+                              value={unitForm.number || ''}
+                              onChange={(e) => setUnitForm((f) => ({ ...f, number: e.target.value }))} />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px', gap: '10px', marginBottom: '14px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Bairro</label>
+                            <input type="text" className="input-field"
+                              value={unitForm.neighborhood || ''}
+                              onChange={(e) => setUnitForm((f) => ({ ...f, neighborhood: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Cidade</label>
+                            <input type="text" className="input-field"
+                              value={unitForm.city || ''}
+                              onChange={(e) => setUnitForm((f) => ({ ...f, city: e.target.value }))} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>UF</label>
+                            <input type="text" className="input-field" maxLength={2}
+                              value={unitForm.state || ''}
+                              onChange={(e) => setUnitForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
+                          </div>
+                        </div>
+
+                        {/* Ações do form de unidade */}
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button type="button"
+                            onClick={() => { setUnitFormOpen(false); setEditingUnit(null); setUnitForm(emptyUnitForm()); setUnitCepDisplay(''); setUnitCnpjDisplay(''); }}
+                            style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer', fontSize: '0.82rem' }}>
+                            Cancelar
+                          </button>
+                          <button type="button" onClick={handleSaveUnit} disabled={savingUnit}
+                            style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.82rem' }}>
+                            {savingUnit ? 'Salvando...' : editingUnit ? 'Salvar' : 'Adicionar'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

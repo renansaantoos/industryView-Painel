@@ -4,7 +4,7 @@ import { staggerParent, tableRowVariants, fadeUpChild } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { inventoryApi, unityApi, equipamentTypesApi, manufacturersApi, projectsApi } from '../../services';
-import type { InventoryProduct, Unity, EquipamentType, Manufacturer, ProjectInfo } from '../../types';
+import type { InventoryProduct, Unity, EquipamentType, Manufacturer, ProjectInfo, InventoryStatus } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -53,6 +53,7 @@ export default function Inventory() {
   const [unityOptions, setUnityOptions] = useState<Unity[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<EquipamentType[]>([]);
   const [manufacturerOptions, setManufacturerOptions] = useState<Manufacturer[]>([]);
+  const [statusOptions, setStatusOptions] = useState<InventoryStatus[]>([]);
   const [projectOptions, setProjectOptions] = useState<ProjectInfo[]>([]);
 
   // Add product modal
@@ -67,6 +68,7 @@ export default function Inventory() {
   const [productManufacturerId, setProductManufacturerId] = useState<number | undefined>();
   const [productProjectId, setProductProjectId] = useState<number | undefined>();
   const [modalLoading, setModalLoading] = useState(false);
+  const [addProductError, setAddProductError] = useState<string | null>(null);
   const [showAddManufacturerModal, setShowAddManufacturerModal] = useState(false);
   const [newManufacturerName, setNewManufacturerName] = useState('');
   const [manufacturerModalLoading, setManufacturerModalLoading] = useState(false);
@@ -114,14 +116,16 @@ export default function Inventory() {
   useEffect(() => {
     const loadReferenceData = async () => {
       try {
-        const [unityData, categoryData, projectsData] = await Promise.all([
+        const [unityData, categoryData, projectsData, statusesData] = await Promise.all([
           unityApi.queryAllUnity().catch(() => []),
           equipamentTypesApi.queryAllEquipamentTypes().catch(() => []),
           projectsApi.queryAllProjects({ per_page: 100 }).then(res => res.items || []).catch(() => []),
+          inventoryApi.getAllStatuses().catch(() => []),
         ]);
         setUnityOptions(Array.isArray(unityData) ? unityData : []);
         setCategoryOptions(Array.isArray(categoryData) ? categoryData : []);
         setProjectOptions(Array.isArray(projectsData) ? projectsData : []);
+        setStatusOptions(Array.isArray(statusesData) ? statusesData : []);
         await loadManufacturers();
       } catch (err) {
         console.error('Failed to load reference data:', err);
@@ -180,12 +184,24 @@ export default function Inventory() {
     setBatchLot('');
     setFiscalClassification('');
     setBarcodeField('');
+    setAddProductError(null);
   };
 
   const handleAddProduct = async () => {
     if (!productName.trim()) return;
+    setAddProductError(null);
     setModalLoading(true);
     try {
+      let statuses = statusOptions;
+      if (statuses.length === 0) {
+        statuses = await inventoryApi.getAllStatuses().catch(() => []);
+        if (statuses.length > 0) setStatusOptions(statuses);
+      }
+
+      const defaultStatusId =
+        statuses.find((s) => /estoque|stock|dispon/i.test(s.status))?.id
+        ?? statuses[0]?.id;
+
       await inventoryApi.addProduct({
         projects_id: productProjectId || projectsInfo?.id,
         code: productCode.trim() || undefined,
@@ -194,6 +210,7 @@ export default function Inventory() {
         inventory_quantity: productQuantity ? parseInt(productQuantity, 10) : 0,
         min_quantity: productMinQuantity ? parseInt(productMinQuantity, 10) : undefined,
         unity_id: productUnityId || undefined,
+        status_inventory_id: defaultStatusId,
         equipaments_types_id: productCategoryId || undefined,
         manufacturers_id: productManufacturerId || undefined,
         // Bloco K
@@ -211,6 +228,7 @@ export default function Inventory() {
       loadProducts();
     } catch (err) {
       console.error('Failed to add product:', err);
+      setAddProductError('Erro ao cadastrar produto. Verifique os dados e tente novamente.');
     } finally {
       setModalLoading(false);
     }
@@ -522,7 +540,7 @@ export default function Inventory() {
 
       {/* Add Product Modal */}
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => { setShowAddModal(false); resetAddForm(); }}>
+        <div className="modal-backdrop" onClick={() => { setShowAddModal(false); resetAddForm(); setAddProductError(null); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', minWidth: '320px', maxWidth: '600px', width: '90%', maxHeight: '85vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px' }}>{t('inventory.addProduct')}</h3>
             {/* Project selector */}
@@ -726,7 +744,12 @@ export default function Inventory() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => { setShowAddModal(false); resetAddForm(); }}>{t('common.cancel')}</button>
+              {addProductError && (
+                <span style={{ color: 'var(--color-error, #c00)', fontSize: '13px', alignSelf: 'center', flex: 1 }}>
+                  {addProductError}
+                </span>
+              )}
+              <button className="btn btn-secondary" onClick={() => { setShowAddModal(false); resetAddForm(); setAddProductError(null); }}>{t('common.cancel')}</button>
               <button className="btn btn-primary" onClick={handleAddProduct} disabled={modalLoading}>
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>

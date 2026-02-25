@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +23,10 @@ import {
   FileText,
   Briefcase,
   FolderOpen,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
+import type { ClientUnit } from '../../services/api/clients';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,6 +96,17 @@ export default function Clients() {
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  // Expanded units rows
+  const [expandedUnits, setExpandedUnits] = useState<Set<number>>(new Set());
+
+  function toggleUnits(clientId: number) {
+    setExpandedUnits((prev) => {
+      const next = new Set(prev);
+      next.has(clientId) ? next.delete(clientId) : next.add(clientId);
+      return next;
+    });
+  }
 
   // Toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -281,13 +295,15 @@ export default function Clients() {
                 <th>{t('clients.industrySegment')}</th>
                 <th>{t('clients.city')} / {t('clients.state')}</th>
                 <th>{t('clients.purchasingContact')}</th>
+                <th>Matriz / Filiais</th>
                 <th>{t('clients.linkedProjects')}</th>
                 <th>{t('clients.actions')}</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
               {filteredClients.map((client) => (
-                <motion.tr key={client.id} variants={tableRowVariants}>
+                <React.Fragment key={client.id}>
+                <motion.tr variants={tableRowVariants}>
                   {/* Name */}
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -348,6 +364,62 @@ export default function Clients() {
                       )}
                     </div>
                   </td>
+                  {/* Matriz / Filiais — botão expansível */}
+                  <td>
+                    {(() => {
+                      const units: ClientUnit[] = client.units || [];
+                      if (units.length === 0) {
+                        return <span style={{ color: 'var(--color-secondary-text)' }}>—</span>;
+                      }
+                      const isOpen = expandedUnits.has(client.id);
+                      const nMatriz = units.filter((u) => u.unit_type === 'MATRIZ').length;
+                      const nFilial = units.filter((u) => u.unit_type === 'FILIAL').length;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => toggleUnits(client.id)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--color-border)',
+                            background: isOpen ? 'var(--color-primary)' : 'transparent',
+                            color: isOpen ? '#fff' : 'var(--color-text)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {nMatriz > 0 && (
+                            <span style={{
+                              fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: isOpen ? 'rgba(255,255,255,0.25)' : 'var(--color-primary)',
+                              color: '#fff',
+                            }}>
+                              {nMatriz}M
+                            </span>
+                          )}
+                          {nFilial > 0 && (
+                            <span style={{
+                              fontSize: '0.68rem', fontWeight: 700, padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: isOpen ? 'rgba(255,255,255,0.25)' : 'transparent',
+                              color: isOpen ? '#fff' : 'var(--color-primary)',
+                              border: isOpen ? 'none' : '1px solid var(--color-primary)',
+                            }}>
+                              {nFilial}F
+                            </span>
+                          )}
+                          {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+                      );
+                    })()}
+                  </td>
+
                   {/* Linked Projects */}
                   <td>
                     {(() => {
@@ -397,6 +469,73 @@ export default function Clients() {
                     </div>
                   </td>
                 </motion.tr>
+
+                {/* Linha expansível de unidades */}
+                <AnimatePresence>
+                  {expandedUnits.has(client.id) && (client.units?.length ?? 0) > 0 && (
+                    <motion.tr
+                      key={`units-${client.id}`}
+                      initial={{ opacity: 0, scaleY: 0.8 }}
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      exit={{ opacity: 0, scaleY: 0.8 }}
+                      style={{ transformOrigin: 'top' }}
+                    >
+                      <td colSpan={8} style={{ padding: '0', background: 'var(--color-surface, #f8f9fa)', borderBottom: '2px solid var(--color-primary)' }}>
+                        <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+                          {client.units!.map((u) => (
+                            <div key={u.id} style={{
+                              borderRadius: '8px',
+                              border: '1px solid var(--color-border)',
+                              padding: '12px 14px',
+                              background: 'var(--color-bg, #fff)',
+                            }}>
+                              {/* Header do card */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <span style={{
+                                  fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px',
+                                  borderRadius: '4px', letterSpacing: '0.05em',
+                                  background: u.unit_type === 'MATRIZ' ? 'var(--color-primary)' : 'transparent',
+                                  color: u.unit_type === 'MATRIZ' ? '#fff' : 'var(--color-primary)',
+                                  border: u.unit_type === 'MATRIZ' ? 'none' : '1px solid var(--color-primary)',
+                                }}>
+                                  {u.unit_type}
+                                </span>
+                                {u.label && (
+                                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{u.label}</span>
+                                )}
+                              </div>
+
+                              {/* CNPJ */}
+                              {u.cnpj && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--color-secondary-text)', marginBottom: '4px' }}>
+                                  <FileText size={12} />
+                                  {maskCNPJ(u.cnpj)}
+                                </div>
+                              )}
+
+                              {/* Endereço */}
+                              {(u.address || u.city) && (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.82rem', color: 'var(--color-secondary-text)' }}>
+                                  <MapPin size={12} style={{ marginTop: '2px', flexShrink: 0 }} />
+                                  <span>
+                                    {[
+                                      u.address && u.number ? `${u.address}, ${u.number}` : u.address,
+                                      u.complement,
+                                      u.neighborhood,
+                                      u.city && u.state ? `${u.city} - ${u.state}` : (u.city || u.state),
+                                      u.cep,
+                                    ].filter(Boolean).join(' · ')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  )}
+                </AnimatePresence>
+                </React.Fragment>
               ))}
             </motion.tbody>
           </table>
