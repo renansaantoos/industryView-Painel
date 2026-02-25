@@ -69,6 +69,7 @@ export default function Inventory() {
   const [productProjectId, setProductProjectId] = useState<number | undefined>();
   const [modalLoading, setModalLoading] = useState(false);
   const [addProductError, setAddProductError] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
   const [showAddManufacturerModal, setShowAddManufacturerModal] = useState(false);
   const [newManufacturerName, setNewManufacturerName] = useState('');
   const [manufacturerModalLoading, setManufacturerModalLoading] = useState(false);
@@ -185,6 +186,67 @@ export default function Inventory() {
     setFiscalClassification('');
     setBarcodeField('');
     setAddProductError(null);
+    setEditingProduct(null);
+  };
+
+  const handleOpenEditModal = (product: InventoryProduct) => {
+    setEditingProduct(product);
+    setProductCode(product.code || '');
+    setProductName(product.product || '');
+    setProductDescription(product.specifications || '');
+    setProductQuantity(String(product.inventory_quantity ?? ''));
+    setProductMinQuantity(product.min_quantity != null ? String(product.min_quantity) : '');
+    setProductUnityId(product.unity_id ?? undefined);
+    setProductCategoryId(product.equipaments_types_id ?? undefined);
+    setProductManufacturerId(product.manufacturers_id ?? undefined);
+    setProductProjectId(product.projects_id ?? projectsInfo?.id);
+    setNcmCode(product.ncm_code || '');
+    setCestCode(product.cest_code || '');
+    setOriginIndicator(product.origin_indicator != null ? String(product.origin_indicator) : '');
+    setCustodyType(product.custody_type || '');
+    setCostPrice(product.cost_price != null ? String(product.cost_price) : '');
+    setBatchLot(product.batch_lot || '');
+    setFiscalClassification(product.fiscal_classification || '');
+    setBarcodeField(product.barcode || '');
+    const hasBlocoK = !!(product.ncm_code || product.cest_code || product.origin_indicator != null || product.custody_type || product.cost_price != null || product.batch_lot || product.fiscal_classification || product.barcode);
+    setShowBlocoK(hasBlocoK);
+    setAddProductError(null);
+    setShowAddModal(true);
+  };
+
+  const handleEditProduct = async () => {
+    if (!editingProduct || !productName.trim()) return;
+    setAddProductError(null);
+    setModalLoading(true);
+    try {
+      await inventoryApi.editProduct(editingProduct.id, {
+        projects_id: productProjectId || projectsInfo?.id,
+        code: productCode.trim() || undefined,
+        product: productName.trim(),
+        specifications: productDescription.trim() || undefined,
+        inventory_quantity: productQuantity ? parseInt(productQuantity, 10) : 0,
+        min_quantity: productMinQuantity ? parseInt(productMinQuantity, 10) : undefined,
+        unity_id: productUnityId || undefined,
+        equipaments_types_id: productCategoryId || undefined,
+        manufacturers_id: productManufacturerId || undefined,
+        ncm_code: ncmCode.trim() || undefined,
+        cest_code: cestCode.trim() || undefined,
+        origin_indicator: originIndicator ? parseInt(originIndicator, 10) : undefined,
+        custody_type: custodyType || undefined,
+        cost_price: costPrice ? parseFloat(costPrice) : undefined,
+        batch_lot: batchLot.trim() || undefined,
+        fiscal_classification: fiscalClassification.trim() || undefined,
+        barcode: barcodeField.trim() || undefined,
+      });
+      resetAddForm();
+      setShowAddModal(false);
+      loadProducts();
+    } catch (err) {
+      console.error('Failed to edit product:', err);
+      setAddProductError('Erro ao salvar alterações. Verifique os dados e tente novamente.');
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleAddProduct = async () => {
@@ -511,6 +573,9 @@ export default function Inventory() {
                         >
                           <MinusCircle size={16} color="var(--color-warning)" />
                         </button>
+                        <button className="btn btn-icon" title={t('common.edit')} onClick={() => handleOpenEditModal(product)}>
+                          <Pencil size={16} color="var(--color-primary)" />
+                        </button>
                         <button className="btn btn-icon" title={t('inventory.viewLogs')} onClick={() => handleViewLogs(product.id)}>
                           <History size={16} color="var(--color-primary)" />
                         </button>
@@ -542,7 +607,9 @@ export default function Inventory() {
       {showAddModal && (
         <div className="modal-backdrop" onClick={() => { setShowAddModal(false); resetAddForm(); setAddProductError(null); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', minWidth: '320px', maxWidth: '600px', width: '90%', maxHeight: '85vh', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px' }}>{t('inventory.addProduct')}</h3>
+            <h3 style={{ marginBottom: '16px' }}>
+              {editingProduct ? t('inventory.editProduct', 'Editar Produto') : t('inventory.addProduct')}
+            </h3>
             {/* Project selector */}
             <div className="input-group" style={{ marginBottom: '4px' }}>
               <label>{t('projects.title', 'Projeto')}</label>
@@ -750,7 +817,11 @@ export default function Inventory() {
                 </span>
               )}
               <button className="btn btn-secondary" onClick={() => { setShowAddModal(false); resetAddForm(); setAddProductError(null); }}>{t('common.cancel')}</button>
-              <button className="btn btn-primary" onClick={handleAddProduct} disabled={modalLoading}>
+              <button
+                className="btn btn-primary"
+                onClick={editingProduct ? handleEditProduct : handleAddProduct}
+                disabled={modalLoading}
+              >
                 {modalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
             </div>

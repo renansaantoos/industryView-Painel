@@ -32,7 +32,10 @@ export async function getProduct(productId: number): Promise<InventoryProduct> {
 
 /** Update product */
 export async function editProduct(productId: number, data: Record<string, unknown>): Promise<InventoryProduct> {
-  const response = await apiClient.patch(`${INVENTORY_BASE}/products/${productId}`, data);
+  const response = await apiClient.patch(`${INVENTORY_BASE}/products/${productId}`, {
+    ...data,
+    product_inventory_id: productId,
+  });
   return response.data;
 }
 
@@ -44,7 +47,11 @@ export async function deleteProduct(productId: number): Promise<void> {
 /** Get all inventory statuses */
 export async function getAllStatuses(): Promise<{ id: number; status: string }[]> {
   const response = await apiClient.get(`${INVENTORY_BASE}/status`);
-  return response.data;
+  const data = response.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
 }
 
 /** Add quantity - uses product_inventory_id */

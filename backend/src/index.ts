@@ -144,7 +144,19 @@ app.use(defaultRateLimiter);
 
 const API_PREFIX = `/api/${config.app.apiVersion}`;
 
-// Health check endpoint
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     description: Returns the health status of the API and database
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ *       503:
+ *         description: API or Database is unhealthy
+ */
 app.get('/health', async (_req: Request, res: Response) => {
   const dbHealthy = await checkDatabaseHealth();
 
@@ -163,7 +175,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: 'IndustryView API Documentation',
 }));
 
-// Users aliases (must be BEFORE main routes to avoid /:users_id capture)
+/**
+ * @swagger
+ * /users/users_roles:
+ *   get:
+ *     summary: List all user roles
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: List of roles
+ */
 app.get(`${API_PREFIX}/users/users_roles`, async (_req, res, next) => {
   try {
     const { db } = await import('./config/database');
@@ -228,7 +249,16 @@ app.post(`${API_PREFIX}/users/users`, upload.none(), (req, res, next) => {
   usersRoutes(req, res, next);
 });
 
-// Projects aliases (must be BEFORE main routes to avoid /:projects_id capture)
+/**
+ * @swagger
+ * /projects/equipaments_types:
+ *   get:
+ *     summary: List all equipment types
+ *     tags: [Projects]
+ *     responses:
+ *       200:
+ *         description: List of equipment types
+ */
 app.get(`${API_PREFIX}/projects/equipaments_types`, async (_req, res, next) => {
   try {
     const { db } = await import('./config/database');
@@ -475,6 +505,27 @@ const fileUpload = multer({
   },
 });
 
+/**
+ * @swagger
+ * /uploads:
+ *   post:
+ *     summary: Upload a file
+ *     tags: [System]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: File uploaded successfully
+ */
 app.post(`${API_PREFIX}/uploads`, authenticate, fileUpload.single('file'), (req: Request, res: Response) => {
   const file = req.file;
   if (!file) {
