@@ -54,10 +54,14 @@ COPY --from=builder /app/package.json ./
 # Copia schema Prisma (necessario para migrations em runtime)
 COPY --from=builder /app/prisma ./prisma
 
+# Copia entrypoint script
+COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
+
 # Define usuario nao-root para seguranca
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+    chown -R nodejs:nodejs /app && \
+    chmod +x /app/entrypoint.sh
 
 USER nodejs
 
@@ -68,7 +72,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Script de entrypoint: aplica migrations pendentes e inicia o servidor.
-# prisma migrate deploy e idempotente (nao falha se nao houver migracao pendente).
-# Se DIRECT_URL nao estiver definida, usa DATABASE_URL como fallback (necessario para Prisma directUrl).
-CMD ["sh", "-c", "export DIRECT_URL=${DIRECT_URL:-$DATABASE_URL} && npx prisma migrate deploy && npm start"]
+# Entrypoint: configura DIRECT_URL fallback, aplica migrations e inicia o servidor
+ENTRYPOINT ["/app/entrypoint.sh"]
