@@ -898,13 +898,15 @@ export default function SafetyIncidents() {
                               <Shield size={15} color="var(--color-success)" />
                             </button>
                           )}
-                          <button
-                            className="btn btn-icon"
-                            title={t('common.delete')}
-                            onClick={() => setDeleteConfirm(incident.id)}
-                          >
-                            <Trash2 size={15} color="var(--color-error)" />
-                          </button>
+                          {incident.status !== 'em_investigacao' && incident.status !== 'encerrado' && (
+                            <button
+                              className="btn btn-icon"
+                              title={t('common.delete')}
+                              onClick={() => setDeleteConfirm(incident.id)}
+                            >
+                              <Trash2 size={15} color="var(--color-error)" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </motion.tr>

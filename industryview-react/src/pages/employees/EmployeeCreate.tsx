@@ -62,7 +62,7 @@ const EMPTY_HR_FORM: HrFormData = {
   nome_completo: '', cpf: '', rg: '', rg_orgao_emissor: '', rg_data_emissao: '', data_nascimento: '',
   genero: '', estado_civil: '', nacionalidade: '', naturalidade: '', nome_mae: '', nome_pai: '',
   cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
-  matricula: '', data_admissao: '', data_demissao: '', tipo_contrato: '', cargo: '', departamento: '',
+  matricula: '', data_admissao: '', data_demissao: '', tipo_contrato: '', cargo: '', senioridade: '', nivel: '', departamento: '',
   salario: undefined, jornada_trabalho: '', pis_pasep: '', ctps_numero: '', ctps_serie: '', ctps_uf: '',
   cnh_numero: '', cnh_categoria: '', cnh_validade: '',
   banco_nome: '', banco_agencia: '', banco_conta: '', banco_tipo_conta: '', banco_pix: '',
@@ -325,6 +325,14 @@ export default function EmployeeCreate() {
       }
     }
 
+    // ── Date validations ──
+    if (form.rg_data_emissao && form.rg_data_emissao > TODAY_DATE) {
+      errors.rg_data_emissao = 'Data de emissão do RG não pode ser futura';
+    }
+    if (form.data_nascimento && form.data_nascimento > TODAY_DATE) {
+      errors.data_nascimento = 'Data de nascimento não pode ser futura';
+    }
+
     // ── Format validations ──
     const cpfRaw = form.cpf?.replace(/\D/g, '') ?? '';
     if (cpfRaw && !isValidCpf(cpfRaw)) {
@@ -402,11 +410,12 @@ export default function EmployeeCreate() {
     );
   }
 
-  function dateInput(field: keyof HrFormData) {
+  function dateInput(field: keyof HrFormData, max?: string) {
     const err = fieldErrors[field];
     return (
       <input className={`input-field${err ? ' error' : ''}`} type="date"
         value={(form[field] as string | undefined) ?? ''}
+        max={max}
         onChange={e => handleChange(field, e.target.value)} />
     );
   }
@@ -481,8 +490,8 @@ export default function EmployeeCreate() {
               onChange={e => handleChange('rg', maskRg(e.target.value))} />
           </Field>
           <Field label="Órgão Emissor RG">{textInput('rg_orgao_emissor', 'Ex: SSP-SP')}</Field>
-          <Field label="Data Emissão RG">{dateInput('rg_data_emissao')}</Field>
-          <Field label="Data de Nascimento" required error={fieldErrors.data_nascimento}>{dateInput('data_nascimento')}</Field>
+          <Field label="Data Emissão RG" error={fieldErrors.rg_data_emissao}>{dateInput('rg_data_emissao', TODAY_DATE)}</Field>
+          <Field label="Data de Nascimento" required error={fieldErrors.data_nascimento}>{dateInput('data_nascimento', TODAY_DATE)}</Field>
           <Field label="Gênero">
             {selectInput('genero', [
               { value: 'masculino', label: 'Masculino' }, { value: 'feminino', label: 'Feminino' },
@@ -536,6 +545,17 @@ export default function EmployeeCreate() {
             ], 'Selecione')}
           </Field>
           <Field label="Cargo" required error={fieldErrors.cargo}>{textInput('cargo')}</Field>
+          <Field label="Senioridade">
+            {selectInput('senioridade', [
+              { value: 'JR', label: 'JR' }, { value: 'PL', label: 'PL' }, { value: 'SR', label: 'SR' },
+            ], 'Selecione')}
+          </Field>
+          <Field label="Nível">
+            {selectInput('nivel', [
+              { value: 'I', label: 'I' }, { value: 'II', label: 'II' }, { value: 'III', label: 'III' },
+              { value: 'IV', label: 'IV' }, { value: 'V', label: 'V' },
+            ], 'Selecione')}
+          </Field>
           <Field label="Departamento">{textInput('departamento')}</Field>
           <Field label="Salário (R$)">
             <input className="input-field" type="text" inputMode="numeric"

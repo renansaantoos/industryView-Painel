@@ -329,6 +329,16 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
   }, [form.cep]);
 
   async function handleSave() {
+    const todayIso = getTodayIsoDate();
+    if (form.rg_data_emissao && form.rg_data_emissao > todayIso) {
+      showToast('Data de emissão do RG não pode ser futura.', 'error');
+      return;
+    }
+    if (form.data_nascimento && form.data_nascimento > todayIso) {
+      showToast('Data de nascimento não pode ser futura.', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const dateFields = new Set([
