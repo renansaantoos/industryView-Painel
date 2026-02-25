@@ -12,6 +12,9 @@ import {
   createClientSchema,
   updateClientSchema,
   clientIdParamSchema,
+  createClientUnitSchema,
+  updateClientUnitSchema,
+  clientUnitIdParamSchema,
 } from './clients.schema';
 
 /**
@@ -101,6 +104,68 @@ export class ClientsController {
       const company_id = req.user?.companyId ?? undefined;
       await ClientsService.deleteClient(id, company_id);
       res.json({ message: 'Cliente excluido com sucesso.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Units — List
+  // ===========================================================================
+
+  static async listUnits(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = clientIdParamSchema.parse(req.params);
+      const company_id = req.user?.companyId ?? undefined;
+      const result = await ClientsService.listUnits(id, company_id);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Units — Create
+  // ===========================================================================
+
+  static async createUnit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = clientIdParamSchema.parse(req.params);
+      const data = createClientUnitSchema.parse(req.body);
+      const company_id = req.user?.companyId ?? undefined;
+      const result = await ClientsService.createUnit(id, data, company_id);
+      res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Units — Update
+  // ===========================================================================
+
+  static async updateUnit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id, unitId } = clientUnitIdParamSchema.parse(req.params);
+      const data = updateClientUnitSchema.parse(req.body);
+      const company_id = req.user?.companyId ?? undefined;
+      const result = await ClientsService.updateUnit(id, unitId, data, company_id);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Units — Delete
+  // ===========================================================================
+
+  static async deleteUnit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id, unitId } = clientUnitIdParamSchema.parse(req.params);
+      const company_id = req.user?.companyId ?? undefined;
+      await ClientsService.deleteUnit(id, unitId, company_id);
+      res.json({ message: 'Unidade excluida com sucesso.' });
     } catch (error) {
       next(error);
     }

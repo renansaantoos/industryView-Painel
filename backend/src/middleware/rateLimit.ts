@@ -38,6 +38,7 @@ export const authRateLimiter = rateLimit({
   max: 5, // 5 tentativas
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => config.app.isDevelopment,
   message: {
     error: true,
     code: 'TOO_MANY_REQUESTS',

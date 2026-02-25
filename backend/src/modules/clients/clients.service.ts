@@ -10,6 +10,8 @@ import {
   ListClientsInput,
   CreateClientInput,
   UpdateClientInput,
+  CreateClientUnitInput,
+  UpdateClientUnitInput,
 } from './clients.schema';
 
 /**
@@ -74,6 +76,9 @@ export class ClientsService {
         orderBy: { created_at: 'desc' },
         skip,
         take: per_page,
+        include: {
+          units: { orderBy: [{ unit_type: 'asc' }, { created_at: 'asc' }] },
+        },
       }),
       db.clients.count({ where: whereClause }),
     ]);
@@ -97,7 +102,10 @@ export class ClientsService {
       whereClause.company_id = BigInt(company_id);
     }
 
-    const client = await db.clients.findFirst({ where: whereClause });
+    const client = await db.clients.findFirst({
+      where: whereClause,
+      include: { units: { orderBy: [{ unit_type: 'asc' }, { created_at: 'asc' }] } },
+    });
 
     if (!client) {
       throw new NotFoundError('Cliente nao encontrado.');
@@ -293,6 +301,91 @@ export class ClientsService {
       where: { id: BigInt(id) },
       data: { deleted_at: new Date() },
     });
+  }
+
+  // ===========================================================================
+  // Units — List
+  // ===========================================================================
+
+  static async listUnits(clientId: number, company_id?: number) {
+    // Verifica que o cliente pertence a empresa
+    await ClientsService.getClient(clientId, company_id);
+
+    return db.client_units.findMany({
+      where: { client_id: BigInt(clientId) },
+      orderBy: [{ unit_type: 'asc' }, { created_at: 'asc' }],
+    });
+  }
+
+  // ===========================================================================
+  // Units — Create
+  // ===========================================================================
+
+  static async createUnit(clientId: number, data: CreateClientUnitInput, company_id?: number) {
+    await ClientsService.getClient(clientId, company_id);
+
+    return db.client_units.create({
+      data: {
+        client_id:    BigInt(clientId),
+        unit_type:    data.unit_type,
+        label:        data.label ?? null,
+        cnpj:         data.cnpj ?? null,
+        address:      data.address ?? null,
+        number:       data.number ?? null,
+        complement:   data.complement ?? null,
+        neighborhood: data.neighborhood ?? null,
+        city:         data.city ?? null,
+        state:        data.state ?? null,
+        cep:          data.cep ?? null,
+      },
+    });
+  }
+
+  // ===========================================================================
+  // Units — Update
+  // ===========================================================================
+
+  static async updateUnit(clientId: number, unitId: number, data: UpdateClientUnitInput, company_id?: number) {
+    await ClientsService.getClient(clientId, company_id);
+
+    const unit = await db.client_units.findFirst({
+      where: { id: BigInt(unitId), client_id: BigInt(clientId) },
+    });
+
+    if (!unit) throw new NotFoundError('Unidade nao encontrada.');
+
+    return db.client_units.update({
+      where: { id: BigInt(unitId) },
+      data: {
+        ...(data.unit_type    !== undefined && { unit_type: data.unit_type }),
+        ...(data.label        !== undefined && { label: data.label ?? null }),
+        ...(data.cnpj         !== undefined && { cnpj: data.cnpj ?? null }),
+        ...(data.address      !== undefined && { address: data.address ?? null }),
+        ...(data.number       !== undefined && { number: data.number ?? null }),
+        ...(data.complement   !== undefined && { complement: data.complement ?? null }),
+        ...(data.neighborhood !== undefined && { neighborhood: data.neighborhood ?? null }),
+        ...(data.city         !== undefined && { city: data.city ?? null }),
+        ...(data.state        !== undefined && { state: data.state ?? null }),
+        ...(data.cep          !== undefined && { cep: data.cep ?? null }),
+        updated_at: new Date(),
+      },
+    });
+  }
+
+  // ===========================================================================
+  // Units — Delete
+  // ===========================================================================
+
+  static async deleteUnit(clientId: number, unitId: number, company_id?: number) {
+    await ClientsService.getClient(clientId, company_id);
+
+    const unit = await db.client_units.findFirst({
+      where: { id: BigInt(unitId), client_id: BigInt(clientId) },
+    });
+
+    if (!unit) throw new NotFoundError('Unidade nao encontrada.');
+
+    return db.client_units.delete({ where: { id: BigInt(unitId) } });
   }
 }
 

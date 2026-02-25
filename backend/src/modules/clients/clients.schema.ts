@@ -100,10 +100,36 @@ export const clientIdParamSchema = z.object({
 });
 
 // =============================================================================
+// Client Units (Matriz / Filiais)
+// =============================================================================
+
+export const createClientUnitSchema = z.object({
+  unit_type:    z.enum(['MATRIZ', 'FILIAL'], { required_error: 'Tipo de unidade e obrigatorio' }),
+  label:        z.string().trim().optional(),
+  cnpj:         z.string().trim().max(18).optional(),
+  address:      z.string().trim().optional(),
+  number:       z.string().trim().max(20).optional(),
+  complement:   z.string().trim().optional(),
+  neighborhood: z.string().trim().optional(),
+  city:         z.string().trim().optional(),
+  state:        z.string().trim().max(2).optional(),
+  cep:          z.string().trim().max(9).optional(),
+});
+
+export const updateClientUnitSchema = createClientUnitSchema.partial();
+
+export const clientUnitIdParamSchema = z.object({
+  id:     z.coerce.number().int().min(1),
+  unitId: z.coerce.number().int().min(1),
+});
+
+// =============================================================================
 // Tipos exportados
 // =============================================================================
 
-export type ListClientsInput = z.infer<typeof listClientsSchema>;
-export type CreateClientInput = z.infer<typeof createClientSchema>;
-export type UpdateClientInput = z.infer<typeof updateClientSchema>;
-export type ClientIdParamInput = z.infer<typeof clientIdParamSchema>;
+export type ListClientsInput      = z.infer<typeof listClientsSchema>;
+export type CreateClientInput     = z.infer<typeof createClientSchema>;
+export type UpdateClientInput     = z.infer<typeof updateClientSchema>;
+export type ClientIdParamInput    = z.infer<typeof clientIdParamSchema>;
+export type CreateClientUnitInput = z.infer<typeof createClientUnitSchema>;
+export type UpdateClientUnitInput = z.infer<typeof updateClientUnitSchema>;

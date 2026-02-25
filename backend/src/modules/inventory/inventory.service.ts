@@ -228,7 +228,7 @@ export class InventoryService {
         inventory_quantity: inventory_quantity || 0,
         min_quantity: min_quantity || 0,
         unity_id: unity_id ? BigInt(unity_id) : null,
-        status_inventory_id: status_inventory_id ? BigInt(status_inventory_id) : BigInt(1),
+        status_inventory_id: status_inventory_id ? BigInt(status_inventory_id) : null,
         equipaments_types_id: equipaments_types_id ? BigInt(equipaments_types_id) : null,
         manufacturers_id: manufacturers_id ? BigInt(manufacturers_id) : null,
         projects_id: projects_id ? BigInt(projects_id) : null,
