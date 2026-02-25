@@ -24,6 +24,7 @@ export interface SafetyIncident {
   updated_at: string;
   reporter_name?: string;
   investigator_name?: string;
+  involved_user_name?: string;
   witnesses?: SafetyIncidentWitness[];
   attachments?: SafetyIncidentAttachment[];
 }

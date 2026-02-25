@@ -75,6 +75,11 @@ export async function createIncident(data: {
   return response.data;
 }
 
+/** Delete an incident */
+export async function deleteIncident(id: number): Promise<void> {
+  await apiClient.delete(`${SAFETY_BASE}/incidents/${id}`);
+}
+
 /** Partially update an incident */
 export async function updateIncident(
   id: number,
