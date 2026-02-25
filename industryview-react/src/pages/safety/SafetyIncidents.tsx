@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -8,6 +8,7 @@ import { safetyApi, projectsApi, usersApi } from '../../services';
 import type { SafetyIncident, SafetyIncidentStatistics, ProjectInfo, UserListItem } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
+import SortableHeader from '../../components/common/SortableHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
@@ -149,6 +150,21 @@ export default function SafetyIncidents() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
+  // ── Sort state ─────────────────────────────────────────────────────────────
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortField(null); setSortDirection(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   // Statistics
   const [stats, setStats] = useState<SafetyIncidentStatistics | null>(null);
 
@@ -237,6 +253,14 @@ export default function SafetyIncidents() {
     doenca_ocupacional: t('safety.classOccupational', 'Doenca Ocupacional'),
   };
 
+  const projectMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    allProjects.forEach((p) => {
+      map[p.id] = p.name;
+    });
+    return map;
+  }, [allProjects]);
+
   useEffect(() => {
     setNavBarSelection(14);
   }, []);
@@ -245,10 +269,10 @@ export default function SafetyIncidents() {
   useEffect(() => {
     projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
       setAllProjects(data.items ?? []);
-    }).catch(() => {});
+    }).catch(() => { });
     usersApi.getAllUsersDropdown().then((data) => {
       setAllUsers(data ?? []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // ── Data loading ────────────────────────────────────────────────────────────
@@ -743,11 +767,12 @@ export default function SafetyIncidents() {
             <thead>
               <tr>
                 <th style={{ width: '36px' }} />
-                <th>{t('common.date')}</th>
-                <th>{t('common.description')}</th>
-                <th>{t('safety.severity')}</th>
-                <th>{t('safety.classification')}</th>
-                <th>{t('common.status')}</th>
+                <SortableHeader label={t('common.project')} field="project" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('common.date')} field="date" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('common.description')} field="description" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('safety.severity')} field="severity" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('safety.classification')} field="classification" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('common.status')} field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
@@ -760,9 +785,39 @@ export default function SafetyIncidents() {
                     (inc.location_description || '').toLowerCase().includes(search.toLowerCase()) ||
                     (inc.classification || '').toLowerCase().includes(search.toLowerCase()),
                 )
+                .sort((a, b) => {
+                  if (!sortField || !sortDirection) return 0;
+
+                  let aVal: string | number = '';
+                  let bVal: string | number = '';
+
+                  if (sortField === 'project') {
+                    aVal = (projectMap[a.projects_id] || '').toLowerCase();
+                    bVal = (projectMap[b.projects_id] || '').toLowerCase();
+                  } else if (sortField === 'date') {
+                    aVal = a.incident_date || '';
+                    bVal = b.incident_date || '';
+                  } else if (sortField === 'description') {
+                    aVal = (a.description || '').toLowerCase();
+                    bVal = (b.description || '').toLowerCase();
+                  } else if (sortField === 'severity') {
+                    aVal = (severityLabel[a.severity] || '').toLowerCase();
+                    bVal = (severityLabel[b.severity] || '').toLowerCase();
+                  } else if (sortField === 'classification') {
+                    aVal = (classificationLabel[a.classification] || '').toLowerCase();
+                    bVal = (classificationLabel[b.classification] || '').toLowerCase();
+                  } else if (sortField === 'status') {
+                    aVal = (statusLabel[a.status] || '').toLowerCase();
+                    bVal = (statusLabel[b.status] || '').toLowerCase();
+                  }
+
+                  if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                  if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                  return 0;
+                })
                 .map((incident) => (
-                  <>
-                    <motion.tr key={incident.id} variants={tableRowVariants}>
+                  <Fragment key={incident.id}>
+                    <motion.tr variants={tableRowVariants}>
                       {/* Expand toggle */}
                       <td style={{ padding: '8px', textAlign: 'center' }}>
                         <button
@@ -779,6 +834,7 @@ export default function SafetyIncidents() {
                           )}
                         </button>
                       </td>
+                      <td>{projectMap[incident.projects_id] || '-'}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         {formatDate(incident.incident_date)}
                       </td>
@@ -881,241 +937,242 @@ export default function SafetyIncidents() {
                               <span className="spinner" />
                             </div>
                           ) : (
-                          <div
-                            style={{
-                              padding: '16px 24px',
-                              background: 'var(--color-secondary)',
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                              gap: '16px',
-                            }}
-                          >
-                            {/* Root cause & actions */}
-                            {incident.root_cause && (
-                              <div>
-                                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  {t('safety.rootCause')}
-                                </div>
-                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>{incident.root_cause}</p>
-                              </div>
-                            )}
-                            {incident.corrective_actions && (
-                              <div>
-                                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  {t('safety.correctiveActions')}
-                                </div>
-                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>{incident.corrective_actions}</p>
-                              </div>
-                            )}
-
-                            {/* Witnesses */}
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                <Users size={13} />
-                                {t('common.witnesses', 'Testemunhas')}
-                                {incident.status !== 'encerrado' && (
-                                  <button
-                                    className="btn btn-icon"
-                                    title={t('safety.addWitness', 'Adicionar testemunha')}
-                                    onClick={() => { setShowWitnessForm(!showWitnessForm); setShowAttachmentForm(false); }}
-                                    style={{ marginLeft: '4px', padding: '2px' }}
-                                  >
-                                    <Plus size={14} color="var(--color-primary)" />
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Witness list */}
-                              {expandedDetail?.witnesses && expandedDetail.witnesses.length > 0 ? (
-                                expandedDetail.witnesses.map((w) => (
-                                  <div key={w.id} style={{ fontSize: '13px', color: 'var(--color-primary-text)', marginBottom: '4px' }}>
-                                    {w.witness_name}
-                                    {w.witness_role && (
-                                      <span style={{ color: 'var(--color-secondary-text)', fontSize: '11px', marginLeft: '6px' }}>({w.witness_role})</span>
-                                    )}
-                                    {w.witness_statement && (
-                                      <span style={{ color: 'var(--color-secondary-text)' }}>{' \u2014 '}{w.witness_statement}</span>
-                                    )}
+                            <div
+                              style={{
+                                padding: '16px 24px',
+                                background: 'var(--color-secondary)',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                gap: '16px',
+                              }}
+                            >
+                              {/* Root cause & actions */}
+                              {incident.root_cause && (
+                                <div>
+                                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {t('safety.rootCause')}
                                   </div>
-                                ))
-                              ) : (
-                                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                                  {t('safety.noWitnesses', 'Nenhuma testemunha registrada')}
-                                </span>
+                                  <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>{incident.root_cause}</p>
+                                </div>
+                              )}
+                              {incident.corrective_actions && (
+                                <div>
+                                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {t('safety.correctiveActions')}
+                                  </div>
+                                  <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>{incident.corrective_actions}</p>
+                                </div>
                               )}
 
-                              {/* Add witness form */}
-                              {showWitnessForm && (
-                                <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
-                                  <input
-                                    className="input-field"
-                                    placeholder={t('safety.witnessName', 'Nome da testemunha *')}
-                                    value={witnessName}
-                                    onChange={(e) => setWitnessName(e.target.value)}
-                                    style={{ marginBottom: '6px', fontSize: '12px' }}
-                                  />
-                                  <input
-                                    className="input-field"
-                                    placeholder={t('safety.witnessStatement', 'Depoimento (opcional)')}
-                                    value={witnessStatement}
-                                    onChange={(e) => setWitnessStatement(e.target.value)}
-                                    style={{ marginBottom: '8px', fontSize: '12px' }}
-                                  />
-                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                    <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowWitnessForm(false); setWitnessName(''); setWitnessStatement(''); }}>
-                                      {t('common.cancel')}
-                                    </button>
+                              {/* Witnesses */}
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  <Users size={13} />
+                                  {t('common.witnesses', 'Testemunhas')}
+                                  {incident.status !== 'encerrado' && (
                                     <button
-                                      className="btn btn-primary"
-                                      style={{ fontSize: '11px', padding: '4px 10px' }}
-                                      onClick={() => handleAddWitness(incident.id)}
-                                      disabled={witnessLoading || !witnessName.trim()}
+                                      className="btn btn-icon"
+                                      title={t('safety.addWitness', 'Adicionar testemunha')}
+                                      onClick={() => { setShowWitnessForm(!showWitnessForm); setShowAttachmentForm(false); }}
+                                      style={{ marginLeft: '4px', padding: '2px' }}
                                     >
-                                      {witnessLoading ? <span className="spinner" /> : t('common.add', 'Adicionar')}
+                                      <Plus size={14} color="var(--color-primary)" />
                                     </button>
-                                  </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
 
-                            {/* Attachments */}
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                <Paperclip size={13} />
-                                {t('common.attachments', 'Anexos')}
-                                {incident.status !== 'encerrado' && (
-                                  <button
-                                    className="btn btn-icon"
-                                    title={t('safety.addAttachment', 'Adicionar anexo')}
-                                    onClick={() => { setShowAttachmentForm(!showAttachmentForm); setShowWitnessForm(false); }}
-                                    style={{ marginLeft: '4px', padding: '2px' }}
-                                  >
-                                    <Plus size={14} color="var(--color-primary)" />
-                                  </button>
+                                {/* Witness list */}
+                                {expandedDetail?.witnesses && expandedDetail.witnesses.length > 0 ? (
+                                  expandedDetail.witnesses.map((w) => (
+                                    <div key={w.id} style={{ fontSize: '13px', color: 'var(--color-primary-text)', marginBottom: '4px' }}>
+                                      {w.witness_name}
+                                      {w.witness_role && (
+                                        <span style={{ color: 'var(--color-secondary-text)', fontSize: '11px', marginLeft: '6px' }}>({w.witness_role})</span>
+                                      )}
+                                      {w.witness_statement && (
+                                        <span style={{ color: 'var(--color-secondary-text)' }}>{' \u2014 '}{w.witness_statement}</span>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                                    {t('safety.noWitnesses', 'Nenhuma testemunha registrada')}
+                                  </span>
                                 )}
-                              </div>
 
-                              {/* Attachment list */}
-                              {expandedDetail?.attachments && expandedDetail.attachments.length > 0 ? (
-                                expandedDetail.attachments.map((att) => (
-                                  <div key={att.id} style={{ fontSize: '13px', marginBottom: '4px' }}>
-                                    <a href={att.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                      <FileText size={12} />
-                                      {att.description || att.file_url.split('/').pop() || 'Anexo'}
-                                    </a>
-                                    {att.file_type && (
-                                      <span style={{ color: 'var(--color-secondary-text)', fontSize: '11px', marginLeft: '6px' }}>
-                                        ({att.file_type.split('/').pop()?.toUpperCase()})
-                                      </span>
-                                    )}
-                                  </div>
-                                ))
-                              ) : (
-                                <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                                  {t('safety.noAttachments', 'Nenhum anexo registrado')}
-                                </span>
-                              )}
-
-                              {/* Add attachment form */}
-                              {showAttachmentForm && (
-                                <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
-                                  <label
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '8px',
-                                      padding: '10px 14px',
-                                      border: '2px dashed var(--color-alternate)',
-                                      borderRadius: '6px',
-                                      cursor: 'pointer',
-                                      fontSize: '12px',
-                                      color: 'var(--color-secondary-text)',
-                                      marginBottom: '8px',
-                                      transition: 'border-color 0.2s',
-                                    }}
-                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
-                                    onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-alternate)'; }}
-                                    onDrop={(e) => {
-                                      e.preventDefault();
-                                      e.currentTarget.style.borderColor = 'var(--color-alternate)';
-                                      const droppedFile = e.dataTransfer.files[0];
-                                      if (droppedFile) setAttachmentFile(droppedFile);
-                                    }}
-                                  >
-                                    <Paperclip size={16} />
-                                    {attachmentFile ? (
-                                      <span style={{ color: 'var(--color-primary-text)' }}>
-                                        {attachmentFile.name}
-                                        <span style={{ color: 'var(--color-secondary-text)', marginLeft: '6px' }}>
-                                          ({(attachmentFile.size / 1024).toFixed(0)} KB)
-                                        </span>
-                                      </span>
-                                    ) : (
-                                      t('safety.dropOrClickFile', 'Clique para selecionar ou arraste um arquivo aqui')
-                                    )}
+                                {/* Add witness form */}
+                                {showWitnessForm && (
+                                  <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
                                     <input
-                                      type="file"
-                                      style={{ display: 'none' }}
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) setAttachmentFile(f);
-                                      }}
+                                      className="input-field"
+                                      placeholder={t('safety.witnessName', 'Nome da testemunha *')}
+                                      value={witnessName}
+                                      onChange={(e) => setWitnessName(e.target.value)}
+                                      style={{ marginBottom: '6px', fontSize: '12px' }}
                                     />
-                                  </label>
-                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                    <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowAttachmentForm(false); setAttachmentFile(null); }}>
-                                      {t('common.cancel')}
-                                    </button>
-                                    <button
-                                      className="btn btn-primary"
-                                      style={{ fontSize: '11px', padding: '4px 10px' }}
-                                      onClick={() => handleAddAttachment(incident.id)}
-                                      disabled={attachmentLoading || !attachmentFile}
-                                    >
-                                      {attachmentLoading ? <span className="spinner" /> : t('safety.uploadFile', 'Enviar arquivo')}
-                                    </button>
+                                    <input
+                                      className="input-field"
+                                      placeholder={t('safety.witnessStatement', 'Depoimento (opcional)')}
+                                      value={witnessStatement}
+                                      onChange={(e) => setWitnessStatement(e.target.value)}
+                                      style={{ marginBottom: '8px', fontSize: '12px' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                      <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowWitnessForm(false); setWitnessName(''); setWitnessStatement(''); }}>
+                                        {t('common.cancel')}
+                                      </button>
+                                      <button
+                                        className="btn btn-primary"
+                                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                                        onClick={() => handleAddWitness(incident.id)}
+                                        disabled={witnessLoading || !witnessName.trim()}
+                                      >
+                                        {witnessLoading ? <span className="spinner" /> : t('common.add', 'Adicionar')}
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
+                                )}
 
-                            {/* Reporter, involved user & timestamps */}
-                            <div style={{ display: 'flex', gap: '48px', flexWrap: 'wrap' }}>
-                              <div>
-                                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  {t('safety.reportedBy', 'Reportado por')}
-                                </div>
-                                <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                  {incident.reporter_name || allUsers.find(u => u.id === incident.reported_by_user_id)?.name || `ID ${incident.reported_by_user_id}`}
-                                </p>
                               </div>
-                              {incident.involved_user_id && (
+
+                              {/* Attachments */}
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  <Paperclip size={13} />
+                                  {t('common.attachments', 'Anexos')}
+                                  {incident.status !== 'encerrado' && (
+                                    <button
+                                      className="btn btn-icon"
+                                      title={t('safety.addAttachment', 'Adicionar anexo')}
+                                      onClick={() => { setShowAttachmentForm(!showAttachmentForm); setShowWitnessForm(false); }}
+                                      style={{ marginLeft: '4px', padding: '2px' }}
+                                    >
+                                      <Plus size={14} color="var(--color-primary)" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Attachment list */}
+                                {expandedDetail?.attachments && expandedDetail.attachments.length > 0 ? (
+                                  expandedDetail.attachments.map((att) => (
+                                    <div key={att.id} style={{ fontSize: '13px', marginBottom: '4px' }}>
+                                      <a href={att.file_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <FileText size={12} />
+                                        {att.description || att.file_url.split('/').pop() || 'Anexo'}
+                                      </a>
+                                      {att.file_type && (
+                                        <span style={{ color: 'var(--color-secondary-text)', fontSize: '11px', marginLeft: '6px' }}>
+                                          ({att.file_type.split('/').pop()?.toUpperCase()})
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                                    {t('safety.noAttachments', 'Nenhum anexo registrado')}
+                                  </span>
+                                )}
+
+                                {/* Add attachment form */}
+                                {showAttachmentForm && (
+                                  <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
+                                    <label
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '10px 14px',
+                                        border: '2px dashed var(--color-alternate)',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        color: 'var(--color-secondary-text)',
+                                        marginBottom: '8px',
+                                        transition: 'border-color 0.2s',
+                                      }}
+                                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
+                                      onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-alternate)'; }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.currentTarget.style.borderColor = 'var(--color-alternate)';
+                                        const droppedFile = e.dataTransfer.files[0];
+                                        if (droppedFile) setAttachmentFile(droppedFile);
+                                      }}
+                                    >
+                                      <Paperclip size={16} />
+                                      {attachmentFile ? (
+                                        <span style={{ color: 'var(--color-primary-text)' }}>
+                                          {attachmentFile.name}
+                                          <span style={{ color: 'var(--color-secondary-text)', marginLeft: '6px' }}>
+                                            ({(attachmentFile.size / 1024).toFixed(0)} KB)
+                                          </span>
+                                        </span>
+                                      ) : (
+                                        t('safety.dropOrClickFile', 'Clique para selecionar ou arraste um arquivo aqui')
+                                      )}
+                                      <input
+                                        type="file"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => {
+                                          const f = e.target.files?.[0];
+                                          if (f) setAttachmentFile(f);
+                                        }}
+                                      />
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                      <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowAttachmentForm(false); setAttachmentFile(null); }}>
+                                        {t('common.cancel')}
+                                      </button>
+                                      <button
+                                        className="btn btn-primary"
+                                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                                        onClick={() => handleAddAttachment(incident.id)}
+                                        disabled={attachmentLoading || !attachmentFile}
+                                      >
+                                        {attachmentLoading ? <span className="spinner" /> : t('safety.uploadFile', 'Enviar arquivo')}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Reporter, involved user & timestamps */}
+                              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                                 <div>
                                   <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    {t('safety.involvedUser', 'Funcionario Envolvido')}
+                                    {t('safety.reportedBy', 'Reportado por')}
                                   </div>
                                   <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                    {incident.involved_user_name || allUsers.find(u => u.id === incident.involved_user_id)?.name || `ID ${incident.involved_user_id}`}
+                                    {incident.reporter_name || `ID ${incident.reported_by_user_id}`}
                                   </p>
                                 </div>
-                              )}
-                              {incident.closed_at && (
-                                <div>
-                                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    {t('safety.closedAt', 'Encerrado em')}
+                                {incident.involved_user_id && (
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                      {t('safety.involvedUser', 'Funcionario Envolvido')}
+                                    </div>
+                                    <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                                      {allUsers.find(u => u.id === incident.involved_user_id)?.name || `ID ${incident.involved_user_id}`}
+                                    </p>
                                   </div>
-                                  <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                    {formatDate(incident.closed_at)}
-                                  </p>
-                                </div>
-                              )}
+                                )}
+                                {incident.closed_at && (
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                      {t('safety.closedAt', 'Encerrado em')}
+                                    </div>
+                                    <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                                      {formatDate(incident.closed_at)}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
                           )}
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
             </motion.tbody>
           </table>

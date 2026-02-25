@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { workPermitsApi, projectsApi } from '../../services';
 import type { WorkPermit, WorkPermitSignature, ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
+import SortableHeader from '../../components/common/SortableHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
@@ -26,6 +27,7 @@ import {
   Wind,
   ShieldCheck,
   FileCheck,
+  User,
 } from 'lucide-react';
 
 // ── Status colour map ─────────────────────────────────────────────────────────
@@ -100,6 +102,29 @@ const PERMIT_TYPE_CONFIG: Record<string, PermitTypeConfig> = {
   },
 };
 
+const ROLE_CONFIG: Record<string, { bg: string; color: string; icon: React.ReactNode }> = {
+  solicitante: {
+    bg: '#eff6ff',
+    color: '#2563eb',
+    icon: <User size={12} />,
+  },
+  aprovador: {
+    bg: '#f0fdf4',
+    color: '#16a34a',
+    icon: <CheckCircle size={12} />,
+  },
+  cancelamento: {
+    bg: '#fef2f2',
+    color: '#dc2626',
+    icon: <XCircle size={12} />,
+  },
+  encerramento: {
+    bg: '#f8fafc',
+    color: '#475569',
+    icon: <StopCircle size={12} />,
+  },
+};
+
 const PERMIT_TYPE_OPTIONS = Object.entries(PERMIT_TYPE_CONFIG).map(([value, cfg]) => ({
   value,
   label: cfg.label,
@@ -125,6 +150,21 @@ export default function WorkPermits() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  // ── Sort state ─────────────────────────────────────────────────────────────
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') { setSortField(null); setSortDirection(null); }
+      else setSortDirection('asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   // ── Filters ─────────────────────────────────────────────────────────────────
   const [filterType, setFilterType] = useState('');
@@ -156,6 +196,51 @@ export default function WorkPermits() {
   // ── Toast ────────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<ToastState | null>(null);
 
+  const projectMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    allProjects.forEach((p) => {
+      map[p.id] = p.name;
+    });
+    return map;
+  }, [allProjects]);
+
+  // Client-side sort
+  const sortedPermits = useMemo(() => {
+    if (!sortField || !sortDirection) return permits;
+
+    return [...permits].sort((a, b) => {
+      let aVal: string | number = '';
+      let bVal: string | number = '';
+
+      if (sortField === 'project') {
+        aVal = (projectMap[a.projects_id || 0] || '').toLowerCase();
+        bVal = (projectMap[b.projects_id || 0] || '').toLowerCase();
+      } else if (sortField === 'id') {
+        aVal = a.id;
+        bVal = b.id;
+      } else if (sortField === 'type') {
+        aVal = PERMIT_TYPE_CONFIG[a.permit_type]?.label.toLowerCase() || '';
+        bVal = PERMIT_TYPE_CONFIG[b.permit_type]?.label.toLowerCase() || '';
+      } else if (sortField === 'location') {
+        aVal = (a.location || '').toLowerCase();
+        bVal = (b.location || '').toLowerCase();
+      } else if (sortField === 'status') {
+        aVal = (STATUS_COLOR_MAP[a.status]?.label || '').toLowerCase();
+        bVal = (STATUS_COLOR_MAP[b.status]?.label || '').toLowerCase();
+      } else if (sortField === 'valid_from') {
+        aVal = a.valid_from || '';
+        bVal = b.valid_from || '';
+      } else if (sortField === 'valid_until') {
+        aVal = a.valid_until || '';
+        bVal = b.valid_until || '';
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [permits, sortField, sortDirection, projectMap]);
+
   useEffect(() => {
     setNavBarSelection(17);
   }, []);
@@ -164,7 +249,7 @@ export default function WorkPermits() {
   useEffect(() => {
     projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
       setAllProjects(data.items ?? []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Pre-select project when projectsInfo changes
@@ -381,23 +466,24 @@ export default function WorkPermits() {
             <thead>
               <tr>
                 <th style={{ width: '36px' }} />
-                <th>ID</th>
-                <th>{t('workPermits.type')}</th>
-                <th>{t('workPermits.location')}</th>
-                <th>{t('workPermits.status')}</th>
-                <th>{t('workPermits.validFrom')}</th>
-                <th>{t('workPermits.validUntil')}</th>
+                <SortableHeader label={t('common.project')} field="project" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="ID" field="id" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('workPermits.type')} field="type" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('workPermits.location')} field="location" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('workPermits.status')} field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('workPermits.validFrom')} field="valid_from" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('workPermits.validUntil')} field="valid_until" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
-            <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {permits.map((permit) => {
+            <motion.tbody key={sortedPermits.map(p => p.id).join()} variants={staggerParent} initial="initial" animate="animate">
+              {sortedPermits.map((permit) => {
                 const typeCfg = PERMIT_TYPE_CONFIG[permit.permit_type] ?? PERMIT_TYPE_CONFIG.pt_geral;
                 const isLoadingAction = isActionLoading(permit.id);
 
                 return (
-                  <>
-                    <motion.tr key={permit.id} variants={tableRowVariants}>
+                  <Fragment key={permit.id}>
+                    <motion.tr variants={tableRowVariants}>
                       {/* Expand toggle */}
                       <td>
                         <button
@@ -411,6 +497,9 @@ export default function WorkPermits() {
                             <ChevronRight size={16} color="var(--color-secondary-text)" />
                           )}
                         </button>
+                      </td>
+                      <td style={{ fontSize: '13px', color: 'var(--color-secondary-text)', fontWeight: 500 }}>
+                        {projectMap[permit.projects_id || 0] || '-'}
                       </td>
                       <td style={{ fontSize: '13px', color: 'var(--color-secondary-text)', fontWeight: 500 }}>
                         #{permit.id}
@@ -515,7 +604,7 @@ export default function WorkPermits() {
                     {expandedRow === permit.id && (
                       <tr key={`${permit.id}-expanded`}>
                         <td
-                          colSpan={8}
+                          colSpan={9}
                           style={{ padding: '0', backgroundColor: 'var(--color-primary-bg)' }}
                         >
                           <div
@@ -613,43 +702,57 @@ export default function WorkPermits() {
                               </p>
                             ) : (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {permit.signatures.map((sig: WorkPermitSignature) => (
-                                  <div
-                                    key={sig.id}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      padding: '4px 12px',
-                                      borderRadius: '20px',
-                                      backgroundColor: 'var(--color-status-04)',
-                                      fontSize: '12px',
-                                      fontWeight: 500,
-                                      color: 'var(--color-success)',
-                                    }}
-                                  >
-                                    <CheckCircle size={11} />
-                                    {sig.user_name || (sig as any).user?.name || `ID ${sig.users_id}`}
-                                    {sig.role && (
-                                      <span
-                                        style={{
-                                          fontSize: '10px',
-                                          opacity: 0.8,
-                                          marginLeft: '2px',
-                                        }}
-                                      >
-                                        · {sig.role}
+                                {permit.signatures.map((sig: WorkPermitSignature) => {
+                                  const role = (sig.role || '').toLowerCase();
+                                  const cfg = ROLE_CONFIG[role] || {
+                                    bg: 'var(--color-status-04)',
+                                    color: 'var(--color-success)',
+                                    icon: <CheckCircle size={12} />,
+                                  };
+
+                                  return (
+                                    <div
+                                      key={sig.id}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 14px',
+                                        borderRadius: '24px',
+                                        backgroundColor: cfg.bg,
+                                        fontSize: '12px',
+                                        fontWeight: 500,
+                                        color: cfg.color,
+                                        border: `1px solid ${cfg.color}20`,
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                                      }}
+                                    >
+                                      {cfg.icon}
+                                      <span style={{ fontWeight: 600 }}>
+                                        {sig.user_name || (sig as any).user?.name || `ID ${sig.users_id}`}
                                       </span>
-                                    )}
-                                  </div>
-                                ))}
+                                      {sig.role && (
+                                        <span
+                                          style={{
+                                            fontSize: '11px',
+                                            opacity: 0.8,
+                                            marginLeft: '2px',
+                                            textTransform: 'lowercase',
+                                          }}
+                                        >
+                                          · {sig.role}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </motion.tbody>
@@ -687,7 +790,7 @@ export default function WorkPermits() {
                   value={createProjectId || undefined}
                   onChange={(val) => {
                     setCreateProjectId(val !== undefined ? Number(val) : '');
-                    if (createErrors.project) setCreateErrors((prev) => { const { project, ...rest } = prev; return rest; });
+                    if (createErrors.project) setCreateErrors((prev) => { const newErrors = { ...prev }; delete newErrors.project; return newErrors; });
                   }}
                   placeholder={t('workPermits.selectProject')}
                   allowClear
@@ -710,7 +813,7 @@ export default function WorkPermits() {
                   value={createLocation}
                   onChange={(e) => {
                     setCreateLocation(e.target.value);
-                    if (createErrors.location) setCreateErrors((prev) => { const { location, ...rest } = prev; return rest; });
+                    if (createErrors.location) setCreateErrors((prev) => { const newErrors = { ...prev }; delete newErrors.location; return newErrors; });
                   }}
                   placeholder={t('workPermits.locationPlaceholder')}
                 />
@@ -723,7 +826,7 @@ export default function WorkPermits() {
                   value={createRiskDescription}
                   onChange={(e) => {
                     setCreateRiskDescription(e.target.value);
-                    if (createErrors.riskDescription) setCreateErrors((prev) => { const { riskDescription, ...rest } = prev; return rest; });
+                    if (createErrors.riskDescription) setCreateErrors((prev) => { const newErrors = { ...prev }; delete newErrors.riskDescription; return newErrors; });
                   }}
                   placeholder={t('workPermits.riskDescriptionPlaceholder')}
                   rows={3}
@@ -738,7 +841,7 @@ export default function WorkPermits() {
                   value={createControlMeasures}
                   onChange={(e) => {
                     setCreateControlMeasures(e.target.value);
-                    if (createErrors.controlMeasures) setCreateErrors((prev) => { const { controlMeasures, ...rest } = prev; return rest; });
+                    if (createErrors.controlMeasures) setCreateErrors((prev) => { const newErrors = { ...prev }; delete newErrors.controlMeasures; return newErrors; });
                   }}
                   placeholder={t('workPermits.controlMeasuresPlaceholder')}
                   rows={3}
