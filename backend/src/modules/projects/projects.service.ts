@@ -55,27 +55,61 @@ export class ProjectsService {
     // Conta total de registros
     const total = await db.projects.count({ where: whereConditions });
 
-    // Busca projetos com paginacao incluindo status e situacao
-    const projects = await db.projects.findMany({
-      where: whereConditions,
-      include: {
-        projects_statuses: { select: { id: true, status: true } },
-        projects_works_situations: { select: { id: true, status: true } },
-        client: { select: { id: true, legal_name: true, trade_name: true } },
-      },
-      orderBy: (() => {
-        const ALLOWED_SORT_FIELDS = ['name', 'registration_number', 'responsible', 'projects_statuses_id', 'completion_percentage', 'created_at'];
-        if (sort_field === 'status_name') {
-          return { projects_statuses: { status: sort_direction || 'asc' } };
-        }
-        if (sort_field && ALLOWED_SORT_FIELDS.includes(sort_field)) {
-          return { [sort_field]: sort_direction || 'asc' };
-        }
-        return { id: 'desc' };
-      })(),
-      skip: (page - 1) * per_page,
-      take: per_page,
-    });
+    // Calcula o orderBy antes de usar nas duas tentativas de query
+    const sortDir = (sort_direction === 'asc' || sort_direction === 'desc' ? sort_direction : 'asc') as 'asc' | 'desc';
+    const orderByClause: any = (() => {
+      const ALLOWED_SORT_FIELDS = ['name', 'registration_number', 'responsible', 'projects_statuses_id', 'completion_percentage', 'created_at'];
+      if (sort_field === 'status_name') {
+        return { projects_statuses: { status: sortDir } };
+      }
+      if (sort_field && ALLOWED_SORT_FIELDS.includes(sort_field)) {
+        return { [sort_field]: sortDir };
+      }
+      return { id: 'desc' as const };
+    })();
+
+    // Busca projetos com paginacao incluindo status, situacao e cliente.
+    // O include do client e defensivo: se a tabela "clients" nao existir no banco
+    // (migration pendente), faz fallback sem o client para nao bloquear a listagem.
+    let projects: any[];
+    try {
+      projects = await db.projects.findMany({
+        where: whereConditions,
+        include: {
+          projects_statuses: { select: { id: true, status: true } },
+          projects_works_situations: { select: { id: true, status: true } },
+          client: { select: { id: true, legal_name: true, trade_name: true } },
+        },
+        orderBy: orderByClause,
+        skip: (page - 1) * per_page,
+        take: per_page,
+      });
+    } catch (err: any) {
+      // Fallback: busca sem o include do client (compatibilidade com banco sem migration aplicada)
+      // Situacao esperada quando a tabela "clients" ainda nao existe em producao.
+      const isSchemaError =
+        err?.code === 'P2021' || // table does not exist
+        err?.code === 'P2022' || // column does not exist
+        (err?.message && (
+          err.message.includes('clients') ||
+          err.message.includes('client_id') ||
+          err.message.includes('does not exist')
+        ));
+      if (isSchemaError) {
+        projects = await db.projects.findMany({
+          where: whereConditions,
+          include: {
+            projects_statuses: { select: { id: true, status: true } },
+            projects_works_situations: { select: { id: true, status: true } },
+          },
+          orderBy: orderByClause,
+          skip: (page - 1) * per_page,
+          take: per_page,
+        });
+      } else {
+        throw err;
+      }
+    }
 
     // Busca dados agregados de cronograma para todos os projetos de uma vez
     const projectIds = projects.map((p) => p.id);

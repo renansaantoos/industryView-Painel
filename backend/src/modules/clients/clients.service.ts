@@ -83,7 +83,13 @@ export class ClientsService {
       db.clients.count({ where: whereClause }),
     ]);
 
-    return buildPaginationResponse(items, total, page, per_page);
+    // Garante que cada item tenha o campo units mesmo que o include retorne undefined
+    const normalizedItems = items.map((item: any) => ({
+      ...item,
+      units: item.units ?? [],
+    }));
+
+    return buildPaginationResponse(normalizedItems, total, page, per_page);
   }
 
   // ===========================================================================

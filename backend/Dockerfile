@@ -68,5 +68,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Comando para iniciar em modo producao
-CMD ["npm", "start"]
+# Script de entrypoint: aplica migrations pendentes e inicia o servidor.
+# prisma migrate deploy e idempotente (nao falha se nao houver migracao pendente).
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
