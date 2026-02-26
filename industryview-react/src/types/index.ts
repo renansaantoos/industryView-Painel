@@ -103,6 +103,8 @@ export interface TeamMember {
   userPhone?: string;
   roleId?: number;
   roleName?: string;
+  senioridade?: string;
+  nivel?: string;
 }
 
 /** Team leader */

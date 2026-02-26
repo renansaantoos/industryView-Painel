@@ -810,6 +810,8 @@ export default function TeamManagement() {
           usersId: (users?.id ?? item.users_id) as number,
           userName: (users?.name ?? '') as string,
           userEmail: (users?.email ?? '') as string,
+          senioridade: ((users?.hr_data as Record<string, unknown>)?.senioridade ?? '') as string,
+          nivel: ((users?.hr_data as Record<string, unknown>)?.nivel ?? '') as string,
           roleName: (() => {
             const perms = (item.users as Record<string, unknown>)?.users_permissions as Record<string, unknown> | undefined;
             const roles = perms?.users_roles as Record<string, unknown> | undefined;
@@ -1734,6 +1736,8 @@ export default function TeamManagement() {
                         <SortableHeader label={t('teams.memberName')} field="userName" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
                         <SortableHeader label={t('teams.memberEmail')} field="userEmail" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
                         <SortableHeader label={t('teams.memberRole')} field="roleName" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
+                        <th style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>Senioridade</th>
+                        <th style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>Nível</th>
                         <th style={{ width: '60px', position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>{t('common.actions')}</th>
                       </tr>
                     </thead>
@@ -1752,6 +1756,8 @@ export default function TeamManagement() {
                           </td>
                           <td>{member.userEmail || '-'}</td>
                           <td>{member.roleName || '-'}</td>
+                          <td style={{ fontSize: '13px' }}>{member.senioridade || '-'}</td>
+                          <td style={{ fontSize: '13px' }}>{member.nivel || '-'}</td>
                           <td>
                             <button
                               className="btn btn-icon"
