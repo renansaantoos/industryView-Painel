@@ -601,6 +601,15 @@ export class TeamsService {
       throw new BadRequestError('Usuario ja e membro desta equipe.');
     }
 
+    // Bloqueia funcionarios demitidos
+    const hrData = await db.employees_hr_data.findFirst({
+      where: { users_id: input.users_id },
+      select: { data_demissao: true },
+    });
+    if (hrData?.data_demissao) {
+      throw new BadRequestError('Funcionario demitido nao pode ser adicionado como membro de equipe.');
+    }
+
     const [team, user] = await Promise.all([
       db.teams.findFirst({ where: { id: input.teams_id }, select: { name: true } }),
       db.users.findFirst({ where: { id: input.users_id }, select: { name: true, email: true } }),
@@ -951,6 +960,15 @@ export class TeamsService {
 
     if (existing) {
       throw new BadRequestError('Usuario ja e lider desta equipe.');
+    }
+
+    // Bloqueia funcionarios demitidos
+    const hrData = await db.employees_hr_data.findFirst({
+      where: { users_id: input.users_id },
+      select: { data_demissao: true },
+    });
+    if (hrData?.data_demissao) {
+      throw new BadRequestError('Funcionario demitido nao pode ser adicionado como lider de equipe.');
     }
 
     const [team, user] = await Promise.all([

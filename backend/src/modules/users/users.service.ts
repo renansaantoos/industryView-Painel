@@ -830,10 +830,15 @@ export class UsersService {
   static async searchForTeam(input: SearchUsersForTeamInput, companyId: number) {
     const { search, page, per_page } = input;
 
-    // Condicoes base: apenas usuarios ativos da mesma empresa
+    // Condicoes base: apenas usuarios ativos da mesma empresa e nao demitidos
     const whereConditions: any = {
       deleted_at: null,
       company_id: BigInt(companyId),
+      NOT: {
+        hr_data: {
+          data_demissao: { not: null },
+        },
+      },
     };
 
     if (search && search.trim() !== '') {
