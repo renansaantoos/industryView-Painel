@@ -252,6 +252,9 @@ model users {
   career_history                       employees_career_history[]
   career_history_registered            employees_career_history[]     @relation("career_registrar")
   schedule_imports_created             schedule_imports[]             @relation("import_created")
+  logistics_employee                   employees_logistics[]          @relation("logistics_employee")
+  logistics_responsavel                employees_logistics[]          @relation("logistics_responsavel")
+  work_schedules                       employee_work_schedule[]
 
   @@index([company_id], map: "idx_users_company_id")
   @@index([created_at(sort: Desc)], map: "idx_users_created_at")
