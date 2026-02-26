@@ -25,6 +25,7 @@ export const upsertHrDataSchema = z.object({
   estado_civil: z.string().trim().optional(),
   nacionalidade: z.string().trim().optional(),
   naturalidade: z.string().trim().optional(),
+  pais_nascimento: z.string().trim().optional(),
   nome_mae: z.string().trim().optional(),
   nome_pai: z.string().trim().optional(),
   // Endereco
@@ -46,6 +47,7 @@ export const upsertHrDataSchema = z.object({
   departamento: z.string().trim().optional(),
   salario: z.coerce.number().optional(),
   jornada_trabalho: z.string().trim().optional(),
+  trabalho_insalubre: z.boolean().optional(),
   pis_pasep: z.string().trim().optional(),
   ctps_numero: z.string().trim().optional(),
   ctps_serie: z.string().trim().optional(),
@@ -68,6 +70,12 @@ export const upsertHrDataSchema = z.object({
   escolaridade: z.string().trim().optional(),
   curso: z.string().trim().optional(),
   instituicao: z.string().trim().optional(),
+  // PCD
+  pcd: z.boolean().optional(),
+  tipo_deficiencia: z.string().trim().optional(),
+  cid: z.string().trim().optional(),
+  grau_deficiencia: z.string().trim().optional(),
+  reabilitado_inss: z.boolean().optional(),
   // Outros
   observacoes: z.string().trim().optional(),
   foto_documento_url: z.string().trim().optional(),
