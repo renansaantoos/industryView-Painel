@@ -5,7 +5,7 @@ import { employeesApi } from '../../../services';
 import type { EmployeeHrData } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import SearchableSelect from '../../../components/common/SearchableSelect';
-import { Save, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,7 @@ const EMPTY_FORM: HrFormData = {
   estado_civil: '',
   nacionalidade: '',
   naturalidade: '',
+  pais_nascimento: '',
   nome_mae: '',
   nome_pai: '',
   cep: '',
@@ -60,6 +61,7 @@ const EMPTY_FORM: HrFormData = {
   departamento: '',
   salario: undefined,
   jornada_trabalho: '',
+  trabalho_insalubre: undefined,
   pis_pasep: '',
   ctps_numero: '',
   ctps_serie: '',
@@ -78,6 +80,11 @@ const EMPTY_FORM: HrFormData = {
   escolaridade: '',
   curso: '',
   instituicao: '',
+  pcd: undefined,
+  tipo_deficiencia: '',
+  cid: '',
+  grau_deficiencia: '',
+  reabilitado_inss: undefined,
   observacoes: '',
 };
 
@@ -176,6 +183,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
     bancario: true,
     emergencia: true,
     escolaridade: true,
+    pcd: true,
     observacoes: true,
   });
 
@@ -238,12 +246,14 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
             'rg_data_emissao', 'data_nascimento', 'data_admissao',
             'data_demissao', 'cnh_validade',
           ]);
+          const booleanFields = new Set(['pcd', 'trabalho_insalubre', 'reabilitado_inss']);
           setForm({
             ...EMPTY_FORM,
             ...Object.fromEntries(
               Object.entries(data)
                 .filter(([key]) => key in EMPTY_FORM)
                 .map(([k, v]) => {
+                  if (booleanFields.has(k)) return [k, v == null ? undefined : Boolean(v)];
                   if (v == null) return [k, ''];
                   if (dateFields.has(k)) {
                     // Numeric timestamp → YYYY-MM-DD
@@ -292,7 +302,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
-  function handleChange(field: keyof HrFormData, value: string | number | undefined) {
+  function handleChange(field: keyof HrFormData, value: string | number | boolean | undefined) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
 
@@ -338,6 +348,10 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
       showToast('Data de nascimento não pode ser futura.', 'error');
       return;
     }
+    if (form.data_demissao && form.data_admissao && form.data_demissao <= form.data_admissao) {
+      showToast('Data de demissão deve ser posterior à data de admissão.', 'error');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -380,12 +394,12 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
     );
   }
 
-  function dateInput(field: keyof HrFormData) {
+  function dateInput(field: keyof HrFormData, noMax?: boolean) {
     return (
       <input
         className="input-field"
         type="date"
-        max={getTodayIsoDate()}
+        max={noMax ? undefined : getTodayIsoDate()}
         value={(form[field] as string | undefined) ?? ''}
         onChange={e => handleChange(field, e.target.value)}
       />
@@ -443,6 +457,29 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         <Field label="Órgão Emissor RG">{textInput('rg_orgao_emissor', 'Ex: SSP-SP')}</Field>
         <Field label="Data Emissão RG">{dateInput('rg_data_emissao')}</Field>
         <Field label="Data de Nascimento">{dateInput('data_nascimento')}</Field>
+        {(() => {
+          const birth = form.data_nascimento;
+          if (!birth) return null;
+          const d = new Date(birth);
+          if (isNaN(d.getTime())) return null;
+          const ref = new Date();
+          let age = ref.getFullYear() - d.getFullYear();
+          const m = ref.getMonth() - d.getMonth();
+          if (m < 0 || (m === 0 && ref.getDate() < d.getDate())) age--;
+          if (age >= 14 && age < 16) return (
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 6, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e', fontSize: 13, fontWeight: 500 }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              Atenção: funcionário entre 14 e 15 anos — exige autorização judicial e contrato de aprendiz (CLT art. 403).
+            </div>
+          );
+          if (age >= 16 && age < 18) return (
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 6, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e', fontSize: 13, fontWeight: 500 }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              Atenção: funcionário entre 16 e 17 anos — vedado trabalho noturno, perigoso ou insalubre (CLT art. 404-405).
+            </div>
+          );
+          return null;
+        })()}
         <Field label="Gênero">
           {selectInput('genero', [
             { value: 'masculino', label: 'Masculino' },
@@ -462,6 +499,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         </Field>
         <Field label="Nacionalidade">{textInput('nacionalidade', 'Ex: Brasileiro(a)')}</Field>
         <Field label="Naturalidade">{textInput('naturalidade', 'Cidade/UF')}</Field>
+        <Field label="País de Nascimento">{textInput('pais_nascimento', 'Ex: Brasil')}</Field>
         <Field label="Nome da Mãe">{textInput('nome_mae')}</Field>
         <Field label="Nome do Pai">{textInput('nome_pai')}</Field>
       </Section>
@@ -491,7 +529,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
       <Section title="Dados Profissionais" isOpen={openSections.profissional} onToggle={() => toggleSection('profissional')}>
         <Field label="Matrícula">{textInput('matricula')}</Field>
         <Field label="Data de Admissão">{dateInput('data_admissao')}</Field>
-        <Field label="Data de Demissão">{dateInput('data_demissao')}</Field>
+        <Field label="Data de Demissão">{dateInput('data_demissao', true)}</Field>
         <Field label="Tipo de Contrato">
           {selectInput('tipo_contrato', [
             { value: 'clt', label: 'CLT' },
@@ -531,6 +569,17 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
           />
         </Field>
         <Field label="Jornada de Trabalho">{textInput('jornada_trabalho', 'Ex: 44h semanais')}</Field>
+        <Field label="Atividade Insalubre / Perigosa">
+          <div style={{ display: 'flex', gap: 20, paddingTop: 6 }}>
+            {[{ val: true, label: 'Sim' }, { val: false, label: 'Não' }].map(({ val, label }) => (
+              <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                <input type="radio" name="trabalho_insalubre" checked={form.trabalho_insalubre === val}
+                  onChange={() => handleChange('trabalho_insalubre', val)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </Field>
         <Field label="PIS/PASEP">{textInput('pis_pasep')}</Field>
         <Field label="CTPS Número">{textInput('ctps_numero')}</Field>
         <Field label="CTPS Série">{textInput('ctps_serie')}</Field>
@@ -592,6 +641,54 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         </Field>
         <Field label="Curso">{textInput('curso', 'Ex: Engenharia Civil')}</Field>
         <Field label="Instituição">{textInput('instituicao')}</Field>
+      </Section>
+
+      {/* ── PCD ────────────────────────────────────────────────────────── */}
+      <Section title="PCD — Pessoa com Deficiência" isOpen={openSections.pcd} onToggle={() => toggleSection('pcd')}>
+        <Field label="É PCD?">
+          <div style={{ display: 'flex', gap: 20, paddingTop: 6 }}>
+            {[{ val: true, label: 'Sim' }, { val: false, label: 'Não' }].map(({ val, label }) => (
+              <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                <input type="radio" name="pcd" checked={form.pcd === val}
+                  onChange={() => handleChange('pcd', val)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </Field>
+        {form.pcd === true && (
+          <>
+            <Field label="Tipo de Deficiência">
+              {selectInput('tipo_deficiencia', [
+                { value: 'visual', label: 'Visual' },
+                { value: 'auditiva', label: 'Auditiva' },
+                { value: 'fisica', label: 'Física' },
+                { value: 'intelectual', label: 'Intelectual/Mental' },
+                { value: 'multipla', label: 'Múltipla' },
+                { value: 'outra', label: 'Outra' },
+              ], 'Selecione')}
+            </Field>
+            <Field label="CID (Código da Doença)">{textInput('cid', 'Ex: F70, H54')}</Field>
+            <Field label="Grau de Deficiência">
+              {selectInput('grau_deficiencia', [
+                { value: 'leve', label: 'Leve' },
+                { value: 'moderado', label: 'Moderado' },
+                { value: 'grave', label: 'Grave/Severo' },
+              ], 'Selecione')}
+            </Field>
+            <Field label="Reabilitado INSS?">
+              <div style={{ display: 'flex', gap: 20, paddingTop: 6 }}>
+                {[{ val: true, label: 'Sim' }, { val: false, label: 'Não' }].map(({ val, label }) => (
+                  <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                    <input type="radio" name="reabilitado_inss" checked={form.reabilitado_inss === val}
+                      onChange={() => handleChange('reabilitado_inss', val)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+          </>
+        )}
       </Section>
 
       {/* ── Observações ────────────────────────────────────────────────── */}

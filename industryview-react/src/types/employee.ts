@@ -12,6 +12,7 @@ export interface EmployeeHrData {
   estado_civil?: string;
   nacionalidade?: string;
   naturalidade?: string;
+  pais_nascimento?: string;
   nome_mae?: string;
   nome_pai?: string;
   // Endereco
@@ -33,6 +34,7 @@ export interface EmployeeHrData {
   departamento?: string;
   salario?: number;
   jornada_trabalho?: string;
+  trabalho_insalubre?: boolean;
   pis_pasep?: string;
   ctps_numero?: string;
   ctps_serie?: string;
@@ -55,6 +57,12 @@ export interface EmployeeHrData {
   escolaridade?: string;
   curso?: string;
   instituicao?: string;
+  // PCD
+  pcd?: boolean;
+  tipo_deficiencia?: string;
+  cid?: string;
+  grau_deficiencia?: string;
+  reabilitado_inss?: boolean;
   // Outros
   observacoes?: string;
   foto_documento_url?: string;

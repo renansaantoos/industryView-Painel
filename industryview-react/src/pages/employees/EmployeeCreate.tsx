@@ -7,7 +7,7 @@ import { usersApi, employeesApi } from '../../services';
 import type { EmployeeHrData } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle, AlertTriangle } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,24 +58,21 @@ const REQUIRED_HR_FIELDS: Record<string, { message: string; section: string }> =
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-<<<<<<< Updated upstream
 const today = new Date();
 const TODAY_DATE = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-=======
-const _today = new Date();
-const TODAY_DATE = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`;
->>>>>>> Stashed changes
 
 const EMPTY_HR_FORM: HrFormData = {
   nome_completo: '', cpf: '', rg: '', rg_orgao_emissor: '', rg_data_emissao: '', data_nascimento: '',
-  genero: '', estado_civil: '', nacionalidade: '', naturalidade: '', nome_mae: '', nome_pai: '',
+  genero: '', estado_civil: '', nacionalidade: '', naturalidade: '', pais_nascimento: '', nome_mae: '', nome_pai: '',
   cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
   matricula: '', data_admissao: '', data_demissao: '', tipo_contrato: '', cargo: '', senioridade: '', nivel: '', departamento: '',
-  salario: undefined, jornada_trabalho: '', pis_pasep: '', ctps_numero: '', ctps_serie: '', ctps_uf: '',
+  salario: undefined, jornada_trabalho: '', trabalho_insalubre: undefined, pis_pasep: '', ctps_numero: '', ctps_serie: '', ctps_uf: '',
   cnh_numero: '', cnh_categoria: '', cnh_validade: '',
   banco_nome: '', banco_agencia: '', banco_conta: '', banco_tipo_conta: '', banco_pix: '',
   emergencia_nome: '', emergencia_parentesco: '', emergencia_telefone: '',
-  escolaridade: '', curso: '', instituicao: '', observacoes: '',
+  escolaridade: '', curso: '', instituicao: '',
+  pcd: undefined, tipo_deficiencia: '', cid: '', grau_deficiencia: '', reabilitado_inss: undefined,
+  observacoes: '',
 };
 
 const SECTION_HEADER_STYLE: React.CSSProperties = {
@@ -225,6 +222,27 @@ function maskConta(value: string): string {
   return `${d.slice(0, -1)}-${d.slice(-1)}`;
 }
 
+// ─── Age helpers ──────────────────────────────────────────────────────────────
+
+function calcAge(birthDate: string): number | null {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  if (isNaN(birth.getTime())) return null;
+  const ref = new Date();
+  let age = ref.getFullYear() - birth.getFullYear();
+  const m = ref.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function getAgeWarning(birthDate: string): string | null {
+  const age = calcAge(birthDate);
+  if (age === null || age < 14) return null;
+  if (age < 16) return 'Atenção: funcionário entre 14 e 15 anos — exige autorização judicial e contrato de aprendiz (CLT art. 403).';
+  if (age < 18) return 'Atenção: funcionário entre 16 e 17 anos — vedado trabalho noturno, perigoso ou insalubre (CLT art. 404-405).';
+  return null;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EmployeeCreate() {
@@ -246,7 +264,7 @@ export default function EmployeeCreate() {
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     pessoal: true, endereco: false, profissional: false,
-    cnh: false, bancario: false, emergencia: false, escolaridade: false, observacoes: false,
+    cnh: false, bancario: false, emergencia: false, escolaridade: false, pcd: false, observacoes: false,
   });
 
   function showToast(message: string, type: 'success' | 'error') {
@@ -263,7 +281,7 @@ export default function EmployeeCreate() {
     });
   }
 
-  function handleChange(field: keyof HrFormData, value: string | number | undefined) {
+  function handleChange(field: keyof HrFormData, value: string | number | boolean | undefined) {
     setForm(prev => ({ ...prev, [field]: value }));
     clearError(field);
   }
@@ -278,6 +296,13 @@ export default function EmployeeCreate() {
       .length;
     if (section === 'pessoal') {
       count += fieldErrors.email ? 1 : 0;
+    }
+    if (section === 'profissional') {
+      count += fieldErrors.data_demissao ? 1 : 0;
+      count += fieldErrors.trabalho_insalubre ? 1 : 0;
+    }
+    if (section === 'pcd') {
+      count += fieldErrors.pcd ? 1 : 0;
     }
     return count;
   }
@@ -341,6 +366,27 @@ export default function EmployeeCreate() {
       errors.data_nascimento = 'Data de nascimento não pode ser futura';
     }
 
+    // ── Age validations ──
+    if (form.data_nascimento) {
+      const age = calcAge(form.data_nascimento);
+      if (age !== null && age < 14) {
+        errors.data_nascimento = 'Menor de 14 anos não pode ser contratado (CLT art. 403)';
+      }
+    }
+
+    // ── Insalubrious contract block for minors ──
+    if (form.trabalho_insalubre === true && form.data_nascimento) {
+      const age = calcAge(form.data_nascimento);
+      if (age !== null && age < 18) {
+        errors.trabalho_insalubre = 'Menor de 18 anos não pode exercer atividades insalubres ou perigosas (CLT art. 405)';
+      }
+    }
+
+    // ── Data demissão > data admissão ──
+    if (form.data_demissao && form.data_admissao && form.data_demissao <= form.data_admissao) {
+      errors.data_demissao = 'Data de demissão deve ser posterior à data de admissão';
+    }
+
     // ── Format validations ──
     const cpfRaw = form.cpf?.replace(/\D/g, '') ?? '';
     if (cpfRaw && !isValidCpf(cpfRaw)) {
@@ -357,6 +403,9 @@ export default function EmployeeCreate() {
         if (errors[field]) sectionsWithErrors.add(config.section);
       }
       if (errors.cpf) sectionsWithErrors.add('pessoal');
+      if (errors.data_demissao) sectionsWithErrors.add('profissional');
+      if (errors.trabalho_insalubre) sectionsWithErrors.add('profissional');
+      if (errors.pcd) sectionsWithErrors.add('pcd');
 
       setOpenSections(prev => {
         const next = { ...prev };
@@ -500,6 +549,12 @@ export default function EmployeeCreate() {
           <Field label="Órgão Emissor RG">{textInput('rg_orgao_emissor', 'Ex: SSP-SP')}</Field>
           <Field label="Data Emissão RG" error={fieldErrors.rg_data_emissao}>{dateInput('rg_data_emissao', TODAY_DATE)}</Field>
           <Field label="Data de Nascimento" required error={fieldErrors.data_nascimento}>{dateInput('data_nascimento', TODAY_DATE)}</Field>
+          {form.data_nascimento && getAgeWarning(form.data_nascimento) && (
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 6, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e', fontSize: 13, fontWeight: 500 }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+              {getAgeWarning(form.data_nascimento)}
+            </div>
+          )}
           <Field label="Gênero">
             {selectInput('genero', [
               { value: 'masculino', label: 'Masculino' }, { value: 'feminino', label: 'Feminino' },
@@ -515,6 +570,7 @@ export default function EmployeeCreate() {
           </Field>
           <Field label="Nacionalidade">{textInput('nacionalidade', 'Ex: Brasileiro(a)')}</Field>
           <Field label="Naturalidade">{textInput('naturalidade', 'Cidade/UF')}</Field>
+          <Field label="País de Nascimento">{textInput('pais_nascimento', 'Ex: Brasil')}</Field>
           <Field label="Nome da Mãe">{textInput('nome_mae')}</Field>
           <Field label="Nome do Pai">{textInput('nome_pai')}</Field>
         </Section>
@@ -544,7 +600,7 @@ export default function EmployeeCreate() {
         <Section title="Dados Profissionais" isOpen={openSections.profissional} onToggle={() => toggleSection('profissional')} errorCount={countSectionErrors('profissional')}>
           <Field label="Matrícula">{textInput('matricula')}</Field>
           <Field label="Data de Admissão" required error={fieldErrors.data_admissao}>{dateInput('data_admissao')}</Field>
-          <Field label="Data de Demissão">{dateInput('data_demissao')}</Field>
+          <Field label="Data de Demissão" error={fieldErrors.data_demissao}>{dateInput('data_demissao')}</Field>
           <Field label="Tipo de Contrato" required error={fieldErrors.tipo_contrato}>
             {selectInput('tipo_contrato', [
               { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' },
@@ -575,6 +631,17 @@ export default function EmployeeCreate() {
               }} />
           </Field>
           <Field label="Jornada de Trabalho">{textInput('jornada_trabalho', 'Ex: 44h semanais')}</Field>
+          <Field label="Atividade Insalubre / Perigosa" error={fieldErrors.trabalho_insalubre}>
+            <div style={{ display: 'flex', gap: 20, paddingTop: 6 }}>
+              {[{ val: true, label: 'Sim' }, { val: false, label: 'Não' }].map(({ val, label }) => (
+                <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="radio" name="trabalho_insalubre" checked={form.trabalho_insalubre === val}
+                    onChange={() => handleChange('trabalho_insalubre', val)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </Field>
           <Field label="PIS/PASEP">{textInput('pis_pasep')}</Field>
           <Field label="CTPS Número">{textInput('ctps_numero')}</Field>
           <Field label="CTPS Série">{textInput('ctps_serie')}</Field>
@@ -647,6 +714,54 @@ export default function EmployeeCreate() {
           </Field>
           <Field label="Curso">{textInput('curso', 'Ex: Engenharia Civil')}</Field>
           <Field label="Instituição">{textInput('instituicao')}</Field>
+        </Section>
+
+        {/* ── PCD ────────────────────────────────────────────────────── */}
+        <Section title="PCD — Pessoa com Deficiência" isOpen={openSections.pcd} onToggle={() => toggleSection('pcd')} errorCount={countSectionErrors('pcd')}>
+          <Field label="É PCD?" error={fieldErrors.pcd}>
+            <div style={{ display: 'flex', gap: 20, paddingTop: 6 }}>
+              {[{ val: true, label: 'Sim' }, { val: false, label: 'Não' }].map(({ val, label }) => (
+                <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="radio" name="pcd" checked={form.pcd === val}
+                    onChange={() => handleChange('pcd', val)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </Field>
+          {form.pcd === true && (
+            <>
+              <Field label="Tipo de Deficiência">
+                {selectInput('tipo_deficiencia', [
+                  { value: 'visual', label: 'Visual' },
+                  { value: 'auditiva', label: 'Auditiva' },
+                  { value: 'fisica', label: 'Física' },
+                  { value: 'intelectual', label: 'Intelectual/Mental' },
+                  { value: 'multipla', label: 'Múltipla' },
+                  { value: 'outra', label: 'Outra' },
+                ], 'Selecione')}
+              </Field>
+              <Field label="CID (Código da Doença)">{textInput('cid', 'Ex: F70, H54')}</Field>
+              <Field label="Grau de Deficiência">
+                {selectInput('grau_deficiencia', [
+                  { value: 'leve', label: 'Leve' },
+                  { value: 'moderado', label: 'Moderado' },
+                  { value: 'grave', label: 'Grave/Severo' },
+                ], 'Selecione')}
+              </Field>
+              <Field label="Reabilitado INSS?">
+                <div style={{ display: 'flex', gap: 20, paddingTop: 6 }}>
+                  {[{ val: true, label: 'Sim' }, { val: false, label: 'Não' }].map(({ val, label }) => (
+                    <label key={String(val)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                      <input type="radio" name="reabilitado_inss" checked={form.reabilitado_inss === val}
+                        onChange={() => handleChange('reabilitado_inss', val)} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+            </>
+          )}
         </Section>
 
         {/* ── Observações ────────────────────────────────────────────── */}
