@@ -22,7 +22,6 @@ import {
   Eye,
   ClipboardList,
   CheckSquare,
-  ChevronDown,
   ChevronUp,
   X,
 } from 'lucide-react';

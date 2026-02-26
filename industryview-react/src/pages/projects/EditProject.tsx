@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi, clientsApi } from '../../services';
 import type { Client } from '../../services/api/clients';
@@ -38,13 +38,6 @@ function formatDateForInput(val: unknown): string {
   return '';
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-
-interface ToastState {
-  message: string;
-  type: 'success' | 'error';
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function EditProject() {
@@ -66,19 +59,7 @@ export default function EditProject() {
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-  // Toast
-  const [toast, setToast] = useState<ToastState | null>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const { register, handleSubmit, setValue, reset } = useForm<CreateProjectRequest>();
-
-  // ── Toast ────────────────────────────────────────────────────────────────
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast({ message, type });
-    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
-  }, []);
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -183,7 +164,7 @@ export default function EditProject() {
         ...data,
         projects_statuses_id: selectedStatusId,
         projects_works_situations_id: selectedWorkSituationId,
-        client_id: selectedClientId ?? null,
+        client_id: selectedClientId ?? undefined,
       });
       navigate('/projetos');
     } catch (err) {
@@ -585,34 +566,6 @@ export default function EditProject() {
         </div>
       </form>
 
-      {/* Toast notification */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            style={{
-              position: 'fixed',
-              top: '20px',
-              right: '24px',
-              zIndex: 2000,
-              padding: '12px 20px',
-              borderRadius: '8px',
-              fontWeight: 500,
-              fontSize: '14px',
-              backgroundColor:
-                toast.type === 'success'
-                  ? 'var(--color-success, #028F58)'
-                  : 'var(--color-error, #C0392B)',
-              color: '#fff',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-            }}
-          >
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

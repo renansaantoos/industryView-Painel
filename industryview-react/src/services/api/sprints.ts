@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { Sprint, SprintStatus, SprintTask, SprintTaskStatus, SprintPanelResponse, SprintListResponse, PaginatedResponse } from '../../types';
+import type { Sprint, SprintStatus, SprintTask, SprintTaskStatus, SprintPanelResponse, SprintListResponse } from '../../types';
 import type { NonExecutionReason } from '../../types/task';
 
 const SPRINTS_BASE = '/sprints';

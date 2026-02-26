@@ -6,9 +6,9 @@ interface AppStateContextValue {
   navBarSelection: number;
   setNavBarSelection: (value: number) => void;
 
-  /** Current project info */
-  projectsInfo: ProjectInfo | null;
-  setProjectsInfo: (info: ProjectInfo | null) => void;
+  /** Current project info (full ProjectInfo or minimal { id, name }) */
+  projectsInfo: ProjectInfo | { id: number; name: string } | null;
+  setProjectsInfo: (info: ProjectInfo | { id: number; name: string } | null) => void;
 
   /** Current team ID */
   teamId: number;
@@ -87,7 +87,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return stored ? parseInt(stored, 10) : 1;
   });
 
-  const [projectsInfo, setProjectsInfoRaw] = useState<ProjectInfo | null>(() => {
+  const [projectsInfo, setProjectsInfoRaw] = useState<ProjectInfo | { id: number; name: string } | null>(() => {
     const stored = localStorage.getItem('ff_projectsInfo');
     if (stored) {
       try { return JSON.parse(stored); } catch { return null; }
@@ -133,7 +133,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('ff_navBarSelection', String(value));
   }, []);
 
-  const setProjectsInfo = useCallback((info: ProjectInfo | null) => {
+  const setProjectsInfo = useCallback((info: ProjectInfo | { id: number; name: string } | null) => {
     setProjectsInfoRaw(info);
     if (info) {
       localStorage.setItem('ff_projectsInfo', JSON.stringify(info));

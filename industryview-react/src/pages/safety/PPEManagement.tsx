@@ -97,7 +97,7 @@ function formatDate(dateStr?: string): string {
    ========================================= */
 
 export default function PPEManagement() {
-  const { projectsInfo, setNavBarSelection } = useAppState();
+  const { setNavBarSelection } = useAppState();
   const { user } = useAuthContext();
 
   useEffect(() => {

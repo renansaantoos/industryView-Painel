@@ -655,7 +655,7 @@ export default function Inventory() {
                 <div className="input-group">
                   <label>{t('inventory.unit', 'Unidade')}</label>
                   <SearchableSelect
-                    options={unityOptions.map(u => ({ value: u.id, label: u.unity }))}
+                    options={unityOptions.map(u => ({ value: u.id, label: u.unity ?? String(u.id) }))}
                     value={productUnityId}
                     onChange={(v) => setProductUnityId(v as number | undefined)}
                     placeholder={t('common.select', 'Selecione...')}

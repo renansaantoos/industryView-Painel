@@ -73,7 +73,7 @@ type ActiveTab = 'documents' | 'acknowledgments';
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DocumentManagement() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('documents');

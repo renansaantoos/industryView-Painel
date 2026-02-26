@@ -252,8 +252,6 @@ model users {
   career_history                       employees_career_history[]
   career_history_registered            employees_career_history[]     @relation("career_registrar")
   schedule_imports_created             schedule_imports[]             @relation("import_created")
-  logistics_employee                   employees_logistics[]          @relation("logistics_employee")
-  logistics_responsavel                employees_logistics[]          @relation("logistics_responsavel")
 
   @@index([company_id], map: "idx_users_company_id")
   @@index([created_at(sort: Desc)], map: "idx_users_created_at")
@@ -2099,8 +2097,12 @@ model workforce_daily_log {
   users_id              BigInt
   check_in              DateTime? @db.Timestamptz(6)
   check_out             DateTime? @db.Timestamptz(6)
+  saida_intervalo       DateTime? @db.Timestamptz(6)
+  entrada_intervalo     DateTime? @db.Timestamptz(6)
   hours_normal          Decimal?  @default(0) @db.Decimal(5, 2)
   hours_overtime        Decimal?  @default(0) @db.Decimal(5, 2)
+  hours_he_100          Decimal?  @default(0) @db.Decimal(5, 2)
+  observation           String?   @db.Text
   status                String    @default("presente") @db.VarChar(20)
   registered_by_user_id BigInt
   created_at            DateTime  @default(now()) @db.Timestamptz(6)
@@ -2805,4 +2807,35 @@ model client_units {
   client       clients   @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([client_id], map: "idx_client_units_client_id")
+}
+
+model employee_work_schedule {
+  id                   BigInt    @id @default(autoincrement())
+  users_id             BigInt    @unique
+  tolerancia_entrada   Int?      @default(5)
+  intervalo_almoco_min Int?      @default(60)
+  seg_ativo            Boolean   @default(true)
+  seg_entrada          String?   @db.VarChar(5)
+  seg_saida            String?   @db.VarChar(5)
+  ter_ativo            Boolean   @default(true)
+  ter_entrada          String?   @db.VarChar(5)
+  ter_saida            String?   @db.VarChar(5)
+  qua_ativo            Boolean   @default(true)
+  qua_entrada          String?   @db.VarChar(5)
+  qua_saida            String?   @db.VarChar(5)
+  qui_ativo            Boolean   @default(true)
+  qui_entrada          String?   @db.VarChar(5)
+  qui_saida            String?   @db.VarChar(5)
+  sex_ativo            Boolean   @default(true)
+  sex_entrada          String?   @db.VarChar(5)
+  sex_saida            String?   @db.VarChar(5)
+  sab_ativo            Boolean   @default(false)
+  sab_entrada          String?   @db.VarChar(5)
+  sab_saida            String?   @db.VarChar(5)
+  dom_ativo            Boolean   @default(false)
+  dom_entrada          String?   @db.VarChar(5)
+  dom_saida            String?   @db.VarChar(5)
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  user                 users     @relation(fields: [users_id], references: [id], onUpdate: NoAction)
 }

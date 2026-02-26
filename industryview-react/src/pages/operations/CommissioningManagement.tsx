@@ -61,7 +61,7 @@ interface SystemExpanded {
 // ---------------------------------------------------------------------------
 
 export default function CommissioningManagement() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
   useEffect(() => {

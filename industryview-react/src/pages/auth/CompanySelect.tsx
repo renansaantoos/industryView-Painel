@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { usersApi } from '../../services';
-import { Building2, Plus, Phone, Mail, LogOut } from 'lucide-react';
+import { Building2, Plus, LogOut } from 'lucide-react';
 import { MotionPage } from '../../lib/motion';
 import { CnpjInput } from '../../components/company/CnpjInput';
 import { CepLookup } from '../../components/company/CepLookup';

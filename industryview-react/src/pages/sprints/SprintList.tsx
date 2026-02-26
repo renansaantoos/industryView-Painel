@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { sprintsApi } from '../../services';
-import type { Sprint, SprintListResponse, SprintPaginatedCategory, SprintStatus } from '../../types';
+import type { Sprint, SprintListResponse, SprintStatus } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
@@ -202,7 +202,7 @@ export default function SprintList() {
 
   const renderCategory = (categoryConfig: typeof CATEGORY_CONFIG[number]) => {
     if (!sprintData) return null;
-    const category: SprintPaginatedCategory = sprintData[categoryConfig.key];
+    const category = sprintData[categoryConfig.key];
     if (!category) return null;
     const filtered = filterSprints(category.items || []);
     if (filtered.length === 0) return null;

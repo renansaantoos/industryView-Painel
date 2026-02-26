@@ -43,11 +43,9 @@ import {
 } from 'recharts';
 
 // ─── Status ID constants ───────────────────────────────────────────────────────
-const STATUS_PENDING = 1;
 const STATUS_IN_PROGRESS = 2;
 const STATUS_DONE = 3;
 const STATUS_FAILED = 4;
-const STATUS_INSPECTION = 5;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -331,7 +329,7 @@ export default function CurrentSprint() {
 
   if (loading) return <LoadingSpinner fullPage />;
 
-  const sprintName = sprint?.name || `Sprint #${sprintId}`;
+  const sprintName = sprint?.title || `Sprint #${sprintId}`;
 
   return (
     <div>

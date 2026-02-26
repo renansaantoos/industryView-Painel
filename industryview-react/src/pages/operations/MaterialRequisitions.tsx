@@ -65,7 +65,7 @@ function formatCurrency(value?: number): string {
 // ---------------------------------------------------------------------------
 
 export default function MaterialRequisitions() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
   useEffect(() => {

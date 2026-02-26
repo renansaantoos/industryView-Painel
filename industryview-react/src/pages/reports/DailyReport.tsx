@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { reportsApi } from '../../services';
-import type { DailyReport as DailyReportType } from '../../types';
+import type { SimpleDailyReport } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { ArrowLeft, Calendar, CloudSun, FileText, Download, Edit, Save } from 'lucide-react';
@@ -20,7 +20,7 @@ export default function DailyReport() {
 
   const reportId = parseInt(searchParams.get('reportId') || '0', 10);
 
-  const [report, setReport] = useState<DailyReportType | null>(null);
+  const [report, setReport] = useState<SimpleDailyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -41,7 +41,7 @@ export default function DailyReport() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      const data = await reportsApi.getDailyReport(reportId) as DailyReportType;
+      const data = await reportsApi.getDailyReport(reportId) as SimpleDailyReport;
       setReport(data);
       setEditDescription(data?.description || '');
       setEditWeather(data?.weather || '');

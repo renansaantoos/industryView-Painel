@@ -13,7 +13,7 @@ import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Search, Edit, Trash2, ClipboardList, Check, X, Layers, Shield, Wrench, CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ClipboardList, X, Layers, Shield, Wrench, CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,10 +112,10 @@ export default function TaskList() {
   // ------------------------------------------------------------------
   // Dropdown options
   // ------------------------------------------------------------------
-  const [priorities, setPriorities] = useState<TaskPriority[]>([]);
+  const [, setPriorities] = useState<TaskPriority[]>([]);
   const [unities, setUnities] = useState<Unity[]>([]);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
-  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [, setEquipmentTypes] = useState<EquipmentType[]>([]);
   const [checklists, setChecklists] = useState<ChecklistTemplate[]>([]);
 
   // ------------------------------------------------------------------
@@ -173,12 +173,6 @@ export default function TaskList() {
   // ------------------------------------------------------------------
   // Helpers
   // ------------------------------------------------------------------
-
-  const resolvePriorityName = (priorityId: number | undefined): string => {
-    if (!priorityId) return '-';
-    const found = priorities.find((p) => p.id === priorityId);
-    return found ? found.name : String(priorityId);
-  };
 
   // ------------------------------------------------------------------
   // Bootstrap
@@ -403,10 +397,6 @@ export default function TaskList() {
   };
 
   // Available checklists (not yet linked)
-  const availableChecklists = checklists.filter(
-    (cl) => !linkedChecklists.some((lcl) => lcl.checklist_templates_id === cl.id),
-  );
-
 
   // ------------------------------------------------------------------
   // Create
@@ -483,6 +473,8 @@ export default function TaskList() {
       isInspection: task.is_inspection ?? false,
       installationMethod: task.installation_method ?? '',
       checklistTemplatesId: task.checklist_templates_id ?? '',
+      selectedChecklistIds: [],
+      selectedGoldenRuleIds: [],
     });
     setEditErrors({});
     setLinkedGoldenRules([]);
@@ -541,13 +533,6 @@ export default function TaskList() {
   // ------------------------------------------------------------------
   // Render helpers
   // ------------------------------------------------------------------
-
-  const renderBoolIcon = (value: boolean | undefined) =>
-    value ? (
-      <Check size={16} color="var(--color-success)" />
-    ) : (
-      <X size={16} color="var(--color-secondary-text)" />
-    );
 
   // ------------------------------------------------------------------
   // Sectioned modal content

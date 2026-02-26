@@ -6,6 +6,7 @@ const BASE = '/workforce';
 export async function listDailyLogs(params?: {
   projects_id?: number;
   company_id?: number;
+  users_id?: number;
   log_date?: string;
   team?: string;
   page?: number;
@@ -20,6 +21,7 @@ export async function createDailyLog(data: {
   users_id: number;
   log_date: string;
   check_in?: string;
+  check_out?: string;
   team?: string;
   status?: string;
   observation?: string;

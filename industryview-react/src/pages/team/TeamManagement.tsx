@@ -63,11 +63,6 @@ function formatPhoneBR(value: string): string {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-function generateTemporaryPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
-
 function paginate<T>(items: T[], page: number, perPage: number) {
   const totalPages = Math.max(1, Math.ceil(items.length / perPage));
   const safePage = Math.min(page, totalPages);
@@ -165,6 +160,8 @@ interface SearchUserItem {
   email: string;
   hasTeam?: boolean;
   isMemberOfCurrentTeam?: boolean;
+  cargo?: string | null;
+  cpf_masked?: string | null;
 }
 
 interface SelectedUser {
@@ -782,13 +779,17 @@ export default function TeamManagement() {
     try {
       const data = await projectsApi.queryAllTeamLeaders(teamId);
       const list = Array.isArray(data) ? data : [];
-      setLeaders(list.map((l: Record<string, unknown>) => ({
-        id: l.id as number,
-        teamsId: l.teams_id as number,
-        usersId: (l.users as Record<string, unknown>)?.id as number || l.users_id as number,
-        userName: (l.users as Record<string, unknown>)?.name as string || '',
-        userEmail: (l.users as Record<string, unknown>)?.email as string || '',
-      })));
+      setLeaders(list.map((l: unknown) => {
+        const item = l as Record<string, unknown>;
+        const users = item.users as Record<string, unknown> | undefined;
+        return {
+        id: item.id as number,
+          teamsId: item.teams_id as number,
+          usersId: (users?.id ?? item.users_id) as number,
+          userName: (users?.name ?? '') as string,
+          userEmail: (users?.email ?? '') as string,
+        };
+      }));
     } catch (err) {
       console.error('Erro ao carregar líderes:', err);
       setLeaders([]);
@@ -800,20 +801,22 @@ export default function TeamManagement() {
     try {
       const data = await projectsApi.queryAllTeamMembers(teamId);
       const list = Array.isArray(data) ? data : (data as unknown as { items?: unknown[] })?.items || [];
-      setMembers((list as Record<string, unknown>[]).map((m) => ({
-        id: m.id as number,
-        teamsId: m.teams_id as number,
-        usersId: (m.users as Record<string, unknown>)?.id as number || m.users_id as number,
-        userName: (m.users as Record<string, unknown>)?.name as string || '',
-        userEmail: (m.users as Record<string, unknown>)?.email as string || '',
-        roleName: (m.users as Record<string, unknown>)?.users_permissions
-          ? ((m.users as Record<string, unknown>).users_permissions as Record<string, unknown>)?.users_roles
-            ? (((m.users as Record<string, unknown>).users_permissions as Record<string, unknown>).users_roles as Record<string, unknown>)?.name as string
-              || ((((m.users as Record<string, unknown>).users_permissions as Record<string, unknown>).users_roles as Record<string, unknown>)?.role as string)
-              || '-'
-            : '-'
-          : '-',
-      })));
+      setMembers((list as unknown[]).map((m) => {
+        const item = m as Record<string, unknown>;
+        const users = item.users as Record<string, unknown> | undefined;
+        return {
+          id: item.id as number,
+          teamsId: item.teams_id as number,
+          usersId: (users?.id ?? item.users_id) as number,
+          userName: (users?.name ?? '') as string,
+          userEmail: (users?.email ?? '') as string,
+          roleName: (() => {
+            const perms = (item.users as Record<string, unknown>)?.users_permissions as Record<string, unknown> | undefined;
+            const roles = perms?.users_roles as Record<string, unknown> | undefined;
+            return (roles?.name ?? roles?.role ?? '-') as string;
+          })(),
+        };
+      }));
     } catch (err) {
       console.error('Erro ao carregar membros:', err);
       setMembers([]);
@@ -971,8 +974,8 @@ export default function TeamManagement() {
     }
     if (membersSortField && membersSortDirection) {
       result = [...result].sort((a, b) => {
-        const aVal = (a as Record<string, unknown>)[membersSortField] ?? '';
-        const bVal = (b as Record<string, unknown>)[membersSortField] ?? '';
+        const aVal = (a as unknown as Record<string, unknown>)[membersSortField] ?? '';
+        const bVal = (b as unknown as Record<string, unknown>)[membersSortField] ?? '';
         const aStr = String(aVal);
         const bStr = String(bVal);
         const cmp = aStr.localeCompare(bStr, undefined, { sensitivity: 'base', numeric: true });

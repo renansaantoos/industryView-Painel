@@ -62,6 +62,7 @@ import { healthRoutes } from './modules/health';
 import { materialRequisitionsRoutes } from './modules/material-requisitions';
 import { auditRoutes } from './modules/audit';
 import { employeesRoutes } from './modules/employees';
+import { workScheduleRoutes } from './modules/work-schedule';
 import { scheduleImportRoutes } from './modules/schedule-import';
 import { clientsRoutes } from './modules/clients';
 
@@ -473,6 +474,7 @@ app.use(`${API_PREFIX}/health`, healthRoutes);
 app.use(`${API_PREFIX}/material-requisitions`, materialRequisitionsRoutes);
 app.use(`${API_PREFIX}/audit`, auditRoutes);
 app.use(`${API_PREFIX}/employees`, employeesRoutes);
+app.use(`${API_PREFIX}/work-schedule`, workScheduleRoutes);
 app.use(`${API_PREFIX}/schedule-import`, scheduleImportRoutes);
 app.use(`${API_PREFIX}/clients`, clientsRoutes);
 

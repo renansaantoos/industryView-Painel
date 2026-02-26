@@ -111,6 +111,7 @@ export interface DdsRecord {
   topic: string;
   description?: string;
   team?: string;
+  teams_id?: number;
   dds_date: string;
   conductor_name?: string;
   participants_count?: number;

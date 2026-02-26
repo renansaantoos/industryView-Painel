@@ -199,9 +199,9 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
         city: form.city.trim() || undefined,
         state: form.state.trim() || undefined,
         pais: form.pais.trim() || undefined,
-        responsavel_legal: firstRep?.nome || null,
-        responsavel_cpf: firstRep?.cpf || null,
-        representantes_legais: representantes.length > 0 ? representantes : null,
+        responsavel_legal: firstRep?.nome ?? undefined,
+        responsavel_cpf: firstRep?.cpf ?? undefined,
+        representantes_legais: representantes.length > 0 ? representantes : undefined,
       };
       await onSave(payload);
     } catch (err) {

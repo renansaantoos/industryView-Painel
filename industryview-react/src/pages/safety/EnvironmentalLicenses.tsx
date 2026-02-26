@@ -434,11 +434,11 @@ export default function EnvironmentalLicenses() {
       const payload = {
         license_number: form.license_number.trim(),
         license_type: form.license_type.trim(),
-        issuing_authority: form.issuing_agency.trim(),
-        issued_at: form.issue_date,
-        expires_at: form.expiry_date,
+        issuing_agency: form.issuing_agency.trim(),
+        issue_date: form.issue_date,
+        expiry_date: form.expiry_date,
         file_url: form.file_url.trim() || undefined,
-        notes: form.observation.trim() || undefined,
+        observation: form.observation.trim() || undefined,
         projects_id: projectsInfo.id,
       };
       if (editingLicense) {

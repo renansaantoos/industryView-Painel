@@ -255,7 +255,7 @@ export default function SafetyDDS() {
       });
       // Refresh the expanded row participants
       const full = await safetyApi.getDdsRecord(addParticipantDdsId);
-      const count = full.participants?.length ?? full.participants_count ?? full.participant_count ?? 0;
+      const count = full.participants?.length ?? full.participants_count ?? full.participants_count ?? 0;
       setRecords((prev) =>
         prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
       );
@@ -305,7 +305,7 @@ export default function SafetyDDS() {
     if (!editTarget) return;
     setEditLoading(true);
     try {
-      const updated = await safetyApi.updateDdsRecord(editTarget.id, {
+      await safetyApi.updateDdsRecord(editTarget.id, {
         topic: editTopic.trim() || undefined,
         description: editDescription.trim() || null,
         dds_date: editDate || undefined,

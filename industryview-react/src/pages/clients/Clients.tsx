@@ -184,7 +184,7 @@ export default function Clients() {
     setEditingClient(null);
   }
 
-  function handleModalSave(savedClient: Client) {
+  function handleModalSave(_savedClient: Client) {
     const isEdit = editingClient !== null;
     showToast(isEdit ? t('clients.updateSuccess') : t('clients.createSuccess'));
     closeModal();

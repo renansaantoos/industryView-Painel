@@ -26,7 +26,6 @@ import {
   Paperclip,
   CheckCircle,
   Filter,
-  BarChart3,
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -190,7 +189,7 @@ function AttachmentsRow({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function NonConformances() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
   // List state

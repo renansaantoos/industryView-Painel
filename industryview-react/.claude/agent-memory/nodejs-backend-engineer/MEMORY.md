@@ -2,52 +2,67 @@
 
 ## Arquitetura do Projeto
 
-- **Backend Node.js**: `/Users/myrko/Desktop/IndustryView/backend/`
+- **Backend Node.js**: `/home/luis/Projetos/industryView-Painel/backend/`
   - Framework: Express 4.18
   - Runtime: ts-node-dev com TypeScript 5.x
   - Porta: 3000 (`PORT=3000` no `.env`)
   - Prefixo de API: `/api/v1` (definido por `API_VERSION=v1`)
-  - Entry point: `src/index.ts`
+  - Entry point: `src/index.ts` (~1100 linhas)
 
-- **Frontend React**: `/Users/myrko/Desktop/IndustryView/industryview-react/`
+- **Frontend React**: `/home/luis/Projetos/industryView-Painel/industryview-react/`
   - Vite 5.x (React + TypeScript)
-  - Porta corrigida para: 5173 (era 3000, causava conflito com o backend)
-  - Proxy `/api` -> `http://localhost:3000`
-  - Vite config: `vite.config.ts`
 
 ## Estrutura de Módulos do Backend
 
-- `src/modules/auth/` - Autenticação (signup, login, me, daily-login, password recovery via SendGrid)
-- `src/modules/users/` - CRUD de usuários
-- `src/modules/projects/` - CRUD de projetos
-- `src/modules/sprints/` - Sprints e tasks
-- `src/modules/teams/` - Times (leaders, members)
-- `src/modules/trackers/` - Rastreadores
-- `src/modules/inventory/` - Inventário
-- `src/modules/reports/` - Relatórios
-- `src/modules/agents/` - AI Agents
-- `src/modules/tasks/` - Tasks, templates, unity, discipline
-- `src/modules/manufacturers/` - Fabricantes
-- `src/modules/stripe/` - Pagamentos Stripe
+Cada módulo em `src/modules/<nome>/` contém:
+- `<nome>.schema.ts` - validação Zod
+- `<nome>.service.ts` - lógica de negócio com Prisma
+- `<nome>.controller.ts` - handlers HTTP
+- `<nome>.routes.ts` - rotas Express + middleware
+- `index.ts` - re-exports
+
+Módulos: auth, users, projects, sprints, teams, trackers, inventory, reports, agents, tasks, manufacturers, stripe, ppe, employees, work-schedule, clients, contracts, commissioning, environmental, health, material-requisitions, audit, schedule-import, etc.
 
 ## Padrões de Código
 
-- **Validação**: Zod (`auth.schema.ts`, `validateBody()` middleware)
+- **Validação**: Zod (`<nome>.schema.ts`)
 - **ORM**: Prisma com PostgreSQL
 - **Auth**: JWT (`jsonwebtoken`), bcryptjs para hash de senha
-- **Rate limit**: `express-rate-limit` - auth: 5 req/15min; desabilitado em dev para default
+- **Middleware auth**: `import { authenticate } from '../../middleware/auth'` - named export
 - **Erros**: Classes `AppError`, `BadRequestError`, `NotFoundError`, `UnauthorizedError` em `src/utils/errors.ts`
 - **BigInt**: Todos IDs do Prisma são BigInt - usar `serializeBigInt()` de `src/utils/bigint.ts` nas respostas
+- **DB client**: `import { db } from '../../config/database'`
 
-## Bug Resolvido: 404 em POST /api/v1/auth/signup
+## Docker
 
-- **Causa**: Vite (frontend) estava configurado com `port: 3000` no `vite.config.ts`, mesma porta do backend. O Vite interceptava os requests via `localhost` antes do Node.js (que ouvia em `*:3000`).
-- **Fix**: Alterado `vite.config.ts` para `port: 5173` + adicionado proxy `/api` -> `http://localhost:3000`.
-- **Diagnóstico**: `lsof -iTCP -sTCP:LISTEN -P | grep node` revelou dois processos Node na porta 3000. Curl via `127.0.0.1` (IPv4) vs `localhost` (IPv6) confirmou qual processo respondia.
+- Container Node.js: `industryview-app`
+- Container PostgreSQL: `7db4708f8620` (nome: `7db4708f8620_industryview-postgres`)
+- Container Redis: `7c332e10ebbf`
+- DB: `industryview`, user: `postgres`, password: `postgres`
+- Prisma generate: `docker exec industryview-app npx prisma generate`
+- Restart: `docker restart industryview-app`
+
+## Registro de Rotas no index.ts
+
+Padrão para adicionar novo módulo em `src/index.ts`:
+1. Adicionar import após `employeesRoutes` (linha ~64)
+2. Adicionar `app.use(...)` após `app.use(\`${API_PREFIX}/employees\`, employeesRoutes)` (linha ~475)
+
+## Schema Prisma
+
+- Arquivo: `prisma/schema.prisma` (~2800 linhas)
+- Model `users` na linha 181, back-relations terminam na linha ~254
+- Ao adicionar relação que referencia `users`, sempre adicionar o back-relation na model `users`
+- Migrations manuais: criar em `prisma/migrations/<timestamp>_<nome>/migration.sql` e registrar em `_prisma_migrations` via INSERT
+
+## Bug Resolvido: 404 em POST /api/v1/auth/signup (ambiente anterior)
+
+- Causa: Vite frontend estava na porta 3000, mesma do backend
+- Fix: Alterado Vite para porta 5173 + proxy `/api` -> `http://localhost:3000`
 
 ## Variáveis de Ambiente Importantes (.env)
 
-- `DATABASE_URL`: PostgreSQL via Docker em `localhost:5432/industryview`
-- `JWT_SECRET`: Mínimo 32 chars (em dev: `dev-jwt-secret-change-in-production`)
+- `DATABASE_URL`: PostgreSQL via Docker em `postgres:5432/industryview` (dentro do container)
+- `JWT_SECRET`: Mínimo 32 chars
 - `NODE_ENV=development` - desabilita rate limit global, habilita logs verbose
-- Redis disponível via Docker em `localhost:6379`
+- Redis disponível via Docker

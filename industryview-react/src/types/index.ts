@@ -1,10 +1,10 @@
 export type * from './user';
 export type * from './project';
 export type * from './tracker';
-export type * from './task';
+export type { Task, TaskListItem, NonExecutionReason, TaskPriority, Unity, Unity as TaskUnity, Discipline, TaskBacklog, Subtask, BacklogComment, ImportTaskData, HeaderMapping } from './task';
 export type * from './sprint';
-export type * from './report';
-export type * from './inventory';
+export type { DailyReport as SimpleDailyReport, DailyReportListResponse } from './report';
+export type { InventoryProduct, InventoryStatus, InventoryLog, AddInventoryProductRequest, EditInventoryProductRequest, InventoryQuantityRequest, InventoryListResponse, Unity as InventoryUnity, EquipamentType } from './inventory';
 export type * from './company';
 export type * from './safety';
 export type * from './quality';
@@ -21,6 +21,7 @@ export type * from './health';
 export type * from './material-requisition';
 export type * from './audit';
 export type * from './employee';
+export type * from './workSchedule';
 
 /** Generic API response wrapper */
 export interface ApiResponse<T> {

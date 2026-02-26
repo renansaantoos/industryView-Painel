@@ -1,3 +1,9 @@
+/** Minimal project for dropdowns/lists (id + name) */
+export interface Project {
+  id: number;
+  name: string;
+}
+
 /** Project info stored in app state (from ProjectsInfo1Struct) */
 export interface ProjectInfo {
   id: number;

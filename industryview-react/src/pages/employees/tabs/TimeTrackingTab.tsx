@@ -6,13 +6,13 @@ import {
   modalBackdropVariants,
   modalContentVariants,
 } from '../../../lib/motion';
-import { workforceApi } from '../../../services';
-import type { WorkforceDailyLog } from '../../../types';
+import { workforceApi, workScheduleApi } from '../../../services';
+import type { WorkforceDailyLog, EmployeeWorkSchedule } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmModal from '../../../components/common/ConfirmModal';
-import { Clock, CalendarDays, Plus, Edit, Trash2, LogOut, FileSpreadsheet, Download } from 'lucide-react';
+import { Clock, CalendarDays, Plus, Edit, Trash2, LogOut, FileSpreadsheet, Download, Settings } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -389,6 +389,427 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
   );
 }
 
+// ── Work Schedule Section ─────────────────────────────────────────────────────
+
+type DayKey = 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' | 'dom';
+
+interface DayConfig {
+  key: DayKey;
+  label: string;
+}
+
+const WEEK_DAYS: DayConfig[] = [
+  { key: 'seg', label: 'Seg' },
+  { key: 'ter', label: 'Ter' },
+  { key: 'qua', label: 'Qua' },
+  { key: 'qui', label: 'Qui' },
+  { key: 'sex', label: 'Sex' },
+  { key: 'sab', label: 'Sab' },
+  { key: 'dom', label: 'Dom' },
+];
+
+type ScheduleFormState = Omit<EmployeeWorkSchedule, 'id' | 'users_id' | 'created_at' | 'updated_at'>;
+
+function buildDefaultSchedule(): ScheduleFormState {
+  return {
+    tolerancia_entrada: 5,
+    intervalo_almoco_min: 60,
+    seg_ativo: true,  seg_entrada: '08:00', seg_saida: '17:00',
+    ter_ativo: true,  ter_entrada: '08:00', ter_saida: '17:00',
+    qua_ativo: true,  qua_entrada: '08:00', qua_saida: '17:00',
+    qui_ativo: true,  qui_entrada: '08:00', qui_saida: '17:00',
+    sex_ativo: true,  sex_entrada: '08:00', sex_saida: '17:00',
+    sab_ativo: false, sab_entrada: null,    sab_saida: null,
+    dom_ativo: false, dom_entrada: null,    dom_saida: null,
+  };
+}
+
+function scheduleToFormState(schedule: EmployeeWorkSchedule): ScheduleFormState {
+  return {
+    tolerancia_entrada: schedule.tolerancia_entrada,
+    intervalo_almoco_min: schedule.intervalo_almoco_min,
+    seg_ativo: schedule.seg_ativo, seg_entrada: schedule.seg_entrada, seg_saida: schedule.seg_saida,
+    ter_ativo: schedule.ter_ativo, ter_entrada: schedule.ter_entrada, ter_saida: schedule.ter_saida,
+    qua_ativo: schedule.qua_ativo, qua_entrada: schedule.qua_entrada, qua_saida: schedule.qua_saida,
+    qui_ativo: schedule.qui_ativo, qui_entrada: schedule.qui_entrada, qui_saida: schedule.qui_saida,
+    sex_ativo: schedule.sex_ativo, sex_entrada: schedule.sex_entrada, sex_saida: schedule.sex_saida,
+    sab_ativo: schedule.sab_ativo, sab_entrada: schedule.sab_entrada, sab_saida: schedule.sab_saida,
+    dom_ativo: schedule.dom_ativo, dom_entrada: schedule.dom_entrada, dom_saida: schedule.dom_saida,
+  };
+}
+
+interface WorkScheduleSectionProps {
+  usersId: number;
+}
+
+function WorkScheduleSection({ usersId }: WorkScheduleSectionProps) {
+  const [schedule, setSchedule] = useState<EmployeeWorkSchedule | null>(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [notConfigured, setNotConfigured] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState<ScheduleFormState>(buildDefaultSchedule());
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const fetchSchedule = useCallback(async () => {
+    setLoadingSchedule(true);
+    setNotConfigured(false);
+    try {
+      const data = await workScheduleApi.getWorkSchedule(usersId);
+      setSchedule(data);
+      setForm(scheduleToFormState(data));
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setNotConfigured(true);
+        setSchedule(null);
+      } else {
+        console.error('Failed to load work schedule:', err);
+      }
+    } finally {
+      setLoadingSchedule(false);
+    }
+  }, [usersId]);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
+
+  function showToast(message: string, type: 'success' | 'error') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  function handleStartEdit() {
+    if (notConfigured || !schedule) {
+      setForm(buildDefaultSchedule());
+    } else {
+      setForm(scheduleToFormState(schedule));
+    }
+    setIsEditing(true);
+  }
+
+  function handleCancel() {
+    setIsEditing(false);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const saved = await workScheduleApi.upsertWorkSchedule(usersId, form);
+      setSchedule(saved);
+      setNotConfigured(false);
+      setIsEditing(false);
+      showToast('Regra de ponto salva com sucesso!', 'success');
+    } catch (err) {
+      console.error('Failed to save work schedule:', err);
+      showToast('Erro ao salvar regra de ponto. Tente novamente.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function setDayField(day: DayKey, field: 'ativo' | 'entrada' | 'saida', value: boolean | string | null) {
+    const fullKey = `${day}_${field}` as keyof ScheduleFormState;
+    setForm((prev) => ({ ...prev, [fullKey]: value }));
+  }
+
+  // ── Render helpers ──────────────────────────────────────────────────────────
+
+  function renderDayView(day: DayConfig) {
+    const ativo = form[`${day.key}_ativo` as keyof ScheduleFormState] as boolean;
+    const entrada = form[`${day.key}_entrada` as keyof ScheduleFormState] as string | null;
+    const saida = form[`${day.key}_saida` as keyof ScheduleFormState] as string | null;
+
+    return (
+      <div
+        key={day.key}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '12px 8px',
+          borderRadius: '8px',
+          border: '1px solid var(--color-border)',
+          backgroundColor: ativo ? 'var(--color-card-bg)' : 'var(--color-bg)',
+          minWidth: '72px',
+          flex: 1,
+        }}
+      >
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {day.label}
+        </span>
+        {!ativo ? (
+          <span
+            className="badge"
+            style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-secondary-text)', border: '1px solid var(--color-border)', fontSize: '11px' }}
+          >
+            Folga
+          </span>
+        ) : (
+          <span style={{ fontSize: '13px', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text)', fontWeight: 500 }}>
+            {entrada && saida ? `${entrada.slice(0, 5)} → ${saida.slice(0, 5)}` : '-'}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  function renderDayEdit(day: DayConfig) {
+    const ativo = form[`${day.key}_ativo` as keyof ScheduleFormState] as boolean;
+    const entrada = (form[`${day.key}_entrada` as keyof ScheduleFormState] as string | null) ?? '';
+    const saida = (form[`${day.key}_saida` as keyof ScheduleFormState] as string | null) ?? '';
+
+    return (
+      <div
+        key={day.key}
+        style={{
+          padding: '14px',
+          borderRadius: '8px',
+          border: '1px solid var(--color-border)',
+          backgroundColor: ativo ? 'var(--color-card-bg)' : 'var(--color-bg)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}
+      >
+        {/* Day header with toggle */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={ativo}
+            onChange={(e) => {
+              setDayField(day.key, 'ativo', e.target.checked);
+              if (!e.target.checked) {
+                setDayField(day.key, 'entrada', null);
+                setDayField(day.key, 'saida', null);
+              } else {
+                setDayField(day.key, 'entrada', '08:00');
+                setDayField(day.key, 'saida', '17:00');
+              }
+            }}
+            style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
+            {day.label}
+          </span>
+          {!ativo && (
+            <span
+              className="badge"
+              style={{ fontSize: '11px', backgroundColor: 'var(--color-bg)', color: 'var(--color-secondary-text)', border: '1px solid var(--color-border)', marginLeft: 'auto' }}
+            >
+              Folga
+            </span>
+          )}
+        </label>
+
+        {/* Time inputs */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>Entrada</label>
+            <input
+              type="time"
+              className="input-field"
+              value={entrada}
+              disabled={!ativo}
+              onChange={(e) => setDayField(day.key, 'entrada', e.target.value || null)}
+              style={{ fontSize: '13px', opacity: ativo ? 1 : 0.4 }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>Saída</label>
+            <input
+              type="time"
+              className="input-field"
+              value={saida}
+              disabled={!ativo}
+              onChange={(e) => setDayField(day.key, 'saida', e.target.value || null)}
+              style={{ fontSize: '13px', opacity: ativo ? 1 : 0.4 }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main render ─────────────────────────────────────────────────────────────
+
+  return (
+    <div className="card" style={{ padding: '20px', marginBottom: '20px' }}>
+      {/* Card header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--color-primary)18',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-primary)',
+              flexShrink: 0,
+            }}
+          >
+            <Settings size={18} />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--color-text)' }}>
+              Regra de Ponto
+            </h3>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+              Jornada semanal e tolerâncias
+            </p>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        {!loadingSchedule && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {isEditing ? (
+              <>
+                <button className="btn btn-secondary" onClick={handleCancel} disabled={saving}>
+                  Cancelar
+                </button>
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn btn-secondary"
+                onClick={handleStartEdit}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Edit size={14} />
+                {notConfigured ? 'Configurar' : 'Editar'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            marginBottom: '16px',
+            backgroundColor: toast.type === 'success' ? '#F4FEF9' : '#FDE8E8',
+            border: `1px solid ${toast.type === 'success' ? '#028F5830' : '#F5B7B1'}`,
+            color: toast.type === 'success' ? '#028F58' : '#C0392B',
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {/* Loading state */}
+      {loadingSchedule ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+          <LoadingSpinner />
+        </div>
+      ) : notConfigured && !isEditing ? (
+        /* Not configured empty state */
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '28px 0',
+            color: 'var(--color-secondary-text)',
+          }}
+        >
+          <Settings size={36} style={{ opacity: 0.35 }} />
+          <p style={{ margin: 0, fontSize: '14px' }}>Nenhuma regra de ponto configurada.</p>
+          <button className="btn btn-primary" onClick={handleStartEdit} style={{ marginTop: '4px' }}>
+            Configurar agora
+          </button>
+        </div>
+      ) : isEditing ? (
+        /* Edit mode */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Days grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+            {WEEK_DAYS.map((day) => renderDayEdit(day))}
+          </div>
+
+          {/* Tolerance fields */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text)' }}>
+                Tolerância de entrada (min)
+              </label>
+              <input
+                type="number"
+                className="input-field"
+                min={0}
+                max={60}
+                value={form.tolerancia_entrada ?? ''}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, tolerancia_entrada: e.target.value === '' ? null : Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text)' }}>
+                Intervalo de almoço (min)
+              </label>
+              <input
+                type="number"
+                className="input-field"
+                min={0}
+                max={120}
+                value={form.intervalo_almoco_min ?? ''}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, intervalo_almoco_min: e.target.value === '' ? null : Number(e.target.value) }))
+                }
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* View mode */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Days overview row */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {WEEK_DAYS.map((day) => renderDayView(day))}
+          </div>
+
+          {/* Tolerance summary row */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '24px',
+              flexWrap: 'wrap',
+              paddingTop: '12px',
+              borderTop: '1px solid var(--color-border)',
+            }}
+          >
+            <span style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+              Tolerancia entrada:{' '}
+              <strong style={{ color: 'var(--color-text)' }}>
+                {schedule?.tolerancia_entrada != null ? `${schedule.tolerancia_entrada} min` : '-'}
+              </strong>
+            </span>
+            <span style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+              Intervalo almoco:{' '}
+              <strong style={{ color: 'var(--color-text)' }}>
+                {schedule?.intervalo_almoco_min != null ? `${schedule.intervalo_almoco_min} min` : '-'}
+              </strong>
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function TimeTrackingTab({ usersId }: TimeTrackingTabProps) {
@@ -571,6 +992,9 @@ export default function TimeTrackingTab({ usersId }: TimeTrackingTabProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Work Schedule Section */}
+      <WorkScheduleSection usersId={usersId} />
+
       {/* Summary Cards */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <SummaryCard

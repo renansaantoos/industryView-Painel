@@ -178,7 +178,11 @@ export default function EmployeeProfile() {
         matricula: summary.hrData?.matricula ?? null,
         cargo: summary.hrData?.cargo ?? null,
         departamento: summary.hrData?.departamento ?? null,
+<<<<<<< Updated upstream
         profile_picture: fotoUrl || (user?.url ?? null),
+=======
+        profile_picture: (fotoUrl || user?.url) ?? null,
+>>>>>>> Stashed changes
         email: user?.email || hrUser?.email || null,
         trainings,
       });

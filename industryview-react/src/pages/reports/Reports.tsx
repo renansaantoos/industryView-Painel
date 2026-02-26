@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { reportsApi, sprintsApi } from '../../services';
-import type { DailyReport, Sprint } from '../../types';
+import type { SimpleDailyReport, Sprint } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -27,7 +27,7 @@ export default function Reports() {
   const projectsId = parseInt(searchParams.get('projectsId') || String(projectsInfo?.id || 0), 10);
   const sprintIdParam = parseInt(searchParams.get('sprintId') || '0', 10);
 
-  const [reports, setReports] = useState<DailyReport[]>([]);
+  const [reports, setReports] = useState<SimpleDailyReport[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -60,7 +60,12 @@ export default function Reports() {
         projects_id: projectsInfo.id,
         per_page: 50,
       });
-      setSprints(data.items || []);
+      const allItems = data.items ?? [
+        ...(data.sprints_ativa?.items ?? []),
+        ...(data.sprints_futura?.items ?? []),
+        ...(data.sprints_concluida?.items ?? []),
+      ];
+      setSprints(allItems);
     } catch (err) {
       console.error('Failed to load sprints:', err);
     }
@@ -192,7 +197,7 @@ export default function Reports() {
           />
         </div>
         <SearchableSelect
-          options={sprints.map((s) => ({ value: s.id, label: s.name }))}
+          options={sprints.map((s) => ({ value: s.id, label: s.title || String(s.id) }))}
           value={selectedSprintId || undefined}
           onChange={(value) => {
             setSelectedSprintId(value ? Number(value) : 0);

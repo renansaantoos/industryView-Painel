@@ -733,7 +733,7 @@ export function ClientFormModal({
     const errors: Partial<Record<string, string>> = {};
     const allFields = Object.values(TAB_FIELDS).flat();
     for (const field of allFields) {
-      const value = (formData as Record<string, unknown>)[field];
+      const value = (formData as unknown as Record<string, unknown>)[field];
       const error = validateSingleField(field, value);
       if (error) errors[field] = error;
     }

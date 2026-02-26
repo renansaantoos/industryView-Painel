@@ -15,9 +15,11 @@ export interface Sprint {
 
 /** Sprint list response (3 categories) */
 export interface SprintListResponse {
-  sprints_ativa: SprintPaginatedCategory;
-  sprints_futura: SprintPaginatedCategory;
-  sprints_concluida: SprintPaginatedCategory;
+  sprints_ativa?: SprintPaginatedCategory;
+  sprints_futura?: SprintPaginatedCategory;
+  sprints_concluida?: SprintPaginatedCategory;
+  /** Flat list (when API returns items directly) */
+  items?: Sprint[];
 }
 
 /** Single paginated category in sprint list */

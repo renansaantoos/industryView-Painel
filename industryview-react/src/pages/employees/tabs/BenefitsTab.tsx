@@ -298,11 +298,6 @@ export default function BenefitsTab({ usersId }: BenefitsTabProps) {
 
   // ─── Filter change resets page ───────────────────────────────────────────────
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilterTipo(e.target.value);
-    setPage(1);
-  };
-
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (

@@ -475,10 +475,6 @@ export default function EmployeeCreate() {
 
   // ─── Input helpers (with error support) ─────────────────────────────────────
 
-  function isRequired(field: keyof HrFormData): boolean {
-    return field in REQUIRED_HR_FIELDS;
-  }
-
   function textInput(field: keyof HrFormData, placeholder?: string) {
     const err = fieldErrors[field];
     return (

@@ -34,7 +34,9 @@ export const createDailyLogSchema = z.object({
   hours_overtime: z.coerce.number().min(0).max(24).optional().default(0),
   check_in: z.string().optional(),
   check_out: z.string().optional(),
-  observation: z.string().optional(),
+  saida_intervalo: z.string().optional(),
+  entrada_intervalo: z.string().optional(),
+  observation: z.string().trim().optional(),
 });
 
 export const updateDailyLogSchema = z.object({
@@ -45,7 +47,9 @@ export const updateDailyLogSchema = z.object({
   hours_overtime: z.coerce.number().min(0).max(24).optional(),
   check_in: z.string().optional(),
   check_out: z.string().optional(),
-  observation: z.string().optional(),
+  saida_intervalo: z.string().optional(),
+  entrada_intervalo: z.string().optional(),
+  observation: z.string().trim().optional(),
 });
 
 // =============================================================================

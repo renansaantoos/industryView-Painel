@@ -121,7 +121,7 @@ export default function ImportTask() {
       }
 
       try {
-        await tasksApi.addTask({ name });
+        await tasksApi.addTask({ description: name });
         success++;
       } catch {
         failed++;
