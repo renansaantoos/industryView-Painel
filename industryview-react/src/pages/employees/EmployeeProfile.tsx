@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   HeartPulse,
   IdCard,
+  Camera,
 } from 'lucide-react';
 
 // Tab components
@@ -81,6 +82,9 @@ export default function EmployeeProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('dados');
   const [isBadgeGenerating, setIsBadgeGenerating] = useState(false);
+  const [fotoUrl, setFotoUrl] = useState<string>('');
+  const [isUploadingFoto, setIsUploadingFoto] = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
   const [summary, setSummary] = useState<SummaryData>({
     vacationBalance: null,
     ppeStatus: null,
@@ -113,15 +117,38 @@ export default function EmployeeProfile() {
         setUser(userData.value);
       }
 
+      const hrDataValue = hrData.status === 'fulfilled' ? hrData.value : null;
       setSummary({
-        hrData: hrData.status === 'fulfilled' ? hrData.value : null,
+        hrData: hrDataValue,
         vacationBalance: vacBalance.status === 'fulfilled' ? vacBalance.value : null,
         ppeStatus: ppeStatus.status === 'fulfilled' ? ppeStatus.value : null,
       });
+      // Inicializa foto: preferência para foto_documento_url, fallback user.url
+      if (hrDataValue?.foto_documento_url) {
+        setFotoUrl(hrDataValue.foto_documento_url);
+      } else if (userData.status === 'fulfilled' && userData.value?.url) {
+        setFotoUrl(userData.value.url);
+      }
     } catch (err) {
       console.error('Failed to load profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingFoto(true);
+    try {
+      const result = await safetyApi.uploadFile(file);
+      setFotoUrl(result.file_url);
+      await employeesApi.upsertHrData(usersId, { foto_documento_url: result.file_url });
+    } catch (err) {
+      console.error('Erro ao fazer upload da foto:', err);
+    } finally {
+      setIsUploadingFoto(false);
+      e.target.value = '';
     }
   };
 
@@ -151,7 +178,7 @@ export default function EmployeeProfile() {
         matricula: summary.hrData?.matricula ?? null,
         cargo: summary.hrData?.cargo ?? null,
         departamento: summary.hrData?.departamento ?? null,
-        profile_picture: user?.url ?? summary.hrData?.foto_documento_url ?? null,
+        profile_picture: fotoUrl || user?.url ?? null,
         email: user?.email || hrUser?.email || null,
         trainings,
       });
@@ -207,31 +234,72 @@ export default function EmployeeProfile() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-          {/* Avatar */}
-          <div
-            style={{
-              width: '72px',
-              height: '72px',
-              borderRadius: '50%',
-              background: 'var(--color-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '24px',
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {user?.url ? (
-              <img
-                src={user.url}
-                alt={displayName}
-                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-              />
-            ) : (
-              initials
-            )}
+          {/* Avatar — clicável para trocar foto */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div
+              onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
+              title="Clique para alterar a foto"
+              style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                background: fotoUrl ? 'transparent' : 'var(--color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '24px',
+                fontWeight: 700,
+                flexShrink: 0,
+                cursor: isUploadingFoto ? 'not-allowed' : 'pointer',
+                overflow: 'hidden',
+                opacity: isUploadingFoto ? 0.7 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              {isUploadingFoto ? (
+                <div className="spinner" style={{ width: 26, height: 26, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
+              ) : fotoUrl ? (
+                <img
+                  src={fotoUrl}
+                  alt={displayName}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
+            </div>
+            {/* Camera overlay button */}
+            <button
+              type="button"
+              onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
+              disabled={isUploadingFoto}
+              title="Alterar foto"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                background: 'var(--color-primary)',
+                border: '2px solid var(--color-card-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isUploadingFoto ? 'not-allowed' : 'pointer',
+                padding: 0,
+              }}
+            >
+              <Camera size={12} color="white" />
+            </button>
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleFotoChange}
+            />
           </div>
 
           {/* Info */}

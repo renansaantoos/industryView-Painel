@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUpChild } from '../../../lib/motion';
-import { employeesApi, safetyApi } from '../../../services';
+import { employeesApi } from '../../../services';
 import type { EmployeeHrData } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import SearchableSelect from '../../../components/common/SearchableSelect';
-import { Save, ChevronDown, ChevronRight, AlertTriangle, Camera, User } from 'lucide-react';
+import { Save, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -174,11 +174,6 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
 
-  // Foto do funcionário
-  const [fotoUrl, setFotoUrl] = useState<string>('');
-  const [isUploadingFoto, setIsUploadingFoto] = useState(false);
-  const fotoInputRef = useRef<HTMLInputElement>(null);
-
   // Track open/closed state per section
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     pessoal: true,
@@ -247,7 +242,6 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         if (cancelled) return;
 
         if (data) {
-          if (data.foto_documento_url) setFotoUrl(data.foto_documento_url);
           const dateFields = new Set([
             'rg_data_emissao', 'data_nascimento', 'data_admissao',
             'data_demissao', 'cnh_validade',
@@ -344,21 +338,6 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
     }
   }, [form.cep]);
 
-  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingFoto(true);
-    try {
-      const result = await safetyApi.uploadFile(file);
-      setFotoUrl(result.file_url);
-    } catch {
-      showToast('Erro ao fazer upload da foto. Tente novamente.', 'error');
-    } finally {
-      setIsUploadingFoto(false);
-      e.target.value = '';
-    }
-  }
-
   async function handleSave() {
     const todayIso = getTodayIsoDate();
     if (form.rg_data_emissao && form.rg_data_emissao > todayIso) {
@@ -392,7 +371,6 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
         })
       ) as Partial<EmployeeHrData>;
 
-      if (fotoUrl) payload.foto_documento_url = fotoUrl;
       await employeesApi.upsertHrData(usersId, payload);
       showToast('Dados salvos com sucesso.', 'success');
     } catch {
@@ -470,71 +448,6 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
           {toast.message}
         </div>
       )}
-
-      {/* ── Foto do Funcionário ────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '4px 0 24px', borderBottom: '1px solid var(--color-alternate)', marginBottom: 24 }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div
-            onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
-            style={{
-              width: 88, height: 88, borderRadius: '50%',
-              background: fotoUrl ? 'transparent' : 'var(--color-primary)',
-              border: '3px solid var(--color-border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: isUploadingFoto ? 'not-allowed' : 'pointer',
-              overflow: 'hidden', transition: 'opacity 0.2s',
-              opacity: isUploadingFoto ? 0.6 : 1,
-            }}
-            title="Clique para fazer upload da foto"
-          >
-            {fotoUrl ? (
-              <img src={fotoUrl} alt="Foto do funcionário" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : isUploadingFoto ? (
-              <div className="spinner" style={{ width: 28, height: 28, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
-            ) : (
-              <User size={36} color="white" />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
-            disabled={isUploadingFoto}
-            style={{
-              position: 'absolute', bottom: 2, right: 2,
-              width: 26, height: 26, borderRadius: '50%',
-              background: 'var(--color-primary)', border: '2px solid var(--color-card-bg)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: isUploadingFoto ? 'not-allowed' : 'pointer', padding: 0,
-            }}
-            title="Alterar foto"
-          >
-            <Camera size={13} color="white" />
-          </button>
-          <input
-            ref={fotoInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            style={{ display: 'none' }}
-            onChange={handleFotoChange}
-          />
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-primary-text)' }}>Foto do Funcionário</div>
-          <div style={{ fontSize: 13, color: 'var(--color-secondary-text)', marginTop: 4 }}>
-            {fotoUrl ? 'Foto carregada — clique para alterar' : 'Clique no avatar para fazer upload'}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--color-secondary-text)', marginTop: 2 }}>JPG, PNG ou WebP · opcional</div>
-          {fotoUrl && (
-            <button
-              type="button"
-              onClick={() => setFotoUrl('')}
-              style={{ marginTop: 6, fontSize: 12, color: 'var(--color-error)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              Remover foto
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* ── Dados Pessoais ─────────────────────────────────────────────── */}
       <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')}>
