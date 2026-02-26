@@ -25,7 +25,16 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Filter,
+  X,
+  Paperclip,
+  FileText,
+  Link,
 } from 'lucide-react';
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 // ── Validity helpers ─────────────────────────────────────────────────────────
 
@@ -208,6 +217,10 @@ export default function SafetyTraining() {
   const [trainingDate, setTrainingDate] = useState('');
   const [trainingInstructor, setTrainingInstructor] = useState('');
   const [trainingCertificateUrl, setTrainingCertificateUrl] = useState('');
+  const [trainingFormErrors, setTrainingFormErrors] = useState<Record<string, string>>({});
+  const [trainingApiError, setTrainingApiError] = useState('');
+  const [trainingFile, setTrainingFile] = useState<File | null>(null);
+  const [trainingFileUploading, setTrainingFileUploading] = useState(false);
 
   // Employee search dropdown
   const [employees, setEmployees] = useState<UserFull[]>([]);
@@ -215,6 +228,10 @@ export default function SafetyTraining() {
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<UserFull | null>(null);
+
+  // Training types column filter
+  const [showTypesNameFilter, setShowTypesNameFilter] = useState(false);
+  const [typesNameFilter, setTypesNameFilter] = useState('');
 
   useEffect(() => {
     setNavBarSelection(15);
@@ -250,8 +267,8 @@ export default function SafetyTraining() {
     setTrainingsLoading(true);
     try {
       const params: Parameters<typeof safetyApi.listWorkerTrainings>[0] = {
-        page,
-        per_page: perPage,
+        page: filterEmployeeId ? 1 : page,
+        per_page: filterEmployeeId ? 500 : perPage,
       };
       if (user?.companyId) {
         params.company_id = user.companyId;
@@ -425,6 +442,23 @@ export default function SafetyTraining() {
     return () => clearTimeout(timer);
   }, [employeeSearch, showTrainingModal, loadEmployees]);
 
+  const validateTrainingForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!trainingUserId) errors.users_id = 'Selecione um funcionário';
+    if (!trainingTypeId) errors.training_types_id = 'Selecione o tipo de treinamento';
+    if (!trainingDate) {
+      errors.training_date = 'Informe a data do treinamento';
+    } else if (trainingDate > todayIso()) {
+      errors.training_date = 'A data não pode ser maior que hoje';
+    }
+    if (!trainingInstructor.trim()) errors.instructor = 'Instrutor é obrigatório';
+    if (!trainingFile && !trainingCertificateUrl.trim()) {
+      errors.certificate_file = 'Anexe o certificado ou informe a URL de validação';
+    }
+    setTrainingFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const openCreateTrainingModal = () => {
     setTrainingUserId('');
     setTrainingTypeId('');
@@ -434,6 +468,10 @@ export default function SafetyTraining() {
     setSelectedEmployee(null);
     setEmployeeSearch('');
     setShowEmployeeDropdown(false);
+    setTrainingFormErrors({});
+    setTrainingApiError('');
+    setTrainingFile(null);
+    setTrainingFileUploading(false);
     loadEmployees();
     setShowTrainingModal(true);
   };
@@ -446,15 +484,24 @@ export default function SafetyTraining() {
   };
 
   const handleSaveTraining = async () => {
-    if (!trainingUserId || !trainingTypeId || !trainingDate) return;
+    setTrainingApiError('');
+    if (!validateTrainingForm()) return;
     setTrainingModalLoading(true);
     try {
+      // Upload file first if provided, then use its URL as certificate_url
+      let finalCertificateUrl = trainingCertificateUrl.trim();
+      if (trainingFile) {
+        setTrainingFileUploading(true);
+        const uploaded = await safetyApi.uploadFile(trainingFile);
+        setTrainingFileUploading(false);
+        finalCertificateUrl = uploaded.file_url;
+      }
       const payload: Record<string, unknown> = {
         users_id: parseInt(trainingUserId, 10),
         training_types_id: parseInt(trainingTypeId, 10),
         training_date: trainingDate,
-        instructor: trainingInstructor.trim() || undefined,
-        certificate_url: trainingCertificateUrl.trim() || undefined,
+        instructor: trainingInstructor.trim(),
+        certificate_url: finalCertificateUrl || undefined,
       };
       if (user?.companyId) {
         payload.company_id = user.companyId;
@@ -462,8 +509,10 @@ export default function SafetyTraining() {
       await safetyApi.createWorkerTraining(payload);
       setShowTrainingModal(false);
       loadWorkerTrainings();
-    } catch (err) {
-      console.error('Failed to save worker training:', err);
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
+      setTrainingFileUploading(false);
+      setTrainingApiError(apiErr?.response?.data?.message || 'Erro ao salvar treinamento. Tente novamente.');
     } finally {
       setTrainingModalLoading(false);
     }
@@ -476,13 +525,14 @@ export default function SafetyTraining() {
     vencido: t('safety.expiredStatus'),
   };
 
-  // Filtered training types by search, with dynamic sort
+  // Filtered training types by search + column name filter, with dynamic sort
   const filteredTypes = trainingTypes
     .filter(
       (tt) =>
-        !typesSearch ||
-        tt.name.toLowerCase().includes(typesSearch.toLowerCase()) ||
-        (tt.nr_reference || '').toLowerCase().includes(typesSearch.toLowerCase()),
+        (!typesSearch ||
+          tt.name.toLowerCase().includes(typesSearch.toLowerCase()) ||
+          (tt.nr_reference || '').toLowerCase().includes(typesSearch.toLowerCase())) &&
+        (!typesNameFilter || tt.name.toLowerCase().includes(typesNameFilter.toLowerCase())),
     )
     .sort((a, b) => {
       const mul = typeSort.dir === 'asc' ? 1 : -1;
@@ -621,12 +671,71 @@ export default function SafetyTraining() {
               <table>
                 <thead>
                   <tr>
-                    <SortableHeader
-                      label={t('safety.trainingLabel')}
-                      active={typeSort.field === 'name'}
-                      dir={typeSort.dir}
-                      onClick={() => toggleTypeSort('name')}
-                    />
+                    <th style={{ minWidth: '220px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span
+                            onClick={() => toggleTypeSort('name')}
+                            style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', userSelect: 'none' }}
+                          >
+                            {t('safety.trainingLabel')}
+                            {typeSort.field === 'name' ? (
+                              typeSort.dir === 'asc' ? (
+                                <ArrowUp size={13} color="var(--color-primary)" />
+                              ) : (
+                                <ArrowDown size={13} color="var(--color-primary)" />
+                              )
+                            ) : (
+                              <ArrowUpDown size={13} color="var(--color-secondary-text)" style={{ opacity: 0.5 }} />
+                            )}
+                          </span>
+                          <button
+                            title="Filtrar por nome"
+                            onClick={() => {
+                              setShowTypesNameFilter((v) => !v);
+                              if (showTypesNameFilter) setTypesNameFilter('');
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: '2px',
+                              cursor: 'pointer',
+                              color: typesNameFilter ? 'var(--color-primary)' : 'var(--color-secondary-text)',
+                              display: 'inline-flex',
+                              marginLeft: '4px',
+                            }}
+                          >
+                            <Filter size={12} />
+                          </button>
+                        </div>
+                        {showTypesNameFilter && (
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              autoFocus
+                              type="text"
+                              className="input-field"
+                              placeholder="Filtrar por nome..."
+                              value={typesNameFilter}
+                              onChange={(e) => setTypesNameFilter(e.target.value)}
+                              style={{ fontSize: '12px', padding: '4px 24px 4px 8px', height: '28px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            {typesNameFilter && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setTypesNameFilter(''); }}
+                                style={{
+                                  position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                  color: 'var(--color-secondary-text)',
+                                }}
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </th>
                     <SortableHeader
                       label={t('safety.nrReference')}
                       active={typeSort.field === 'nr_reference'}
@@ -750,7 +859,7 @@ export default function SafetyTraining() {
           )}
 
           {/* Search and employee filter */}
-          <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, maxWidth: '360px', position: 'relative' }}>
               <Search
                 size={16}
@@ -774,7 +883,10 @@ export default function SafetyTraining() {
                 style={{ paddingLeft: '32px' }}
               />
             </div>
-            <div style={{ minWidth: '220px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '260px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--color-secondary-text)', fontWeight: 500 }}>
+                Selecionar Funcionário
+              </label>
               <SearchableSelect
                 options={filterEmployees.map((emp) => ({ value: String(emp.id), label: emp.name }))}
                 value={filterEmployeeId ? String(filterEmployeeId) : undefined}
@@ -782,11 +894,42 @@ export default function SafetyTraining() {
                   setFilterEmployeeId(val ? Number(val) : null);
                   setPage(1);
                 }}
-                placeholder={t('safety.filterByEmployee')}
+                placeholder="— Todos os funcionários —"
                 allowClear
               />
             </div>
           </div>
+
+          {/* Selected employee banner */}
+          {filterEmployeeId && (
+            <div
+              style={{
+                marginBottom: '12px',
+                padding: '10px 14px',
+                background: 'var(--color-primary-light, #EBF5FB)',
+                border: '1px solid var(--color-primary)30',
+                borderRadius: '8px',
+                fontSize: '13px',
+                color: 'var(--color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Award size={15} />
+              <span>
+                Exibindo todos os treinamentos de{' '}
+                <strong>{filterEmployees.find((e) => e.id === filterEmployeeId)?.name || `Funcionário #${filterEmployeeId}`}</strong>
+              </span>
+              <button
+                onClick={() => { setFilterEmployeeId(null); setPage(1); }}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex' }}
+                title="Limpar filtro"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
 
           {trainingsLoading ? (
             <LoadingSpinner />
@@ -1148,35 +1291,55 @@ export default function SafetyTraining() {
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => {
-              // Fecha dropdown apenas se o clique for fora do container do dropdown
               const target = e.target as HTMLElement;
               if (!target.closest('[data-employee-dropdown]')) {
                 setShowEmployeeDropdown(false);
               }
             }}
-            style={{ padding: '24px', width: '460px' }}
+            style={{ padding: '24px', width: '480px' }}
           >
-            <h3 style={{ marginBottom: '16px' }}>{t('safety.createWorkerTraining')}</h3>
+            <h3 style={{ marginBottom: '4px' }}>{t('safety.createWorkerTraining')}</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+              Todos os campos são obrigatórios.
+            </p>
+
+            {trainingApiError && (
+              <div
+                style={{
+                  marginBottom: '12px',
+                  padding: '10px 14px',
+                  background: '#FDE8E8',
+                  border: '1px solid #F5B7B1',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  color: '#C0392B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <AlertTriangle size={16} />
+                {trainingApiError}
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Funcionário */}
               <div className="input-group" style={{ position: 'relative', zIndex: 10 }} data-employee-dropdown>
                 <label>
-                  {t('common.name')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                  Funcionário <span style={{ color: 'var(--color-error)' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Search
                     size={16}
                     style={{
-                      position: 'absolute',
-                      left: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--color-secondary-text)',
-                      pointerEvents: 'none',
+                      position: 'absolute', left: '10px', top: '50%',
+                      transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none',
                     }}
                   />
                   <input
                     className="input-field"
-                    value={selectedEmployee ? employeeSearch : employeeSearch}
+                    value={employeeSearch}
                     onChange={(e) => {
                       setEmployeeSearch(e.target.value);
                       setShowEmployeeDropdown(true);
@@ -1184,28 +1347,31 @@ export default function SafetyTraining() {
                         setSelectedEmployee(null);
                         setTrainingUserId('');
                       }
+                      if (trainingFormErrors.users_id)
+                        setTrainingFormErrors((prev) => ({ ...prev, users_id: '' }));
                     }}
                     onFocus={() => setShowEmployeeDropdown(true)}
                     placeholder={t('safety.searchEmployee')}
-                    style={{ paddingLeft: '32px' }}
+                    style={{
+                      paddingLeft: '32px',
+                      ...(trainingFormErrors.users_id
+                        ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                        : {}),
+                    }}
                     autoComplete="off"
                   />
                 </div>
+                {trainingFormErrors.users_id && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {trainingFormErrors.users_id}
+                  </span>
+                )}
                 {showEmployeeDropdown && (
                   <div
                     style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      zIndex: 999,
-                      background: '#fff',
-                      border: '1px solid #ddd',
-                      borderRadius: '8px',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-                      maxHeight: '220px',
-                      overflowY: 'auto',
-                      marginTop: '2px',
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+                      background: '#fff', border: '1px solid #ddd', borderRadius: '8px',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxHeight: '220px', overflowY: 'auto', marginTop: '2px',
                     }}
                   >
                     {employeesLoading ? (
@@ -1222,9 +1388,7 @@ export default function SafetyTraining() {
                           key={emp.id}
                           onClick={() => handleSelectEmployee(emp)}
                           style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            fontSize: '13px',
+                            padding: '8px 12px', cursor: 'pointer', fontSize: '13px',
                             borderBottom: '1px solid var(--color-alternate)',
                             backgroundColor: selectedEmployee?.id === emp.id ? 'var(--color-primary-light, #EBF5FB)' : 'transparent',
                             transition: 'background-color 100ms ease',
@@ -1244,59 +1408,221 @@ export default function SafetyTraining() {
                   </div>
                 )}
               </div>
+
+              {/* Tipo de Treinamento */}
               <div className="input-group">
-                <label>{t('safety.trainingTypes')} *</label>
+                <label>
+                  {t('safety.trainingLabel')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <SearchableSelect
                   options={trainingTypes.map((tt) => ({ value: String(tt.id), label: `${tt.name}${tt.nr_reference ? ` (${tt.nr_reference})` : ''}` }))}
                   value={trainingTypeId || undefined}
-                  onChange={(val) => setTrainingTypeId(String(val ?? ''))}
+                  onChange={(val) => {
+                    setTrainingTypeId(String(val ?? ''));
+                    if (trainingFormErrors.training_types_id)
+                      setTrainingFormErrors((prev) => ({ ...prev, training_types_id: '' }));
+                  }}
                   placeholder={`— ${t('common.type')} —`}
                   allowClear
                 />
+                {trainingFormErrors.training_types_id && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {trainingFormErrors.training_types_id}
+                  </span>
+                )}
               </div>
+
+              {/* Data do Treinamento */}
               <div className="input-group">
-                <label>{t('safety.trainingDate')} *</label>
+                <label>
+                  {t('safety.trainingDate')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <input
                   type="date"
                   className="input-field"
                   value={trainingDate}
-                  onChange={(e) => setTrainingDate(e.target.value)}
+                  max={todayIso()}
+                  onChange={(e) => {
+                    setTrainingDate(e.target.value);
+                    if (trainingFormErrors.training_date) {
+                      const newVal = e.target.value;
+                      const err = !newVal
+                        ? 'Informe a data do treinamento'
+                        : newVal > todayIso()
+                        ? 'A data não pode ser maior que hoje'
+                        : '';
+                      setTrainingFormErrors((prev) => ({ ...prev, training_date: err }));
+                    }
+                  }}
+                  style={
+                    trainingFormErrors.training_date
+                      ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                      : undefined
+                  }
                 />
+                {trainingFormErrors.training_date && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {trainingFormErrors.training_date}
+                  </span>
+                )}
               </div>
+
+              {/* Instrutor */}
               <div className="input-group">
-                <label>{t('safety.instructor')}</label>
+                <label>
+                  {t('safety.instructor')} <span style={{ color: 'var(--color-error)' }}>*</span>
+                </label>
                 <input
                   className="input-field"
                   value={trainingInstructor}
-                  onChange={(e) => setTrainingInstructor(e.target.value)}
+                  onChange={(e) => {
+                    setTrainingInstructor(e.target.value);
+                    if (trainingFormErrors.instructor && e.target.value.trim())
+                      setTrainingFormErrors((prev) => ({ ...prev, instructor: '' }));
+                  }}
                   placeholder={t('safety.instructor')}
+                  style={
+                    trainingFormErrors.instructor
+                      ? { borderColor: 'var(--color-error)', boxShadow: '0 0 0 2px rgba(192,57,43,0.15)' }
+                      : undefined
+                  }
                 />
+                {trainingFormErrors.instructor && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {trainingFormErrors.instructor}
+                  </span>
+                )}
               </div>
-              <div className="input-group">
-                <label>{t('safety.certificate')}</label>
-                <input
-                  className="input-field"
-                  value={trainingCertificateUrl}
-                  onChange={(e) => setTrainingCertificateUrl(e.target.value)}
-                  placeholder={t('safety.certificatePlaceholder')}
-                />
+
+              {/* Certificado: Arquivo + URL */}
+              <div
+                style={{
+                  border: `1px solid ${trainingFormErrors.certificate_file ? 'var(--color-error)' : 'var(--color-border)'}`,
+                  borderRadius: '8px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  ...(trainingFormErrors.certificate_file
+                    ? { boxShadow: '0 0 0 2px rgba(192,57,43,0.12)' }
+                    : {}),
+                }}
+              >
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
+                  Certificado <span style={{ color: 'var(--color-error)' }}>*</span>
+                  <span style={{ fontWeight: 400, color: 'var(--color-secondary-text)', marginLeft: '6px', fontSize: '12px' }}>
+                    (anexe o arquivo ou informe a URL)
+                  </span>
+                </p>
+
+                {/* File upload */}
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-secondary-text)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                    <Paperclip size={13} /> Anexar Arquivo
+                  </label>
+                  {trainingFile ? (
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '8px 12px', borderRadius: '6px',
+                        background: '#F4FEF9', border: '1px solid #028F5830',
+                        fontSize: '13px', color: '#028F58',
+                      }}
+                    >
+                      <FileText size={15} />
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {trainingFile.name}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap' }}>
+                        ({(trainingFile.size / 1024).toFixed(0)} KB)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTrainingFile(null);
+                          if (trainingFormErrors.certificate_file && trainingCertificateUrl.trim())
+                            setTrainingFormErrors((prev) => ({ ...prev, certificate_file: '' }));
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#028F58', padding: 0, display: 'flex' }}
+                        title="Remover arquivo"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+                        padding: '8px 12px', borderRadius: '6px', border: '1px dashed var(--color-border)',
+                        fontSize: '13px', color: 'var(--color-secondary-text)',
+                        transition: 'border-color 150ms',
+                      }}
+                    >
+                      <Paperclip size={15} />
+                      Clique para selecionar (PDF, imagem)
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null;
+                          setTrainingFile(f);
+                          if (f && trainingFormErrors.certificate_file)
+                            setTrainingFormErrors((prev) => ({ ...prev, certificate_file: '' }));
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+                  <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ou</span>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+                </div>
+
+                {/* URL de Validação Digital */}
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-secondary-text)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                    <Link size={13} /> URL de Validação Digital
+                  </label>
+                  <input
+                    className="input-field"
+                    value={trainingCertificateUrl}
+                    onChange={(e) => {
+                      setTrainingCertificateUrl(e.target.value);
+                      if (trainingFormErrors.certificate_file && (e.target.value.trim() || trainingFile))
+                        setTrainingFormErrors((prev) => ({ ...prev, certificate_file: '' }));
+                    }}
+                    placeholder="https://... (URL de verificação digital)"
+                    style={{ fontSize: '13px' }}
+                  />
+                </div>
+
+                {trainingFormErrors.certificate_file && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertTriangle size={12} /> {trainingFormErrors.certificate_file}
+                  </span>
+                )}
               </div>
             </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowTrainingModal(false)}>
+              <button className="btn btn-secondary" onClick={() => setShowTrainingModal(false)} disabled={trainingFileUploading}>
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleSaveTraining}
-                disabled={
-                  trainingModalLoading ||
-                  !trainingUserId ||
-                  !trainingTypeId ||
-                  !trainingDate
-                }
+                disabled={trainingModalLoading || trainingFileUploading}
               >
-                {trainingModalLoading ? <span className="spinner" /> : t('common.save')}
+                {trainingFileUploading
+                  ? 'Enviando arquivo...'
+                  : trainingModalLoading
+                  ? <span className="spinner" />
+                  : t('common.save')}
               </button>
             </div>
           </div>

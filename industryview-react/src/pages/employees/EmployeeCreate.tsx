@@ -7,7 +7,7 @@ import { usersApi, employeesApi, safetyApi } from '../../services';
 import type { EmployeeHrData } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle, AlertTriangle, Camera, User } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle, Camera, User } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -222,27 +222,6 @@ function maskConta(value: string): string {
   return `${d.slice(0, -1)}-${d.slice(-1)}`;
 }
 
-// ─── Age helpers ──────────────────────────────────────────────────────────────
-
-function calcAge(birthDate: string): number | null {
-  if (!birthDate) return null;
-  const birth = new Date(birthDate);
-  if (isNaN(birth.getTime())) return null;
-  const ref = new Date();
-  let age = ref.getFullYear() - birth.getFullYear();
-  const m = ref.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--;
-  return age;
-}
-
-function getAgeWarning(birthDate: string): string | null {
-  const age = calcAge(birthDate);
-  if (age === null || age < 14) return null;
-  if (age < 16) return 'Atenção: funcionário entre 14 e 15 anos — exige autorização judicial e contrato de aprendiz (CLT art. 403).';
-  if (age < 18) return 'Atenção: funcionário entre 16 e 17 anos — vedado trabalho noturno, perigoso ou insalubre (CLT art. 404-405).';
-  return null;
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EmployeeCreate() {
@@ -384,22 +363,6 @@ export default function EmployeeCreate() {
     }
     if (form.data_nascimento && form.data_nascimento > TODAY_DATE) {
       errors.data_nascimento = 'Data de nascimento não pode ser futura';
-    }
-
-    // ── Age validations ──
-    if (form.data_nascimento) {
-      const age = calcAge(form.data_nascimento);
-      if (age !== null && age < 14) {
-        errors.data_nascimento = 'Menor de 14 anos não pode ser contratado (CLT art. 403)';
-      }
-    }
-
-    // ── Insalubrious contract block for minors ──
-    if (form.trabalho_insalubre === true && form.data_nascimento) {
-      const age = calcAge(form.data_nascimento);
-      if (age !== null && age < 18) {
-        errors.trabalho_insalubre = 'Menor de 18 anos não pode exercer atividades insalubres ou perigosas (CLT art. 405)';
-      }
     }
 
     // ── Data demissão > data admissão ──
@@ -636,12 +599,6 @@ export default function EmployeeCreate() {
           <Field label="Órgão Emissor RG">{textInput('rg_orgao_emissor', 'Ex: SSP-SP')}</Field>
           <Field label="Data Emissão RG" error={fieldErrors.rg_data_emissao}>{dateInput('rg_data_emissao', TODAY_DATE)}</Field>
           <Field label="Data de Nascimento" required error={fieldErrors.data_nascimento}>{dateInput('data_nascimento', TODAY_DATE)}</Field>
-          {form.data_nascimento && getAgeWarning(form.data_nascimento) && (
-            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 6, background: '#fffbeb', border: '1px solid #f59e0b', color: '#92400e', fontSize: 13, fontWeight: 500 }}>
-              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              {getAgeWarning(form.data_nascimento)}
-            </div>
-          )}
           <Field label="Gênero">
             {selectInput('genero', [
               { value: 'masculino', label: 'Masculino' }, { value: 'feminino', label: 'Feminino' },
