@@ -5,7 +5,7 @@
 
 import { db } from '../../config/database';
 import { NotFoundError, BadRequestError } from '../../utils/errors';
-import { buildPaginationResponse } from '../../utils/helpers';
+import { buildPaginationResponse, normalizeText } from '../../utils/helpers';
 import {
   UpsertHrDataInput,
   ListVacationsInput,
@@ -117,20 +117,41 @@ export class EmployeesService {
       foto_documento_url: data.foto_documento_url,
     };
 
-    return db.employees_hr_data.upsert({
-      where: { users_id: BigInt(userId) },
-      create: {
-        users_id: BigInt(userId),
-        ...sharedData,
-      },
-      update: {
-        ...sharedData,
-        updated_at: new Date(),
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-      },
+    const result = await db.$transaction(async (tx) => {
+      const hrData = await tx.employees_hr_data.upsert({
+        where: { users_id: BigInt(userId) },
+        create: {
+          users_id: BigInt(userId),
+          ...sharedData,
+        },
+        update: {
+          ...sharedData,
+          updated_at: new Date(),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      if (data.nome_completo) {
+        await tx.users.update({
+          where: { id: BigInt(userId) },
+          data: {
+            name: data.nome_completo,
+            name_normalized: normalizeText(data.nome_completo),
+            updated_at: new Date(),
+          },
+        });
+        // Update the returned object's user name so the caller gets the new name
+        if (hrData.user) {
+          hrData.user.name = data.nome_completo;
+        }
+      }
+
+      return hrData;
     });
+
+    return result;
   }
 
   // ===========================================================================

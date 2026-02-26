@@ -173,7 +173,7 @@ export default function EmployeeProfile() {
 
       await generateBadgePDF({
         id: usersId,
-        name: user?.name || summary.hrData?.nome_completo || hrUser?.name || user?.email || hrUser?.email || 'Funcionário',
+        name: summary.hrData?.nome_completo || user?.name || hrUser?.name || user?.email || hrUser?.email || 'Funcionário',
         cpf: summary.hrData?.cpf ?? null,
         matricula: summary.hrData?.matricula ?? null,
         cargo: summary.hrData?.cargo ?? null,
@@ -202,7 +202,7 @@ export default function EmployeeProfile() {
   }
 
   const hrData = summary.hrData;
-  const displayName = user?.name || hrData?.nome_completo || hrData?.user?.name || user?.email || 'Funcionario';
+  const displayName = hrData?.nome_completo || user?.name || hrData?.user?.name || user?.email || 'Funcionario';
   const displayCargo = hrData?.cargo || '-';
   const displayDepartamento = hrData?.departamento || '-';
   const displayMatricula = hrData?.matricula || '-';

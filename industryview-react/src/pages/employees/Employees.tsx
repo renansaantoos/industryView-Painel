@@ -144,7 +144,7 @@ export default function Employees() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <UserCircle size={20} color="var(--color-primary)" />
-                      <span style={{ fontWeight: 500 }}>{emp.name || '-'}</span>
+                      <span style={{ fontWeight: 500 }}>{emp.hr_data?.nome_completo || emp.name || '-'}</span>
                     </div>
                   </td>
                   <td>

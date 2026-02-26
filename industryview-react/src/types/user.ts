@@ -70,7 +70,7 @@ export interface UserFull {
   roleName?: string;
   systemAccess?: UserSystemAccess;
   controlSystem?: UserControlSystem;
-  hr_data?: { cargo?: string } | null;
+  hr_data?: { cargo?: string; nome_completo?: string } | null;
 }
 
 export interface UserRole {

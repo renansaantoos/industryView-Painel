@@ -81,7 +81,7 @@ export class UsersService {
           select: { id: true, brand_name: true },
         },
         hr_data: {
-          select: { cargo: true },
+          select: { cargo: true, nome_completo: true },
         },
       },
       orderBy: (() => {
@@ -897,7 +897,7 @@ export class UsersService {
     });
 
     const skip = (page - 1) * per_page;
-    const hrSelect = { id: true, name: true, email: true, hr_data: { select: { cpf: true, cargo: true } } };
+    const hrSelect = { id: true, name: true, email: true, hr_data: { select: { cpf: true, cargo: true, nome_completo: true } } };
 
     /** Mascara CPF mostrando apenas os 2 ultimos digitos: ***.***.**-34 */
     const maskCpf = (cpf: string | null | undefined): string | null => {
