@@ -58,8 +58,13 @@ const REQUIRED_HR_FIELDS: Record<string, { message: string; section: string }> =
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+<<<<<<< Updated upstream
 const today = new Date();
 const TODAY_DATE = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+=======
+const _today = new Date();
+const TODAY_DATE = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`;
+>>>>>>> Stashed changes
 
 const EMPTY_HR_FORM: HrFormData = {
   nome_completo: '', cpf: '', rg: '', rg_orgao_emissor: '', rg_data_emissao: '', data_nascimento: '',

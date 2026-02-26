@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 
 interface TrainingItem {
   name: string;
+  nr_reference?: string | null;
   date: string;
   validity?: string | null;
 }
@@ -283,7 +284,7 @@ export async function generateBadgePDF(data: BadgeData): Promise<void> {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.2);
   setTextColor(doc, COLOR_TEXT_DARK);
-  doc.text('TREINAMENTO', R + PAD, HEADER_H + 7.4);
+  doc.text('NR', R + PAD, HEADER_H + 7.4);
   doc.text('REALIZACAO', R + 58, HEADER_H + 7.4, { align: 'right' });
   doc.text('VALIDADE', R + PANEL_W - PAD, HEADER_H + 7.4, { align: 'right' });
 
@@ -300,11 +301,11 @@ export async function generateBadgePDF(data: BadgeData): Promise<void> {
   } else {
     let ty = HEADER_H + 13.8;
     for (const t of visibleTrainings) {
-      const shortName = t.name.length > 22 ? t.name.slice(0, 21) + '…' : t.name;
+      const nrLabel = t.nr_reference ? t.nr_reference : (t.name.length > 22 ? t.name.slice(0, 21) + '…' : t.name);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(5.4);
       setTextColor(doc, COLOR_TEXT_DARK);
-      doc.text('• ' + shortName, R + PAD, ty);
+      doc.text('• ' + nrLabel, R + PAD, ty);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(5);

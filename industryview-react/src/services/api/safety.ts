@@ -173,6 +173,7 @@ export async function listWorkerTrainings(params?: {
     items: (data.items ?? []).map((item: any) => ({
       ...item,
       training_type_name: item.training_type_name || item.training_name || item.name,
+      nr_reference: item.nr_reference ?? null,
       certificate_url: item.certificate_url || item.certificate_file,
     })),
   };

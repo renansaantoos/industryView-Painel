@@ -139,6 +139,7 @@ export default function EmployeeProfile() {
 
       const trainings = (trainingsResult?.items ?? []).map((t) => ({
         name: t.training_type_name || '—',
+        nr_reference: t.nr_reference ?? null,
         date: t.training_date,
         validity: t.expiry_date ?? null,
       }));
