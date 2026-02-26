@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { pageVariants, fadeUpChild } from '../../lib/motion';
-import { usersApi, employeesApi } from '../../services';
+import { usersApi, employeesApi, safetyApi } from '../../services';
 import type { EmployeeHrData } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, ChevronRight, AlertCircle, AlertTriangle, Camera, User } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,6 +262,11 @@ export default function EmployeeCreate() {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Foto do funcionário
+  const [fotoUrl, setFotoUrl] = useState<string>('');
+  const [isUploadingFoto, setIsUploadingFoto] = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     pessoal: true, endereco: false, profissional: false,
     cnh: false, bancario: false, emergencia: false, escolaridade: false, pcd: false, observacoes: false,
@@ -339,6 +344,21 @@ export default function EmployeeCreate() {
       setIsFetchingCep(false);
     }
   }, []);
+
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingFoto(true);
+    try {
+      const result = await safetyApi.uploadFile(file);
+      setFotoUrl(result.file_url);
+    } catch {
+      showToast('Erro ao fazer upload da foto. Tente novamente.', 'error');
+    } finally {
+      setIsUploadingFoto(false);
+      e.target.value = '';
+    }
+  }
 
   async function handleSave() {
     const errors: Record<string, string> = {};
@@ -438,6 +458,7 @@ export default function EmployeeCreate() {
       const hrPayload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [k, v === '' ? undefined : v])
       ) as Partial<EmployeeHrData>;
+      if (fotoUrl) hrPayload.foto_documento_url = fotoUrl;
       const hasHrData = Object.values(hrPayload).some(v => v !== undefined);
       if (hasHrData) {
         await employeesApi.upsertHrData(newUser.id, hrPayload);
@@ -521,6 +542,76 @@ export default function EmployeeCreate() {
       )}
 
       <motion.div variants={fadeUpChild} className="card" style={{ padding: '24px' }}>
+
+        {/* ── Foto do Funcionário ────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '4px 0 24px', borderBottom: '1px solid var(--color-alternate)', marginBottom: 24 }}>
+          {/* Avatar clicável */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div
+              onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
+              style={{
+                width: 88, height: 88, borderRadius: '50%',
+                background: fotoUrl ? 'transparent' : 'var(--color-primary)',
+                border: '3px solid var(--color-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: isUploadingFoto ? 'not-allowed' : 'pointer',
+                overflow: 'hidden', transition: 'opacity 0.2s',
+                opacity: isUploadingFoto ? 0.6 : 1,
+              }}
+              title="Clique para fazer upload da foto"
+            >
+              {fotoUrl ? (
+                <img src={fotoUrl} alt="Foto do funcionário" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : isUploadingFoto ? (
+                <div className="spinner" style={{ width: 28, height: 28, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
+              ) : (
+                <User size={36} color="white" />
+              )}
+            </div>
+            {/* Botão câmera */}
+            <button
+              type="button"
+              onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
+              disabled={isUploadingFoto}
+              style={{
+                position: 'absolute', bottom: 2, right: 2,
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'var(--color-primary)', border: '2px solid var(--color-card-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: isUploadingFoto ? 'not-allowed' : 'pointer', padding: 0,
+              }}
+              title="Alterar foto"
+            >
+              <Camera size={13} color="white" />
+            </button>
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleFotoChange}
+            />
+          </div>
+
+          {/* Texto orientativo */}
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-primary-text)' }}>Foto do Funcionário</div>
+            <div style={{ fontSize: 13, color: 'var(--color-secondary-text)', marginTop: 4 }}>
+              {fotoUrl ? 'Foto carregada — clique para alterar' : 'Clique no avatar para fazer upload'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-secondary-text)', marginTop: 2 }}>JPG, PNG ou WebP · opcional</div>
+            {fotoUrl && (
+              <button
+                type="button"
+                onClick={() => setFotoUrl('')}
+                style={{ marginTop: 6, fontSize: 12, color: 'var(--color-error)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                Remover foto
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* ── Dados Pessoais ─────────────────────────────────────────── */}
         <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')} errorCount={countSectionErrors('pessoal')}>
           <Field label="Nome Completo" required error={fieldErrors.nome_completo}>

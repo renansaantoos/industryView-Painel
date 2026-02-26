@@ -151,7 +151,7 @@ export default function EmployeeProfile() {
         matricula: summary.hrData?.matricula ?? null,
         cargo: summary.hrData?.cargo ?? null,
         departamento: summary.hrData?.departamento ?? null,
-        profile_picture: user?.url ?? null,
+        profile_picture: user?.url ?? summary.hrData?.foto_documento_url ?? null,
         email: user?.email || hrUser?.email || null,
         trainings,
       });
