@@ -7,7 +7,8 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import SearchableSelect from '../../../components/common/SearchableSelect';
-import { Package, RotateCcw, ShieldCheck, ShieldOff, ShieldAlert, Plus } from 'lucide-react';
+import { Package, RotateCcw, ShieldCheck, ShieldOff, ShieldAlert, Plus, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,11 @@ interface DeliveryFormData {
   observation: string;
 }
 
+interface ReturnFormData {
+  motivo_devolucao: string;
+  justificativa_devolucao: string;
+}
+
 interface ToastState {
   message: string;
   type: 'success' | 'error';
@@ -35,6 +41,13 @@ const EMPTY_DELIVERY_FORM: DeliveryFormData = {
   delivery_date: '',
   observation: '',
 };
+
+const EMPTY_RETURN_FORM: ReturnFormData = {
+  motivo_devolucao: '',
+  justificativa_devolucao: '',
+};
+
+const MOTIVOS_DEVOLUCAO = ['Demissão', 'Substituição', 'Outro'];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +84,131 @@ const STATUS_CONFIG: Record<DeliveryStatus, { label: string; bg: string; color: 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('pt-BR');
+}
+
+// ── PDF Generator ─────────────────────────────────────────────────────────────
+
+function generatePpeFicha(deliveries: PpeDelivery[], userName?: string) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = 210;
+  const margin = 14;
+  const colW = pageW - margin * 2;
+  let y = 20;
+
+  // Header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Ficha de EPIs Entregues', margin, y);
+  y += 7;
+
+  if (userName) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Colaborador: ${userName}`, margin, y);
+    y += 6;
+  }
+
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, margin, y);
+  doc.setTextColor(0);
+  y += 8;
+
+  // Table header
+  const cols = {
+    epi:       { x: margin, w: 60 },
+    ca:        { x: margin + 60, w: 25 },
+    entrega:   { x: margin + 85, w: 28 },
+    validade:  { x: margin + 113, w: 28 },
+    status:    { x: margin + 141, w: 24 },
+    motivo:    { x: margin + 165, w: colW - 165 },
+  };
+
+  const rowH = 8;
+  const drawRow = (
+    epi: string, ca: string, entrega: string, validade: string, status: string, motivo: string,
+    isHeader: boolean, shade: boolean,
+  ) => {
+    if (shade) {
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, y - 5.5, colW, rowH, 'F');
+    }
+    if (isHeader) {
+      doc.setFillColor(30, 64, 175);
+      doc.rect(margin, y - 5.5, colW, rowH, 'F');
+      doc.setTextColor(255);
+      doc.setFont('helvetica', 'bold');
+    } else {
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'normal');
+    }
+    doc.setFontSize(8);
+    const truncate = (s: string, maxW: number) => {
+      const chars = Math.floor(maxW / 1.8);
+      return s.length > chars ? s.slice(0, chars - 1) + '…' : s;
+    };
+    doc.text(truncate(epi, cols.epi.w - 2), cols.epi.x + 1, y);
+    doc.text(truncate(ca, cols.ca.w - 2), cols.ca.x + 1, y);
+    doc.text(entrega, cols.entrega.x + 1, y);
+    doc.text(validade, cols.validade.x + 1, y);
+    doc.text(status, cols.status.x + 1, y);
+    doc.text(truncate(motivo, cols.motivo.w - 2), cols.motivo.x + 1, y);
+    y += rowH;
+
+    // bottom border
+    doc.setDrawColor(210);
+    doc.line(margin, y - 2, margin + colW, y - 2);
+    doc.setTextColor(0);
+  };
+
+  drawRow('EPI', 'CA', 'Entrega', 'Validade', 'Status', 'Motivo Dev.', true, false);
+
+  const activeDeliveries = deliveries.filter((d) => !d.returned && !d.return_date);
+  const returnedDeliveries = deliveries.filter((d) => d.returned || d.return_date);
+
+  const renderRows = (rows: PpeDelivery[], shade: boolean) => {
+    rows.forEach((d, i) => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+      const status = computeDeliveryStatus(d);
+      drawRow(
+        d.ppe_type?.name || d.ppe_type_name || '-',
+        d.ppe_type?.ca_number || '-',
+        formatDate(d.delivery_date),
+        formatDate(d.expiry_date ?? computeExpiry(d)),
+        STATUS_CONFIG[status].label,
+        d.motivo_devolucao || '-',
+        false,
+        shade ? i % 2 === 0 : i % 2 !== 0,
+      );
+    });
+  };
+
+  if (activeDeliveries.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 64, 175);
+    doc.text('EPIs Ativos', margin, y);
+    doc.setTextColor(0);
+    y += 5;
+    renderRows(activeDeliveries, true);
+    y += 2;
+  }
+
+  if (returnedDeliveries.length > 0) {
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text('EPIs Devolvidos', margin, y);
+    doc.setTextColor(0);
+    y += 5;
+    renderRows(returnedDeliveries, false);
+  }
+
+  doc.save(`ficha-epis.pdf`);
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -133,7 +271,6 @@ export default function PpeTab({ usersId }: PpeTabProps) {
   const [deliveries, setDeliveries] = useState<PpeDelivery[]>([]);
   const [ppeStatus, setPpeStatus] = useState<UserPpeStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [returningId, setReturningId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -147,6 +284,15 @@ export default function PpeTab({ usersId }: PpeTabProps) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  // Return modal state
+  const [returnDeliveryId, setReturnDeliveryId] = useState<number | null>(null);
+  const [returnForm, setReturnForm] = useState<ReturnFormData>(EMPTY_RETURN_FORM);
+  const [returnLoading, setReturnLoading] = useState(false);
+
+  // All deliveries (for PDF) — loaded once for ficha generation
+  const [allDeliveries, setAllDeliveries] = useState<PpeDelivery[]>([]);
+  const [userName, setUserName] = useState<string>('');
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -158,6 +304,12 @@ export default function PpeTab({ usersId }: PpeTabProps) {
       setTotalPages(deliveriesData.pageTotal || 1);
       setTotalItems(deliveriesData.itemsTotal || 0);
       setPpeStatus(statusData);
+      // Store enriched deliveries (all pages) from status for PDF
+      if (statusData?.deliveries) {
+        setAllDeliveries(statusData.deliveries as unknown as PpeDelivery[]);
+        const firstName = statusData.deliveries[0]?.user?.name;
+        if (firstName) setUserName(firstName);
+      }
     } catch (err) {
       console.error('Failed to load PPE data:', err);
     } finally {
@@ -173,23 +325,6 @@ export default function PpeTab({ usersId }: PpeTabProps) {
     ppeApi.listPpeTypes().then(setPpeTypes).catch(() => {});
   }, []);
 
-  const handleRegisterReturn = async (deliveryId: number) => {
-    setReturningId(deliveryId);
-    try {
-      const updated = await ppeApi.registerReturn(deliveryId);
-      setDeliveries((prev) =>
-        prev.map((d) => (d.id === deliveryId ? { ...d, ...updated } : d)),
-      );
-      // Refresh status counts after return
-      const statusData = await ppeApi.getUserPpeStatus(usersId);
-      setPpeStatus(statusData);
-    } catch (err) {
-      console.error('Failed to register PPE return:', err);
-    } finally {
-      setReturningId(null);
-    }
-  };
-
   // ── Toast helper ──────────────────────────────────────────────────────────
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -197,7 +332,7 @@ export default function PpeTab({ usersId }: PpeTabProps) {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Modal helpers ─────────────────────────────────────────────────────────
+  // ── Create Delivery Modal helpers ─────────────────────────────────────────
 
   const openCreateModal = () => {
     setForm({ ...EMPTY_DELIVERY_FORM, delivery_date: getTodayISO() });
@@ -248,9 +383,44 @@ export default function PpeTab({ usersId }: PpeTabProps) {
     }
   };
 
+  // ── Return Modal helpers ──────────────────────────────────────────────────
+
+  const openReturnModal = (deliveryId: number) => {
+    setReturnDeliveryId(deliveryId);
+    setReturnForm(EMPTY_RETURN_FORM);
+  };
+
+  const closeReturnModal = () => {
+    setReturnDeliveryId(null);
+    setReturnForm(EMPTY_RETURN_FORM);
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!returnDeliveryId) return;
+    setReturnLoading(true);
+    try {
+      const updated = await ppeApi.registerReturn(returnDeliveryId, {
+        motivo_devolucao: returnForm.motivo_devolucao || undefined,
+        justificativa_devolucao: returnForm.justificativa_devolucao || undefined,
+      });
+      setDeliveries((prev) =>
+        prev.map((d) => (d.id === returnDeliveryId ? { ...d, ...updated } : d)),
+      );
+      const statusData = await ppeApi.getUserPpeStatus(usersId);
+      setPpeStatus(statusData);
+      if (statusData?.deliveries) setAllDeliveries(statusData.deliveries as unknown as PpeDelivery[]);
+      closeReturnModal();
+      showToast('Devolução registrada com sucesso.', 'success');
+    } catch (err) {
+      console.error('Failed to register PPE return:', err);
+      showToast('Erro ao registrar devolução. Tente novamente.', 'error');
+    } finally {
+      setReturnLoading(false);
+    }
+  };
+
   // ── Derived summary values ────────────────────────────────────────────────
 
-  // Use backend-provided counts (covers ALL deliveries, not just the current page)
   const summaryTotal    = ppeStatus?.total_deliveries ?? totalItems;
   const summaryActive   = ppeStatus?.active ?? 0;
   const summaryExpired  = ppeStatus?.expired ?? 0;
@@ -297,7 +467,15 @@ export default function PpeTab({ usersId }: PpeTabProps) {
       </AnimatePresence>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button
+          className="btn btn-secondary"
+          onClick={() => generatePpeFicha(allDeliveries.length > 0 ? allDeliveries : deliveries, userName)}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <FileText size={15} />
+          Gerar Ficha
+        </button>
         <button className="btn btn-primary" onClick={openCreateModal} style={{ marginLeft: 'auto' }}>
           <Plus size={16} style={{ marginRight: 6 }} />
           Entregar EPI
@@ -345,13 +523,13 @@ export default function PpeTab({ usersId }: PpeTabProps) {
                 <th>Data Entrega</th>
                 <th>Validade</th>
                 <th>Status</th>
+                <th>Motivo Devolução</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
               {deliveries.map((delivery) => {
                 const status = computeDeliveryStatus(delivery);
-                const isReturning = returningId === delivery.id;
                 return (
                   <motion.tr key={delivery.id} variants={tableRowVariants}>
                     <td style={{ fontWeight: 500 }}>
@@ -365,20 +543,19 @@ export default function PpeTab({ usersId }: PpeTabProps) {
                     <td>
                       <DeliveryStatusBadge status={status} />
                     </td>
+                    <td style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                      {status === 'devolvido'
+                        ? (delivery.motivo_devolucao || '-')
+                        : '-'}
+                    </td>
                     <td>
                       {status === 'ativo' && (
                         <button
                           className="btn btn-icon"
                           title="Registrar Devolução"
-                          disabled={isReturning}
-                          onClick={() => handleRegisterReturn(delivery.id)}
-                          style={{ opacity: isReturning ? 0.5 : 1 }}
+                          onClick={() => openReturnModal(delivery.id)}
                         >
-                          {isReturning ? (
-                            <span className="spinner" style={{ width: 14, height: 14 }} />
-                          ) : (
-                            <RotateCcw size={15} color="var(--color-secondary-text)" />
-                          )}
+                          <RotateCcw size={15} color="var(--color-secondary-text)" />
                         </button>
                       )}
                     </td>
@@ -452,7 +629,7 @@ export default function PpeTab({ usersId }: PpeTabProps) {
                   )}
                 </div>
 
-                {/* Data de Entrega (required) */}
+                {/* Data de Entrega (required, max = today) */}
                 <div className="input-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     Data de Entrega
@@ -462,6 +639,7 @@ export default function PpeTab({ usersId }: PpeTabProps) {
                     type="date"
                     className="input-field"
                     value={form.delivery_date}
+                    max={getTodayISO()}
                     onChange={(e) => handleFormChange('delivery_date', e.target.value)}
                     style={
                       touched.delivery_date && !form.delivery_date
@@ -532,6 +710,101 @@ export default function PpeTab({ usersId }: PpeTabProps) {
                     </>
                   ) : (
                     'Entregar'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Return Modal */}
+      <AnimatePresence>
+        {returnDeliveryId !== null && (
+          <motion.div
+            className="modal-backdrop"
+            variants={modalBackdropVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            onClick={closeReturnModal}
+          >
+            <motion.div
+              className="modal-content"
+              variants={modalContentVariants}
+              style={{ width: '440px', maxWidth: '95vw' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--color-text)' }}>
+                  Registrar Devolução
+                </h3>
+                <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                  Informe o motivo para registrar a devolução do EPI.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Motivo */}
+                <div className="input-group">
+                  <label>
+                    Motivo
+                    <span style={{ color: '#C0392B', marginLeft: '3px' }}>*</span>
+                  </label>
+                  <select
+                    className="input-field"
+                    value={returnForm.motivo_devolucao}
+                    onChange={(e) => setReturnForm((prev) => ({ ...prev, motivo_devolucao: e.target.value }))}
+                  >
+                    <option value="">Selecione o motivo...</option>
+                    {MOTIVOS_DEVOLUCAO.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Justificativa (opcional) */}
+                <div className="input-group">
+                  <label>Justificativa <span style={{ color: 'var(--color-secondary-text)', fontSize: '12px' }}>(opcional)</span></label>
+                  <textarea
+                    className="input-field"
+                    rows={3}
+                    value={returnForm.justificativa_devolucao}
+                    onChange={(e) => setReturnForm((prev) => ({ ...prev, justificativa_devolucao: e.target.value }))}
+                    placeholder="Detalhes adicionais sobre a devolução..."
+                    style={{ resize: 'vertical', minHeight: '72px' }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                  marginTop: '24px',
+                }}
+              >
+                <button
+                  className="btn btn-secondary"
+                  onClick={closeReturnModal}
+                  disabled={returnLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleConfirmReturn}
+                  disabled={returnLoading || !returnForm.motivo_devolucao}
+                  style={{ minWidth: '120px' }}
+                >
+                  {returnLoading ? (
+                    <>
+                      <span className="spinner" style={{ width: 14, height: 14, marginRight: 6 }} />
+                      Registrando...
+                    </>
+                  ) : (
+                    'Confirmar Devolução'
                   )}
                 </button>
               </div>

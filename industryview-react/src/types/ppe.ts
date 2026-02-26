@@ -21,6 +21,8 @@ export interface PpeDelivery {
   return_date?: string;
   returned: boolean;
   observation?: string;
+  motivo_devolucao?: string;
+  justificativa_devolucao?: string;
   user_name?: string;
   ppe_type_name?: string;
   /** Present when delivery comes from the enriched getUserPpeStatus endpoint */

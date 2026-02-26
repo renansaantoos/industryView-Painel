@@ -53,8 +53,11 @@ export async function createDelivery(data: {
   return response.data;
 }
 
-export async function registerReturn(deliveryId: number): Promise<PpeDelivery> {
-  const response = await apiClient.post(`${BASE}/deliveries/${deliveryId}/return`);
+export async function registerReturn(
+  deliveryId: number,
+  data?: { motivo_devolucao?: string; justificativa_devolucao?: string },
+): Promise<PpeDelivery> {
+  const response = await apiClient.post(`${BASE}/deliveries/${deliveryId}/return`, data ?? {});
   return response.data;
 }
 
