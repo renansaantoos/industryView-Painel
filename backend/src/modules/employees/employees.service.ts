@@ -41,8 +41,29 @@ export class EmployeesService {
    * Retorna null se nao encontrado (sem lancar erro).
    */
   static async getHrData(userId: number) {
-    return db.employees_hr_data.findFirst({
+    const existing = await db.employees_hr_data.findFirst({
       where: { users_id: BigInt(userId) },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (existing) return existing;
+
+    // Verifica se o usuario existe antes de criar o registro
+    const user = await db.users.findFirst({
+      where: { id: BigInt(userId), deleted_at: null },
+      select: { id: true, name: true, email: true },
+    });
+
+    if (!user) return null;
+
+    // Cria registro vazio automaticamente na primeira consulta
+    return db.employees_hr_data.create({
+      data: {
+        users_id: BigInt(userId),
+        nome_completo: user.name ?? null,
+      },
       include: {
         user: { select: { id: true, name: true, email: true } },
       },

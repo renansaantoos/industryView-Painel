@@ -256,6 +256,14 @@ export class UsersService {
         }
       }
 
+      // Cria registro de dados de RH vazio automaticamente
+      await tx.employees_hr_data.create({
+        data: {
+          users_id: user.id,
+          nome_completo: name ?? null,
+        },
+      });
+
       return updatedUser;
     });
 
