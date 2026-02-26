@@ -525,6 +525,12 @@ export class TeamsService {
             email: true,
             phone: true,
             profile_picture: true,
+            hr_data: {
+              select: {
+                senioridade: true,
+                nivel: true,
+              }
+            },
             users_permissions: {
               select: {
                 id: true,
