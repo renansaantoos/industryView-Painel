@@ -9,7 +9,7 @@ export class WorkScheduleController {
       const { users_id } = getWorkScheduleSchema.parse(req.params);
       const result = await WorkScheduleService.getByUser(users_id);
       if (!result) return res.status(404).json({ error: true, message: 'Regra de ponto não encontrada.' });
-      res.json(serializeBigInt(result));
+      return res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }
