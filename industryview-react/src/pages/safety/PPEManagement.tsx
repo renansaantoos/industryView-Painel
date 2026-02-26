@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -12,6 +12,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
+import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
 import {
   Plus,
   Edit,
@@ -130,6 +131,10 @@ export default function PPEManagement() {
   const [deliveryFormLoading, setDeliveryFormLoading] = useState(false);
   const [returningDeliveryId, setReturningDeliveryId] = useState<number | null>(null);
   const [deliveryErrors, setDeliveryErrors] = useState<Partial<Record<keyof DeliveryForm, string>>>({});
+
+  /* ---- Sort state ---- */
+  const { sortField: typesSortField, sortDirection: typesSortDir, handleSort: handleTypesSort } = useBackendSort();
+  const { sortField: delivSortField, sortDirection: delivSortDir, handleSort: handleDelivSort } = useBackendSort();
 
   /* ---- Employee dropdown state ---- */
   const [employeesList, setEmployeesList] = useState<UserFull[]>([]);
@@ -393,6 +398,43 @@ export default function PPEManagement() {
   };
 
   /* =========================================
+     Sorted data (client-side)
+     ========================================= */
+
+  const sortedTypes = useMemo(() => {
+    if (!typesSortField || !typesSortDir) return ppeTypes;
+    return [...ppeTypes].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[typesSortField] ?? '';
+      const bVal = (b as Record<string, unknown>)[typesSortField] ?? '';
+      const cmp = String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true });
+      return typesSortDir === 'desc' ? -cmp : cmp;
+    });
+  }, [ppeTypes, typesSortField, typesSortDir]);
+
+  const sortedDeliveries = useMemo(() => {
+    if (!delivSortField || !delivSortDir) return deliveries;
+    return [...deliveries].sort((a, b) => {
+      let aVal: string;
+      let bVal: string;
+      if (delivSortField === 'user_name') {
+        aVal = a.user?.name ?? a.user_name ?? '';
+        bVal = b.user?.name ?? b.user_name ?? '';
+      } else if (delivSortField === 'ppe_type_name') {
+        aVal = a.ppe_type?.name ?? a.ppe_type_name ?? '';
+        bVal = b.ppe_type?.name ?? b.ppe_type_name ?? '';
+      } else if (delivSortField === 'returned') {
+        aVal = String(a.returned ?? false);
+        bVal = String(b.returned ?? false);
+      } else {
+        aVal = String((a as Record<string, unknown>)[delivSortField] ?? '');
+        bVal = String((b as Record<string, unknown>)[delivSortField] ?? '');
+      }
+      const cmp = aVal.localeCompare(bVal, 'pt-BR', { numeric: true });
+      return delivSortDir === 'desc' ? -cmp : cmp;
+    });
+  }, [deliveries, delivSortField, delivSortDir]);
+
+  /* =========================================
      Tab style helpers
      ========================================= */
 
@@ -476,15 +518,15 @@ export default function PPEManagement() {
               <table>
                 <thead>
                   <tr>
-                    <th>Nome</th>
-                    <th>Número do CA</th>
-                    <th>Validade (meses)</th>
+                    <SortableHeader label="Nome" field="name" currentField={typesSortField} currentDirection={typesSortDir} onSort={handleTypesSort} />
+                    <SortableHeader label="Número do CA" field="ca_number" currentField={typesSortField} currentDirection={typesSortDir} onSort={handleTypesSort} />
+                    <SortableHeader label="Validade (meses)" field="validity_months" currentField={typesSortField} currentDirection={typesSortDir} onSort={handleTypesSort} />
                     <th>Descrição</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-                  {ppeTypes.map((ppeType) => (
+                  {sortedTypes.map((ppeType) => (
                     <motion.tr key={ppeType.id} variants={tableRowVariants}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -587,17 +629,17 @@ export default function PPEManagement() {
               <table>
                 <thead>
                   <tr>
-                    <th>Colaborador</th>
-                    <th>Tipo de EPI</th>
+                    <SortableHeader label="Colaborador" field="user_name" currentField={delivSortField} currentDirection={delivSortDir} onSort={handleDelivSort} />
+                    <SortableHeader label="Tipo de EPI" field="ppe_type_name" currentField={delivSortField} currentDirection={delivSortDir} onSort={handleDelivSort} />
                     <th>Quantidade</th>
-                    <th>Data de Entrega</th>
+                    <SortableHeader label="Data de Entrega" field="delivery_date" currentField={delivSortField} currentDirection={delivSortDir} onSort={handleDelivSort} />
                     <th>Data de Devolução</th>
-                    <th>Devolvido</th>
+                    <SortableHeader label="Devolvido" field="returned" currentField={delivSortField} currentDirection={delivSortDir} onSort={handleDelivSort} />
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-                  {deliveries.map((delivery) => (
+                  {sortedDeliveries.map((delivery) => (
                     <motion.tr key={delivery.id} variants={tableRowVariants}>
                       <td style={{ fontWeight: 500 }}>
                         {delivery.user?.name
