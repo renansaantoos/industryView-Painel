@@ -68,6 +68,8 @@ export const registerReturnSchema = z.object({
   condition: z.enum(['bom', 'danificado', 'descartado']).optional().default('bom'),
   returned_at: z.string().optional(),
   notes: z.string().trim().optional(),
+  motivo_devolucao: z.string().trim().optional(),
+  justificativa_devolucao: z.string().trim().optional(),
 });
 
 // =============================================================================

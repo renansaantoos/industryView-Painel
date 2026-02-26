@@ -2061,12 +2061,14 @@ model ppe_deliveries {
   quantity             Int       @default(1)
   delivered_by_user_id BigInt
   signature_file       String?
-  return_date          DateTime? @db.Date
-  condition_on_return  String?
-  created_at           DateTime  @default(now()) @db.Timestamptz(6)
-  user                 users     @relation("ppe_receiver", fields: [users_id], references: [id], onUpdate: NoAction)
-  ppe_type             ppe_types @relation(fields: [ppe_types_id], references: [id], onUpdate: NoAction)
-  delivered_by         users     @relation("ppe_deliverer", fields: [delivered_by_user_id], references: [id], onUpdate: NoAction)
+  return_date             DateTime? @db.Date
+  condition_on_return     String?
+  motivo_devolucao        String?   @db.VarChar(50)
+  justificativa_devolucao String?   @db.Text
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  user                    users     @relation("ppe_receiver", fields: [users_id], references: [id], onUpdate: NoAction)
+  ppe_type                ppe_types @relation(fields: [ppe_types_id], references: [id], onUpdate: NoAction)
+  delivered_by            users     @relation("ppe_deliverer", fields: [delivered_by_user_id], references: [id], onUpdate: NoAction)
 
   @@index([users_id], map: "idx_ppe_deliveries_users_id")
   @@index([ppe_types_id], map: "idx_ppe_deliveries_type_id")

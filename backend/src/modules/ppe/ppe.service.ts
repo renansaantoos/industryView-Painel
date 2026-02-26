@@ -233,6 +233,8 @@ export class PpeService {
       data: {
         return_date: new Date(),
         condition_on_return: input.condition,
+        motivo_devolucao: input.motivo_devolucao ?? null,
+        justificativa_devolucao: input.justificativa_devolucao ?? null,
       },
       include: {
         user: { select: { id: true, name: true } },
