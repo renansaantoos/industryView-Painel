@@ -52,6 +52,11 @@ export const upsertHrDataSchema = z.object({
   ctps_numero: z.string().trim().optional(),
   ctps_serie: z.string().trim().optional(),
   ctps_uf: z.string().trim().optional(),
+  // Folga de Campo
+  distancia_moradia_obra: z.coerce.number().optional(),
+  folga_campo_dias_trabalho: z.coerce.number().int().optional(),
+  folga_campo_dias_folga: z.coerce.number().int().optional(),
+  folga_campo_dias_uteis: z.coerce.number().int().optional(),
   // CNH
   cnh_numero: z.string().trim().optional(),
   cnh_categoria: z.string().trim().optional(),
@@ -192,6 +197,7 @@ const DAY_OFF_TYPES = [
   'banco_horas',
   'folga_escala',
   'troca_turno',
+  'folga_campo',
 ] as const;
 
 const DAY_OFF_STATUSES = [
@@ -331,6 +337,41 @@ export const updateCareerHistorySchema = z.object({
 });
 
 // =============================================================================
+// Logistics (Logistica de Folga de Campo)
+// =============================================================================
+
+const LOGISTICS_TRANSPORT_TYPES = [
+  'onibus',
+  'aviao',
+  'van',
+  'proprio',
+  'outro',
+] as const;
+
+const LOGISTICS_STATUSES = [
+  'pendente',
+  'em_andamento',
+  'concluido',
+] as const;
+
+export const listLogisticsSchema = z.object({
+  users_id: z.coerce.number().int().optional(),
+  company_id: z.coerce.number().int().optional(),
+  status: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  per_page: z.coerce.number().int().min(1).max(100).optional().default(10),
+});
+
+export const updateLogisticsSchema = z.object({
+  tipo_transporte: z.enum(LOGISTICS_TRANSPORT_TYPES).optional(),
+  data_saida: z.string().optional(),
+  data_retorno: z.string().optional(),
+  status: z.enum(LOGISTICS_STATUSES).optional(),
+  responsavel_id: z.coerce.number().int().optional(),
+  observacoes: z.string().trim().optional(),
+});
+
+// =============================================================================
 // Tipos exportados
 // =============================================================================
 
@@ -353,3 +394,5 @@ export type UpdateBenefitInput = z.infer<typeof updateBenefitSchema>;
 export type ListCareerHistoryInput = z.infer<typeof listCareerHistorySchema>;
 export type CreateCareerHistoryInput = z.infer<typeof createCareerHistorySchema>;
 export type UpdateCareerHistoryInput = z.infer<typeof updateCareerHistorySchema>;
+export type ListLogisticsInput = z.infer<typeof listLogisticsSchema>;
+export type UpdateLogisticsInput = z.infer<typeof updateLogisticsSchema>;

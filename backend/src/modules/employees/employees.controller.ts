@@ -28,6 +28,8 @@ import {
   listCareerHistorySchema,
   createCareerHistorySchema,
   updateCareerHistorySchema,
+  listLogisticsSchema,
+  updateLogisticsSchema,
 } from './employees.schema';
 
 /**
@@ -343,6 +345,34 @@ export class EmployeesController {
       const { id } = idParamSchema.parse(req.params);
       await EmployeesService.deleteCareerHistory(id);
       res.json({ message: 'Registro de carreira excluido com sucesso' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Logistics
+  // ===========================================================================
+
+  static async listLogistics(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const input = listLogisticsSchema.parse(req.query) as any;
+      if (req.user?.companyId) {
+        input.company_id = req.user.companyId;
+      }
+      const result = await EmployeesService.listLogistics(input);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateLogistics(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = idParamSchema.parse(req.params);
+      const data = updateLogisticsSchema.parse(req.body);
+      const result = await EmployeesService.updateLogistics(id, data);
+      res.json(serializeBigInt(result));
     } catch (error) {
       next(error);
     }

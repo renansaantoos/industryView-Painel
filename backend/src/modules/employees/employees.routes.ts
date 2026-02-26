@@ -47,5 +47,9 @@ router.post('/career-history', authenticate, EmployeesController.createCareerHis
 router.patch('/career-history/:id', authenticate, EmployeesController.updateCareerHistory);
 router.delete('/career-history/:id', authenticate, EmployeesController.deleteCareerHistory);
 
+// Logistics (Logistica de Folga de Campo)
+router.get('/logistics', authenticate, EmployeesController.listLogistics);
+router.patch('/logistics/:id', authenticate, EmployeesController.updateLogistics);
+
 export { router as employeesRoutes };
 export default router;

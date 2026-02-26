@@ -4,7 +4,7 @@
 // =============================================================================
 
 import { db } from '../../config/database';
-import { NotFoundError } from '../../utils/errors';
+import { NotFoundError, BadRequestError } from '../../utils/errors';
 import { buildPaginationResponse } from '../../utils/helpers';
 import {
   UpsertHrDataInput,
@@ -23,7 +23,10 @@ import {
   ListCareerHistoryInput,
   CreateCareerHistoryInput,
   UpdateCareerHistoryInput,
+  ListLogisticsInput,
+  UpdateLogisticsInput,
 } from './employees.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * EmployeesService - Service do modulo de funcionarios
@@ -87,6 +90,10 @@ export class EmployeesService {
       ctps_numero: data.ctps_numero,
       ctps_serie: data.ctps_serie,
       ctps_uf: data.ctps_uf,
+      distancia_moradia_obra: data.distancia_moradia_obra !== undefined ? data.distancia_moradia_obra : undefined,
+      folga_campo_dias_trabalho: data.folga_campo_dias_trabalho,
+      folga_campo_dias_folga: data.folga_campo_dias_folga,
+      folga_campo_dias_uteis: data.folga_campo_dias_uteis,
       cnh_numero: data.cnh_numero,
       cnh_categoria: data.cnh_categoria,
       cnh_validade: data.cnh_validade ? new Date(data.cnh_validade) : undefined,
@@ -171,21 +178,129 @@ export class EmployeesService {
 
   /**
    * Cria um registro de ferias/licenca para um funcionario.
+   * Para tipo 'ferias', valida regras CLT de parcelamento:
+   * - Maximo 3 periodos por periodo aquisitivo
+   * - Nenhum periodo pode ter menos de 5 dias corridos
+   * - Pelo menos 1 dos periodos deve ter >= 14 dias
+   * - Dias solicitados nao podem exceder o saldo disponivel
+   * - Nenhum periodo pode se sobrepor com ausencias existentes
    */
   static async createVacation(data: CreateVacationInput) {
+    // --- Verificacao de saldo disponivel (para todos os tipos de ferias) ---
+    const balance = await this.getVacationBalance(data.users_id);
+    if (data.dias_total > balance.dias_disponiveis) {
+      throw new BadRequestError(
+        `Dias solicitados (${data.dias_total}) excedem o saldo disponivel (${balance.dias_disponiveis} dias).`
+      );
+    }
+
+    // --- Auto-populate do periodo aquisitivo para tipo 'ferias' ---
+    let periodoAquisitivoInicio = data.periodo_aquisitivo_inicio;
+    let periodoAquisitivoFim = data.periodo_aquisitivo_fim;
+
+    if (
+      data.tipo === 'ferias' &&
+      !periodoAquisitivoInicio &&
+      !periodoAquisitivoFim &&
+      balance.periodo_aquisitivo_inicio &&
+      balance.periodo_aquisitivo_fim
+    ) {
+      periodoAquisitivoInicio = balance.periodo_aquisitivo_inicio;
+      periodoAquisitivoFim = balance.periodo_aquisitivo_fim;
+    }
+
+    // --- Verificacao de sobreposicao de datas com ausencias existentes ---
+    const novaInicio = new Date(data.data_inicio);
+    const novaFim = new Date(data.data_fim);
+
+    const overlapping = await db.employees_vacations.findFirst({
+      where: {
+        users_id: BigInt(data.users_id),
+        deleted_at: null,
+        status: { notIn: ['cancelado'] },
+        data_inicio: { lte: novaFim },
+        data_fim: { gte: novaInicio },
+      },
+      select: { tipo: true, data_inicio: true, data_fim: true },
+    });
+
+    if (overlapping) {
+      const inicioStr = overlapping.data_inicio.toISOString().substring(0, 10);
+      const fimStr = overlapping.data_fim.toISOString().substring(0, 10);
+      throw new BadRequestError(
+        `O periodo solicitado conflita com uma ausencia existente (${overlapping.tipo} de ${inicioStr} a ${fimStr}).`
+      );
+    }
+
+    // --- Validacoes de parcelamento CLT para tipo 'ferias' ---
+    if (data.tipo === 'ferias') {
+      if (data.dias_total < 5) {
+        throw new BadRequestError('Periodo minimo de ferias e de 5 dias corridos (CLT Art. 134 §1).');
+      }
+
+      // Buscar ferias existentes no mesmo periodo aquisitivo (aprovadas + pendentes)
+      // Inclui ferias sem periodo_aquisitivo definido que caiam dentro do periodo atual
+      const periodoFilterOR: any[] = [];
+      if (periodoAquisitivoInicio && periodoAquisitivoFim) {
+        periodoFilterOR.push({
+          periodo_aquisitivo_inicio: new Date(periodoAquisitivoInicio),
+          periodo_aquisitivo_fim: new Date(periodoAquisitivoFim),
+        });
+        // Ferias antigas sem periodo aquisitivo definido mas com data_inicio dentro do periodo
+        periodoFilterOR.push({
+          periodo_aquisitivo_inicio: null,
+          data_inicio: {
+            gte: new Date(periodoAquisitivoInicio),
+            lte: new Date(periodoAquisitivoFim),
+          },
+        });
+      }
+
+      const existingVacations = await db.employees_vacations.findMany({
+        where: {
+          users_id: BigInt(data.users_id),
+          tipo: 'ferias',
+          status: { in: ['pendente', 'aprovado', 'em_andamento'] },
+          deleted_at: null,
+          ...(periodoFilterOR.length > 0 ? { OR: periodoFilterOR } : {}),
+        },
+        select: { dias_total: true },
+      });
+
+      if (existingVacations.length >= 3) {
+        throw new BadRequestError('Maximo de 3 periodos de ferias por periodo aquisitivo (CLT Art. 134 §1).');
+      }
+
+      // Verificar regra de pelo menos 1 periodo >= 14 dias
+      // Se ja existem 2+ periodos e nenhum tem >= 14 dias, o novo periodo deve ter >= 14
+      // Se este e o 3o periodo e nenhum (incluindo o novo) tem >= 14 dias, rejeitar
+      const allPeriods = [...existingVacations.map(v => v.dias_total ?? 0), data.dias_total];
+      if (allPeriods.length >= 2) {
+        const hasLongPeriod = allPeriods.some(d => d >= 14);
+        if (!hasLongPeriod && allPeriods.length === 3) {
+          throw new BadRequestError('Pelo menos 1 dos 3 periodos de ferias deve ter no minimo 14 dias corridos (CLT Art. 134 §1).');
+        }
+        // Para o 2o periodo: se nenhum dos dois tem >= 14, avisar (via erro preventivo)
+        if (!hasLongPeriod && allPeriods.length === 2) {
+          // Nao bloqueia ainda — so alerta quando fechar o 3o periodo sem cumprir a regra
+          // A validacao definitiva ocorre ao criar o 3o periodo acima
+        }
+      }
+    }
+
     return db.employees_vacations.create({
       data: {
         users_id: BigInt(data.users_id),
         tipo: data.tipo,
-        data_inicio: new Date(data.data_inicio),
-        data_fim: new Date(data.data_fim),
+        data_inicio: novaInicio,
+        data_fim: novaFim,
         dias_total: data.dias_total,
         dias_abono: data.dias_abono ?? null,
-        periodo_aquisitivo_inicio: data.periodo_aquisitivo_inicio
-          ? new Date(data.periodo_aquisitivo_inicio)
+        periodo_aquisitivo_inicio: periodoAquisitivoInicio
+          ? new Date(periodoAquisitivoInicio)
           : null,
-        periodo_aquisitivo_fim: data.periodo_aquisitivo_fim
-          ? new Date(data.periodo_aquisitivo_fim)
+        periodo_aquisitivo_fim: periodoAquisitivoFim
+          ? new Date(periodoAquisitivoFim)
           : null,
         observacoes: data.observacoes ?? null,
         status: 'pendente',
@@ -198,6 +313,8 @@ export class EmployeesService {
 
   /**
    * Atualiza um registro de ferias/licenca existente.
+   * Apenas registros com status 'pendente' podem ser editados.
+   * Para tipo 'ferias', valida minimo de 5 dias se dias_total for alterado.
    */
   static async updateVacation(id: number, data: UpdateVacationInput) {
     const vacation = await db.employees_vacations.findFirst({
@@ -206,6 +323,19 @@ export class EmployeesService {
 
     if (!vacation) {
       throw new NotFoundError('Ferias nao encontradas.');
+    }
+
+    // Apenas registros pendentes podem ser editados
+    const statusesImutaveis = ['aprovado', 'em_andamento', 'concluido', 'cancelado'];
+    if (statusesImutaveis.includes(vacation.status)) {
+      throw new BadRequestError('Apenas solicitacoes pendentes podem ser editadas.');
+    }
+
+    // Validacao de minimo de 5 dias para tipo 'ferias' ao alterar dias_total
+    const tipoFinal = data.tipo ?? vacation.tipo;
+    const diasFinal = data.dias_total ?? vacation.dias_total;
+    if (tipoFinal === 'ferias' && data.dias_total !== undefined && diasFinal !== null && diasFinal < 5) {
+      throw new BadRequestError('Periodo minimo de ferias e de 5 dias corridos (CLT Art. 134 §1).');
     }
 
     return db.employees_vacations.update({
@@ -278,12 +408,114 @@ export class EmployeesService {
   }
 
   /**
-   * Calcula o saldo de ferias de um funcionario.
-   * Direito padrao: 30 dias/ano.
-   * Soma dias das ferias aprovadas/em andamento/concluidas.
+   * Aplica a tabela CLT Art. 130 para determinar dias de ferias por faltas injustificadas.
+   */
+  private static calcDiasDireitoCLT(faltas: number): number {
+    if (faltas <= 5) return 30;
+    if (faltas <= 14) return 24;
+    if (faltas <= 23) return 18;
+    if (faltas <= 32) return 12;
+    return 0;
+  }
+
+  /**
+   * Calcula o periodo aquisitivo atual baseado na data de admissao.
+   * Retorna { inicio, fim } do ciclo de 12 meses ativo na data atual.
+   */
+  private static calcPeriodoAquisitivo(dataAdmissao: Date): { inicio: Date; fim: Date } {
+    const hoje = new Date();
+    const admYear = dataAdmissao.getFullYear();
+    const admMonth = dataAdmissao.getMonth();
+    const admDay = dataAdmissao.getDate();
+
+    // Iterar ciclos de 12 meses a partir da admissao ate encontrar o periodo que contem "hoje"
+    let cicloInicio = new Date(admYear, admMonth, admDay);
+    let cicloFim = new Date(admYear + 1, admMonth, admDay - 1);
+
+    while (cicloFim < hoje) {
+      cicloInicio = new Date(cicloFim.getFullYear(), cicloFim.getMonth(), cicloFim.getDate() + 1);
+      cicloFim = new Date(cicloInicio.getFullYear() + 1, cicloInicio.getMonth(), cicloInicio.getDate() - 1);
+    }
+
+    return { inicio: cicloInicio, fim: cicloFim };
+  }
+
+  /**
+   * Calcula o saldo de ferias de um funcionario com regras CLT.
+   * - Busca data_admissao para calcular periodo aquisitivo
+   * - Conta faltas injustificadas (status 'ausente') no periodo aquisitivo
+   * - Aplica tabela CLT Art. 130 para dias de direito
+   * - Calcula data prevista e periodo concessivo
    */
   static async getVacationBalance(userId: number) {
-    const dias_direito = 30;
+    // Buscar dados de RH para data_admissao
+    const hrData = await db.employees_hr_data.findFirst({
+      where: { users_id: BigInt(userId) },
+      select: { data_admissao: true },
+    });
+
+    const dataAdmissao = hrData?.data_admissao;
+
+    let dias_direito = 30;
+    let faltas_injustificadas = 0;
+    let periodo_aquisitivo_inicio: string | null = null;
+    let periodo_aquisitivo_fim: string | null = null;
+    let periodo_concessivo_fim: string | null = null;
+    let data_prevista_ferias: string | null = null;
+
+    if (dataAdmissao) {
+      const periodo = this.calcPeriodoAquisitivo(dataAdmissao);
+      periodo_aquisitivo_inicio = periodo.inicio.toISOString().substring(0, 10);
+      periodo_aquisitivo_fim = periodo.fim.toISOString().substring(0, 10);
+
+      // Data prevista = primeiro dia apos fim do periodo aquisitivo (inicio do concessivo)
+      const prevista = new Date(periodo.fim);
+      prevista.setDate(prevista.getDate() + 1);
+      data_prevista_ferias = prevista.toISOString().substring(0, 10);
+
+      // Periodo concessivo = 12 meses apos o fim do aquisitivo
+      const concessivoFim = new Date(prevista);
+      concessivoFim.setFullYear(concessivoFim.getFullYear() + 1);
+      concessivoFim.setDate(concessivoFim.getDate() - 1);
+      periodo_concessivo_fim = concessivoFim.toISOString().substring(0, 10);
+
+      // Contar faltas injustificadas no periodo aquisitivo
+      faltas_injustificadas = await db.workforce_daily_log.count({
+        where: {
+          users_id: BigInt(userId),
+          status: 'ausente',
+          log_date: {
+            gte: periodo.inicio,
+            lte: periodo.fim,
+          },
+        },
+      });
+
+      dias_direito = this.calcDiasDireitoCLT(faltas_injustificadas);
+    }
+
+    // Buscar ferias usadas e pendentes (do periodo aquisitivo atual se disponivel)
+    // Inclui ferias sem periodo_aquisitivo definido cujo data_inicio caia dentro do periodo atual
+    let periodoWhereClause: any = {};
+    if (dataAdmissao && periodo_aquisitivo_inicio && periodo_aquisitivo_fim) {
+      periodoWhereClause = {
+        OR: [
+          // Ferias com periodo aquisitivo definido e correspondente ao atual
+          {
+            periodo_aquisitivo_inicio: new Date(periodo_aquisitivo_inicio),
+            periodo_aquisitivo_fim: new Date(periodo_aquisitivo_fim),
+          },
+          // Ferias antigas sem periodo aquisitivo definido mas com data_inicio dentro do periodo
+          {
+            periodo_aquisitivo_inicio: null,
+            data_inicio: {
+              gte: new Date(periodo_aquisitivo_inicio),
+              lte: new Date(periodo_aquisitivo_fim),
+            },
+          },
+        ],
+      };
+    }
 
     const [usedVacations, pendingVacations] = await Promise.all([
       db.employees_vacations.findMany({
@@ -291,6 +523,7 @@ export class EmployeesService {
           users_id: BigInt(userId),
           status: { in: ['aprovado', 'em_andamento', 'concluido'] },
           deleted_at: null,
+          ...periodoWhereClause,
         },
         select: { dias_total: true },
       }),
@@ -299,6 +532,7 @@ export class EmployeesService {
           users_id: BigInt(userId),
           status: 'pendente',
           deleted_at: null,
+          ...periodoWhereClause,
         },
         select: { dias_total: true },
       }),
@@ -312,6 +546,11 @@ export class EmployeesService {
       dias_usados,
       dias_pendentes,
       dias_disponiveis: dias_direito - dias_usados,
+      faltas_injustificadas,
+      periodo_aquisitivo_inicio,
+      periodo_aquisitivo_fim,
+      periodo_concessivo_fim,
+      data_prevista_ferias,
     };
   }
 
@@ -519,7 +758,7 @@ export class EmployeesService {
       throw new NotFoundError('Folga nao encontrada.');
     }
 
-    return db.employees_day_offs.update({
+    const result = await db.employees_day_offs.update({
       where: { id: BigInt(id) },
       data: {
         status,
@@ -531,6 +770,80 @@ export class EmployeesService {
         user: { select: { id: true, name: true, email: true } },
       },
     });
+
+    // Hook: se folga_campo foi aprovada, criar logistica e notificacoes
+    if (status === 'aprovado' && dayOff.tipo === 'folga_campo') {
+      await this.handleFolgaCampoApproval(dayOff, approvedById);
+    }
+
+    return result;
+  }
+
+  private static async handleFolgaCampoApproval(
+    dayOff: { id: bigint; users_id: bigint; data: Date },
+    approvedById: number,
+  ) {
+    const userId = Number(dayOff.users_id);
+    const dayOffId = Number(dayOff.id);
+
+    // Buscar dados de hr para calcular datas de saida/retorno
+    const hrData = await db.employees_hr_data.findFirst({
+      where: { users_id: dayOff.users_id },
+      select: {
+        folga_campo_dias_folga: true,
+        folga_campo_dias_uteis: true,
+      },
+    });
+
+    const diasFolga = hrData?.folga_campo_dias_folga ?? 0;
+    const diasUteis = hrData?.folga_campo_dias_uteis ?? 0;
+
+    // data_saida = data da folga - dias_uteis (viagem de ida)
+    const dataSaida = new Date(dayOff.data);
+    dataSaida.setDate(dataSaida.getDate() - diasUteis);
+
+    // data_retorno = data da folga + dias_folga + dias_uteis (viagem de volta)
+    const dataRetorno = new Date(dayOff.data);
+    dataRetorno.setDate(dataRetorno.getDate() + diasFolga + diasUteis);
+
+    // 1. Criar registro de logistica
+    await db.employees_logistics.create({
+      data: {
+        day_off_id: dayOff.id,
+        users_id: dayOff.users_id,
+        data_saida: dataSaida,
+        data_retorno: dataRetorno,
+        status: 'pendente',
+      },
+    });
+
+    // 2. Notificacao para o funcionario
+    try {
+      await NotificationsService.createNotification({
+        users_id: userId,
+        title: 'Folga de Campo Aprovada',
+        message: `Sua folga de campo foi aprovada. Saida prevista: ${dataSaida.toISOString().substring(0, 10)}, Retorno: ${dataRetorno.toISOString().substring(0, 10)}.`,
+        notification_type: 'success',
+        reference_type: 'day_off',
+        reference_id: dayOffId,
+      });
+    } catch (err) {
+      console.error('Falha ao criar notificacao para funcionario (folga_campo):', err);
+    }
+
+    // 3. Notificacao para o aprovador (responsavel logistica)
+    try {
+      await NotificationsService.createNotification({
+        users_id: approvedById,
+        title: 'Nova Logistica Pendente',
+        message: `Folga de campo aprovada gerou um registro de logistica pendente. Organize o transporte.`,
+        notification_type: 'info',
+        reference_type: 'day_off',
+        reference_id: dayOffId,
+      });
+    } catch (err) {
+      console.error('Falha ao criar notificacao para aprovador (folga_campo):', err);
+    }
   }
 
   static async deleteDayOff(id: number) {
@@ -765,6 +1078,67 @@ export class EmployeesService {
 
     return db.employees_career_history.delete({
       where: { id: BigInt(id) },
+    });
+  }
+
+  // ===========================================================================
+  // Logistics (Logistica de Folga de Campo)
+  // ===========================================================================
+
+  static async listLogistics(input: ListLogisticsInput) {
+    const { users_id, status, page, per_page } = input;
+    const company_id = (input as any).company_id;
+    const skip = (page - 1) * per_page;
+
+    const whereClause: any = {};
+
+    if (users_id) whereClause.users_id = BigInt(users_id);
+    if (company_id && !users_id) whereClause.user = { company_id: BigInt(company_id) };
+    if (status) whereClause.status = status;
+
+    const [items, total] = await Promise.all([
+      db.employees_logistics.findMany({
+        where: whereClause,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          responsavel: { select: { id: true, name: true } },
+          day_off: { select: { id: true, tipo: true, data: true, status: true } },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: per_page,
+      }),
+      db.employees_logistics.count({ where: whereClause }),
+    ]);
+
+    return buildPaginationResponse(items, total, page, per_page);
+  }
+
+  static async updateLogistics(id: number, data: UpdateLogisticsInput) {
+    const record = await db.employees_logistics.findFirst({
+      where: { id: BigInt(id) },
+    });
+
+    if (!record) {
+      throw new NotFoundError('Registro de logistica nao encontrado.');
+    }
+
+    return db.employees_logistics.update({
+      where: { id: BigInt(id) },
+      data: {
+        tipo_transporte: data.tipo_transporte,
+        data_saida: data.data_saida ? new Date(data.data_saida) : undefined,
+        data_retorno: data.data_retorno ? new Date(data.data_retorno) : undefined,
+        status: data.status,
+        responsavel_id: data.responsavel_id ? BigInt(data.responsavel_id) : undefined,
+        observacoes: data.observacoes,
+        updated_at: new Date(),
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        responsavel: { select: { id: true, name: true } },
+        day_off: { select: { id: true, tipo: true, data: true, status: true } },
+      },
     });
   }
 }

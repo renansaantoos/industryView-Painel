@@ -39,6 +39,11 @@ export interface EmployeeHrData {
   ctps_numero?: string;
   ctps_serie?: string;
   ctps_uf?: string;
+  // Folga de Campo
+  distancia_moradia_obra?: number;
+  folga_campo_dias_trabalho?: number;
+  folga_campo_dias_folga?: number;
+  folga_campo_dias_uteis?: number;
   // CNH
   cnh_numero?: string;
   cnh_categoria?: string;
@@ -95,6 +100,11 @@ export interface VacationBalance {
   dias_usados: number;
   dias_pendentes: number;
   dias_disponiveis: number;
+  faltas_injustificadas: number;
+  periodo_aquisitivo_inicio: string | null;
+  periodo_aquisitivo_fim: string | null;
+  periodo_concessivo_fim: string | null;
+  data_prevista_ferias: string | null;
 }
 
 export interface EmployeeDocument {
@@ -167,4 +177,21 @@ export interface EmployeeCareerHistory {
   created_at: string;
   user?: { id: number; name: string; email: string };
   registrado_por?: { id: number; name: string };
+}
+
+export interface EmployeeLogistics {
+  id: number;
+  day_off_id: number;
+  users_id: number;
+  data_saida: string;
+  data_retorno: string;
+  tipo_transporte?: string;
+  status: string;
+  responsavel_id?: number;
+  observacoes?: string;
+  created_at: string;
+  updated_at?: string;
+  user?: { id: number; name: string; email: string };
+  responsavel?: { id: number; name: string };
+  day_off?: { id: number; tipo: string; data: string; status: string };
 }

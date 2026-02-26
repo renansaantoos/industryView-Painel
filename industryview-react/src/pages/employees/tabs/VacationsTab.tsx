@@ -14,7 +14,7 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmModal from '../../../components/common/ConfirmModal';
-import { Plus, Edit, Trash2, CheckCircle, XCircle, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, CheckCircle, XCircle, Filter, Calendar, AlertTriangle, Info, FileText, Baby, Heart, Clock } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -31,11 +31,11 @@ const TIPO_LABELS: Record<string, string> = {
 const TIPO_OPTIONS = Object.entries(TIPO_LABELS).map(([value, label]) => ({ value, label }));
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
-  pendente:     { bg: '#FFF9E6', color: '#B98E00', label: 'Pendente' },
-  aprovado:     { bg: '#F4FEF9', color: '#028F58', label: 'Aprovado' },
+  pendente: { bg: '#FFF9E6', color: '#B98E00', label: 'Pendente' },
+  aprovado: { bg: '#F4FEF9', color: '#028F58', label: 'Aprovado' },
   em_andamento: { bg: '#EEF4FF', color: '#1D5CC6', label: 'Em Andamento' },
-  concluido:    { bg: '#F0F0F0', color: '#555555', label: 'Concluido' },
-  cancelado:    { bg: '#FDE8E8', color: '#C0392B', label: 'Cancelado' },
+  concluido: { bg: '#F0F0F0', color: '#555555', label: 'Concluido' },
+  cancelado: { bg: '#FDE8E8', color: '#C0392B', label: 'Cancelado' },
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -43,11 +43,60 @@ const STATUS_FILTER_OPTIONS = [
   ...Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ value, label })),
 ];
 
+// ── Licencas CLT Info ─────────────────────────────────────────────────────────
+
+const LICENCAS_INFO: {
+  tipo: string;
+  label: string;
+  duracao: string;
+  quemPaga: string;
+  icon: typeof FileText;
+  color: string;
+}[] = [
+    {
+      tipo: 'licenca_medica',
+      label: 'Licenca Medica',
+      duracao: 'Ate 15 dias (empresa) / 16+ dias (INSS)',
+      quemPaga: 'Empresa ate 15d, INSS apos',
+      icon: Heart,
+      color: '#E74C3C',
+    },
+    {
+      tipo: 'licenca_maternidade',
+      label: 'Licenca Maternidade',
+      duracao: '120 dias (pode ser 180 com Empresa Cidada)',
+      quemPaga: 'INSS (empresa adianta)',
+      icon: Baby,
+      color: '#E91E90',
+    },
+    {
+      tipo: 'licenca_paternidade',
+      label: 'Licenca Paternidade',
+      duracao: '5 dias (pode ser 20 com Empresa Cidada)',
+      quemPaga: 'Empresa',
+      icon: Baby,
+      color: '#2980B9',
+    },
+    {
+      tipo: 'abono',
+      label: 'Abono / Falta Justificada',
+      duracao: 'Varia conforme motivo (CLT Art. 473)',
+      quemPaga: 'Empresa (sem desconto)',
+      icon: Clock,
+      color: '#7D3C98',
+    },
+  ];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('pt-BR');
+}
+
+function formatDateLocal(dateStr: string): string {
+  // Avoids UTC shift: treats "2026-01-15" as local midnight
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR');
 }
 
 function calcDaysBetween(startStr: string, endStr: string): number {
@@ -61,7 +110,6 @@ function calcDaysBetween(startStr: string, endStr: string): number {
 
 function toDateInput(dateStr: string | undefined | null): string {
   if (!dateStr) return '';
-  // handle both "2026-01-15" and "2026-01-15T03:00:00.000Z"
   return dateStr.substring(0, 10);
 }
 
@@ -70,42 +118,12 @@ function isEndBeforeStart(startStr: string, endStr: string): boolean {
   return endStr < startStr;
 }
 
+// Returns days until date string (YYYY-MM-DD). Negative = already past.
+function daysUntil(dateStr: string): number {
+  return Math.ceil((new Date(dateStr + 'T00:00:00').getTime() - Date.now()) / 86400000);
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-interface BalanceCardProps {
-  label: string;
-  value: number;
-  highlight?: boolean;
-}
-
-function BalanceCard({ label, value, highlight = false }: BalanceCardProps) {
-  return (
-    <div
-      style={{
-        padding: '16px',
-        background: 'var(--color-card-bg)',
-        borderRadius: '8px',
-        border: '1px solid var(--color-border)',
-        textAlign: 'center',
-        flex: 1,
-        minWidth: '100px',
-      }}
-    >
-      <div
-        style={{
-          fontSize: '24px',
-          fontWeight: 700,
-          color: highlight ? 'var(--color-primary)' : 'var(--color-primary-text)',
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
-        {label}
-      </div>
-    </div>
-  );
-}
 
 interface StatusBadgeProps {
   status: string;
@@ -127,6 +145,32 @@ function StatusBadge({ status }: StatusBadgeProps) {
     >
       {config.label}
     </span>
+  );
+}
+
+// ── Inline error alert ────────────────────────────────────────────────────────
+
+interface FormErrorAlertProps {
+  message: string;
+}
+
+function FormErrorAlert({ message }: FormErrorAlertProps) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '10px',
+        padding: '12px 14px',
+        background: '#FDE8E8',
+        borderLeft: '4px solid #C0392B',
+        borderRadius: '6px',
+        marginBottom: '14px',
+      }}
+    >
+      <AlertTriangle size={16} style={{ color: '#C0392B', flexShrink: 0, marginTop: '1px' }} />
+      <span style={{ color: '#C0392B', fontSize: '13px', lineHeight: '1.4' }}>{message}</span>
+    </div>
   );
 }
 
@@ -160,6 +204,8 @@ interface VacationFormModalProps {
   onClose: () => void;
   onSaved: () => void;
   usersId: number;
+  balance: VacationBalance | null;
+  vacations: EmployeeVacation[];
 }
 
 function VacationFormModal({
@@ -168,14 +214,20 @@ function VacationFormModal({
   onClose,
   onSaved,
   usersId,
+  balance,
+  vacations,
 }: VacationFormModalProps) {
   const [form, setForm] = useState<VacationFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  // Whether the periodo aquisitivo fields were auto-populated from balance
+  const [periodoAutoFilled, setPeriodoAutoFilled] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
+
     if (editTarget) {
       setForm({
         tipo: editTarget.tipo,
@@ -186,12 +238,53 @@ function VacationFormModal({
         periodo_aquisitivo_fim: toDateInput(editTarget.periodo_aquisitivo_fim),
         observacoes: editTarget.observacoes ?? '',
       });
+      setPeriodoAutoFilled(false);
     } else {
-      setForm(EMPTY_FORM);
+      // New record: auto-populate periodo aquisitivo from balance if available
+      const autoInicio = balance?.periodo_aquisitivo_inicio
+        ? toDateInput(balance.periodo_aquisitivo_inicio)
+        : '';
+      const autoFim = balance?.periodo_aquisitivo_fim
+        ? toDateInput(balance.periodo_aquisitivo_fim)
+        : '';
+
+      setForm({
+        ...EMPTY_FORM,
+        periodo_aquisitivo_inicio: autoInicio,
+        periodo_aquisitivo_fim: autoFim,
+      });
+      setPeriodoAutoFilled(!!(autoInicio && autoFim));
     }
+
     setError('');
     setTouched({});
-  }, [isOpen, editTarget]);
+  }, [isOpen, editTarget, balance]);
+
+  // When tipo changes to 'ferias' on a new record, re-apply auto-fill
+  useEffect(() => {
+    if (!isOpen || editTarget) return;
+    if (form.tipo === 'ferias') {
+      const autoInicio = balance?.periodo_aquisitivo_inicio
+        ? toDateInput(balance.periodo_aquisitivo_inicio)
+        : '';
+      const autoFim = balance?.periodo_aquisitivo_fim
+        ? toDateInput(balance.periodo_aquisitivo_fim)
+        : '';
+      if (autoInicio && autoFim) {
+        setForm(prev => ({
+          ...prev,
+          periodo_aquisitivo_inicio: autoInicio,
+          periodo_aquisitivo_fim: autoFim,
+        }));
+        setPeriodoAutoFilled(true);
+      } else {
+        setPeriodoAutoFilled(false);
+      }
+    } else {
+      setPeriodoAutoFilled(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.tipo]);
 
   // Auto-calculate dias_total whenever dates change
   function handleDateChange(field: 'data_inicio' | 'data_fim', value: string) {
@@ -208,6 +301,33 @@ function VacationFormModal({
   ) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
+
+  // Count existing non-cancelled ferias records that share the same accrual period
+  const existingFeriasPeriods = vacations.filter(v => {
+    if (v.tipo !== 'ferias') return false;
+    if (v.status === 'cancelado') return false;
+    if (editTarget && v.id === editTarget.id) return false;
+    if (!form.periodo_aquisitivo_inicio || !form.periodo_aquisitivo_fim) return true;
+    const vInicio = toDateInput(v.periodo_aquisitivo_inicio);
+    const vFim = toDateInput(v.periodo_aquisitivo_fim);
+    return (
+      vInicio === form.periodo_aquisitivo_inicio &&
+      vFim === form.periodo_aquisitivo_fim
+    );
+  });
+  const existingCount = existingFeriasPeriods.length;
+
+  // Real-time CLT validations for ferias type
+  const diasDisponiveis = balance?.dias_disponiveis ?? 0;
+  const diasDireito = balance?.dias_direito ?? 0;
+  const isFeriasTipo = form.tipo === 'ferias';
+  const hasDias = form.dias_total > 0;
+  const belowMinimum = isFeriasTipo && hasDias && form.dias_total < 5;
+  const exceedsSaldo = isFeriasTipo && hasDias && form.dias_total > diasDisponiveis && balance !== null;
+
+  const submitDisabled =
+    saving ||
+    (isFeriasTipo && (belowMinimum || exceedsSaldo));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -226,6 +346,10 @@ function VacationFormModal({
     }
     if (isEndBeforeStart(form.data_inicio, form.data_fim)) {
       setError('A data de fim nao pode ser menor que a data de inicio.');
+      return;
+    }
+    if (form.tipo === 'ferias' && form.dias_total < 5) {
+      setError('Periodo minimo de ferias e de 5 dias corridos (CLT Art. 134 §1).');
       return;
     }
     if (
@@ -262,12 +386,18 @@ function VacationFormModal({
         });
       }
       onSaved();
-    } catch {
-      setError('Ocorreu um erro ao salvar. Tente novamente.');
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Ocorreu um erro ao salvar. Tente novamente.';
+      setError(msg);
     } finally {
       setSaving(false);
     }
   }
+
+  const readonlyPeriodo = isFeriasTipo && periodoAutoFilled && !editTarget;
 
   return (
     <AnimatePresence>
@@ -290,9 +420,46 @@ function VacationFormModal({
             onClick={e => e.stopPropagation()}
             style={{ width: '520px', maxWidth: '95vw', padding: '28px' }}
           >
-            <h3 style={{ marginBottom: '20px' }}>
+            <h3 style={{ marginBottom: '16px' }}>
               {editTarget ? 'Editar Solicitacao' : 'Nova Solicitacao'}
             </h3>
+
+            {/* ── Saldo disponivel info bar ── */}
+            {balance !== null && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 12px',
+                  background: diasDisponiveis <= 0 ? '#FDE8E8' : 'var(--color-primary-bg, #EEF4FF)',
+                  border: `1px solid ${diasDisponiveis <= 0 ? '#C0392B' : 'var(--color-primary-border, #B8CFFE)'}`,
+                  borderRadius: '6px',
+                  marginBottom: '16px',
+                }}
+              >
+                <Info
+                  size={15}
+                  style={{
+                    color: diasDisponiveis <= 0 ? '#C0392B' : 'var(--color-primary)',
+                    flexShrink: 0,
+                  }}
+                />
+                {diasDisponiveis <= 0 ? (
+                  <span style={{ fontSize: '13px', color: '#C0392B', fontWeight: 600 }}>
+                    Sem saldo disponivel para ferias
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                    Saldo disponivel:{' '}
+                    <strong style={{ color: 'var(--color-primary)' }}>
+                      {diasDisponiveis} dias
+                    </strong>{' '}
+                    de {diasDireito}
+                  </span>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit}>
               {/* Tipo */}
@@ -317,7 +484,7 @@ function VacationFormModal({
               </div>
 
               {/* Dates row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '4px' }}>
                 <div className="input-group">
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
                     Data de Inicio <span style={{ color: '#C0392B' }}>*</span>
@@ -359,6 +526,22 @@ function VacationFormModal({
                 </div>
               </div>
 
+              {/* Period counter for ferias */}
+              {isFeriasTipo && form.data_inicio && form.data_fim && (
+                <div style={{ marginBottom: '14px', marginTop: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: existingCount >= 3 ? '#C0392B' : 'var(--color-secondary-text)',
+                      fontWeight: existingCount >= 3 ? 600 : 400,
+                    }}
+                  >
+                    Periodo {existingCount + 1} de 3 permitidos
+                    {existingCount >= 3 && ' — limite atingido'}
+                  </span>
+                </div>
+              )}
+
               {/* Dias total (read-only, auto-calculated) */}
               <div className="input-group" style={{ marginBottom: '14px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
@@ -371,33 +554,91 @@ function VacationFormModal({
                   readOnly
                   style={{ background: 'var(--color-secondary-bg)', cursor: 'not-allowed' }}
                 />
+
+                {/* CLT real-time feedback */}
+                {isFeriasTipo && belowMinimum && (
+                  <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                    Minimo de 5 dias corridos (CLT Art. 134 §1)
+                  </span>
+                )}
+                {isFeriasTipo && exceedsSaldo && !belowMinimum && (
+                  <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                    Excede o saldo disponivel ({diasDisponiveis} dias)
+                  </span>
+                )}
+
+                {/* Compact CLT info box */}
+                {isFeriasTipo && (
+                  <div
+                    style={{
+                      marginTop: '6px',
+                      padding: '7px 10px',
+                      background: '#EEF4FF',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      color: '#1D5CC6',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '6px',
+                    }}
+                  >
+                    <Info size={13} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <span>
+                      Ferias podem ser divididas em ate 3 periodos: um com no minimo 14 dias e os demais com no minimo 5 dias (CLT Art. 134 §1).
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Periodo aquisitivo */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div className="input-group">
-                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
-                    Periodo Aquisitivo Inicio
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500 }}>
+                    Periodo Aquisitivo
                   </label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={form.periodo_aquisitivo_inicio}
-                    onChange={e => handleFieldChange('periodo_aquisitivo_inicio', e.target.value)}
-                  />
+                  {readonlyPeriodo && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        background: '#EEF4FF',
+                        color: '#1D5CC6',
+                        borderRadius: '4px',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Auto
+                    </span>
+                  )}
                 </div>
-                <div className="input-group">
-                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
-                    Periodo Aquisitivo Fim
-                  </label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={form.periodo_aquisitivo_fim}
-                    onChange={e => handleFieldChange('periodo_aquisitivo_fim', e.target.value)}
-                    min={form.periodo_aquisitivo_inicio || undefined}
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="input-group">
+                    <input
+                      type="date"
+                      className="input-field"
+                      value={form.periodo_aquisitivo_inicio}
+                      onChange={e => handleFieldChange('periodo_aquisitivo_inicio', e.target.value)}
+                      readOnly={readonlyPeriodo}
+                      style={readonlyPeriodo ? { background: 'var(--color-secondary-bg)', cursor: 'not-allowed' } : {}}
+                    />
+                  </div>
+                  <div className="input-group">
+                    <input
+                      type="date"
+                      className="input-field"
+                      value={form.periodo_aquisitivo_fim}
+                      onChange={e => handleFieldChange('periodo_aquisitivo_fim', e.target.value)}
+                      min={form.periodo_aquisitivo_inicio || undefined}
+                      readOnly={readonlyPeriodo}
+                      style={readonlyPeriodo ? { background: 'var(--color-secondary-bg)', cursor: 'not-allowed' } : {}}
+                    />
+                  </div>
                 </div>
+                {readonlyPeriodo && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '4px', display: 'block' }}>
+                    Preenchido automaticamente com base na admissao. Altere o tipo para editar manualmente.
+                  </span>
+                )}
               </div>
 
               {/* Observacoes */}
@@ -415,15 +656,25 @@ function VacationFormModal({
                 />
               </div>
 
-              {error && (
-                <p style={{ color: '#C0392B', fontSize: '13px', marginBottom: '14px' }}>{error}</p>
-              )}
+              {/* Error banner */}
+              {error && <FormErrorAlert message={error} />}
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submitDisabled}
+                  title={
+                    belowMinimum
+                      ? 'Minimo de 5 dias corridos'
+                      : exceedsSaldo
+                        ? `Excede o saldo disponivel (${diasDisponiveis} dias)`
+                        : undefined
+                  }
+                >
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
@@ -432,6 +683,223 @@ function VacationFormModal({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+// ── Licencas Info Cards ──────────────────────────────────────────────────────
+
+interface LicencasInfoCardsProps {
+  vacations: EmployeeVacation[];
+}
+
+function LicencasInfoCards({ vacations }: LicencasInfoCardsProps) {
+  return (
+    <div
+      style={{
+        padding: '10px 14px',
+        background: 'var(--color-card-bg)',
+        borderRadius: '8px',
+        border: '1px solid var(--color-border)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+        <FileText size={13} style={{ color: 'var(--color-secondary-text)' }} />
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary-text)' }}>
+          Licencas e Abonos
+        </span>
+        <span style={{ fontSize: '10px', color: 'var(--color-secondary-text)' }}>
+          (informativo — regras variam por empresa)
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {LICENCAS_INFO.map(lic => {
+          const used = vacations.filter(
+            v => v.tipo === lic.tipo && v.status !== 'cancelado'
+          );
+          const totalDias = used.reduce((acc, v) => acc + (v.dias_total ?? 0), 0);
+          const IconComp = lic.icon;
+
+          return (
+            <div
+              key={lic.tipo}
+              style={{
+                flex: '1 1 0',
+                minWidth: '180px',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border)',
+                borderLeft: `3px solid ${lic.color}`,
+                background: 'var(--color-secondary-bg, #fafafa)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <IconComp size={12} style={{ color: lic.color, flexShrink: 0 }} />
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-primary-text)' }}>{lic.label}</span>
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--color-secondary-text)', lineHeight: 1.4 }}>
+                {lic.duracao}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--color-secondary-text)', marginTop: '3px', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ opacity: 0.7 }}>{lic.quemPaga}</span>
+                <span style={{ fontWeight: 600, color: used.length > 0 ? 'var(--color-primary-text)' : 'var(--color-secondary-text)' }}>
+                  {used.length > 0 ? `${used.length}x · ${totalDias}d` : '—'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Banner component ──────────────────────────────────────────────────────────
+
+interface VacationBannerProps {
+  balance: VacationBalance;
+}
+
+function VacationBanner({ balance }: VacationBannerProps) {
+  // Determine urgency level based on concessivo end date
+  const urgency: 'expired' | 'warning' | 'normal' | 'no-date' = (() => {
+    if (!balance.data_prevista_ferias) return 'no-date';
+    if (!balance.periodo_concessivo_fim) return 'normal';
+    const diff = daysUntil(balance.periodo_concessivo_fim.substring(0, 10));
+    if (diff < 0) return 'expired';
+    if (diff <= 60) return 'warning';
+    return 'normal';
+  })();
+
+  const bannerBg =
+    urgency === 'expired'
+      ? '#FDE8E8'
+      : urgency === 'warning'
+        ? '#FFFBF0'
+        : 'var(--color-primary-bg, #EEF4FF)';
+
+  const bannerBorder =
+    urgency === 'expired'
+      ? '#F5C6C6'
+      : urgency === 'warning'
+        ? '#F7DFA0'
+        : 'var(--color-primary-border, #C5D8FF)';
+
+  if (urgency === 'no-date') {
+    return (
+      <motion.div
+        variants={fadeUpChild}
+        initial="initial"
+        animate="animate"
+        style={{
+          padding: '10px 16px',
+          background: 'var(--color-card-bg)',
+          borderRadius: '8px',
+          border: '1px solid var(--color-border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}
+      >
+        <Calendar size={15} style={{ color: 'var(--color-secondary-text)', flexShrink: 0 }} />
+        <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)', fontStyle: 'italic' }}>
+          Cadastre a data de admissao para calculo automatico das proximas ferias.
+        </span>
+      </motion.div>
+    );
+  }
+
+  const diffDays = balance.periodo_concessivo_fim
+    ? daysUntil(balance.periodo_concessivo_fim.substring(0, 10))
+    : null;
+
+  return (
+    <motion.div
+      variants={fadeUpChild}
+      initial="initial"
+      animate="animate"
+      style={{
+        padding: '10px 16px',
+        background: bannerBg,
+        borderRadius: '8px',
+        border: `1px solid ${bannerBorder}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0',
+        flexWrap: 'wrap',
+        minHeight: '44px',
+      }}
+    >
+      {/* Left: Proximas Ferias */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', marginRight: '20px' }}>
+        <Calendar size={15} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+        <div>
+          <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', display: 'block', lineHeight: 1.2 }}>
+            Proximas Ferias
+          </span>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary-text)', lineHeight: 1.2 }}>
+            {formatDateLocal(balance.data_prevista_ferias!.substring(0, 10))}
+          </span>
+        </div>
+      </div>
+
+      {/* Separator */}
+      {balance.periodo_aquisitivo_inicio && balance.periodo_aquisitivo_fim && (
+        <span style={{ color: 'var(--color-border)', fontSize: '18px', marginRight: '20px', opacity: 0.5 }}>|</span>
+      )}
+
+      {/* Center: Periodo Aquisitivo */}
+      {balance.periodo_aquisitivo_inicio && balance.periodo_aquisitivo_fim && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 auto' }}>
+          <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>Periodo Aquisitivo:</span>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-primary-text)' }}>
+            {formatDateLocal(balance.periodo_aquisitivo_inicio.substring(0, 10))}
+            {' a '}
+            {formatDateLocal(balance.periodo_aquisitivo_fim.substring(0, 10))}
+          </span>
+        </div>
+      )}
+
+      {/* Right: Alert badge */}
+      {diffDays !== null && urgency !== 'normal' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexShrink: 0 }}>
+          {urgency === 'expired' ? (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 10px',
+                background: '#C0392B',
+                color: '#fff',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              <AlertTriangle size={12} />
+              Periodo Concessivo Vencido
+            </span>
+          ) : (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 10px',
+                background: '#B98E00',
+                color: '#fff',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              <AlertTriangle size={12} />
+              {diffDays}d para vencer
+            </span>
+          )}
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -557,35 +1025,37 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Balance cards */}
-      <motion.div
-        style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}
-        variants={staggerParent}
-        initial="initial"
-        animate="animate"
-      >
-        {balanceLoading ? (
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
-            <LoadingSpinner />
-          </div>
-        ) : balance ? (
-          <>
-            <motion.div variants={fadeUpChild} style={{ flex: 1, minWidth: '120px' }}>
-              <BalanceCard label="Dias de Direito" value={balance.dias_direito} />
-            </motion.div>
-            <motion.div variants={fadeUpChild} style={{ flex: 1, minWidth: '120px' }}>
-              <BalanceCard label="Dias Usados" value={balance.dias_usados} />
-            </motion.div>
-            <motion.div variants={fadeUpChild} style={{ flex: 1, minWidth: '120px' }}>
-              <BalanceCard label="Dias Pendentes" value={balance.dias_pendentes} />
-            </motion.div>
-            <motion.div variants={fadeUpChild} style={{ flex: 1, minWidth: '120px' }}>
-              <BalanceCard label="Dias Disponiveis" value={balance.dias_disponiveis} highlight />
-            </motion.div>
-          </>
-        ) : null}
-      </motion.div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* Banner Data Prevista de Ferias */}
+      {!balanceLoading && balance && <VacationBanner balance={balance} />}
+      {!balanceLoading && !balance && (
+        <motion.div
+          variants={fadeUpChild}
+          initial="initial"
+          animate="animate"
+          style={{
+            padding: '10px 16px',
+            background: 'var(--color-card-bg)',
+            borderRadius: '8px',
+            border: '1px solid var(--color-border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <Calendar size={15} style={{ color: 'var(--color-secondary-text)', flexShrink: 0 }} />
+          <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)', fontStyle: 'italic' }}>
+            Cadastre a data de admissao para calculo automatico das proximas ferias.
+          </span>
+        </motion.div>
+      )}
+
+      {/* Licencas info cards */}
+      {!loading && (
+        <motion.div variants={staggerParent} initial="initial" animate="animate">
+          <LicencasInfoCards vacations={vacations} />
+        </motion.div>
+      )}
 
       {/* Filter bar */}
       <div
@@ -743,6 +1213,8 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
         onClose={() => setIsFormOpen(false)}
         onSaved={handleFormSaved}
         usersId={usersId}
+        balance={balance}
+        vacations={vacations}
       />
 
       {/* Delete confirmation modal */}

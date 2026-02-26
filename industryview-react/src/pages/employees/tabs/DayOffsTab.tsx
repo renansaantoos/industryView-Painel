@@ -16,7 +16,7 @@ interface DayOffsTabProps {
   usersId: number;
 }
 
-type DayOffTipo = 'folga_compensatoria' | 'banco_horas' | 'folga_escala' | 'troca_turno';
+type DayOffTipo = 'folga_compensatoria' | 'banco_horas' | 'folga_escala' | 'troca_turno' | 'folga_campo';
 type DayOffStatus = 'pendente' | 'aprovado' | 'rejeitado' | 'cancelado';
 
 interface DayOffFormData {
@@ -39,6 +39,7 @@ const TIPO_LABELS: Record<DayOffTipo, string> = {
   banco_horas: 'Banco de Horas',
   folga_escala: 'Folga de Escala',
   troca_turno: 'Troca de Turno',
+  folga_campo: 'Folga de Campo',
 };
 
 const STATUS_COLORS: Record<DayOffStatus, string> = {

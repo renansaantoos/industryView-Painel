@@ -8,6 +8,7 @@ import type {
   DayOffBalance,
   EmployeeBenefit,
   EmployeeCareerHistory,
+  EmployeeLogistics,
   PaginatedResponse,
 } from '../../types';
 
@@ -235,4 +236,23 @@ export async function updateCareerHistory(id: number, data: Partial<EmployeeCare
 
 export async function deleteCareerHistory(id: number): Promise<void> {
   await apiClient.delete(`${BASE}/career-history/${id}`);
+}
+
+// ============================================================
+// Logistics (Logistica de Folga de Campo)
+// ============================================================
+
+export async function listLogistics(params?: {
+  users_id?: number;
+  status?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<PaginatedResponse<EmployeeLogistics>> {
+  const response = await apiClient.get(`${BASE}/logistics`, { params });
+  return response.data;
+}
+
+export async function updateLogistics(id: number, data: Partial<EmployeeLogistics>): Promise<EmployeeLogistics> {
+  const response = await apiClient.patch(`${BASE}/logistics/${id}`, data);
+  return response.data;
 }

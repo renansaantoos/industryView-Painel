@@ -260,6 +260,8 @@ export default function TrainingsTab({ usersId }: TrainingsTabProps) {
             <thead>
               <tr>
                 <th>Treinamento</th>
+                <th>Ref. NR</th>
+                <th>Carga Horaria</th>
                 <th>Data Conclusão</th>
                 <th>Validade</th>
                 <th>Status</th>
@@ -271,6 +273,32 @@ export default function TrainingsTab({ usersId }: TrainingsTabProps) {
                 <motion.tr key={training.id} variants={tableRowVariants}>
                   <td style={{ fontWeight: 500 }}>
                     {training.training_type_name || '-'}
+                  </td>
+                  <td>
+                    {training.nr_reference ? (
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          background: '#EEF4FF',
+                          color: '#1D5CC6',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {training.nr_reference}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>-</span>
+                    )}
+                  </td>
+                  <td>
+                    {training.workload_hours ? (
+                      <span style={{ fontSize: '13px' }}>{training.workload_hours}h</span>
+                    ) : (
+                      <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>-</span>
+                    )}
                   </td>
                   <td>{formatDate(training.training_date)}</td>
                   <td>{formatDate(training.expiry_date)}</td>

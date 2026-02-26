@@ -87,6 +87,7 @@ export interface WorkerTraining {
   user_name?: string;
   training_type_name?: string;
   nr_reference?: string;
+  workload_hours?: number;
   status?: 'valido' | 'vencendo' | 'vencido';
   created_at: string;
   updated_at: string;

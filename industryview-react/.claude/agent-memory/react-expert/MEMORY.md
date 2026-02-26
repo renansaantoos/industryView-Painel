@@ -28,3 +28,12 @@
 ## Sidebar selectionIndex Registry
 - 1=dashboard, 2=projects, 3=teams, 4=sprints, 5=tasks, 6=backlog, 7=reports, 8=employees, 9=inventory
 - 11=settings, 12=account, 13=company, 14-20=SSMA, 21-27=operations, 28=planning, 29=checklists (task templates)
+
+## Employee VacationsTab Patterns
+- File: `src/pages/employees/tabs/VacationsTab.tsx`
+- `VacationBalance` has: `dias_direito`, `dias_usados`, `dias_pendentes`, `dias_disponiveis`, `faltas_injustificadas`, `data_prevista_ferias`, `periodo_aquisitivo_inicio`, `periodo_aquisitivo_fim`, `periodo_concessivo_fim`
+- All date strings from API may be ISO (with time) or plain YYYY-MM-DD; use `toDateInput(str)` = `str.substring(0,10)` to normalize; use `formatDateLocal(str)` = `new Date(str+'T00:00:00').toLocaleDateString('pt-BR')` to avoid UTC day-off bug
+- Modal receives `balance` + `vacations` props; periodo aquisitivo fields are auto-filled and read-only when tipo='ferias' and creating a new record
+- Error display uses `FormErrorAlert` component: red/pink bg, 4px left border, AlertTriangle icon
+- "Dias de Direito" card: red if 0, orange border if < 30; shows faltas count in gray below label
+- Banner extracted to `VacationBanner` component; shows 'no-date' fallback when `data_prevista_ferias` is null

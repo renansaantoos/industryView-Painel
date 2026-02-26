@@ -85,6 +85,10 @@ const EMPTY_FORM: HrFormData = {
   cid: '',
   grau_deficiencia: '',
   reabilitado_inss: undefined,
+  distancia_moradia_obra: undefined,
+  folga_campo_dias_trabalho: undefined,
+  folga_campo_dias_folga: undefined,
+  folga_campo_dias_uteis: undefined,
   observacoes: '',
 };
 
@@ -184,6 +188,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
     emergencia: true,
     escolaridade: true,
     pcd: true,
+    folga_campo: true,
     observacoes: true,
   });
 
@@ -689,6 +694,54 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
             </Field>
           </>
         )}
+      </Section>
+
+      {/* ── Folga de Campo ────────────────────────────────────────────── */}
+      <Section title="Folga de Campo" isOpen={openSections.folga_campo} onToggle={() => toggleSection('folga_campo')}>
+        <Field label="Distância Moradia-Obra (km)">
+          <input
+            className="input-field"
+            type="number"
+            min={0}
+            step={0.01}
+            value={form.distancia_moradia_obra ?? ''}
+            placeholder="0,00"
+            onChange={e => handleChange('distancia_moradia_obra', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+          />
+        </Field>
+        <Field label="A cada X dias de trabalho">
+          <input
+            className="input-field"
+            type="number"
+            min={1}
+            step={1}
+            value={form.folga_campo_dias_trabalho ?? ''}
+            placeholder="Ex: 30"
+            onChange={e => handleChange('folga_campo_dias_trabalho', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+          />
+        </Field>
+        <Field label="Y dias de folga">
+          <input
+            className="input-field"
+            type="number"
+            min={1}
+            step={1}
+            value={form.folga_campo_dias_folga ?? ''}
+            placeholder="Ex: 7"
+            onChange={e => handleChange('folga_campo_dias_folga', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+          />
+        </Field>
+        <Field label="Z dias úteis de viagem">
+          <input
+            className="input-field"
+            type="number"
+            min={0}
+            step={1}
+            value={form.folga_campo_dias_uteis ?? ''}
+            placeholder="Ex: 2"
+            onChange={e => handleChange('folga_campo_dias_uteis', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+          />
+        </Field>
       </Section>
 
       {/* ── Observações ────────────────────────────────────────────────── */}

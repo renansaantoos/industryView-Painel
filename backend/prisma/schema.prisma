@@ -252,6 +252,8 @@ model users {
   career_history                       employees_career_history[]
   career_history_registered            employees_career_history[]     @relation("career_registrar")
   schedule_imports_created             schedule_imports[]             @relation("import_created")
+  logistics_employee                   employees_logistics[]          @relation("logistics_employee")
+  logistics_responsavel                employees_logistics[]          @relation("logistics_responsavel")
 
   @@index([company_id], map: "idx_users_company_id")
   @@index([created_at(sort: Desc)], map: "idx_users_created_at")
@@ -2507,6 +2509,12 @@ model employees_hr_data {
   ctps_serie            String?   @db.VarChar(10)
   ctps_uf               String?   @db.Char(2)
 
+  // Folga de Campo
+  distancia_moradia_obra        Decimal?  @db.Decimal(8, 2)
+  folga_campo_dias_trabalho     Int?
+  folga_campo_dias_folga        Int?
+  folga_campo_dias_uteis        Int?
+
   // CNH
   cnh_numero            String?   @db.VarChar(20)
   cnh_categoria         String?   @db.VarChar(5)
@@ -2613,10 +2621,33 @@ model employees_day_offs {
 
   user            users     @relation("day_off_user", fields: [users_id], references: [id], onDelete: Cascade)
   aprovado_por    users?    @relation("day_off_approver", fields: [aprovado_por_id], references: [id], onDelete: SetNull)
+  logistics       employees_logistics?
 
   @@index([users_id], map: "idx_employees_day_offs_users_id")
   @@index([status], map: "idx_employees_day_offs_status")
   @@index([data], map: "idx_employees_day_offs_data")
+}
+
+model employees_logistics {
+  id              BigInt    @id @default(autoincrement())
+  day_off_id      BigInt    @unique
+  users_id        BigInt
+  data_saida      DateTime  @db.Date
+  data_retorno    DateTime  @db.Date
+  tipo_transporte String?   @db.VarChar(50)
+  status          String    @default("pendente") @db.VarChar(20)
+  responsavel_id  BigInt?
+  observacoes     String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  day_off         employees_day_offs @relation(fields: [day_off_id], references: [id], onDelete: Cascade)
+  user            users              @relation("logistics_employee", fields: [users_id], references: [id])
+  responsavel     users?             @relation("logistics_responsavel", fields: [responsavel_id], references: [id])
+
+  @@index([users_id])
+  @@index([day_off_id])
+  @@index([status])
 }
 
 model employees_benefits {
