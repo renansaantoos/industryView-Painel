@@ -21,9 +21,10 @@ export async function createDailyLog(data: {
   users_id: number;
   log_date: string;
   check_in?: string;
+  saida_intervalo?: string;
+  entrada_intervalo?: string;
   check_out?: string;
   team?: string;
-  status?: string;
   observation?: string;
 }): Promise<WorkforceDailyLog> {
   const response = await apiClient.post(BASE, data);
