@@ -167,7 +167,7 @@ export default function SafetyIncidents() {
 
   // Add attachment inline form
   const [showAttachmentForm, setShowAttachmentForm] = useState(false);
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState('');
   const [attachmentLoading, setAttachmentLoading] = useState(false);
 
   // Delete
@@ -225,7 +225,8 @@ export default function SafetyIncidents() {
   const [formWitnessStatement, setFormWitnessStatement] = useState('');
   const [formWitnesses, setFormWitnesses] = useState<Array<{ name: string; statement?: string }>>([]);
   const [showCreateWitnessModal, setShowCreateWitnessModal] = useState(false);
-  const [formAttachments, setFormAttachments] = useState<File[]>([]);
+  const [formAttachments, setFormAttachments] = useState<string[]>([]);
+  const [formAttachmentUrl, setFormAttachmentUrl] = useState('');
   const [createModalTab, setCreateModalTab] = useState<'info' | 'witnesses' | 'attachments'>('info');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formTouched, setFormTouched] = useState(false);
@@ -350,6 +351,7 @@ export default function SafetyIncidents() {
     setFormWitnesses([]);
     setShowCreateWitnessModal(false);
     setFormAttachments([]);
+    setFormAttachmentUrl('');
     setCreateModalTab('info');
     setFormErrors({});
     setFormTouched(false);
@@ -404,12 +406,11 @@ export default function SafetyIncidents() {
       }
 
       // Persist attachments registered during create form
-      for (const file of formAttachments) {
-        const uploaded = await safetyApi.uploadFile(file);
+      for (const url of formAttachments) {
         await safetyApi.addAttachment(createdIncident.id, {
-          file_url: uploaded.file_url,
-          file_type: uploaded.file_type,
-          description: uploaded.file_name,
+          file_url: url,
+          file_type: '',
+          description: url.split('/').pop() || 'Anexo',
           uploaded_by_user_id: user.id,
         });
       }
@@ -443,10 +444,10 @@ export default function SafetyIncidents() {
     setFormWitnesses((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddCreateAttachments = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const next = Array.from(files);
-    setFormAttachments((prev) => [...prev, ...next]);
+  const handleAddCreateAttachmentUrl = () => {
+    if (!formAttachmentUrl.trim()) return;
+    setFormAttachments((prev) => [...prev, formAttachmentUrl.trim()]);
+    setFormAttachmentUrl('');
   };
 
   const handleRemoveCreateAttachment = (index: number) => {
@@ -551,19 +552,16 @@ export default function SafetyIncidents() {
   };
 
   const handleAddAttachment = async (incidentId: number) => {
-    if (!attachmentFile || !user) return;
+    if (!attachmentUrl.trim() || !user) return;
     setAttachmentLoading(true);
     try {
-      // 1. Upload file to server
-      const uploaded = await safetyApi.uploadFile(attachmentFile);
-      // 2. Create attachment record linked to incident
       await safetyApi.addAttachment(incidentId, {
-        file_url: uploaded.file_url,
-        file_type: uploaded.file_type,
-        description: uploaded.file_name,
+        file_url: attachmentUrl.trim(),
+        file_type: '',
+        description: attachmentUrl.trim().split('/').pop() || 'Anexo',
         uploaded_by_user_id: user.id,
       });
-      setAttachmentFile(null);
+      setAttachmentUrl('');
       setShowAttachmentForm(false);
       reloadExpandedDetail(incidentId);
     } catch (err) {
@@ -1059,60 +1057,28 @@ export default function SafetyIncidents() {
                                 {/* Add attachment form */}
                                 {showAttachmentForm && (
                                   <div style={{ marginTop: '8px', padding: '10px', background: 'var(--color-primary-bg)', borderRadius: '6px', border: '1px solid var(--color-alternate)' }}>
-                                    <label
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        padding: '10px 14px',
-                                        border: '2px dashed var(--color-alternate)',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        fontSize: '12px',
-                                        color: 'var(--color-secondary-text)',
-                                        marginBottom: '8px',
-                                        transition: 'border-color 0.2s',
-                                      }}
-                                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
-                                      onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-alternate)'; }}
-                                      onDrop={(e) => {
-                                        e.preventDefault();
-                                        e.currentTarget.style.borderColor = 'var(--color-alternate)';
-                                        const droppedFile = e.dataTransfer.files[0];
-                                        if (droppedFile) setAttachmentFile(droppedFile);
-                                      }}
-                                    >
-                                      <Paperclip size={16} />
-                                      {attachmentFile ? (
-                                        <span style={{ color: 'var(--color-primary-text)' }}>
-                                          {attachmentFile.name}
-                                          <span style={{ color: 'var(--color-secondary-text)', marginLeft: '6px' }}>
-                                            ({(attachmentFile.size / 1024).toFixed(0)} KB)
-                                          </span>
-                                        </span>
-                                      ) : (
-                                        t('safety.dropOrClickFile', 'Clique para selecionar ou arraste um arquivo aqui')
-                                      )}
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                      <Paperclip size={16} style={{ flexShrink: 0, color: 'var(--color-secondary-text)' }} />
                                       <input
-                                        type="file"
-                                        style={{ display: 'none' }}
-                                        onChange={(e) => {
-                                          const f = e.target.files?.[0];
-                                          if (f) setAttachmentFile(f);
-                                        }}
+                                        className="input-field"
+                                        type="text"
+                                        placeholder="https://... (URL do anexo)"
+                                        value={attachmentUrl}
+                                        onChange={(e) => setAttachmentUrl(e.target.value)}
+                                        style={{ flex: 1, fontSize: '12px', padding: '6px 10px' }}
                                       />
-                                    </label>
+                                    </div>
                                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                      <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowAttachmentForm(false); setAttachmentFile(null); }}>
+                                      <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => { setShowAttachmentForm(false); setAttachmentUrl(''); }}>
                                         {t('common.cancel')}
                                       </button>
                                       <button
                                         className="btn btn-primary"
                                         style={{ fontSize: '11px', padding: '4px 10px' }}
                                         onClick={() => handleAddAttachment(incident.id)}
-                                        disabled={attachmentLoading || !attachmentFile}
+                                        disabled={attachmentLoading || !attachmentUrl.trim()}
                                       >
-                                        {attachmentLoading ? <span className="spinner" /> : t('safety.uploadFile', 'Enviar arquivo')}
+                                        {attachmentLoading ? <span className="spinner" /> : 'Adicionar'}
                                       </button>
                                     </div>
                                   </div>
@@ -1522,49 +1488,37 @@ export default function SafetyIncidents() {
                       }}
                     >
                       <span style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-                        {t('safety.attachmentsTabHelper', 'Anexe documentos, fotos ou evidências do incidente')}
+                        Adicione URLs de documentos, fotos ou evidências do incidente
                       </span>
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '12px 14px',
-                          border: '2px dashed var(--color-alternate)',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          color: 'var(--color-secondary-text)',
-                          transition: 'border-color 0.2s',
-                        }}
-                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
-                        onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-alternate)'; }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.style.borderColor = 'var(--color-alternate)';
-                          handleAddCreateAttachments(e.dataTransfer.files);
-                        }}
-                      >
-                        <Paperclip size={16} />
-                        {t('safety.dropOrClickFile', 'Clique para selecionar ou arraste arquivos aqui')}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <Paperclip size={16} style={{ flexShrink: 0, color: 'var(--color-secondary-text)' }} />
                         <input
-                          type="file"
-                          multiple
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            handleAddCreateAttachments(e.target.files);
-                            e.currentTarget.value = '';
-                          }}
+                          className="input-field"
+                          type="text"
+                          placeholder="https://... (URL do anexo)"
+                          value={formAttachmentUrl}
+                          onChange={(e) => setFormAttachmentUrl(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCreateAttachmentUrl(); } }}
+                          style={{ flex: 1, fontSize: '13px', padding: '8px 10px' }}
                         />
-                      </label>
+                        <button
+                          className="btn btn-primary"
+                          type="button"
+                          style={{ fontSize: '12px', padding: '6px 12px', whiteSpace: 'nowrap' }}
+                          onClick={handleAddCreateAttachmentUrl}
+                          disabled={!formAttachmentUrl.trim()}
+                        >
+                          Adicionar
+                        </button>
+                      </div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary-text)' }}>
                         {t('common.attachments', 'Anexos')} ({formAttachments.length})
                       </div>
                       {formAttachments.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {formAttachments.map((file, idx) => (
+                          {formAttachments.map((url, idx) => (
                             <div
-                              key={`${file.name}-${idx}`}
+                              key={`${url}-${idx}`}
                               style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -1576,9 +1530,9 @@ export default function SafetyIncidents() {
                                 fontSize: '13px',
                               }}
                             >
-                              <span>
-                                {file.name} <span style={{ color: 'var(--color-secondary-text)' }}>({(file.size / 1024).toFixed(0)} KB)</span>
-                              </span>
+                              <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {url.length > 60 ? url.substring(0, 60) + '...' : url}
+                              </a>
                               <button className="btn btn-icon" type="button" onClick={() => handleRemoveCreateAttachment(idx)} title={t('common.remove', 'Remover')}>
                                 <Trash2 size={14} color="var(--color-error)" />
                               </button>
@@ -1589,7 +1543,7 @@ export default function SafetyIncidents() {
                         <div style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
                           {t('safety.noAttachments', 'Nenhum anexo adicionado')}
                         </div>
-                      )}
+                      )
                     </div>
                   </div>
                 )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   HeartPulse,
   IdCard,
-  Camera,
 } from 'lucide-react';
 
 // Tab components
@@ -83,8 +82,6 @@ export default function EmployeeProfile() {
   const [activeTab, setActiveTab] = useState<TabKey>('dados');
   const [isBadgeGenerating, setIsBadgeGenerating] = useState(false);
   const [fotoUrl, setFotoUrl] = useState<string>('');
-  const [isUploadingFoto, setIsUploadingFoto] = useState(false);
-  const fotoInputRef = useRef<HTMLInputElement>(null);
   const [summary, setSummary] = useState<SummaryData>({
     vacationBalance: null,
     ppeStatus: null,
@@ -133,22 +130,6 @@ export default function EmployeeProfile() {
       console.error('Failed to load profile:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleFotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingFoto(true);
-    try {
-      const result = await safetyApi.uploadFile(file);
-      setFotoUrl(result.file_url);
-      await employeesApi.upsertHrData(usersId, { foto_documento_url: result.file_url });
-    } catch (err) {
-      console.error('Erro ao fazer upload da foto:', err);
-    } finally {
-      setIsUploadingFoto(false);
-      e.target.value = '';
     }
   };
 
@@ -234,11 +215,9 @@ export default function EmployeeProfile() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-          {/* Avatar — clicável para trocar foto */}
-          <div style={{ position: 'relative', flexShrink: 0 }}>
+          {/* Avatar (somente exibição) */}
+          <div style={{ flexShrink: 0 }}>
             <div
-              onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
-              title="Clique para alterar a foto"
               style={{
                 width: '72px',
                 height: '72px',
@@ -250,16 +229,10 @@ export default function EmployeeProfile() {
                 color: 'white',
                 fontSize: '24px',
                 fontWeight: 700,
-                flexShrink: 0,
-                cursor: isUploadingFoto ? 'not-allowed' : 'pointer',
                 overflow: 'hidden',
-                opacity: isUploadingFoto ? 0.7 : 1,
-                transition: 'opacity 0.2s',
               }}
             >
-              {isUploadingFoto ? (
-                <div className="spinner" style={{ width: 26, height: 26, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
-              ) : fotoUrl ? (
+              {fotoUrl ? (
                 <img
                   src={fotoUrl}
                   alt={displayName}
@@ -269,36 +242,24 @@ export default function EmployeeProfile() {
                 initials
               )}
             </div>
-            {/* Camera overlay button */}
-            <button
-              type="button"
-              onClick={() => !isUploadingFoto && fotoInputRef.current?.click()}
-              disabled={isUploadingFoto}
-              title="Alterar foto"
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                border: '2px solid var(--color-card-bg)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: isUploadingFoto ? 'not-allowed' : 'pointer',
-                padding: 0,
-              }}
-            >
-              <Camera size={12} color="white" />
-            </button>
+          </div>
+
+          {/* URL da foto */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <input
-              ref={fotoInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              style={{ display: 'none' }}
-              onChange={handleFotoChange}
+              className="input-field"
+              type="text"
+              placeholder="URL da foto"
+              value={fotoUrl}
+              onChange={e => setFotoUrl(e.target.value)}
+              onBlur={async () => {
+                try {
+                  await employeesApi.upsertHrData(usersId, { foto_documento_url: fotoUrl });
+                } catch (err) {
+                  console.error('Erro ao salvar foto:', err);
+                }
+              }}
+              style={{ width: 200, fontSize: 12, padding: '4px 8px' }}
             />
           </div>
 

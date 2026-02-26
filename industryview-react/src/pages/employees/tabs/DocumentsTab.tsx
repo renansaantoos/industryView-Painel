@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants, modalBackdropVariants, modalContentVariants } from '../../../lib/motion';
 import { AnimatePresence } from 'framer-motion';
-import { employeesApi, safetyApi } from '../../../services';
+import { employeesApi } from '../../../services';
 import type { EmployeeDocument } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmModal from '../../../components/common/ConfirmModal';
 import SearchableSelect from '../../../components/common/SearchableSelect';
-import { Plus, Edit, Trash2, FileText, ExternalLink, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, ExternalLink } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -140,7 +140,6 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
   const [form, setForm] = useState<DocumentFormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [uploading, setUploading] = useState(false);
 
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
 
@@ -574,56 +573,13 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                   <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 4, display: 'block' }}>
                     Documento
                   </label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      className="input-field"
-                      type="text"
-                      placeholder="https://... ou faca upload"
-                      value={form.file_url}
-                      onChange={e => updateField('file_url', e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <label
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '8px 14px',
-                        background: 'var(--color-secondary-bg, #f3f4f6)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 6,
-                        cursor: uploading ? 'not-allowed' : 'pointer',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: 'var(--color-primary-text)',
-                        whiteSpace: 'nowrap',
-                        opacity: uploading ? 0.6 : 1,
-                      }}
-                    >
-                      <Upload size={15} />
-                      {uploading ? 'Enviando...' : 'Upload'}
-                      <input
-                        type="file"
-                        style={{ display: 'none' }}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
-                        disabled={uploading}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setUploading(true);
-                          try {
-                            const result = await safetyApi.uploadFile(file);
-                            updateField('file_url', result.file_url);
-                          } catch {
-                            setFormError('Erro ao fazer upload do arquivo. Tente novamente.');
-                          } finally {
-                            setUploading(false);
-                            e.target.value = '';
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
+                  <input
+                    className="input-field"
+                    type="text"
+                    placeholder="https://..."
+                    value={form.file_url}
+                    onChange={e => updateField('file_url', e.target.value)}
+                  />
                   {form.file_url && (
                     <div style={{ marginTop: 6, fontSize: 12, color: 'var(--color-secondary-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <ExternalLink size={12} />
@@ -647,7 +603,7 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                 <button className="btn btn-secondary" onClick={closeModal} disabled={saving}>
                   Cancelar
                 </button>
-                <button className="btn btn-primary" onClick={handleSave} disabled={saving || uploading}>
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? 'Salvando...' : editingDocument ? 'Salvar alteracoes' : 'Criar documento'}
                 </button>
               </div>
