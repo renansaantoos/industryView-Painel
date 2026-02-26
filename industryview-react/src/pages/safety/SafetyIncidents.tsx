@@ -1543,7 +1543,7 @@ export default function SafetyIncidents() {
                         <div style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
                           {t('safety.noAttachments', 'Nenhum anexo adicionado')}
                         </div>
-                      )
+                      )}
                     </div>
                   </div>
                 )}
