@@ -1,0 +1,49 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          script_stop: true
+          command_timeout: 12m
+          script: |
+            echo "=== Starting deploy at $(date) ==="
+            sudo bash /opt/industryview/deploy/deploy.sh
+            echo "=== Deploy finished at $(date) ==="
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Waiting for service to be healthy..."
+            for i in $(seq 1 10); do
+              STATUS=$(curl -sf http://localhost:3000/health | grep -o '"status":"healthy"' || true)
+              if [ -n "$STATUS" ]; then
+                echo "Health check passed on attempt $i"
+                exit 0
+              fi
+              echo "Attempt $i/10 failed, retrying in 5s..."
+              sleep 5
+            done
+            echo "Health check failed after 10 attempts"
+            exit 1
