@@ -11,7 +11,7 @@ export class WorkScheduleController {
       if (!result) return res.status(404).json({ error: true, message: 'Regra de ponto não encontrada.' });
       return res.json(serializeBigInt(result));
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
 
