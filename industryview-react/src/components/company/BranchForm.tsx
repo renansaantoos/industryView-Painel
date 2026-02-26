@@ -221,8 +221,7 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
     if (!form.legal_name.trim()) errors.legal_name = 'Razao Social e obrigatoria';
     if (!form.cnpj.replace(/\D/g, '')) errors.cnpj = 'CNPJ e obrigatorio';
     else if (form.cnpj.replace(/\D/g, '').length !== 14) errors.cnpj = 'CNPJ deve ter 14 digitos';
-    if (!form.cnae.replace(/\D/g, '')) errors.cnae = 'CNAE e obrigatorio';
-    else if (form.cnae.replace(/\D/g, '').length !== 7) errors.cnae = 'CNAE deve ter 7 digitos';
+    if (form.cnae.replace(/\D/g, '') && form.cnae.replace(/\D/g, '').length !== 7) errors.cnae = 'CNAE deve ter 7 digitos';
 
     // Contato
     if (!form.phone.replace(/\D/g, '')) errors.phone = 'Telefone e obrigatorio';
@@ -409,7 +408,7 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
                 {inputField('Inscricao Municipal', 'inscricao_municipal', { placeholder: 'Inscricao Municipal' })}
               </div>
               <div className="input-group">
-                <label>CNAE <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
+                <label>CNAE</label>
                 <input
                   type="text"
                   className={`input-field ${fieldErrors.cnae ? 'error' : ''}`}

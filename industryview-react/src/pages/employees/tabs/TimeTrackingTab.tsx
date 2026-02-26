@@ -24,15 +24,15 @@ type AttendanceStatus = 'presente' | 'ausente' | 'meio_periodo';
 
 interface LogFormState {
   date: string;
-  checkIn: string;
-  checkOut: string;
-  status: AttendanceStatus;
+  entrada1: string;    // check_in
+  saida1: string;      // saida_intervalo (1ª saída → intervalo)
+  entrada2: string;    // entrada_intervalo (retorno do intervalo)
+  saida2: string;      // check_out
   observation: string;
 }
 
 interface FormErrors {
   date?: string;
-  status?: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -54,9 +54,10 @@ function todayIso(): string {
 function buildDefaultForm(): LogFormState {
   return {
     date: todayIso(),
-    checkIn: '',
-    checkOut: '',
-    status: 'presente',
+    entrada1: '',
+    saida1: '',
+    entrada2: '',
+    saida2: '',
     observation: '',
   };
 }
@@ -90,20 +91,44 @@ function extractTime(dateStr?: string | null): string {
   return dateStr.slice(0, 5);
 }
 
-function computeWorkedHours(checkIn?: string | null, checkOut?: string | null): string {
-  if (!checkIn || !checkOut) return '-';
-  const parseMs = (val: string) =>
-    val.includes('T') ? new Date(val).getTime() : new Date(`1970-01-01T${val}`).getTime();
-  const diffMs = parseMs(checkOut) - parseMs(checkIn);
-  if (diffMs <= 0) return '-';
-  const totalMinutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}h ${String(minutes).padStart(2, '0')}min`;
-}
 
 function buildIsoDateTime(date: string, time: string): string {
   return `${date}T${time}:00`;
+}
+
+function formatDecimalHours(val?: number | string | null): string {
+  if (val == null || Number(val) === 0) return '-';
+  const n = Number(val);
+  const h = Math.floor(n);
+  const m = Math.round((n - h) * 60);
+  return m > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${h}h`;
+}
+
+/** Compute interval duration from two ISO or HH:MM strings */
+function computeIntervalo(saida1?: string | null, entrada2?: string | null): string {
+  if (!saida1 || !entrada2) return '-';
+  const parseMs = (val: string) =>
+    val.includes('T') ? new Date(val).getTime() : new Date(`1970-01-01T${val}`).getTime();
+  const diffMs = parseMs(entrada2) - parseMs(saida1);
+  if (diffMs <= 0) return '-';
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${m}min`;
+}
+
+/** Client-side interval display from HH:MM strings only */
+function calcIntervaloDisplay(saida1: string, entrada2: string): string {
+  if (!saida1 || !entrada2) return '-';
+  const toMin = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const diff = toMin(entrada2) - toMin(saida1);
+  if (diff <= 0) return '-';
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}min` : `${m}min`;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -184,9 +209,10 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
     if (editingLog) {
       setForm({
         date: editingLog.log_date.slice(0, 10),
-        checkIn: extractTime(editingLog.check_in),
-        checkOut: extractTime(editingLog.check_out),
-        status: (editingLog.status as AttendanceStatus) || 'presente',
+        entrada1: extractTime(editingLog.check_in),
+        saida1:   extractTime(editingLog.saida_intervalo),
+        entrada2: extractTime(editingLog.entrada_intervalo),
+        saida2:   extractTime(editingLog.check_out),
         observation: editingLog.observation || '',
       });
     } else {
@@ -199,7 +225,6 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
   function validate(): boolean {
     const next: FormErrors = {};
     if (!form.date) next.date = 'Campo obrigatório';
-    if (!form.status) next.status = 'Campo obrigatório';
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -208,23 +233,18 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
     if (!validate()) return;
     setSaving(true);
     try {
+      const payload = {
+        log_date:          form.date,
+        check_in:          form.entrada1 ? buildIsoDateTime(form.date, form.entrada1) : undefined,
+        saida_intervalo:   form.saida1   ? buildIsoDateTime(form.date, form.saida1)   : undefined,
+        entrada_intervalo: form.entrada2 ? buildIsoDateTime(form.date, form.entrada2) : undefined,
+        check_out:         form.saida2   ? buildIsoDateTime(form.date, form.saida2)   : undefined,
+        observation: form.observation || undefined,
+      };
       if (editingLog) {
-        await workforceApi.updateDailyLog(editingLog.id, {
-          log_date: form.date,
-          check_in: form.checkIn ? buildIsoDateTime(form.date, form.checkIn) : undefined,
-          check_out: form.checkOut ? buildIsoDateTime(form.date, form.checkOut) : undefined,
-          status: form.status,
-          observation: form.observation || undefined,
-        });
+        await workforceApi.updateDailyLog(editingLog.id, payload);
       } else {
-        await workforceApi.createDailyLog({
-          users_id: usersId,
-          log_date: form.date,
-          check_in: form.checkIn ? buildIsoDateTime(form.date, form.checkIn) : undefined,
-          check_out: form.checkOut ? buildIsoDateTime(form.date, form.checkOut) : undefined,
-          status: form.status,
-          observation: form.observation || undefined,
-        });
+        await workforceApi.createDailyLog({ ...payload, users_id: usersId });
       }
       onSaved();
       onClose();
@@ -237,6 +257,7 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
   }
 
   const isEditing = Boolean(editingLog);
+  const intervaloDisplay = calcIntervaloDisplay(form.saida1, form.entrada2);
 
   return (
     <AnimatePresence>
@@ -257,7 +278,7 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
             animate="animate"
             exit="exit"
             onClick={(e) => e.stopPropagation()}
-            style={{ width: '480px', maxWidth: '95vw', padding: '28px' }}
+            style={{ width: '560px', maxWidth: '95vw', padding: '28px' }}
           >
             {/* Header */}
             <div style={{ marginBottom: '24px' }}>
@@ -297,6 +318,7 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
                   type="date"
                   className="input-field"
                   value={form.date}
+                  max={todayIso()}
                   onChange={(e) => {
                     setForm((f) => ({ ...f, date: e.target.value }));
                     if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
@@ -310,53 +332,78 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
                 )}
               </div>
 
-              {/* Check-in and Check-out side by side */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label>Hora de Entrada</label>
-                  <input
-                    type="time"
-                    className="input-field"
-                    value={form.checkIn}
-                    onChange={(e) => setForm((f) => ({ ...f, checkIn: e.target.value }))}
-                  />
-                </div>
-                <div className="input-group">
-                  <label>Hora de Saída</label>
-                  <input
-                    type="time"
-                    className="input-field"
-                    value={form.checkOut}
-                    onChange={(e) => setForm((f) => ({ ...f, checkOut: e.target.value }))}
-                  />
+              {/* Período 1: Entrada → Saída */}
+              <div>
+                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Período 1
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Entrada</label>
+                    <input
+                      type="time"
+                      className="input-field"
+                      value={form.entrada1}
+                      onChange={(e) => setForm((f) => ({ ...f, entrada1: e.target.value }))}
+                    />
+                  </div>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Saída (para intervalo)</label>
+                    <input
+                      type="time"
+                      className="input-field"
+                      value={form.saida1}
+                      onChange={(e) => setForm((f) => ({ ...f, saida1: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Status */}
-              <div className="input-group">
-                <label>
-                  Status <span style={{ color: '#C0392B' }}>*</span>
-                </label>
-                <select
-                  className="select-field"
-                  value={form.status}
-                  onChange={(e) => {
-                    setForm((f) => ({ ...f, status: e.target.value as AttendanceStatus }));
-                    if (errors.status) setErrors((prev) => ({ ...prev, status: undefined }));
-                  }}
-                  style={errors.status ? { borderColor: '#C0392B' } : undefined}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_CONFIG[s].label}
-                    </option>
-                  ))}
-                </select>
-                {errors.status && (
-                  <span style={{ color: '#C0392B', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                    {errors.status}
-                  </span>
-                )}
+              {/* Intervalo calculado */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--color-bg)',
+                  border: '1px solid var(--color-border)',
+                  fontSize: '13px',
+                  color: 'var(--color-secondary-text)',
+                }}
+              >
+                <Clock size={14} />
+                <span>
+                  Intervalo: <strong style={{ color: 'var(--color-text)' }}>{intervaloDisplay}</strong>
+                </span>
+              </div>
+
+              {/* Período 2: Entrada → Saída */}
+              <div>
+                <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Período 2
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Entrada (retorno)</label>
+                    <input
+                      type="time"
+                      className="input-field"
+                      value={form.entrada2}
+                      onChange={(e) => setForm((f) => ({ ...f, entrada2: e.target.value }))}
+                    />
+                  </div>
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label>Saída</label>
+                    <input
+                      type="time"
+                      className="input-field"
+                      value={form.saida2}
+                      onChange={(e) => setForm((f) => ({ ...f, saida2: e.target.value }))}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Observation */}
@@ -364,11 +411,11 @@ function LogFormModal({ isOpen, editingLog, onClose, onSaved, usersId }: LogForm
                 <label>Observação</label>
                 <textarea
                   className="input-field"
-                  rows={3}
+                  rows={2}
                   value={form.observation}
                   placeholder="Informações adicionais (opcional)"
                   onChange={(e) => setForm((f) => ({ ...f, observation: e.target.value }))}
-                  style={{ resize: 'vertical', minHeight: '72px' }}
+                  style={{ resize: 'vertical', minHeight: '60px' }}
                 />
               </div>
             </div>
@@ -877,21 +924,12 @@ export default function TimeTrackingTab({ usersId }: TimeTrackingTabProps) {
   }, [loadLogs]);
 
   // Summary computations from currently loaded page
-  const totalWorkedMinutes = logs.reduce((acc, log) => {
-    if (!log.check_in || !log.check_out) return acc;
-    const parseMs = (val: string) =>
-      val.includes('T') ? new Date(val).getTime() : new Date(`1970-01-01T${val}`).getTime();
-    const diffMs = parseMs(log.check_out) - parseMs(log.check_in);
-    return acc + Math.max(0, Math.floor(diffMs / 60000));
-  }, 0);
-
-  function formatTotalHours(minutes: number): string {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}min`;
-  }
-
   const daysPresent = logs.filter((l) => l.status === 'presente').length;
+
+  function sumDecimalField(field: 'hours_normal' | 'hours_overtime' | 'hours_he_100'): string {
+    const total = logs.reduce((acc, log) => acc + Number(log[field] || 0), 0);
+    return formatDecimalHours(total > 0 ? total : null);
+  }
 
   // ── Event handlers ──────────────────────────────────────────────────────────
 
@@ -999,9 +1037,21 @@ export default function TimeTrackingTab({ usersId }: TimeTrackingTabProps) {
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <SummaryCard
           icon={<Clock size={20} />}
-          label="Total de Horas (página atual)"
-          value={formatTotalHours(totalWorkedMinutes)}
+          label="H. Normais (página atual)"
+          value={sumDecimalField('hours_normal')}
           color="var(--color-primary)"
+        />
+        <SummaryCard
+          icon={<Clock size={20} />}
+          label="HE 50% (página atual)"
+          value={sumDecimalField('hours_overtime')}
+          color="#E67E22"
+        />
+        <SummaryCard
+          icon={<Clock size={20} />}
+          label="HE 100% (página atual)"
+          value={sumDecimalField('hours_he_100')}
+          color="#C0392B"
         />
         <SummaryCard
           icon={<CalendarDays size={20} />}
@@ -1111,15 +1161,19 @@ export default function TimeTrackingTab({ usersId }: TimeTrackingTabProps) {
         />
       ) : (
         <div className="table-container">
-          <table>
+          <table style={{ fontSize: '13px' }}>
             <thead>
               <tr>
                 <th>Data</th>
                 <th>Entrada</th>
-                <th>Saída</th>
-                <th>Horas Trabalhadas</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Saída</th>
+                <th>Intervalo</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Entrada</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Saída</th>
                 <th>Status</th>
-                <th>Observação</th>
+                <th style={{ whiteSpace: 'nowrap' }}>H. Norm.</th>
+                <th style={{ whiteSpace: 'nowrap' }}>HE 50%</th>
+                <th style={{ whiteSpace: 'nowrap' }}>HE 100%</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -1131,38 +1185,40 @@ export default function TimeTrackingTab({ usersId }: TimeTrackingTabProps) {
 
                 return (
                   <motion.tr key={log.id} variants={tableRowVariants}>
-                    <td style={{ fontWeight: 500 }}>{formatDate(log.log_date)}</td>
+                    <td style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{formatDate(log.log_date)}</td>
                     <td style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {formatTime(log.check_in)}
                     </td>
                     <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {formatTime(log.check_out)}
+                      {formatTime(log.saida_intervalo)}
+                    </td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--color-secondary-text)' }}>
+                      {computeIntervalo(log.saida_intervalo, log.entrada_intervalo)}
                     </td>
                     <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {computeWorkedHours(log.check_in, log.check_out)}
+                      {formatTime(log.entrada_intervalo)}
+                    </td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {formatTime(log.check_out)}
                     </td>
                     <td>
                       <StatusBadge status={log.status as AttendanceStatus | null} />
                     </td>
-                    <td
-                      style={{
-                        color: 'var(--color-secondary-text)',
-                        fontSize: '13px',
-                        maxWidth: '180px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={log.observation || undefined}
-                    >
-                      {log.observation || '-'}
+                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {formatDecimalHours(log.hours_normal)}
+                    </td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums', color: '#E67E22' }}>
+                      {formatDecimalHours(log.hours_overtime)}
+                    </td>
+                    <td style={{ fontVariantNumeric: 'tabular-nums', color: '#C0392B' }}>
+                      {formatDecimalHours(log.hours_he_100)}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                         {canCheckOut && (
                           <button
                             className="btn btn-icon"
-                            title="Registrar saída"
+                            title="Registrar saída final"
                             onClick={() => openCheckOutModal(log)}
                             style={{ color: '#028F58' }}
                           >

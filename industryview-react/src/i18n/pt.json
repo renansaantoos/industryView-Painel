@@ -781,7 +781,7 @@
     "sign": "Assinar",
     "searchIncidents": "Pesquisar incidentes...",
     "confirmDelete": "Tem certeza que deseja excluir?",
-    "trainingLabel": "Treinamento",
+    "trainingLabel": "Nome do Treinamento",
     "filterByEmployee": "Filtrar por funcionário",
     "validation": {
       "nameRequired": "Nome do treinamento é obrigatório",

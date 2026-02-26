@@ -11,14 +11,17 @@ export interface WorkforceDailyLog {
   company_id: number;
   users_id: number;
   log_date: string;
-  check_in?: string;
-  check_out?: string;
+  check_in?: string | null;
+  saida_intervalo?: string | null;
+  entrada_intervalo?: string | null;
+  check_out?: string | null;
   team?: string;
   status?: 'presente' | 'ausente' | 'meio_periodo';
   observation?: string;
   user_name?: string;
   hours_normal?: number;
   hours_overtime?: number;
+  hours_he_100?: number;
   // Nested relations from Prisma includes
   worker?: WorkforceRelation | null;
   teams?: WorkforceRelation | null;
