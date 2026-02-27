@@ -11,6 +11,7 @@ import { Save, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 
 interface HrDataTabProps {
   usersId: number;
+  onSave?: () => void;
 }
 
 type HrFormData = Omit<EmployeeHrData, 'id' | 'users_id' | 'foto_documento_url' | 'created_at' | 'updated_at' | 'user'>;
@@ -171,7 +172,7 @@ function getTodayIsoDate(): string {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function HrDataTab({ usersId }: HrDataTabProps) {
+export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
   const [form, setForm] = useState<HrFormData>(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -378,6 +379,7 @@ export default function HrDataTab({ usersId }: HrDataTabProps) {
 
       await employeesApi.upsertHrData(usersId, payload);
       showToast('Dados salvos com sucesso.', 'success');
+      onSave?.();
     } catch {
       showToast('Erro ao salvar dados. Tente novamente.', 'error');
     } finally {

@@ -244,25 +244,6 @@ export default function EmployeeProfile() {
             </div>
           </div>
 
-          {/* URL da foto */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <input
-              className="input-field"
-              type="text"
-              placeholder="URL da foto"
-              value={fotoUrl}
-              onChange={e => setFotoUrl(e.target.value)}
-              onBlur={async () => {
-                try {
-                  await employeesApi.upsertHrData(usersId, { foto_documento_url: fotoUrl });
-                } catch (err) {
-                  console.error('Erro ao salvar foto:', err);
-                }
-              }}
-              style={{ width: 200, fontSize: 12, padding: '4px 8px' }}
-            />
-          </div>
-
           {/* Info */}
           <div style={{ flex: 1, minWidth: '200px' }}>
             <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700 }}>{displayName}</h2>
@@ -394,7 +375,7 @@ export default function EmployeeProfile() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {activeTab === 'dados' && <HrDataTab usersId={usersId} />}
+        {activeTab === 'dados' && <HrDataTab usersId={usersId} onSave={loadProfile} />}
         {activeTab === 'ferias' && <VacationsTab usersId={usersId} />}
         {activeTab === 'documentos' && <DocumentsTab usersId={usersId} />}
         {activeTab === 'epis' && <PpeTab usersId={usersId} />}
