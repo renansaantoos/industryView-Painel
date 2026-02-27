@@ -91,6 +91,7 @@ export type CreateTeamMemberInput = z.infer<typeof createTeamMemberSchema>;
 export const bulkAddTeamMembersSchema = z.object({
   teams_id: z.number().int(),
   users_ids: z.array(z.number().int()).min(1),
+  transfer_users_ids: z.array(z.number().int()).optional().default([]),
 });
 
 export type BulkAddTeamMembersInput = z.infer<typeof bulkAddTeamMembersSchema>;
@@ -101,6 +102,7 @@ export type BulkAddTeamMembersInput = z.infer<typeof bulkAddTeamMembersSchema>;
 export const bulkAddTeamLeadersSchema = z.object({
   teams_id: z.number().int(),
   users_ids: z.array(z.number().int()).min(1),
+  transfer_users_ids: z.array(z.number().int()).optional().default([]),
 });
 
 export type BulkAddTeamLeadersInput = z.infer<typeof bulkAddTeamLeadersSchema>;

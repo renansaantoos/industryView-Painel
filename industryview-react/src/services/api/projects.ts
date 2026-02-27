@@ -333,6 +333,7 @@ export async function addTeamMember(data: {
 export async function bulkAddTeamMembers(data: {
   teams_id: number;
   users_ids: number[];
+  transfer_users_ids?: number[];
 }): Promise<{ added: number; skipped: number }> {
   const response = await apiClient.post('/teams/members/bulk', data);
   return response.data;
@@ -341,6 +342,7 @@ export async function bulkAddTeamMembers(data: {
 export async function bulkAddTeamLeaders(data: {
   teams_id: number;
   users_ids: number[];
+  transfer_users_ids?: number[];
 }): Promise<{ added: number; skipped: number }> {
   const response = await apiClient.post('/teams/leaders/bulk', data);
   return response.data;

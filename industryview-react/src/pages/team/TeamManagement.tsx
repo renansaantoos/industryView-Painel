@@ -149,9 +149,10 @@ interface Role {
 interface AddUserModalProps {
   title: string;
   onClose: () => void;
-  onSave: (userIds: number[]) => Promise<void>;
+  onSave: (userIds: number[], transferUserIds?: number[]) => Promise<void>;
   saving: boolean;
   teamId?: number;
+  targetTeamName?: string;
 }
 
 interface SearchUserItem {
@@ -162,6 +163,7 @@ interface SearchUserItem {
   isMemberOfCurrentTeam?: boolean;
   cargo?: string | null;
   cpf_masked?: string | null;
+  currentTeamName?: string | null;
 }
 
 interface SelectedUser {
@@ -169,11 +171,13 @@ interface SelectedUser {
   name: string;
 }
 
-function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalProps) {
+function AddUserModal({ title, onClose, onSave, saving, teamId, targetTeamName }: AddUserModalProps) {
   const { t } = useTranslation();
 
   const [userSearch, setUserSearch] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
+  const [transferUserIds, setTransferUserIds] = useState<Set<number>>(new Set());
+  const [transferConfirm, setTransferConfirm] = useState<{ user: SearchUserItem } | null>(null);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
@@ -313,22 +317,33 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
 
   // Toggle a user in/out of the selected set without touching the search input
   const handleSelectUser = (user: SearchUserItem) => {
-    setSelectedUsers((prev) => {
-      const alreadySelected = prev.some((u) => u.id === user.id);
-      if (alreadySelected) {
-        return prev.filter((u) => u.id !== user.id);
-      }
-      return [...prev, { id: user.id, name: user.name }];
-    });
+    const alreadySelected = selectedUsers.some((u) => u.id === user.id);
+
+    // Se ja esta selecionado, remove (toggle off)
+    if (alreadySelected) {
+      setSelectedUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setTransferUserIds((prev) => { const next = new Set(prev); next.delete(user.id); return next; });
+      return;
+    }
+
+    // Se o usuario pertence a outra equipe, abrir modal de confirmacao de transferencia
+    if (user.hasTeam && !user.isMemberOfCurrentTeam) {
+      setTransferConfirm({ user });
+      return;
+    }
+
+    setSelectedUsers((prev) => [...prev, { id: user.id, name: user.name }]);
   };
 
   const handleRemoveChip = (userId: number) => {
     setSelectedUsers((prev) => prev.filter((u) => u.id !== userId));
+    setTransferUserIds((prev) => { const next = new Set(prev); next.delete(userId); return next; });
   };
 
   const handleSaveSelected = async () => {
     if (selectedUsers.length === 0) return;
-    await onSave(selectedUsers.map((u) => u.id));
+    const tIds = transferUserIds.size > 0 ? Array.from(transferUserIds) : undefined;
+    await onSave(selectedUsers.map((u) => u.id), tIds);
   };
 
   const modalWidth = showQuickRegister ? 'fit-content' : 'fit-content';
@@ -527,6 +542,11 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
                                 {t('teams.available', 'Disponível')}
                               </span>
                             )}
+                            {!isInCurrentTeam && u.hasTeam === true && (
+                              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--color-status-02)', color: 'var(--color-warning)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                {u.currentTeamName || 'Em outra equipe'}
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', display: 'flex', gap: '10px' }}>
                             <span>Email: {u.email}</span>
@@ -663,6 +683,24 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
           </div>
         )}
       </div>
+
+      {/* Modal de confirmacao de transferencia */}
+      {transferConfirm && (
+        <ConfirmModal
+          title="Transferir colaborador"
+          message={`"${transferConfirm.user.name}" já pertence à equipe "${transferConfirm.user.currentTeamName || 'outra equipe'}". Deseja transferi-lo para ${targetTeamName ? `a equipe "${targetTeamName}"` : 'esta equipe'}? Ele será removido da equipe anterior.`}
+          confirmLabel="Transferir"
+          cancelLabel="Cancelar"
+          variant="warning"
+          onConfirm={() => {
+            const user = transferConfirm.user;
+            setSelectedUsers((prev) => [...prev, { id: user.id, name: user.name }]);
+            setTransferUserIds((prev) => new Set(prev).add(user.id));
+            setTransferConfirm(null);
+          }}
+          onCancel={() => setTransferConfirm(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1044,13 +1082,18 @@ export default function TeamManagement() {
     }
   };
 
-  const handleAddLeader = async (userIds: number[]) => {
+  const handleAddLeader = async (userIds: number[], transferUserIds?: number[]) => {
     if (!teamId || userIds.length === 0) return;
     setModalLoading(true);
     try {
-      await projectsApi.bulkAddTeamLeaders({ teams_id: teamId, users_ids: userIds });
+      await projectsApi.bulkAddTeamLeaders({
+        teams_id: teamId,
+        users_ids: userIds,
+        transfer_users_ids: transferUserIds,
+      });
       setShowAddLeaderModal(false);
       loadLeaders();
+      loadMembers();
     } catch (err) {
       console.error('Erro ao adicionar lideres:', err);
       throw err;
@@ -1059,13 +1102,18 @@ export default function TeamManagement() {
     }
   };
 
-  const handleAddMember = async (userIds: number[]) => {
+  const handleAddMember = async (userIds: number[], transferUserIds?: number[]) => {
     if (!teamId || userIds.length === 0) return;
     setModalLoading(true);
     try {
-      await projectsApi.bulkAddTeamMembers({ teams_id: teamId, users_ids: userIds });
+      await projectsApi.bulkAddTeamMembers({
+        teams_id: teamId,
+        users_ids: userIds,
+        transfer_users_ids: transferUserIds,
+      });
       setShowAddMemberModal(false);
       loadMembers();
+      loadLeaders();
     } catch (err) {
       console.error('Erro ao adicionar membros:', err);
       throw err;
@@ -1890,6 +1938,7 @@ export default function TeamManagement() {
           onSave={handleAddLeader}
           saving={modalLoading}
           teamId={teamId}
+          targetTeamName={selectedTeamName}
         />
       )}
 
@@ -1901,6 +1950,7 @@ export default function TeamManagement() {
           onSave={handleAddMember}
           saving={modalLoading}
           teamId={teamId}
+          targetTeamName={selectedTeamName}
         />
       )}
 

@@ -645,14 +645,111 @@ export class TeamsService {
   }
 
   /**
+   * Remove usuario de todas as equipes anteriores (soft delete em teams_members e teams_leaders)
+   * Registra no historico com acao 'REMOVIDO'
+   */
+  private static async removeUsersFromOtherTeams(
+    userIds: number[],
+    targetTeamId: number,
+    performedBy?: { id?: number; name?: string; email?: string },
+  ) {
+    const now = new Date();
+
+    // Busca registros ativos de membros em OUTRAS equipes
+    const memberRecords = await db.teams_members.findMany({
+      where: {
+        users_id: { in: userIds },
+        teams_id: { not: targetTeamId },
+        deleted_at: null,
+      },
+      include: {
+        teams: { select: { name: true } },
+        users: { select: { name: true, email: true } },
+      },
+    });
+
+    // Busca registros ativos de lideres em OUTRAS equipes
+    const leaderRecords = await db.teams_leaders.findMany({
+      where: {
+        users_id: { in: userIds },
+        teams_id: { not: targetTeamId },
+        deleted_at: null,
+      },
+      include: {
+        teams: { select: { name: true } },
+        users: { select: { name: true, email: true } },
+      },
+    });
+
+    if (memberRecords.length === 0 && leaderRecords.length === 0) return;
+
+    await db.$transaction(async (tx) => {
+      // Soft-delete membros de outras equipes
+      for (const record of memberRecords) {
+        await tx.teams_members.update({
+          where: { id: record.id },
+          data: { deleted_at: now, updated_at: now },
+        });
+        if (record.teams_id && record.users_id) {
+          await tx.teams_members_history.create({
+            data: {
+              teams_id: record.teams_id,
+              users_id: record.users_id,
+              action: 'REMOVIDO',
+              member_type: 'member',
+              team_name: record.teams?.name || null,
+              user_name: record.users?.name || null,
+              user_email: record.users?.email || null,
+              performed_by_id: performedBy?.id ? BigInt(performedBy.id) : null,
+              performed_by_name: performedBy?.name || null,
+              performed_by_email: performedBy?.email || null,
+              created_at: now,
+            },
+          });
+        }
+      }
+
+      // Soft-delete lideres de outras equipes
+      for (const record of leaderRecords) {
+        await tx.teams_leaders.update({
+          where: { id: record.id },
+          data: { deleted_at: now, updated_at: now },
+        });
+        if (record.teams_id && record.users_id) {
+          await tx.teams_members_history.create({
+            data: {
+              teams_id: record.teams_id,
+              users_id: record.users_id,
+              action: 'REMOVIDO',
+              member_type: 'leader',
+              team_name: record.teams?.name || null,
+              user_name: record.users?.name || null,
+              user_email: record.users?.email || null,
+              performed_by_id: performedBy?.id ? BigInt(performedBy.id) : null,
+              performed_by_name: performedBy?.name || null,
+              performed_by_email: performedBy?.email || null,
+              created_at: now,
+            },
+          });
+        }
+      }
+    });
+  }
+
+  /**
    * Adiciona multiplos membros a equipe em uma unica operacao
    * Usuarios que ja sao membros ativos da equipe sao ignorados (sem erro)
    */
   static async bulkCreateMembers(input: BulkAddTeamMembersInput, performedBy?: { id?: number; name?: string; email?: string }) {
-    const { teams_id, users_ids } = input;
+    const { teams_id, users_ids, transfer_users_ids } = input;
 
-    // Busca membros existentes para este time e evita duplicatas
-    const existingMembers = await db.teams_members.findMany({
+    // Remove usuarios de equipes anteriores (transferencia)
+    if (transfer_users_ids && transfer_users_ids.length > 0) {
+      await this.removeUsersFromOtherTeams(transfer_users_ids, teams_id, performedBy);
+    }
+
+    // Busca membros ativos (nao deletados) para este time e evita duplicatas
+    const existingActiveMembers = await db.teams_members.findMany({
       where: {
         teams_id,
         users_id: { in: users_ids },
@@ -660,10 +757,21 @@ export class TeamsService {
       },
       select: { users_id: true },
     });
-    const existingSet = new Set(existingMembers.map((m) => Number(m.users_id)));
+    const activeSet = new Set(existingActiveMembers.map((m) => Number(m.users_id)));
 
-    // Filtra somente usuarios novos (que ainda nao sao membros)
-    const newUserIds = users_ids.filter((id) => !existingSet.has(id));
+    // Busca membros soft-deleted para este time (podem ser reativados)
+    const existingSoftDeleted = await db.teams_members.findMany({
+      where: {
+        teams_id,
+        users_id: { in: users_ids },
+        deleted_at: { not: null },
+      },
+      select: { id: true, users_id: true },
+    });
+    const softDeletedMap = new Map(existingSoftDeleted.map((m) => [Number(m.users_id), m.id]));
+
+    // Filtra usuarios que ja sao membros ativos
+    const newUserIds = users_ids.filter((id) => !activeSet.has(id));
 
     if (newUserIds.length === 0) {
       return { added: 0, skipped: users_ids.length, members: [] };
@@ -676,19 +784,34 @@ export class TeamsService {
     ]);
     const usersMap = new Map(users.map((u) => [Number(u.id), u]));
 
-    // Cria todos os membros e registros de historico em uma transacao
+    // Cria ou reativa todos os membros em uma transacao
     const members = await db.$transaction(async (tx) => {
       const created = [];
       for (const userId of newUserIds) {
-        const member = await tx.teams_members.create({
-          data: {
-            users_id: userId,
-            teams_id,
-            created_at: new Date(),
-            updated_at: new Date(),
-            deleted_at: null,
-          },
-        });
+        let member;
+        const softDeletedId = softDeletedMap.get(userId);
+
+        if (softDeletedId) {
+          // Reativa registro soft-deleted ao inves de criar novo (evita violacao de unique constraint)
+          member = await tx.teams_members.update({
+            where: { id: softDeletedId },
+            data: {
+              deleted_at: null,
+              updated_at: new Date(),
+            },
+          });
+        } else {
+          member = await tx.teams_members.create({
+            data: {
+              users_id: userId,
+              teams_id,
+              created_at: new Date(),
+              updated_at: new Date(),
+              deleted_at: null,
+            },
+          });
+        }
+
         const userInfo = usersMap.get(userId);
         await tx.teams_members_history.create({
           data: {
@@ -710,7 +833,7 @@ export class TeamsService {
       return created;
     });
 
-    return { added: members.length, skipped: existingSet.size, members };
+    return { added: members.length, skipped: activeSet.size, members };
   }
 
   /**
@@ -1010,10 +1133,15 @@ export class TeamsService {
    * Usuarios que ja sao lideres ativos da equipe sao ignorados (sem erro)
    */
   static async bulkCreateLeaders(input: BulkAddTeamLeadersInput, performedBy?: { id?: number; name?: string; email?: string }) {
-    const { teams_id, users_ids } = input;
+    const { teams_id, users_ids, transfer_users_ids } = input;
 
-    // Busca lideres existentes para este time e evita duplicatas
-    const existingLeaders = await db.teams_leaders.findMany({
+    // Remove usuarios de equipes anteriores (transferencia)
+    if (transfer_users_ids && transfer_users_ids.length > 0) {
+      await this.removeUsersFromOtherTeams(transfer_users_ids, teams_id, performedBy);
+    }
+
+    // Busca lideres ativos (nao deletados) para este time e evita duplicatas
+    const existingActiveLeaders = await db.teams_leaders.findMany({
       where: {
         teams_id,
         users_id: { in: users_ids },
@@ -1021,10 +1149,21 @@ export class TeamsService {
       },
       select: { users_id: true },
     });
-    const existingSet = new Set(existingLeaders.map((l) => Number(l.users_id)));
+    const activeSet = new Set(existingActiveLeaders.map((l) => Number(l.users_id)));
 
-    // Filtra somente usuarios novos (que ainda nao sao lideres)
-    const newUserIds = users_ids.filter((id) => !existingSet.has(id));
+    // Busca lideres soft-deleted para este time (podem ser reativados)
+    const existingSoftDeleted = await db.teams_leaders.findMany({
+      where: {
+        teams_id,
+        users_id: { in: users_ids },
+        deleted_at: { not: null },
+      },
+      select: { id: true, users_id: true },
+    });
+    const softDeletedMap = new Map(existingSoftDeleted.map((l) => [Number(l.users_id), l.id]));
+
+    // Filtra usuarios que ja sao lideres ativos
+    const newUserIds = users_ids.filter((id) => !activeSet.has(id));
 
     if (newUserIds.length === 0) {
       return { added: 0, skipped: users_ids.length, leaders: [] };
@@ -1037,19 +1176,34 @@ export class TeamsService {
     ]);
     const usersMap = new Map(users.map((u) => [Number(u.id), u]));
 
-    // Cria todos os lideres e registros de historico em uma transacao
+    // Cria ou reativa todos os lideres em uma transacao
     const leaders = await db.$transaction(async (tx) => {
       const created = [];
       for (const userId of newUserIds) {
-        const leader = await tx.teams_leaders.create({
-          data: {
-            users_id: userId,
-            teams_id,
-            created_at: new Date(),
-            updated_at: new Date(),
-            deleted_at: null,
-          },
-        });
+        let leader;
+        const softDeletedId = softDeletedMap.get(userId);
+
+        if (softDeletedId) {
+          // Reativa registro soft-deleted ao inves de criar novo (evita violacao de unique constraint)
+          leader = await tx.teams_leaders.update({
+            where: { id: softDeletedId },
+            data: {
+              deleted_at: null,
+              updated_at: new Date(),
+            },
+          });
+        } else {
+          leader = await tx.teams_leaders.create({
+            data: {
+              users_id: userId,
+              teams_id,
+              created_at: new Date(),
+              updated_at: new Date(),
+              deleted_at: null,
+            },
+          });
+        }
+
         const userInfo = usersMap.get(userId);
         await tx.teams_members_history.create({
           data: {
@@ -1071,7 +1225,7 @@ export class TeamsService {
       return created;
     });
 
-    return { added: leaders.length, skipped: existingSet.size, leaders };
+    return { added: leaders.length, skipped: activeSet.size, leaders };
   }
 
   /**

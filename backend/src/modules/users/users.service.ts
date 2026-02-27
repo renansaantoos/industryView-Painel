@@ -864,19 +864,30 @@ export class UsersService {
     const [memberRows, leaderRows] = await Promise.all([
       db.teams_members.findMany({
         where: { deleted_at: null },
-        select: { users_id: true },
+        select: { users_id: true, teams: { select: { id: true, name: true } } },
         distinct: ['users_id'],
       }),
       db.teams_leaders.findMany({
         where: { deleted_at: null },
-        select: { users_id: true },
+        select: { users_id: true, teams: { select: { id: true, name: true } } },
         distinct: ['users_id'],
       }),
     ]);
 
     const usersInTeams = new Set<string>();
-    memberRows.forEach((r) => { if (r.users_id) usersInTeams.add(String(r.users_id)); });
-    leaderRows.forEach((r) => { if (r.users_id) usersInTeams.add(String(r.users_id)); });
+    const userTeamMap = new Map<string, string>();
+    memberRows.forEach((r) => {
+      if (r.users_id) {
+        usersInTeams.add(String(r.users_id));
+        if (r.teams?.name) userTeamMap.set(String(r.users_id), r.teams.name);
+      }
+    });
+    leaderRows.forEach((r) => {
+      if (r.users_id) {
+        usersInTeams.add(String(r.users_id));
+        if (r.teams?.name && !userTeamMap.has(String(r.users_id))) userTeamMap.set(String(r.users_id), r.teams.name);
+      }
+    });
 
     // Se um time especifico foi fornecido, busca membros e lideres atuais desse time
     let currentTeamUserIds = new Set<string>();
@@ -929,9 +940,10 @@ export class UsersService {
       cpf_masked: maskCpf(u.hr_data?.cpf),
       hasTeam,
       isMemberOfCurrentTeam: currentTeamUserIds.has(String(u.id)),
+      currentTeamName: userTeamMap.get(String(u.id)) || null,
     });
 
-    let items: { id: number; name: string; email: string; cargo: string | null; cpf_masked: string | null; hasTeam: boolean; isMemberOfCurrentTeam: boolean }[] = [];
+    let items: { id: number; name: string; email: string; cargo: string | null; cpf_masked: string | null; hasTeam: boolean; isMemberOfCurrentTeam: boolean; currentTeamName: string | null }[] = [];
 
     if (skip < countWithoutTeam) {
       // A pagina atual comeca no segmento "sem time"
