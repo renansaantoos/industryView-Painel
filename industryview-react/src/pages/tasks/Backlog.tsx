@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -357,16 +356,6 @@ export default function Backlog() {
       setSelectedBacklogIds(new Set());
     } else {
       setSelectedBacklogIds(new Set(visibleBacklogs.map((b) => b.id)));
-    }
-  };
-
-  const handleToggleCheck = async (backlog: ProjectBacklog) => {
-    try {
-      await projectsApi.checkTaskBacklog(backlog.id, { checked: !backlog.checked });
-      loadBacklogs();
-    } catch (err) {
-      console.error('Failed to toggle check:', err);
-      showToast('Erro ao atualizar status do item.', 'error');
     }
   };
 
