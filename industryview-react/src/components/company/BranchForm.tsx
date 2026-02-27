@@ -3,6 +3,7 @@ import { X, Save, Plus, Trash2 } from 'lucide-react';
 import type { CompanyBranch, BranchPayload, RepresentanteLegal } from '../../types/company';
 import CepLookup, { type CepAddress } from './CepLookup';
 import CnpjInput from './CnpjInput';
+import { isValidCpf } from '../../utils/validators';
 
 interface BranchFormProps {
   /** Pass null to create, pass branch to edit */
@@ -204,6 +205,14 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
         i === index ? { ...r, [field]: value } : r
       ),
     }));
+    if (field === 'cpf') {
+      setFieldErrors(prev => {
+        if (!prev[`rep_cpf_${index}`]) return prev;
+        const next = { ...prev };
+        delete next[`rep_cpf_${index}`];
+        return next;
+      });
+    }
   };
 
   const normalizeWebsite = (value: string): string | null => {
@@ -240,6 +249,14 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
     // Responsavel - at least one representante with nome filled
     const validReps = form.representantes_legais.filter(r => r.nome.trim());
     if (validReps.length === 0) errors.representantes_legais = 'Pelo menos um representante legal e obrigatorio';
+
+    // CPF validation per representante
+    form.representantes_legais.forEach((r, i) => {
+      const cpfDigits = r.cpf.replace(/\D/g, '');
+      if (cpfDigits && !isValidCpf(cpfDigits)) {
+        errors[`rep_cpf_${i}`] = 'CPF inválido';
+      }
+    });
 
     setFieldErrors(errors);
 
@@ -304,7 +321,11 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
 
   // Count errors per tab for indicators
   const tabErrorCount = (tab: Tab): number => {
-    return Object.keys(fieldErrors).filter(k => FIELD_TAB_MAP[k] === tab).length;
+    return Object.keys(fieldErrors).filter(k => {
+      if (FIELD_TAB_MAP[k]) return FIELD_TAB_MAP[k] === tab;
+      if (k.startsWith('rep_')) return tab === 'responsavel';
+      return false;
+    }).length;
   };
 
   const inputField = (
@@ -616,12 +637,15 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
                     <label>CPF</label>
                     <input
                       type="text"
-                      className="input-field"
+                      className={`input-field${fieldErrors[`rep_cpf_${index}`] ? ' error' : ''}`}
                       value={rep.cpf}
                       onChange={e => updateRepresentante(index, 'cpf', formatCpfMask(e.target.value))}
                       placeholder="000.000.000-00"
                       maxLength={14}
                     />
+                    {fieldErrors[`rep_cpf_${index}`] && (
+                      <span className="input-error">{fieldErrors[`rep_cpf_${index}`]}</span>
+                    )}
                   </div>
                 </div>
               ))}

@@ -6,6 +6,7 @@ import CepLookup, { type CepAddress } from './CepLookup';
 import CnpjInput from './CnpjInput';
 import SearchableSelect from '../common/SearchableSelect';
 import { modalBackdropVariants, modalContentVariants } from '../../lib/motion';
+import { isValidCpf } from '../../utils/validators';
 
 interface CompanyEditModalProps {
   isOpen?: boolean;
@@ -107,6 +108,7 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
   const [activeTab, setActiveTab] = useState<Tab>('identificacao');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [cpfErrors, setCpfErrors] = useState<Record<number, string>>({});
 
   useEffect(() => {
     setForm(companyToForm(company));
@@ -149,6 +151,14 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
         i === index ? { ...r, [field]: value } : r
       ),
     }));
+    if (field === 'cpf') {
+      setCpfErrors(prev => {
+        if (!prev[index]) return prev;
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    }
   };
 
   const normalizeWebsite = (value: string): string | null => {
@@ -162,6 +172,19 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
     if (!form.brand_name.trim()) {
       setError('O Nome Fantasia e obrigatorio');
       setActiveTab('identificacao');
+      return;
+    }
+
+    const newCpfErrors: Record<number, string> = {};
+    form.representantes_legais.forEach((r, i) => {
+      const cpfDigits = r.cpf.replace(/\D/g, '');
+      if (cpfDigits && !isValidCpf(cpfDigits)) {
+        newCpfErrors[i] = 'CPF inválido';
+      }
+    });
+    if (Object.keys(newCpfErrors).length > 0) {
+      setCpfErrors(newCpfErrors);
+      setActiveTab('responsavel');
       return;
     }
 
@@ -465,12 +488,15 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
                         <label>CPF</label>
                         <input
                           type="text"
-                          className="input-field"
+                          className={`input-field${cpfErrors[index] ? ' error' : ''}`}
                           value={rep.cpf}
                           onChange={e => updateRepresentante(index, 'cpf', formatCpfMask(e.target.value))}
                           placeholder="000.000.000-00"
                           maxLength={14}
                         />
+                        {cpfErrors[index] && (
+                          <span className="input-error">{cpfErrors[index]}</span>
+                        )}
                       </div>
                     </div>
                   ))}
