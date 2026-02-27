@@ -529,6 +529,8 @@ export class TeamsService {
               select: {
                 senioridade: true,
                 nivel: true,
+                cargo: true,
+                matricula: true,
               }
             },
             users_permissions: {
