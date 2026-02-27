@@ -116,7 +116,7 @@ export class HolidaysService {
     const holidays = getBrazilianHolidays(year);
     for (const h of holidays) {
       await db.company_holidays.upsert({
-        where: { uq_company_holidays_company_date: { company_id: BigInt(companyId), date: new Date(h.date) } },
+        where: { company_id_date: { company_id: BigInt(companyId), date: new Date(h.date) } },
         create: {
           company_id: BigInt(companyId),
           date: new Date(h.date),
