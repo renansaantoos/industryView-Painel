@@ -6,7 +6,8 @@ const USERS_BASE = '/users';
 /** Get a single user */
 export async function getUser(userId: number): Promise<UserFull> {
   const response = await apiClient.get(`${USERS_BASE}/${userId}`);
-  return response.data;
+  // Backend wraps response in { result1: { ... } }
+  return response.data?.result1 || response.data;
 }
 
 /** Query all users with pagination and search (backend uses POST /users/list) */

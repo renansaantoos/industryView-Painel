@@ -48,7 +48,17 @@ export class EmployeesService {
       },
     });
 
-    if (existing) return existing;
+    if (existing) {
+      // Se nome_completo estiver nulo, preenche com o nome do usuário e persiste
+      if (!existing.nome_completo && existing.user?.name) {
+        await db.employees_hr_data.update({
+          where: { id: existing.id },
+          data: { nome_completo: existing.user.name },
+        });
+        existing.nome_completo = existing.user.name;
+      }
+      return existing;
+    }
 
     // Verifica se o usuario existe antes de criar o registro
     const user = await db.users.findFirst({

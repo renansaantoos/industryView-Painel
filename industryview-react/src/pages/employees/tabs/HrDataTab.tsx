@@ -260,6 +260,10 @@ export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
                 .filter(([key]) => key in EMPTY_FORM)
                 .map(([k, v]) => {
                   if (booleanFields.has(k)) return [k, v == null ? undefined : Boolean(v)];
+                  // nome_completo: se nulo no banco, usa o nome do usuário como fallback
+                  if (k === 'nome_completo' && (v == null || v === '')) {
+                    return [k, data.user?.name || ''];
+                  }
                   if (v == null) return [k, ''];
                   if (dateFields.has(k)) {
                     // Numeric timestamp → YYYY-MM-DD
