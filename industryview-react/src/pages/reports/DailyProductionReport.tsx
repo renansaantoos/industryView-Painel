@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants, fadeUpChild } from '../../lib/motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { reportsApi } from '../../services';
@@ -103,9 +103,9 @@ export default function DailyProductionReport() {
         breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('reports.dailyProduction')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary" onClick={() => navigate('/projeto-detalhes')}>
+            <Link to="/projeto-detalhes" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
-            </button>
+            </Link>
           </div>
         }
       />

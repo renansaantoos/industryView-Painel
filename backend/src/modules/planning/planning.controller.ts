@@ -365,6 +365,29 @@ export class PlanningController {
   }
 
   // =============================================================================
+  // CRONOGRAMA ITEMS
+  // =============================================================================
+
+  /**
+   * GET /planning/cronograma-items?projects_id=X&leaf_only=true
+   * Lista itens do cronograma disponiveis para vincular tarefas
+   */
+  static async listCronogramaItems(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const projectsId = parseInt(req.query.projects_id as string, 10);
+      const leafOnly = req.query.leaf_only === 'true';
+      const result = await PlanningService.listCronogramaItems(projectsId, leafOnly);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // =============================================================================
   // ROLLUP DE PROGRESSO
   // =============================================================================
 

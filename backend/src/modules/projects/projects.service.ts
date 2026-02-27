@@ -7,6 +7,7 @@
 import { db } from '../../config/database';
 import { BadRequestError, NotFoundError } from '../../utils/errors';
 import { normalizeText } from '../../utils/helpers';
+import { ProgressRollupService } from '../../services/progressRollup';
 import {
   ListProjectsInput,
   CreateProjectInput,
@@ -36,9 +37,13 @@ export class ProjectsService {
     const { page, per_page, search, company_id, sort_field, sort_direction } = input;
 
     // Base query conditions
+    // Exclui status 4 (arquivado/excluido) mas INCLUI projetos sem status (NULL)
     const whereConditions: any = {
       deleted_at: null,
-      projects_statuses_id: { not: 4 }, // Exclui status 4 (arquivado/excluido)
+      OR: [
+        { projects_statuses_id: null },
+        { projects_statuses_id: { not: BigInt(4) } },
+      ],
     };
 
     // Filtro por empresa
@@ -878,11 +883,11 @@ export class ProjectsService {
         unity: true,
       },
       orderBy: (() => {
-        const ALLOWED_SORT_FIELDS = ['description', 'quantity', 'weight', 'created_at'];
+        const ALLOWED_SORT_FIELDS = ['description', 'quantity', 'weight', 'created_at', 'sort_order', 'wbs_code'];
         if (sort_field && ALLOWED_SORT_FIELDS.includes(sort_field)) {
           return { [sort_field]: sort_direction || 'asc' };
         }
-        return { created_at: 'desc' };
+        return { wbs_code: 'asc' };
       })(),
       skip: (page - 1) * per_page,
       take: per_page,
@@ -1175,21 +1180,56 @@ export class ProjectsService {
    * Equivalente a: query projects_backlogs_manual verb=POST do Xano (endpoint 641)
    */
   static async createManualBacklog(input: CreateManualBacklogInput) {
-    const { projects_id, description, weight, unity_id, quantity, task_quantity, discipline_id } = input;
+    const { projects_id, description, weight, unity_id, quantity, task_quantity, discipline_id, projects_backlogs_id, planned_start_date, planned_end_date } = input;
 
     const descriptionNormalized = description
       ? description.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       : '';
 
+    // Calcular level e wbs_code automaticamente
+    let parentWbs = '';
+    let level = 0;
+
+    if (projects_backlogs_id) {
+      const parent = await db.projects_backlogs.findFirst({
+        where: { id: BigInt(projects_backlogs_id), deleted_at: null },
+        select: { wbs_code: true, level: true },
+      });
+      if (parent) {
+        parentWbs = parent.wbs_code || '';
+        level = (parent.level || 0) + 1;
+      }
+    }
+
+    // Contar siblings para gerar o proximo numero WBS
+    const siblingCount = await db.projects_backlogs.count({
+      where: {
+        projects_id: BigInt(projects_id),
+        projects_backlogs_id: projects_backlogs_id ? BigInt(projects_backlogs_id) : null,
+        deleted_at: null,
+      },
+    });
+
+    // Calcular sort_order global
+    const maxSort = await db.projects_backlogs.aggregate({
+      where: { projects_id: BigInt(projects_id), deleted_at: null },
+      _max: { sort_order: true },
+    });
+
     let lastCreated: any = null;
 
     for (let i = 0; i < task_quantity; i++) {
+      const nextNum = siblingCount + i + 1;
+      const wbsCode = parentWbs ? `${parentWbs}.${nextNum}` : String(nextNum);
+      const sortOrder = ((maxSort._max.sort_order as number) || 0) + i + 1;
+
       lastCreated = await db.projects_backlogs.create({
         data: {
           created_at: new Date(),
           updated_at: new Date(),
           deleted_at: null,
           projects_id: BigInt(projects_id),
+          projects_backlogs_id: projects_backlogs_id ? BigInt(projects_backlogs_id) : null,
           projects_backlogs_statuses_id: 1,
           sprint_added: false,
           description: description || null,
@@ -1199,6 +1239,11 @@ export class ProjectsService {
           unity_id: unity_id ? BigInt(unity_id) : null,
           quantity: quantity || null,
           discipline_id: discipline_id ? BigInt(discipline_id) : null,
+          planned_start_date: planned_start_date ? new Date(planned_start_date) : null,
+          planned_end_date: planned_end_date ? new Date(planned_end_date) : null,
+          wbs_code: wbsCode,
+          level: level,
+          sort_order: sortOrder,
         },
       });
     }
@@ -1429,11 +1474,35 @@ export class ProjectsService {
     if (input.fixed !== undefined) updateData.fixed = input.fixed;
     if (input.quantity !== undefined) updateData.quantity = input.quantity;
     if (input.unity_id !== undefined) updateData.unity_id = input.unity_id;
+    if (input.quantity_done !== undefined) updateData.quantity_done = input.quantity_done;
+    if (input.subtasks_statuses_id !== undefined) updateData.subtasks_statuses_id = input.subtasks_statuses_id;
 
-    return db.subtasks.update({
+    // Auto-close: se quantity_done >= quantity, marcar como Concluida (3)
+    if (input.quantity_done !== undefined && !input.subtasks_statuses_id) {
+      const qty = input.quantity != null ? Number(input.quantity) : (existing.quantity ? Number(existing.quantity) : 0);
+      if (qty > 0 && input.quantity_done >= qty) {
+        updateData.subtasks_statuses_id = 3; // Concluida
+      } else if (input.quantity_done > 0) {
+        updateData.subtasks_statuses_id = 2; // Em Andamento
+      } else {
+        updateData.subtasks_statuses_id = 1; // Pendente
+      }
+    }
+
+    const updated = await db.subtasks.update({
       where: { id: subtaskId },
       data: updateData,
     });
+
+    // Trigger rollup para recalcular percent_complete do backlog pai
+    if (input.quantity_done !== undefined || input.quantity !== undefined || input.weight !== undefined) {
+      const backlogId = Number(existing.projects_backlogs_id);
+      if (backlogId) {
+        await ProgressRollupService.rollupBacklog(backlogId);
+      }
+    }
+
+    return updated;
   }
 
   /**

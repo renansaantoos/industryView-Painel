@@ -404,8 +404,8 @@ export default function PPEManagement() {
   const sortedTypes = useMemo(() => {
     if (!typesSortField || !typesSortDir) return ppeTypes;
     return [...ppeTypes].sort((a, b) => {
-      const aVal = (a as Record<string, unknown>)[typesSortField] ?? '';
-      const bVal = (b as Record<string, unknown>)[typesSortField] ?? '';
+      const aVal = (a as unknown as Record<string, unknown>)[typesSortField] ?? '';
+      const bVal = (b as unknown as Record<string, unknown>)[typesSortField] ?? '';
       const cmp = String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true });
       return typesSortDir === 'desc' ? -cmp : cmp;
     });
@@ -426,8 +426,8 @@ export default function PPEManagement() {
         aVal = String(a.returned ?? false);
         bVal = String(b.returned ?? false);
       } else {
-        aVal = String((a as Record<string, unknown>)[delivSortField] ?? '');
-        bVal = String((b as Record<string, unknown>)[delivSortField] ?? '');
+        aVal = String((a as unknown as Record<string, unknown>)[delivSortField] ?? '');
+        bVal = String((b as unknown as Record<string, unknown>)[delivSortField] ?? '');
       }
       const cmp = aVal.localeCompare(bVal, 'pt-BR', { numeric: true });
       return delivSortDir === 'desc' ? -cmp : cmp;

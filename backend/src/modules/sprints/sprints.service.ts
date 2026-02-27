@@ -6,6 +6,7 @@
 
 import { db } from '../../config/database';
 import { NotFoundError } from '../../utils/errors';
+import { SPRINT_TASK_STATUS } from '../../constants/statuses';
 import {
   CreateSprintInput,
   UpdateSprintInput,
@@ -784,8 +785,8 @@ export class SprintsService {
       updateData.quantity_done = input.quantity_done;
     }
 
-    // Se status for concluido (3), define end_date
-    if (input.sprints_tasks_statuses_id === 3) {
+    // Se status for concluida (4), define end_date
+    if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
       updateData.end_date = new Date();
     }
 
@@ -823,7 +824,7 @@ export class SprintsService {
           data: {
             sprints_tasks_statuses_id: task.sprints_tasks_statuses_id,
             updated_at: new Date(),
-            ...(task.sprints_tasks_statuses_id === 3 ? { end_date: new Date() } : {}),
+            ...(task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA ? { end_date: new Date() } : {}),
           },
         });
       })
@@ -1127,7 +1128,7 @@ export class SprintsService {
     const updated = await db.sprints_tasks.update({
       where: { id: input.sprints_tasks_id },
       data: {
-        sprints_tasks_statuses_id: 3, // Concluido
+        sprints_tasks_statuses_id: SPRINT_TASK_STATUS.CONCLUIDA,
         executed_at: new Date(),
         updated_at: new Date(),
       },

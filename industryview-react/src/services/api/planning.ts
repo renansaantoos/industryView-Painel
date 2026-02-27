@@ -10,6 +10,7 @@ import type {
   ImportResult,
   ScheduleHealthData,
   CriticalPathData,
+  CronogramaItem,
 } from '../../types';
 
 const PLANNING_BASE = '/planning';
@@ -183,6 +184,17 @@ export async function getCriticalPath(params: {
   projects_id: number;
 }): Promise<CriticalPathData> {
   const response = await apiClient.get(`${PLANNING_BASE}/critical-path`, { params });
+  return response.data;
+}
+
+// ── Cronograma Items ──────────────────────────────────────────────────────────
+
+/** List schedule items available for linking tasks */
+export async function listCronogramaItems(params: {
+  projects_id: number;
+  leaf_only?: boolean;
+}): Promise<CronogramaItem[]> {
+  const response = await apiClient.get(`${PLANNING_BASE}/cronograma-items`, { params });
   return response.data;
 }
 

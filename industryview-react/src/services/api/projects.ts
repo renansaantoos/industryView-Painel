@@ -179,6 +179,9 @@ export async function addTasksBacklogManual(data: {
   quantity?: number;
   unity_id?: number;
   discipline_id?: number;
+  projects_backlogs_id?: number;
+  planned_start_date?: string;
+  planned_end_date?: string;
 }): Promise<ProjectBacklog> {
   // Backend espera 'description', não 'name'
   const { name, ...rest } = data;
@@ -205,8 +208,16 @@ export async function addSubtask(data: {
   backlog_id: number;
   name: string;
   description?: string;
+  quantity?: number;
+  unity_id?: number;
 }): Promise<{ id: number }> {
-  const response = await apiClient.post(`${PROJECTS_BASE}/subtasks`, data);
+  const { backlog_id, name, description, quantity, unity_id } = data;
+  const response = await apiClient.post(`${PROJECTS_BASE}/subtasks`, {
+    projects_backlogs_id: backlog_id,
+    description: name || description || '',
+    quantity: quantity ?? null,
+    unity_id: unity_id ?? null,
+  });
   return response.data;
 }
 
@@ -215,7 +226,7 @@ export async function editSubtask(subtaskId: number, data: Record<string, unknow
 }
 
 export async function getSubtasks(backlogId: number): Promise<{ items: unknown[] }> {
-  const response = await apiClient.get(`${PROJECTS_BASE}/subtasks`, { params: { backlog_id: backlogId } });
+  const response = await apiClient.get(`${PROJECTS_BASE}/subtasks`, { params: { projects_backlogs_id: backlogId } });
   return response.data;
 }
 

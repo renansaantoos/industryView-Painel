@@ -251,6 +251,20 @@ export const bulkUpdateBacklogPlanningSchema = z.object({
 export type BulkUpdateBacklogPlanningInput = z.infer<typeof bulkUpdateBacklogPlanningSchema>;
 
 // =============================================================================
+// CRONOGRAMA ITEMS (itens do cronograma para vinculo com tarefas)
+// =============================================================================
+
+/**
+ * Schema para listagem de itens do cronograma disponiveis para vinculo
+ */
+export const cronogramaItemsQuerySchema = z.object({
+  projects_id: z.string().transform(Number).pipe(z.number().int().positive()),
+  leaf_only: z.string().optional().transform((val) => val === 'true'),
+});
+
+export type CronogramaItemsQuery = z.infer<typeof cronogramaItemsQuerySchema>;
+
+// =============================================================================
 // CAMINHO CRITICO
 // =============================================================================
 

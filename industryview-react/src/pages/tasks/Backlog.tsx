@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi, tasksApi } from '../../services';
+import { useBusinessDays } from '../../hooks/useBusinessDays';
+import { toDateKey } from '../../utils/businessDays';
 import type { ProjectBacklog, TaskListItem, Unity, Discipline } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
@@ -24,6 +26,7 @@ import {
   Square,
   ChevronDown,
   ChevronRight,
+  CalendarDays,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -32,8 +35,11 @@ import {
 
 interface SubtaskItem {
   id: number;
-  name: string;
+  description?: string;
+  name?: string;
   quantity?: number;
+  unity?: { id: number; unity: string } | null;
+  subtasks_statuses_id?: number;
   status?: boolean;
 }
 
@@ -108,8 +114,8 @@ function formatDate(dateStr?: string): string {
 
 export default function Backlog() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { projectsInfo, filterBacklog, setFilterBacklog } = useAppState();
+  const { countBusinessDays, addBusinessDays } = useBusinessDays();
 
   // --- Backlog list state ---
   const [backlogs, setBacklogs] = useState<ProjectBacklog[]>([]);
@@ -121,20 +127,16 @@ export default function Backlog() {
   const [totalItems, setTotalItems] = useState(0);
 
   // --- Dropdown data ---
-  const [unities, setUnities] = useState<Unity[]>([]);
+  const [, setUnities] = useState<Unity[]>([]);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
 
-  // --- Add from list modal ---
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [availableTasks, setAvailableTasks] = useState<TaskListItem[]>([]);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  // --- Modal loading ---
   const [modalLoading, setModalLoading] = useState(false);
 
   // --- Manual add modal ---
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualName, setManualName] = useState('');
-  const [manualQuantity, setManualQuantity] = useState('');
-  const [manualUnityId, setManualUnityId] = useState('');
+  const [manualParentId, setManualParentId] = useState('');
   const [manualDisciplineId, setManualDisciplineId] = useState('');
 
   // --- Edit modal ---
@@ -145,11 +147,14 @@ export default function Backlog() {
   // --- Delete confirm ---
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
-  // --- Subtask expansion ---
-  const [expandedBacklog, setExpandedBacklog] = useState<number | null>(null);
+  // --- Expansion & subtasks ---
+  const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set());
+  const [expandedLeafIds, setExpandedLeafIds] = useState<Set<number>>(new Set());
   const [subtasksMap, setSubtasksMap] = useState<Record<number, SubtaskItem[]>>({});
   const [subtasksLoading, setSubtasksLoading] = useState(false);
-  const [newSubtaskName, setNewSubtaskName] = useState('');
+  const [newSubtaskTaskId, setNewSubtaskTaskId] = useState<Record<number, string>>({});
+  const [newSubtaskQuantity, setNewSubtaskQuantity] = useState<Record<number, string>>({});
+  const [allTasks, setAllTasks] = useState<TaskListItem[]>([]);
   const [subtaskSaving, setSubtaskSaving] = useState(false);
 
   const { sortField, sortDirection, handleSort } = useBackendSort();
@@ -163,12 +168,14 @@ export default function Backlog() {
 
     const loadDropdowns = async () => {
       try {
-        const [unitiesData, disciplinesData] = await Promise.all([
+        const [unitiesData, disciplinesData, tasksData] = await Promise.all([
           tasksApi.getUnity(),
           tasksApi.getDisciplines(),
+          tasksApi.queryAllTasks({ per_page: 100 }),
         ]);
         setUnities(unitiesData);
         setDisciplines(disciplinesData);
+        setAllTasks(tasksData.items || []);
       } catch (err) {
         console.error('Failed to load dropdown data:', err);
       }
@@ -209,39 +216,93 @@ export default function Backlog() {
   }, [loadBacklogs]);
 
   // ---------------------------------------------------------------------------
-  // Load subtasks when expanded row changes
+  // Parent-child hierarchy (uses projects_backlogs_id from DB)
   // ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (expandedBacklog == null) return;
-    if (subtasksMap[expandedBacklog]) return; // already loaded
-
-    const fetchSubtasks = async () => {
-      setSubtasksLoading(true);
-      try {
-        const result = await projectsApi.getSubtasks(expandedBacklog);
-        setSubtasksMap((prev) => ({
-          ...prev,
-          [expandedBacklog]: (result.items as SubtaskItem[]) || [],
-        }));
-      } catch (err) {
-        console.error('Failed to load subtasks:', err);
-        setSubtasksMap((prev) => ({ ...prev, [expandedBacklog]: [] }));
-      } finally {
-        setSubtasksLoading(false);
+  const { hasChildren, visibleBacklogs, getWbsLevel } = useMemo(() => {
+    // Determine which items have children via projects_backlogs_id
+    const hasChildren = new Set<number>();
+    for (const b of backlogs) {
+      if (b.projects_backlogs_id != null) {
+        hasChildren.add(b.projects_backlogs_id);
       }
+    }
+
+    // Build ancestor chain: for each item, collect all ancestor IDs
+    const idSet = new Set(backlogs.map((b) => b.id));
+    const getAncestors = (b: ProjectBacklog): number[] => {
+      const ancestors: number[] = [];
+      let parentId = b.projects_backlogs_id;
+      while (parentId != null && idSet.has(parentId)) {
+        ancestors.push(parentId);
+        const parent = backlogs.find((p) => p.id === parentId);
+        parentId = parent?.projects_backlogs_id ?? null;
+      }
+      return ancestors;
     };
 
-    fetchSubtasks();
-  }, [expandedBacklog, subtasksMap]);
+    // Children visible by default; hidden only if an ancestor is in collapsedIds
+    const visibleBacklogs = backlogs.filter((backlog) => {
+      const ancestors = getAncestors(backlog);
+      return !ancestors.some((aid) => collapsedIds.has(aid));
+    });
+
+    const getWbsLevel = (wbsCode?: string) => {
+      if (!wbsCode) return 0;
+      return wbsCode.split('.').length - 1;
+    };
+
+    return { hasChildren, visibleBacklogs, getWbsLevel };
+  }, [backlogs, collapsedIds]);
 
   // ---------------------------------------------------------------------------
   // Row expand toggle
   // ---------------------------------------------------------------------------
 
   const handleToggleExpand = (backlogId: number) => {
-    setExpandedBacklog((prev) => (prev === backlogId ? null : backlogId));
-    setNewSubtaskName('');
+    if (hasChildren.has(backlogId)) {
+      // Parent item → toggle collapse/expand of children
+      setCollapsedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(backlogId)) {
+          next.delete(backlogId);
+        } else {
+          next.add(backlogId);
+        }
+        return next;
+      });
+    } else {
+      // Leaf item → toggle subtask panel
+      setExpandedLeafIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(backlogId)) {
+          next.delete(backlogId);
+        } else {
+          next.add(backlogId);
+        }
+        return next;
+      });
+
+      // Load subtasks on first expand
+      if (!subtasksMap[backlogId]) {
+        setSubtasksLoading(true);
+        projectsApi
+          .getSubtasks(backlogId)
+          .then((result) => {
+            setSubtasksMap((prev) => ({
+              ...prev,
+              [backlogId]: (result.items as SubtaskItem[]) || [],
+            }));
+          })
+          .catch((err) => {
+            console.error('Failed to load subtasks:', err);
+            setSubtasksMap((prev) => ({ ...prev, [backlogId]: [] }));
+          })
+          .finally(() => {
+            setSubtasksLoading(false);
+          });
+      }
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -272,58 +333,12 @@ export default function Backlog() {
   };
 
   // ---------------------------------------------------------------------------
-  // Add from task list modal
-  // ---------------------------------------------------------------------------
-
-  const handleOpenAddModal = async () => {
-    setShowAddModal(true);
-    try {
-      const data = await tasksApi.queryAllTasks({ per_page: 100 });
-      setAvailableTasks(data.items || []);
-    } catch (err) {
-      console.error('Failed to load tasks:', err);
-    }
-  };
-
-  const handleAddTasksFromList = async () => {
-    if (!projectsInfo || selectedTaskIds.length === 0) return;
-    setModalLoading(true);
-    try {
-      const backlogs = selectedTaskIds.map((taskId) => {
-        const task = availableTasks.find((t) => t.id === taskId);
-        return {
-          name: task?.name || task?.description || '',
-          tasks_types_id: taskId,
-        };
-      });
-      await projectsApi.projectsBacklogsBulk({
-        projects_id: projectsInfo.id,
-        backlogs,
-      });
-      setSelectedTaskIds([]);
-      setShowAddModal(false);
-      loadBacklogs();
-    } catch (err) {
-      console.error('Failed to add tasks to backlog:', err);
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const toggleTaskSelection = (taskId: number) => {
-    setSelectedTaskIds((prev) =>
-      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
-    );
-  };
-
-  // ---------------------------------------------------------------------------
   // Manual add modal
   // ---------------------------------------------------------------------------
 
   const handleOpenManualModal = () => {
     setManualName('');
-    setManualQuantity('');
-    setManualUnityId('');
+    setManualParentId('');
     setManualDisciplineId('');
     setShowManualModal(true);
   };
@@ -335,8 +350,7 @@ export default function Backlog() {
       await projectsApi.addTasksBacklogManual({
         projects_id: projectsInfo.id,
         name: manualName.trim(),
-        quantity: manualQuantity ? parseInt(manualQuantity, 10) : undefined,
-        unity_id: manualUnityId ? parseInt(manualUnityId, 10) : undefined,
+        projects_backlogs_id: manualParentId ? parseInt(manualParentId, 10) : undefined,
         discipline_id: manualDisciplineId ? parseInt(manualDisciplineId, 10) : undefined,
       });
       setShowManualModal(false);
@@ -358,7 +372,31 @@ export default function Backlog() {
   };
 
   const handleEditFormChange = (field: keyof EditForm, value: string) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
+    setEditForm((prev) => {
+      const next = { ...prev, [field]: value };
+
+      // Auto-calc: start + end → duration (business days)
+      if ((field === 'planned_start_date' || field === 'planned_end_date') && next.planned_start_date && next.planned_end_date) {
+        const start = new Date(next.planned_start_date + 'T00:00:00');
+        const end = new Date(next.planned_end_date + 'T00:00:00');
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
+          const bd = countBusinessDays(start, end);
+          next.planned_duration_days = String(bd);
+        }
+      }
+
+      // Auto-calc: start + duration → end (business days)
+      if (field === 'planned_duration_days' && next.planned_start_date && next.planned_duration_days) {
+        const start = new Date(next.planned_start_date + 'T00:00:00');
+        const days = parseInt(next.planned_duration_days, 10);
+        if (!isNaN(start.getTime()) && days > 0) {
+          const endDate = addBusinessDays(start, days);
+          next.planned_end_date = toDateKey(endDate);
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleSaveEdit = async () => {
@@ -398,21 +436,28 @@ export default function Backlog() {
   // Subtask add
   // ---------------------------------------------------------------------------
 
-  const handleAddSubtask = async () => {
-    if (!expandedBacklog || !newSubtaskName.trim()) return;
+  const handleAddSubtask = async (backlogId: number) => {
+    const taskId = newSubtaskTaskId[backlogId];
+    if (!taskId) return;
+    const selectedTask = allTasks.find((t) => t.id === parseInt(taskId, 10));
+    if (!selectedTask) return;
+    const qty = newSubtaskQuantity[backlogId];
     setSubtaskSaving(true);
     try {
       await projectsApi.addSubtask({
-        backlog_id: expandedBacklog,
-        name: newSubtaskName.trim(),
+        backlog_id: backlogId,
+        name: selectedTask.description || selectedTask.name || '',
+        quantity: qty ? parseInt(qty, 10) : undefined,
+        unity_id: selectedTask.unity_id ?? undefined,
       });
-      setNewSubtaskName('');
-      // Invalidate cache so subtasks reload
-      setSubtasksMap((prev) => {
-        const updated = { ...prev };
-        delete updated[expandedBacklog];
-        return updated;
-      });
+      setNewSubtaskTaskId((prev) => ({ ...prev, [backlogId]: '' }));
+      setNewSubtaskQuantity((prev) => ({ ...prev, [backlogId]: '' }));
+      // Reload subtasks
+      const result = await projectsApi.getSubtasks(backlogId);
+      setSubtasksMap((prev) => ({
+        ...prev,
+        [backlogId]: (result.items as SubtaskItem[]) || [],
+      }));
     } catch (err) {
       console.error('Failed to add subtask:', err);
     } finally {
@@ -438,14 +483,14 @@ export default function Backlog() {
         breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('backlog.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary" onClick={() => navigate('/projeto-detalhes')}>
+            <Link to="/projeto-detalhes" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
-            </button>
-            <button className="btn btn-secondary" onClick={handleOpenManualModal}>
+            </Link>
+            <Link to="/cronograma" className="btn btn-secondary">
+              <CalendarDays size={18} /> {t('nav.cronograma')}
+            </Link>
+            <button className="btn btn-primary" onClick={handleOpenManualModal}>
               <Plus size={18} /> {t('backlog.addManual')}
-            </button>
-            <button className="btn btn-primary" onClick={handleOpenAddModal}>
-              <Plus size={18} /> {t('backlog.addFromList')}
             </button>
           </div>
         }
@@ -508,8 +553,8 @@ export default function Backlog() {
         <EmptyState
           message={t('common.noData')}
           action={
-            <button className="btn btn-primary" onClick={handleOpenAddModal}>
-              <Plus size={18} /> {t('backlog.addFromList')}
+            <button className="btn btn-primary" onClick={handleOpenManualModal}>
+              <Plus size={18} /> {t('backlog.addManual')}
             </button>
           }
         />
@@ -521,21 +566,27 @@ export default function Backlog() {
                 <th style={{ width: '40px' }}></th>
                 <SortableHeader label={t('backlog.taskName')} field="taskName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.wbsCode')} field="wbsCode" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('backlog.quantity')} field="quantity" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('backlog.unity')} field="unityName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.discipline')} field="disciplineName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.plannedStart')} field="plannedStartDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.plannedEnd')} field="plannedEndDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('backlog.actualStart')} field="actualStartDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label={t('backlog.actualEnd')} field="actualEndDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.percentComplete')} field="percentComplete" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} style={{ width: '80px' }} />
-                <SortableHeader label={t('backlog.weight')} field="weight" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} style={{ width: '70px' }} />
                 <SortableHeader label={t('backlog.status')} field="checked" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {backlogs.map((backlog) => (
-                <>
-                  <motion.tr key={backlog.id} variants={tableRowVariants}>
+              {visibleBacklogs.map((backlog) => {
+                const level = getWbsLevel(backlog.wbsCode);
+                const isParent = hasChildren.has(backlog.id);
+                const isExpanded = isParent
+                  ? !collapsedIds.has(backlog.id)
+                  : expandedLeafIds.has(backlog.id);
+
+                return (
+                <Fragment key={backlog.id}>
+                  <motion.tr variants={tableRowVariants}>
                     {/* Checkbox */}
                     <td>
                       <button
@@ -553,13 +604,13 @@ export default function Backlog() {
 
                     {/* Task name + expand toggle */}
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: `${level * 24}px` }}>
                         <button
                           className="btn btn-icon"
                           onClick={() => handleToggleExpand(backlog.id)}
                           style={{ padding: '2px', flexShrink: 0 }}
                         >
-                          {expandedBacklog === backlog.id ? (
+                          {isExpanded ? (
                             <ChevronDown size={14} />
                           ) : (
                             <ChevronRight size={14} />
@@ -567,7 +618,7 @@ export default function Backlog() {
                         </button>
                         <span
                           style={{
-                            fontWeight: 500,
+                            fontWeight: isParent ? 600 : 500,
                             textDecoration: backlog.checked ? 'line-through' : 'none',
                           }}
                         >
@@ -581,12 +632,6 @@ export default function Backlog() {
                       {backlog.wbsCode || '-'}
                     </td>
 
-                    {/* Quantity */}
-                    <td>{backlog.quantity != null ? backlog.quantity : '-'}</td>
-
-                    {/* Unity */}
-                    <td>{backlog.unityName || '-'}</td>
-
                     {/* Discipline */}
                     <td>{backlog.disciplineName || '-'}</td>
 
@@ -598,6 +643,16 @@ export default function Backlog() {
                     {/* Planned end */}
                     <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
                       {formatDate(backlog.plannedEndDate)}
+                    </td>
+
+                    {/* Actual start */}
+                    <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                      {formatDate(backlog.actualStartDate)}
+                    </td>
+
+                    {/* Actual end */}
+                    <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                      {formatDate(backlog.actualEndDate)}
                     </td>
 
                     {/* % complete */}
@@ -631,11 +686,6 @@ export default function Backlog() {
                       ) : (
                         <span style={{ color: 'var(--color-secondary-text)' }}>-</span>
                       )}
-                    </td>
-
-                    {/* Weight */}
-                    <td style={{ fontSize: '13px' }}>
-                      {backlog.weight != null ? backlog.weight : '-'}
                     </td>
 
                     {/* Status badge */}
@@ -676,25 +726,33 @@ export default function Backlog() {
                     </td>
                   </motion.tr>
 
-                  {/* Subtask expansion row */}
-                  {expandedBacklog === backlog.id && (
-                    <tr key={`subtasks-${backlog.id}`}>
-                      <td colSpan={12} style={{ padding: 0 }}>
+                  {/* Subtask expansion row — only for leaf items (no WBS children) */}
+                  {isExpanded && !isParent && (
+                    <tr>
+                      <td colSpan={11} style={{ padding: 0 }}>
                         <SubtaskPanel
                           backlogId={backlog.id}
                           subtasks={subtasksMap[backlog.id] ?? null}
                           loading={subtasksLoading}
-                          newSubtaskName={newSubtaskName}
+                          allTasks={allTasks}
+                          selectedTaskId={newSubtaskTaskId[backlog.id] ?? ''}
+                          quantity={newSubtaskQuantity[backlog.id] ?? ''}
                           saving={subtaskSaving}
-                          onNewSubtaskNameChange={setNewSubtaskName}
-                          onAddSubtask={handleAddSubtask}
+                          onTaskChange={(val) =>
+                            setNewSubtaskTaskId((prev) => ({ ...prev, [backlog.id]: val }))
+                          }
+                          onQuantityChange={(val) =>
+                            setNewSubtaskQuantity((prev) => ({ ...prev, [backlog.id]: val }))
+                          }
+                          onAddSubtask={() => handleAddSubtask(backlog.id)}
                           t={t}
                         />
                       </td>
                     </tr>
                   )}
-                </>
-              ))}
+                </Fragment>
+                );
+              })}
             </motion.tbody>
           </table>
           <Pagination
@@ -714,76 +772,6 @@ export default function Backlog() {
       {/* ------------------------------------------------------------------ */}
       {/* Add from task list modal */}
       {/* ------------------------------------------------------------------ */}
-      {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '600px', maxHeight: '80vh', padding: '24px' }}
-          >
-            <h3 style={{ marginBottom: '16px' }}>{t('backlog.addFromList')}</h3>
-            <div style={{ maxHeight: '400px', overflow: 'auto', marginBottom: '16px' }}>
-              {availableTasks.length === 0 ? (
-                <p style={{ color: 'var(--color-secondary-text)', textAlign: 'center', padding: '24px' }}>
-                  {t('common.noData')}
-                </p>
-              ) : (
-                availableTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    onClick={() => toggleTaskSelection(task.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      border: `1px solid ${selectedTaskIds.includes(task.id) ? 'var(--color-primary)' : 'var(--color-alternate)'}`,
-                      backgroundColor: selectedTaskIds.includes(task.id)
-                        ? 'var(--color-tertiary-bg)'
-                        : 'transparent',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    {selectedTaskIds.includes(task.id) ? (
-                      <CheckSquare size={18} color="var(--color-primary)" />
-                    ) : (
-                      <Square size={18} color="var(--color-secondary-text)" />
-                    )}
-                    <div>
-                      <span style={{ fontWeight: 500, fontSize: '13px' }}>{task.name}</span>
-                      {task.description && (
-                        <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)', margin: 0 }}>
-                          {task.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-                {selectedTaskIds.length} {t('backlog.selected')}
-              </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-secondary" onClick={() => setShowAddModal(false)}>
-                  {t('common.cancel')}
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleAddTasksFromList}
-                  disabled={modalLoading || selectedTaskIds.length === 0}
-                >
-                  {modalLoading ? <span className="spinner" /> : t('backlog.addSelected')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ------------------------------------------------------------------ */}
       {/* Manual add modal */}
       {/* ------------------------------------------------------------------ */}
@@ -801,21 +789,12 @@ export default function Backlog() {
                 />
               </div>
               <div className="input-group">
-                <label>{t('backlog.quantity')}</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  value={manualQuantity}
-                  onChange={(e) => setManualQuantity(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>{t('backlog.unity')}</label>
+                <label>{t('backlog.parentItem')}</label>
                 <SearchableSelect
-                  options={unities.map((u) => ({ value: u.id, label: u.unity || u.name || '' }))}
-                  value={manualUnityId || undefined}
-                  onChange={(value) => setManualUnityId(value ? String(value) : '')}
-                  placeholder={t('backlog.selectUnity')}
+                  options={backlogs.map((b) => ({ value: b.id, label: b.description || b.name || '' }))}
+                  value={manualParentId || undefined}
+                  onChange={(value) => setManualParentId(value ? String(value) : '')}
+                  placeholder={t('backlog.selectParent')}
                   searchPlaceholder={t('common.search')}
                 />
               </div>
@@ -892,41 +871,6 @@ export default function Backlog() {
                 />
               </div>
 
-              {/* Quantity */}
-              <div className="input-group">
-                <label>{t('backlog.quantity')}</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  value={editForm.quantity}
-                  onChange={(e) => handleEditFormChange('quantity', e.target.value)}
-                />
-              </div>
-
-              {/* Weight */}
-              <div className="input-group">
-                <label>{t('backlog.weight')}</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="input-field"
-                  value={editForm.weight}
-                  onChange={(e) => handleEditFormChange('weight', e.target.value)}
-                />
-              </div>
-
-              {/* Unity */}
-              <div className="input-group">
-                <label>{t('backlog.unity')}</label>
-                <SearchableSelect
-                  options={unities.map((u) => ({ value: u.id, label: u.unity || u.name || '' }))}
-                  value={editForm.unity_id || undefined}
-                  onChange={(value) => handleEditFormChange('unity_id', value ? String(value) : '')}
-                  placeholder={t('backlog.selectUnity')}
-                  searchPlaceholder={t('common.search')}
-                />
-              </div>
-
               {/* Discipline */}
               <div className="input-group">
                 <label>{t('backlog.discipline')}</label>
@@ -942,7 +886,7 @@ export default function Backlog() {
               {/* Section divider: Planning dates */}
               <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--color-alternate)', paddingTop: '8px' }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {t('common.planning') || 'Planning'}
+                  {t('common.planning')}
                 </span>
               </div>
 
@@ -1000,7 +944,7 @@ export default function Backlog() {
               {/* Section divider: Costs */}
               <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--color-alternate)', paddingTop: '8px' }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {t('common.costs') || 'Costs'}
+                  {t('common.costs')}
                 </span>
               </div>
 
@@ -1064,9 +1008,12 @@ interface SubtaskPanelProps {
   backlogId: number;
   subtasks: SubtaskItem[] | null;
   loading: boolean;
-  newSubtaskName: string;
+  allTasks: TaskListItem[];
+  selectedTaskId: string;
+  quantity: string;
   saving: boolean;
-  onNewSubtaskNameChange: (value: string) => void;
+  onTaskChange: (value: string) => void;
+  onQuantityChange: (value: string) => void;
   onAddSubtask: () => void;
   t: (key: string) => string;
 }
@@ -1074,15 +1021,18 @@ interface SubtaskPanelProps {
 function SubtaskPanel({
   subtasks,
   loading,
-  newSubtaskName,
+  allTasks,
+  selectedTaskId,
+  quantity,
   saving,
-  onNewSubtaskNameChange,
+  onTaskChange,
+  onQuantityChange,
   onAddSubtask,
   t,
 }: SubtaskPanelProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') onAddSubtask();
-  };
+  const selectedTask = selectedTaskId
+    ? allTasks.find((tk) => tk.id === parseInt(selectedTaskId, 10))
+    : null;
 
   return (
     <div
@@ -1114,6 +1064,9 @@ function SubtaskPanel({
               <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '100px' }}>
                 {t('backlog.quantity')}
               </th>
+              <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '100px' }}>
+                {t('backlog.unity')}
+              </th>
               <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '120px' }}>
                 {t('backlog.status')}
               </th>
@@ -1122,19 +1075,22 @@ function SubtaskPanel({
           <tbody>
             {subtasks.map((subtask) => (
               <tr key={subtask.id} style={{ borderTop: '1px solid var(--color-alternate)' }}>
-                <td style={{ padding: '6px 8px' }}>{subtask.name}</td>
+                <td style={{ padding: '6px 8px' }}>{subtask.description || subtask.name || '-'}</td>
                 <td style={{ padding: '6px 8px' }}>
                   {subtask.quantity != null ? subtask.quantity : '-'}
+                </td>
+                <td style={{ padding: '6px 8px' }}>
+                  {subtask.unity?.unity || '-'}
                 </td>
                 <td style={{ padding: '6px 8px' }}>
                   <span
                     className="badge"
                     style={{
-                      backgroundColor: subtask.status ? 'var(--color-status-04)' : 'var(--color-status-02)',
-                      color: subtask.status ? 'var(--color-success)' : 'var(--color-warning)',
+                      backgroundColor: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-status-04)' : 'var(--color-status-02)',
+                      color: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-success)' : 'var(--color-warning)',
                     }}
                   >
-                    {subtask.status ? t('backlog.completed') : t('backlog.pending')}
+                    {(subtask.subtasks_statuses_id === 3 || subtask.status) ? t('backlog.completed') : t('backlog.pending')}
                   </span>
                 </td>
               </tr>
@@ -1143,21 +1099,52 @@ function SubtaskPanel({
         </table>
       )}
 
-      {/* Add subtask inline form */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', maxWidth: '480px' }}>
-        <input
-          type="text"
-          className="input-field"
-          placeholder={t('backlog.addSubtask')}
-          value={newSubtaskName}
-          onChange={(e) => onNewSubtaskNameChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={{ flex: 1, fontSize: '13px' }}
-        />
+      {/* Add subtask form */}
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', maxWidth: '640px' }}>
+        <div style={{ flex: 2 }}>
+          <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-secondary-text)', marginBottom: '4px', display: 'block' }}>
+            {t('backlog.taskName')}
+          </label>
+          <SearchableSelect
+            options={allTasks.map((tk) => ({
+              value: tk.id,
+              label: tk.description || tk.name || '',
+            }))}
+            value={selectedTaskId || undefined}
+            onChange={(value) => onTaskChange(value ? String(value) : '')}
+            placeholder={t('backlog.selectTask')}
+            searchPlaceholder={t('common.search')}
+          />
+        </div>
+        <div style={{ width: '100px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-secondary-text)', marginBottom: '4px', display: 'block' }}>
+            {t('backlog.unity')}
+          </label>
+          <input
+            type="text"
+            className="input-field"
+            value={selectedTask?.unity?.unity || '-'}
+            readOnly
+            style={{ fontSize: '13px', backgroundColor: 'var(--color-alternate)' }}
+          />
+        </div>
+        <div style={{ width: '100px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-secondary-text)', marginBottom: '4px', display: 'block' }}>
+            {t('backlog.quantity')}
+          </label>
+          <input
+            type="number"
+            className="input-field"
+            value={quantity}
+            onChange={(e) => onQuantityChange(e.target.value)}
+            style={{ fontSize: '13px' }}
+            min={0}
+          />
+        </div>
         <button
           className="btn btn-primary"
           onClick={onAddSubtask}
-          disabled={saving || !newSubtaskName.trim()}
+          disabled={saving || !selectedTaskId}
           style={{ whiteSpace: 'nowrap', fontSize: '13px' }}
         >
           {saving ? <span className="spinner" /> : <><Plus size={14} /> {t('backlog.addSubtask')}</>}

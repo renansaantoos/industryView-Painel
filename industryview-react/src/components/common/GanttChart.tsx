@@ -233,7 +233,8 @@ export default function GanttChart({
     );
   }
 
-  const LABEL_COLUMN_WIDTH = 260;
+  const WBS_COLUMN_WIDTH = 80;
+  const LABEL_COLUMN_WIDTH = 260 + WBS_COLUMN_WIDTH;
   const COL_WIDTH_PX = activeViewMode === 'day' ? 40 : activeViewMode === 'week' ? 80 : 100;
   const totalChartWidth = timeline.length * COL_WIDTH_PX;
 
@@ -316,7 +317,6 @@ export default function GanttChart({
             <div
               style={{
                 height: '40px',
-                padding: '0 12px',
                 display: 'flex',
                 alignItems: 'center',
                 fontWeight: 600,
@@ -328,7 +328,8 @@ export default function GanttChart({
                 letterSpacing: '0.05em',
               }}
             >
-              Tarefa / WBS
+              <span style={{ width: `${WBS_COLUMN_WIDTH}px`, padding: '0 8px', flexShrink: 0, borderRight: '1px solid var(--color-alternate)' }}>Item</span>
+              <span style={{ flex: 1, padding: '0 12px' }}>Descrição</span>
             </div>
             {/* Rows */}
             {rows.map((row) => (
@@ -336,72 +337,94 @@ export default function GanttChart({
                 key={row.id}
                 style={{
                   height: '36px',
-                  padding: '0 8px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
                   borderBottom: '1px solid var(--color-alternate)',
                   fontSize: '13px',
-                  paddingLeft: `${8 + row.level * 16}px`,
                   background: row.isCritical
                     ? 'rgba(239,68,68,0.04)'
                     : 'transparent',
                 }}
               >
-                {row.hasChildren ? (
-                  <button
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '2px',
-                      color: 'var(--color-secondary-text)',
-                      flexShrink: 0,
-                    }}
-                    onClick={() => {
-                      setExpandedIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(row.id)) next.delete(row.id);
-                        else next.add(row.id);
-                        return next;
-                      });
-                    }}
-                  >
-                    {row.isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                  </button>
-                ) : (
-                  <span style={{ width: '16px', flexShrink: 0 }} />
-                )}
-                {row.is_milestone && (
-                  <Flag size={11} color="var(--color-warning, #eab308)" style={{ flexShrink: 0 }} />
-                )}
+                {/* WBS column */}
                 <span
                   style={{
+                    width: `${WBS_COLUMN_WIDTH}px`,
+                    flexShrink: 0,
+                    padding: '0 8px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    flex: 1,
-                    color: row.isCritical ? '#ef4444' : 'var(--color-text)',
-                    fontWeight: row.isCritical ? 600 : 400,
-                  }}
-                  title={row.description ?? ''}
-                >
-                  {row.wbs_code ? (
-                    <span style={{ color: 'var(--color-secondary-text)', marginRight: '4px', fontSize: '11px' }}>
-                      {row.wbs_code}
-                    </span>
-                  ) : null}
-                  {row.description}
-                </span>
-                <span
-                  style={{
-                    fontSize: '11px',
                     color: 'var(--color-secondary-text)',
-                    flexShrink: 0,
+                    fontSize: '12px',
+                    borderRight: '1px solid var(--color-alternate)',
+                  }}
+                  title={row.wbs_code ?? ''}
+                >
+                  {row.wbs_code || '-'}
+                </span>
+                {/* Task name column */}
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0 8px',
+                    paddingLeft: `${8 + row.level * 16}px`,
+                    overflow: 'hidden',
                   }}
                 >
-                  {row.percent_complete ?? 0}%
-                </span>
+                  {row.hasChildren ? (
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        color: 'var(--color-secondary-text)',
+                        flexShrink: 0,
+                      }}
+                      onClick={() => {
+                        setExpandedIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) next.delete(row.id);
+                          else next.add(row.id);
+                          return next;
+                        });
+                      }}
+                    >
+                      {row.isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    </button>
+                  ) : (
+                    <span style={{ width: '16px', flexShrink: 0 }} />
+                  )}
+                  {row.is_milestone && (
+                    <Flag size={11} color="var(--color-warning, #eab308)" style={{ flexShrink: 0 }} />
+                  )}
+                  <span
+                    style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                      color: row.isCritical ? '#ef4444' : 'var(--color-text)',
+                      fontWeight: row.isCritical ? 600 : 400,
+                    }}
+                    title={row.description ?? ''}
+                  >
+                    {row.description}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--color-secondary-text)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {row.percent_complete ?? 0}%
+                  </span>
+                </div>
               </div>
             ))}
           </div>

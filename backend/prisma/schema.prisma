@@ -313,6 +313,8 @@ model company {
   documents             documents[]
   environmental_licenses environmental_licenses[]
   clients               clients[]
+  company_holidays      company_holidays[]
+  company_work_calendar company_work_calendar?
 
   @@index([created_at(sort: Desc)], map: "idx_company_created_at")
   @@index([status_payment_id], map: "idx_company_status_payment_id")
@@ -2841,4 +2843,35 @@ model employee_work_schedule {
   created_at           DateTime  @default(now()) @db.Timestamptz(6)
   updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   user                 users     @relation(fields: [users_id], references: [id], onUpdate: NoAction)
+}
+
+model company_holidays {
+  id         BigInt    @id @default(autoincrement())
+  company_id BigInt
+  date       DateTime  @db.Date
+  name       String    @db.VarChar(120)
+  type       String    @default("national") @db.VarChar(20)
+  recurring  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  company    company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([company_id, date], map: "uq_company_holidays_company_date")
+  @@index([company_id], map: "idx_company_holidays_company_id")
+}
+
+model company_work_calendar {
+  id         BigInt   @id @default(autoincrement())
+  company_id BigInt   @unique
+  seg_ativo  Boolean  @default(true)
+  ter_ativo  Boolean  @default(true)
+  qua_ativo  Boolean  @default(true)
+  qui_ativo  Boolean  @default(true)
+  sex_ativo  Boolean  @default(true)
+  sab_ativo  Boolean  @default(false)
+  dom_ativo  Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  company    company  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }

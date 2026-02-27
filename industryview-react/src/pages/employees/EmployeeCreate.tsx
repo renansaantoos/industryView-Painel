@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { pageVariants, fadeUpChild } from '../../lib/motion';
@@ -463,9 +463,9 @@ export default function EmployeeCreate() {
         subtitle={t('employees.createSubtitle')}
         breadcrumb={`${t('employees.title')} / ${t('employees.addEmployee')}`}
         actions={
-          <button className="btn btn-secondary" onClick={() => navigate('/funcionario')}>
+          <Link to="/funcionario" className="btn btn-secondary">
             <ArrowLeft size={18} /> {t('common.back')}
-          </button>
+          </Link>
         }
       />
 
@@ -779,9 +779,9 @@ export default function EmployeeCreate() {
 
         {/* ── Save button ────────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: 16, borderTop: '1px solid var(--color-alternate)' }}>
-          <button className="btn btn-secondary" onClick={() => navigate('/funcionario')}>
+          <Link to="/funcionario" className="btn btn-secondary">
             {t('common.cancel')}
-          </button>
+          </Link>
           <button className="btn btn-primary" onClick={handleSave} disabled={isSaving}
             style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 140 }}>
             {isSaving

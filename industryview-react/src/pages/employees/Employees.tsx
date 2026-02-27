@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -76,9 +76,9 @@ export default function Employees() {
         title={t('employees.title')}
         subtitle={t('employees.subtitle')}
         actions={
-          <button className="btn btn-primary" onClick={() => navigate('/funcionario/novo')}>
+          <Link to="/funcionario/novo" className="btn btn-primary">
             <Plus size={18} /> {t('employees.addEmployee')}
-          </button>
+          </Link>
         }
       />
 
@@ -116,9 +116,9 @@ export default function Employees() {
         <EmptyState
           message={t('common.noData')}
           action={
-            <button className="btn btn-primary" onClick={() => navigate('/funcionario/novo')}>
+            <Link to="/funcionario/novo" className="btn btn-primary">
               <Plus size={18} /> {t('employees.addEmployee')}
-            </button>
+            </Link>
           }
         />
       ) : (
@@ -167,9 +167,9 @@ export default function Employees() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
-                      <button className="btn btn-icon" title={t('common.edit')} onClick={() => navigate(`/funcionario/${emp.id}`)}>
+                      <Link to={`/funcionario/${emp.id}`} className="btn btn-icon" title={t('common.edit')}>
                         <Edit size={16} color="var(--color-secondary-text)" />
-                      </button>
+                      </Link>
                       {emp.id !== user?.id && (
                         <button className="btn btn-icon" title={t('common.delete')} onClick={() => setDeleteConfirm(emp.id)}>
                           <Trash2 size={16} color="var(--color-error)" />

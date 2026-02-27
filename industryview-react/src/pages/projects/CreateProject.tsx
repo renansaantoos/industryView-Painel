@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -270,9 +270,9 @@ export default function CreateProject() {
         title={t('projects.createProject')}
         breadcrumb={t('projects.title')}
         actions={
-          <button className="btn btn-secondary" onClick={() => navigate('/projetos')}>
+          <Link to="/projetos" className="btn btn-secondary">
             <ArrowLeft size={18} /> {t('common.back')}
-          </button>
+          </Link>
         }
       />
 
@@ -644,9 +644,9 @@ export default function CreateProject() {
         </motion.div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingBottom: '32px' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate('/projetos')}>
+          <Link to="/projetos" className="btn btn-secondary">
             {t('common.cancel')}
-          </button>
+          </Link>
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? <span className="spinner" /> : <><Save size={18} /> {t('common.save')}</>}
           </button>

@@ -101,6 +101,7 @@ export interface ProjectBacklog {
   wbsCode?: string;
   sortOrder?: number;
   level?: number;
+  projects_backlogs_id?: number | null;
 }
 
 /** Project user association */

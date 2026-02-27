@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -86,14 +86,22 @@ export default function ProjectList() {
   const loadProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const [projectsData, clientsData] = await Promise.all([
+      const [projectsResult, clientsResult] = await Promise.allSettled([
         projectsApi.queryAllProjects({ per_page: 200 }),
         clientsApi.listClients({ per_page: 50 }),
       ]);
-      setAllProjects(projectsData.items || []);
-      setClients(clientsData.items || []);
+      if (projectsResult.status === 'fulfilled') {
+        setAllProjects(projectsResult.value.items || []);
+      } else {
+        console.error('Failed to load projects:', projectsResult.reason);
+      }
+      if (clientsResult.status === 'fulfilled') {
+        setClients(clientsResult.value.items || []);
+      } else {
+        console.error('Failed to load clients:', clientsResult.reason);
+      }
     } catch (err) {
-      console.error('Failed to load projects:', err);
+      console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
@@ -201,10 +209,10 @@ export default function ProjectList() {
         title={t('projects.title')}
         subtitle={t('projects.subtitle')}
         actions={
-          <button className="btn btn-primary" onClick={() => navigate('/criar-projeto')}>
+          <Link to="/criar-projeto" className="btn btn-primary">
             <Plus size={18} />
             {t('projects.createProject')}
-          </button>
+          </Link>
         }
       />
 
@@ -404,9 +412,9 @@ export default function ProjectList() {
                 Mostrar todos
               </button>
             ) : (
-              <button className="btn btn-primary" onClick={() => navigate('/criar-projeto')}>
+              <Link to="/criar-projeto" className="btn btn-primary">
                 <Plus size={18} /> {t('projects.createProject')}
-              </button>
+              </Link>
             )
           }
         />

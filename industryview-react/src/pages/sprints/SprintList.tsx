@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { sprintsApi } from '../../services';
@@ -26,7 +26,7 @@ const CATEGORY_CONFIG: { key: CategoryKey; color: string; bgColor: string }[] = 
 
 export default function SprintList() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+
   const { projectsInfo } = useAppState();
 
   const [sprintData, setSprintData] = useState<SprintListResponse | null>(null);
@@ -114,10 +114,6 @@ export default function SprintList() {
     setDeleteConfirm(null);
   };
 
-  const handleViewSprint = (sprint: Sprint) => {
-    navigate(`/sprint-atual?sprintId=${sprint.id}`);
-  };
-
   const getCategoryLabel = (key: CategoryKey): string => {
     switch (key) {
       case 'sprints_ativa':
@@ -186,9 +182,9 @@ export default function SprintList() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
-        <button className="btn btn-icon" title={t('common.view')} onClick={() => handleViewSprint(sprint)}>
+        <Link to={`/sprint-atual?sprintId=${sprint.id}`} className="btn btn-icon" title={t('common.view')}>
           <Eye size={16} color="var(--color-primary)" />
-        </button>
+        </Link>
         <button
           className="btn btn-icon"
           title={t('common.delete')}
@@ -249,9 +245,9 @@ export default function SprintList() {
         breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('sprints.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary" onClick={() => navigate('/projeto-detalhes')}>
+            <Link to="/projeto-detalhes" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
-            </button>
+            </Link>
             <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
               <Plus size={18} /> {t('sprints.createSprint')}
             </button>

@@ -522,11 +522,14 @@ export class ProjectsController {
       // Converte filter_backlog para filtro de status no banco
       let statusFilter: number[] | undefined;
       if (filterBacklog === 2) {
-        // Pendentes: todos os status que NÃO são concluído/sucesso
-        statusFilter = [1, 2, 4, 5, 7];
+        // Pendentes: somente status Pendente
+        statusFilter = [1];
       } else if (filterBacklog === 3) {
         // Concluídos: status concluído ou sucesso
         statusFilter = CHECKED_STATUS_IDS;
+      } else if (filterBacklog === 4) {
+        // Em Andamento
+        statusFilter = [2];
       }
 
       const result = await ProjectsService.listBacklogs(projectId, {
@@ -586,6 +589,7 @@ export class ProjectsController {
           wbsCode: b.wbs_code || null,
           sortOrder: b.sort_order,
           level: b.level,
+          projects_backlogs_id: b.projects_backlogs_id || null,
         };
       });
 

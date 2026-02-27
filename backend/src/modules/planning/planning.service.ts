@@ -1360,6 +1360,78 @@ export class PlanningService {
       projects_id: projectsId,
     };
   }
+
+  // ===========================================================================
+  // CRONOGRAMA ITEMS (itens do cronograma disponiveis para vinculo com tarefas)
+  // ===========================================================================
+
+  /**
+   * Lista itens do cronograma de um projeto (backlogs com wbs_code ou import_source_id)
+   * Usados para vincular tarefas como filhos na hierarquia do cronograma
+   */
+  static async listCronogramaItems(projectsId: number, leafOnly: boolean = false) {
+    const items = await db.$queryRaw<{
+      id: bigint;
+      description: string | null;
+      wbs_code: string | null;
+      level: number | null;
+      percent_complete: number | null;
+      planned_start_date: Date | null;
+      planned_end_date: Date | null;
+      projects_backlogs_id: bigint | null;
+      has_children: bigint;
+      linked_tasks_count: bigint;
+    }[]>`
+      SELECT
+        pb.id,
+        pb.description,
+        pb.wbs_code,
+        pb.level,
+        pb.percent_complete,
+        pb.planned_start_date,
+        pb.planned_end_date,
+        pb.projects_backlogs_id,
+        (
+          SELECT COUNT(*)
+          FROM projects_backlogs ch
+          WHERE ch.projects_backlogs_id = pb.id
+            AND ch.deleted_at IS NULL
+            AND (ch.wbs_code IS NOT NULL OR ch.import_source_id IS NOT NULL)
+        ) AS has_children,
+        (
+          SELECT COUNT(*)
+          FROM projects_backlogs ch
+          WHERE ch.projects_backlogs_id = pb.id
+            AND ch.deleted_at IS NULL
+            AND ch.wbs_code IS NULL
+            AND ch.import_source_id IS NULL
+        ) AS linked_tasks_count
+      FROM projects_backlogs pb
+      WHERE pb.projects_id = ${BigInt(projectsId)}
+        AND pb.deleted_at IS NULL
+        AND (pb.wbs_code IS NOT NULL OR pb.import_source_id IS NOT NULL)
+      ORDER BY pb.sort_order ASC, pb.wbs_code ASC
+    `;
+
+    let result = items.map((item) => ({
+      id: Number(item.id),
+      description: item.description,
+      wbs_code: item.wbs_code,
+      level: item.level ?? 0,
+      percent_complete: item.percent_complete ? Number(item.percent_complete) : 0,
+      planned_start_date: item.planned_start_date?.toISOString?.().split('T')[0] || null,
+      planned_end_date: item.planned_end_date?.toISOString?.().split('T')[0] || null,
+      parent_id: item.projects_backlogs_id ? Number(item.projects_backlogs_id) : null,
+      has_children: Number(item.has_children) > 0,
+      linked_tasks_count: Number(item.linked_tasks_count),
+    }));
+
+    if (leafOnly) {
+      result = result.filter((item) => !item.has_children);
+    }
+
+    return result;
+  }
 }
 
 export default PlanningService;

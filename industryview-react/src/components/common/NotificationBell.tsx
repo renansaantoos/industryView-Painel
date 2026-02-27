@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { notificationsApi } from '../../services';
@@ -141,12 +141,13 @@ export default function NotificationBell() {
                   </div>
                 ))
               )}
-              <div
-                style={{ padding: '10px 16px', textAlign: 'center', cursor: 'pointer', color: 'var(--color-primary)', fontSize: '13px', fontWeight: 500 }}
-                onClick={() => { setShowDropdown(false); navigate('/notificacoes'); }}
+              <Link
+                to="/notificacoes"
+                style={{ display: 'block', padding: '10px 16px', textAlign: 'center', cursor: 'pointer', color: 'var(--color-primary)', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}
+                onClick={() => setShowDropdown(false)}
               >
                 {t('notifications.viewAll')}
-              </div>
+              </Link>
             </motion.div>
           </>
         )}

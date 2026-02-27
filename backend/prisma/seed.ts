@@ -47,18 +47,15 @@ async function main() {
     })
 
     // 5. projects_statuses (Necessário para criar projetos)
-    // Values: Ativo, Inativo, Em andamento, Cancelado
+    // Values: Ativo, Inativo, Concluído
     await prisma.projects_statuses.upsert({
-        where: { id: 1 }, update: {}, create: { id: 1, status: 'Ativo' },
+        where: { id: 1 }, update: { status: 'Ativo' }, create: { id: 1, status: 'Ativo' },
     })
     await prisma.projects_statuses.upsert({
-        where: { id: 2 }, update: {}, create: { id: 2, status: 'Inativo' },
+        where: { id: 2 }, update: { status: 'Inativo' }, create: { id: 2, status: 'Inativo' },
     })
     await prisma.projects_statuses.upsert({
-        where: { id: 3 }, update: {}, create: { id: 3, status: 'Em andamento' },
-    })
-    await prisma.projects_statuses.upsert({
-        where: { id: 4 }, update: {}, create: { id: 4, status: 'Cancelado' },
+        where: { id: 3 }, update: { status: 'Concluído' }, create: { id: 3, status: 'Concluído' },
     })
 
     // 6. sprints_statuses

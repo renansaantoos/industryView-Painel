@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi } from '../../services';
@@ -329,9 +329,9 @@ export default function ProjectDetails() {
         subtitle={t('projects.detailsSubtitle')}
         breadcrumb={`${t('projects.title')} / ${projectsInfo.name}`}
         actions={
-          <button className="btn btn-secondary" onClick={() => navigate('/projetos')}>
+          <Link to="/projetos" className="btn btn-secondary">
             <ArrowLeft size={18} /> {t('common.back')}
-          </button>
+          </Link>
         }
       />
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUpChild, staggerParent, tableRowVariants } from '../../lib/motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAppState } from '../../contexts/AppStateContext';
 import { planningApi } from '../../services';
 import type { ImportResult } from '../../types';
@@ -322,9 +322,9 @@ export default function ImportSchedule() {
         subtitle={`Importe o cronograma do projeto — ${projectsInfo.name}`}
         breadcrumb={`Cronograma / Importar`}
         actions={
-          <button className="btn btn-secondary" onClick={() => navigate('/cronograma')}>
+          <Link to="/cronograma" className="btn btn-secondary">
             <ArrowLeft size={16} /> Voltar
-          </button>
+          </Link>
         }
       />
 
@@ -846,10 +846,10 @@ export default function ImportSchedule() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button className="btn btn-secondary" onClick={() => navigate('/cronograma')}>
+              <Link to="/cronograma" className="btn btn-secondary">
                 <GanttChartSquare size={16} />
                 Ver Cronograma
-              </button>
+              </Link>
               <button
                 className="btn btn-primary"
                 onClick={() => {

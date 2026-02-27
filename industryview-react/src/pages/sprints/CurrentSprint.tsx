@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -339,9 +339,9 @@ export default function CurrentSprint() {
         breadcrumb={`${t('projects.title')} / ${projectsInfo?.name || ''} / ${t('sprints.title')} / ${sprintName}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary" onClick={() => navigate('/sprints')}>
+            <Link to="/sprints" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
-            </button>
+            </Link>
             <button className="btn btn-primary" onClick={handleOpenAddTask}>
               <Plus size={18} /> {t('sprints.addTask')}
             </button>

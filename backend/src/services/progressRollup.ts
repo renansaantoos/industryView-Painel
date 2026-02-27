@@ -12,10 +12,11 @@
 // Regra de calculo de percent_complete de um backlog:
 //   1. Se tem subtasks: media ponderada de (quantity_done / quantity) * weight
 //   2. Se nao tem subtasks mas tem filhos: media ponderada de percent_complete dos filhos
-//   3. Se nao tem nem subtasks nem filhos: % de sprint_tasks com status=3 (Concluido)
+//   3. Se nao tem nem subtasks nem filhos: % de sprint_tasks com status=4 (Concluida)
 // =============================================================================
 
 import { db } from '../config/database';
+import { SPRINT_TASK_STATUS, BACKLOG_STATUS } from '../constants/statuses';
 
 export class ProgressRollupService {
 
@@ -43,8 +44,8 @@ export class ProgressRollupService {
 
     const backlogId = Number(task.projects_backlogs_id);
 
-    // Se tem subtask e status e Concluido (3), marca quantity_done = quantity
-    if (task.subtasks_id && Number(task.sprints_tasks_statuses_id) === 3) {
+    // Se tem subtask e status e Concluida (4), marca quantity_done = quantity
+    if (task.subtasks_id && Number(task.sprints_tasks_statuses_id) === SPRINT_TASK_STATUS.CONCLUIDA) {
       await db.$executeRaw`
         UPDATE subtasks
         SET quantity_done = quantity, updated_at = NOW()
@@ -117,7 +118,7 @@ export class ProgressRollupService {
         const [taskCounts] = await db.$queryRaw<{ total: bigint; done: bigint }[]>`
           SELECT
             COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE sprints_tasks_statuses_id = 3) AS done
+            COUNT(*) FILTER (WHERE sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}) AS done
           FROM sprints_tasks
           WHERE projects_backlogs_id = ${BigInt(backlogId)}
             AND deleted_at IS NULL
@@ -132,13 +133,21 @@ export class ProgressRollupService {
     // Arredonda para 2 casas decimais
     percentComplete = Math.round(percentComplete * 100) / 100;
 
-    // Atualiza o backlog com o novo percentual e datas reais
+    // Determina o status automatico baseado no percentual
+    const autoStatusId = percentComplete <= 0
+      ? BACKLOG_STATUS.PENDENTE
+      : percentComplete >= 100
+        ? BACKLOG_STATUS.CONCLUIDO
+        : BACKLOG_STATUS.EM_ANDAMENTO;
+
+    // Atualiza o backlog com o novo percentual, status e datas reais
     const today = new Date().toISOString().split('T')[0];
 
     if (percentComplete > 0) {
       await db.$executeRaw`
         UPDATE projects_backlogs SET
           percent_complete = ${percentComplete},
+          projects_backlogs_statuses_id = ${autoStatusId},
           actual_start_date = COALESCE(actual_start_date, ${today}::date),
           actual_end_date = CASE
             WHEN ${percentComplete} >= 100
@@ -152,6 +161,7 @@ export class ProgressRollupService {
       await db.$executeRaw`
         UPDATE projects_backlogs SET
           percent_complete = ${percentComplete},
+          projects_backlogs_statuses_id = ${autoStatusId},
           updated_at = NOW()
         WHERE id = ${BigInt(backlogId)} AND deleted_at IS NULL
       `;
@@ -196,13 +206,13 @@ export class ProgressRollupService {
 
   /**
    * Atualiza o percentual de progresso de um sprint
-   * Baseado na proporcao de sprint_tasks com status Concluido (3)
+   * Baseado na proporcao de sprint_tasks com status Concluida (4)
    */
   static async updateSprintProgress(sprintId: number): Promise<void> {
     const [counts] = await db.$queryRaw<{ total: bigint; done: bigint }[]>`
       SELECT
         COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE sprints_tasks_statuses_id = 3) AS done
+        COUNT(*) FILTER (WHERE sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}) AS done
       FROM sprints_tasks
       WHERE sprints_id = ${BigInt(sprintId)} AND deleted_at IS NULL
     `;

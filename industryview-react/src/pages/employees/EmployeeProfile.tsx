@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { pageVariants, fadeUpChild, staggerParent } from '../../lib/motion';
@@ -195,13 +195,13 @@ export default function EmployeeProfile() {
   return (
     <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
       {/* Back button */}
-      <button
+      <Link
+        to="/funcionario"
         className="btn btn-secondary"
-        onClick={() => navigate('/funcionario')}
-        style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        style={{ marginBottom: '16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
       >
         <ArrowLeft size={16} /> Voltar
-      </button>
+      </Link>
 
       {/* Profile Header */}
       <motion.div

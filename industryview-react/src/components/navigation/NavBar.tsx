@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
@@ -52,10 +52,9 @@ export default function NavBar() {
     { key: 'settings', label: t('nav.settings'), icon: <Settings size={20} />, path: '/configuracoes', idx: 11 },
   ];
 
-  const handleNavClick = (path: string, idx: number) => {
+  const handleNavClick = (idx: number) => {
     setNavBarSelection(idx);
     setProjects(false);
-    navigate(path);
     setIsOpen(false);
   };
 
@@ -68,9 +67,9 @@ export default function NavBar() {
   return (
     <header className="mobile-navbar">
       <div className="mobile-navbar-bar">
-        <h1 className="mobile-navbar-brand" onClick={() => navigate('/dashboard')}>
+        <Link to="/dashboard" className="mobile-navbar-brand" style={{ textDecoration: 'none', color: 'inherit' }}>
           IndustryView
-        </h1>
+        </Link>
         <div className="mobile-navbar-actions">
           <button className="mobile-navbar-lang-btn" onClick={() => setShowLangMenu(!showLangMenu)}>
             <Globe size={20} />
@@ -120,15 +119,20 @@ export default function NavBar() {
             )}
             <motion.nav className="mobile-navbar-nav" variants={staggerParent} initial="initial" animate="animate">
               {navItems.map(item => (
-                <motion.button
+                <motion.div
                   key={item.key}
                   variants={fadeUpChild}
-                  className={`mobile-navbar-item ${location.pathname === item.path ? 'active' : ''}`}
-                  onClick={() => handleNavClick(item.path, item.idx)}
                 >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </motion.button>
+                  <Link
+                    to={item.path}
+                    className={`mobile-navbar-item ${location.pathname === item.path ? 'active' : ''}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    onClick={() => handleNavClick(item.idx)}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                </motion.div>
               ))}
             </motion.nav>
             <div className="mobile-navbar-footer">

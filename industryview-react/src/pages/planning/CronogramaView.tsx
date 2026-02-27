@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAppState } from '../../contexts/AppStateContext';
 import { planningApi } from '../../services';
 import type { ScheduleHealthData, CurveSData, ScheduleBaseline, GanttItem } from '../../types';
@@ -25,6 +25,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Link2,
 } from 'lucide-react';
 import {
   PieChart,
@@ -193,9 +194,10 @@ function ProgressBar({ planned, actual }: { planned: number; actual: number }) {
 interface WbsRowProps {
   item: GanttItem;
   isCritical: boolean;
+  linkedTasksCount?: number;
 }
 
-function WbsRow({ item, isCritical }: WbsRowProps) {
+function WbsRow({ item, isCritical, linkedTasksCount }: WbsRowProps) {
   const percentComplete = item.percent_complete ?? 0;
   const statusColor =
     percentComplete >= 100 ? '#22c55e' : percentComplete > 0 ? '#3b82f6' : 'var(--color-secondary-text)';
@@ -265,12 +267,23 @@ function WbsRow({ item, isCritical }: WbsRowProps) {
           {statusLabel}
         </span>
       </td>
+      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+        {linkedTasksCount != null && linkedTasksCount > 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <Link2 size={12} color="var(--color-primary)" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)' }}>
+              {linkedTasksCount}
+            </span>
+          </div>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'rgba(148,163,184,0.5)' }}>-</span>
+        )}
+      </td>
     </tr>
   );
 }
 
 export default function CronogramaView() {
-  const navigate = useNavigate();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
   useEffect(() => {
@@ -287,6 +300,7 @@ export default function CronogramaView() {
   const [wbsItems, setWbsItems] = useState<GanttItem[]>([]);
   const [wbsLoading, setWbsLoading] = useState(false);
   const [criticalIds, setCriticalIds] = useState<Set<number>>(new Set());
+  const [linkedTasksMap, setLinkedTasksMap] = useState<Record<number, number>>({});
 
   // Curva S tab
   const [baselines, setBaselines] = useState<ScheduleBaseline[]>([]);
@@ -317,14 +331,23 @@ export default function CronogramaView() {
     if (!projectsInfo) return;
     setWbsLoading(true);
     try {
-      const [ganttData, criticalData] = await Promise.all([
+      const [ganttData, criticalData, cronogramaData] = await Promise.all([
         planningApi.getGanttData({ projects_id: projectsInfo.id }),
         planningApi.getCriticalPath({ projects_id: projectsInfo.id }).catch(() => null),
+        planningApi.listCronogramaItems({ projects_id: projectsInfo.id }).catch(() => []),
       ]);
       setWbsItems(Array.isArray(ganttData) ? ganttData : []);
       if (criticalData) {
         setCriticalIds(new Set(criticalData.critical_tasks));
       }
+      // Build map of linked tasks count per cronograma item
+      const tasksMap: Record<number, number> = {};
+      for (const item of cronogramaData) {
+        if (item.linked_tasks_count > 0) {
+          tasksMap[item.id] = item.linked_tasks_count;
+        }
+      }
+      setLinkedTasksMap(tasksMap);
     } catch {
       showToast('Erro ao carregar árvore WBS', 'error');
     } finally {
@@ -453,10 +476,10 @@ export default function CronogramaView() {
               {rollupLoading ? <span className="spinner" /> : <RefreshCw size={16} />}
               Recalcular Progresso
             </button>
-            <button className="btn btn-primary" onClick={() => navigate('/import-cronograma')}>
+            <Link to="/import-cronograma" className="btn btn-primary">
               <Upload size={16} />
               Importar Cronograma
-            </button>
+            </Link>
           </div>
         }
       />
@@ -610,6 +633,7 @@ export default function CronogramaView() {
                     <th style={{ width: '90px' }}>Fim Real</th>
                     <th style={{ width: '140px' }}>Progresso</th>
                     <th style={{ width: '100px' }}>Status</th>
+                    <th style={{ width: '70px', textAlign: 'center' }}>Tarefas</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -618,6 +642,7 @@ export default function CronogramaView() {
                       key={item.id}
                       item={item}
                       isCritical={criticalIds.has(item.id)}
+                      linkedTasksCount={linkedTasksMap[item.id]}
                     />
                   ))}
                 </tbody>
@@ -636,9 +661,9 @@ export default function CronogramaView() {
             <EmptyState
               message="Nenhuma baseline encontrada. Crie uma baseline no Planejamento para visualizar a Curva S."
               action={
-                <button className="btn btn-secondary" onClick={() => navigate('/planejamento')}>
+                <Link to="/planejamento" className="btn btn-secondary">
                   Ir para Planejamento
-                </button>
+                </Link>
               }
             />
           ) : (

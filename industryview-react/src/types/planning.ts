@@ -141,5 +141,19 @@ export interface CriticalPathData {
   total_duration: number;
 }
 
+/** Cronograma Item (for linking tasks to schedule) */
+export interface CronogramaItem {
+  id: number;
+  description: string | null;
+  wbs_code: string | null;
+  level: number;
+  percent_complete: number;
+  planned_start_date: string | null;
+  planned_end_date: string | null;
+  parent_id: number | null;
+  has_children: boolean;
+  linked_tasks_count: number;
+}
+
 /** Extended Gantt Item (alias for GanttItem, kept for backwards compatibility) */
 export type GanttItemDetail = GanttItem;

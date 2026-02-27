@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi, usersApi } from '../../services';
@@ -673,7 +673,6 @@ function AddUserModal({ title, onClose, onSave, saving, teamId }: AddUserModalPr
 
 export default function TeamManagement() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { projectsInfo, teamId, setTeamId } = useAppState();
 
   const [teams, setTeams] = useState<Team[]>([]);
@@ -1265,9 +1264,9 @@ export default function TeamManagement() {
         breadcrumb={`${t('projects.title')} / ${projectName} / ${t('teams.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary" onClick={() => navigate('/projeto-detalhes')}>
+            <Link to="/projeto-detalhes" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
-            </button>
+            </Link>
             <button className="btn btn-primary" onClick={() => setShowCreateTeamModal(true)}>
               <Plus size={18} /> {t('teams.createTeam')}
             </button>

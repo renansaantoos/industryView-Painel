@@ -28,6 +28,7 @@ import {
   scheduleHealthQuerySchema,
   rollupBacklogParamsSchema,
   rollupProjectParamsSchema,
+  cronogramaItemsQuerySchema,
 } from './planning.schema';
 
 const router = Router();
@@ -404,6 +405,37 @@ router.get(
   authenticate,
   validateQuery(scheduleHealthQuerySchema),
   PlanningController.getScheduleHealth
+);
+
+// =============================================================================
+// CRONOGRAMA ITEMS (itens do cronograma para vinculo com tarefas)
+// =============================================================================
+
+/**
+ * @swagger
+ * /api/planning/cronograma-items:
+ *   get:
+ *     summary: Lista itens do cronograma disponiveis para vinculo com tarefas
+ *     tags: [Planning]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: projects_id
+ *         in: query
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - name: leaf_only
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: boolean
+ */
+router.get(
+  '/cronograma-items',
+  authenticate,
+  validateQuery(cronogramaItemsQuerySchema),
+  PlanningController.listCronogramaItems
 );
 
 // =============================================================================

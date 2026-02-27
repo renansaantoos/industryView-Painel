@@ -382,6 +382,9 @@ export const createManualBacklogSchema = z.object({
   quantity: z.number().optional().nullable(),
   task_quantity: z.number().int().min(1).default(1),
   discipline_id: z.number().int().optional().nullable(),
+  projects_backlogs_id: z.number().int().optional().nullable(),
+  planned_start_date: z.string().optional().nullable(),
+  planned_end_date: z.string().optional().nullable(),
 });
 
 export type CreateManualBacklogInput = z.infer<typeof createManualBacklogSchema>;
@@ -448,6 +451,8 @@ export const updateSubtaskSchema = z.object({
   fixed: z.boolean().optional().nullable(),
   quantity: z.number().optional().nullable(),
   unity_id: z.number().int().optional().nullable(),
+  quantity_done: z.number().min(0).optional(),
+  subtasks_statuses_id: z.number().int().optional(),
 });
 
 export type UpdateSubtaskInput = z.infer<typeof updateSubtaskSchema>;
