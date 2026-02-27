@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   staggerParent,
@@ -903,6 +903,13 @@ function VacationBanner({ balance }: VacationBannerProps) {
   );
 }
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 interface VacationsTabProps {
@@ -929,6 +936,15 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
   const [deleting, setDeleting] = useState(false);
 
   const [approvingId, setApprovingId] = useState<number | null>(null);
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -992,6 +1008,7 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
     setIsFormOpen(false);
     fetchVacations();
     fetchBalance();
+    showToast(editTarget ? 'Solicitacao atualizada com sucesso.' : 'Solicitacao registrada com sucesso.');
   }
 
   async function handleApprove(vacation: EmployeeVacation, status: 'aprovado' | 'cancelado') {
@@ -1000,8 +1017,9 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
       await employeesApi.approveVacation(vacation.id, status);
       fetchVacations();
       fetchBalance();
+      showToast(status === 'aprovado' ? 'Solicitacao aprovada com sucesso.' : 'Solicitacao cancelada com sucesso.');
     } catch {
-      // silently ignore — UI will reflect unchanged state
+      showToast('Erro ao atualizar status da solicitacao.', 'error');
     } finally {
       setApprovingId(null);
     }
@@ -1015,8 +1033,9 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
       setDeleteTarget(null);
       fetchVacations();
       fetchBalance();
+      showToast('Solicitacao excluida com sucesso.');
     } catch {
-      // silently ignore
+      showToast('Erro ao excluir solicitacao.', 'error');
     } finally {
       setDeleting(false);
     }
@@ -1227,6 +1246,35 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

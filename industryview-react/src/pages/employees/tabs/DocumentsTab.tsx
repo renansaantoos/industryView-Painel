@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants, modalBackdropVariants, modalContentVariants } from '../../../lib/motion';
 import { AnimatePresence } from 'framer-motion';
@@ -118,6 +118,13 @@ function StatusBadge({ doc }: { doc: EmployeeDocument }) {
   );
 }
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface DocumentsTabProps {
@@ -132,6 +139,15 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [filterTipo, setFilterTipo] = useState('');
 
@@ -260,8 +276,10 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
       }
       closeModal();
       fetchDocuments(currentPage, filterTipo);
+      showToast(editingDocument ? 'Documento atualizado com sucesso.' : 'Documento criado com sucesso.');
     } catch {
       setFormError('Erro ao salvar documento. Verifique os dados e tente novamente.');
+      showToast('Erro ao salvar documento.', 'error');
     } finally {
       setSaving(false);
     }
@@ -278,8 +296,10 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
       const newPage = documents.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
       setCurrentPage(newPage);
       fetchDocuments(newPage, filterTipo);
+      showToast('Documento excluido com sucesso.');
     } catch {
       setDeletingDocumentId(null);
+      showToast('Erro ao excluir documento.', 'error');
     }
   };
 
@@ -623,6 +643,35 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeletingDocumentId(null)}
       />
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

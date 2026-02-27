@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -54,6 +54,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
 
 // ─── Status ID constants ───────────────────────────────────────────────────────
 const STATUS_IN_PROGRESS = 2;
@@ -186,6 +193,15 @@ export default function CurrentSprint() {
   const { projectsInfo } = useAppState();
 
   const sprintId = parseInt(searchParams.get('sprintId') || '0', 10);
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // Sprint meta
   const [sprint, setSprint] = useState<Sprint | null>(null);
@@ -489,8 +505,10 @@ export default function CurrentSprint() {
     try {
       await sprintsApi.editStatusTask(task.id, { sprints_tasks_statuses_id: STATUS_IN_PROGRESS });
       await loadSprintData();
+      showToast('Tarefa movida para Em Andamento.');
     } catch (err) {
       console.error('Failed to move task to in-progress:', err);
+      showToast('Erro ao mover tarefa.', 'error');
     } finally {
       setTransitionLoading(null);
     }
@@ -523,8 +541,10 @@ export default function CurrentSprint() {
     try {
       await sprintsApi.editStatusTask(task.id, { sprints_tasks_statuses_id: STATUS_DONE });
       await loadSprintData();
+      showToast('Tarefa concluída com sucesso.');
     } catch (err) {
       console.error('Failed to move task to done:', err);
+      showToast('Erro ao concluir tarefa.', 'error');
     } finally {
       setTransitionLoading(null);
     }
@@ -579,8 +599,10 @@ export default function CurrentSprint() {
       });
       setFailureTask(null);
       await loadSprintData();
+      showToast('Tarefa marcada como sem sucesso.');
     } catch (err) {
       console.error('Failed to mark task as failed:', err);
+      showToast('Erro ao marcar tarefa como sem sucesso.', 'error');
     } finally {
       setFailureLoading(false);
     }
@@ -592,8 +614,10 @@ export default function CurrentSprint() {
     try {
       await sprintsApi.deleteSprintTask(taskId);
       await loadSprintData();
+      showToast('Tarefa removida do sprint com sucesso.');
     } catch (err) {
       console.error('Failed to delete sprint task:', err);
+      showToast('Erro ao remover tarefa do sprint.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -670,9 +694,11 @@ export default function CurrentSprint() {
       );
       setShowAddTaskModal(false);
       await loadSprintData();
+      showToast('Tarefa adicionada ao sprint com sucesso.');
     } catch (err) {
       console.error('Failed to add sprint tasks:', err);
       setAddTaskError('Erro ao adicionar tarefas');
+      showToast('Erro ao adicionar tarefa ao sprint.', 'error');
     } finally {
       setAddTaskLoading(false);
     }
@@ -1479,6 +1505,35 @@ export default function CurrentSprint() {
           </div>
         </div>
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

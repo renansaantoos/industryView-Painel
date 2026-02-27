@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -67,6 +67,11 @@ const sectionBodyStyle: React.CSSProperties = {
 
 const PER_PAGE_DEFAULT = 10;
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -75,6 +80,15 @@ export default function ChecklistList() {
   const { t } = useTranslation();
   const { setNavBarSelection } = useAppState();
   const { user } = useAuthContext();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // ------------------------------------------------------------------
   // List state
@@ -220,8 +234,10 @@ export default function ChecklistList() {
       });
       setShowCreateModal(false);
       loadChecklists();
+      showToast('Checklist criado com sucesso.');
     } catch (err) {
       console.error('Failed to create checklist template:', err);
+      showToast('Erro ao criar checklist.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -275,8 +291,10 @@ export default function ChecklistList() {
       });
       setEditingChecklist(null);
       loadChecklists();
+      showToast('Checklist atualizado com sucesso.');
     } catch (err) {
       console.error('Failed to update checklist template:', err);
+      showToast('Erro ao atualizar checklist.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -290,8 +308,10 @@ export default function ChecklistList() {
     try {
       await qualityApi.deleteChecklistTemplate(id);
       loadChecklists();
+      showToast('Checklist excluído com sucesso.');
     } catch (err) {
       console.error('Failed to delete checklist template:', err);
+      showToast('Erro ao excluir checklist.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -617,6 +637,35 @@ export default function ChecklistList() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

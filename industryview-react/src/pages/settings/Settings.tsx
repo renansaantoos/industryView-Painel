@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -21,11 +21,25 @@ type ActiveTab = 'unity' | 'discipline' | 'category' | 'failure-reasons' | 'holi
 
 const WEEKDAY_KEYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const;
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function Settings() {
   const { t } = useTranslation();
   const { setNavBarSelection } = useAppState();
   const { user } = useAuth();
   const companyId = user?.companyId;
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('unity');
   const [unities, setUnities] = useState<SettingsItem[]>([]);
@@ -215,8 +229,10 @@ export default function Settings() {
       }
       setShowModal(false);
       loadData();
+      showToast(editingItem ? 'Item atualizado com sucesso.' : 'Item criado com sucesso.');
     } catch (err) {
       console.error('Failed to save:', err);
+      showToast('Erro ao salvar.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -237,8 +253,10 @@ export default function Settings() {
         loadHolidays();
       }
       if (type !== 'holidays') loadData();
+      showToast('Item excluído com sucesso.');
     } catch (err) {
       console.error('Failed to delete:', err);
+      showToast('Erro ao excluir.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -252,8 +270,10 @@ export default function Settings() {
     try {
       await holidaysApi.seedHolidays(companyId, holidayYear);
       loadHolidays();
+      showToast(`Feriados de ${holidayYear} importados com sucesso.`);
     } catch (err) {
       console.error('Failed to seed holidays:', err);
+      showToast('Erro ao importar feriados.', 'error');
     } finally {
       setSeedLoading(false);
     }
@@ -298,8 +318,10 @@ export default function Settings() {
       }
       setShowHolidayModal(false);
       loadHolidays();
+      showToast(editingHoliday ? 'Feriado atualizado com sucesso.' : 'Feriado criado com sucesso.');
     } catch (err) {
       console.error('Failed to save holiday:', err);
+      showToast('Erro ao salvar feriado.', 'error');
     } finally {
       setHolidayModalLoading(false);
     }
@@ -318,8 +340,10 @@ export default function Settings() {
     setCalendarSaving(true);
     try {
       await holidaysApi.upsertWorkCalendar({ ...workCalendar, company_id: companyId });
+      showToast('Calendário de trabalho salvo com sucesso.');
     } catch (err) {
       console.error('Failed to save work calendar:', err);
+      showToast('Erro ao salvar calendário de trabalho.', 'error');
     } finally {
       setCalendarSaving(false);
     }
@@ -761,6 +785,35 @@ export default function Settings() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

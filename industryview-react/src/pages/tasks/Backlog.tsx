@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -31,6 +33,15 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { WeightSuggestion } from '../../services/api/agents';
+
+// ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -174,6 +185,15 @@ export default function Backlog() {
   const [subtaskSaving, setSubtaskSaving] = useState(false);
 
   const { sortField, sortDirection, handleSort } = useBackendSort();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Load dropdown data on mount
@@ -342,6 +362,16 @@ export default function Backlog() {
     }
   };
 
+  const handleToggleCheck = async (backlog: ProjectBacklog) => {
+    try {
+      await projectsApi.checkTaskBacklog(backlog.id, { checked: !backlog.checked });
+      loadBacklogs();
+    } catch (err) {
+      console.error('Failed to toggle check:', err);
+      showToast('Erro ao atualizar status do item.', 'error');
+    }
+  };
+
   // ---------------------------------------------------------------------------
   // Delete
   // ---------------------------------------------------------------------------
@@ -350,8 +380,10 @@ export default function Backlog() {
     try {
       await projectsApi.deleteProjectBacklog(id);
       loadBacklogs();
+      showToast('Item do backlog excluído com sucesso.');
     } catch (err) {
       console.error('Failed to delete backlog:', err);
+      showToast('Erro ao excluir item do backlog.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -395,8 +427,10 @@ export default function Backlog() {
       });
       setShowManualModal(false);
       loadBacklogs();
+      showToast('Item adicionado ao backlog com sucesso.');
     } catch (err) {
       console.error('Failed to add manual task:', err);
+      showToast('Erro ao adicionar item ao backlog.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -465,8 +499,10 @@ export default function Backlog() {
       });
       setEditTarget(null);
       loadBacklogs();
+      showToast('Backlog atualizado com sucesso.');
     } catch (err) {
       console.error('Failed to save backlog edit:', err);
+      showToast('Erro ao atualizar backlog.', 'error');
     } finally {
       setEditLoading(false);
     }
@@ -499,8 +535,10 @@ export default function Backlog() {
         [backlogId]: (result.items as SubtaskItem[]) || [],
       }));
       loadBacklogs();
+      showToast('Subtarefa adicionada com sucesso.');
     } catch (err) {
       console.error('Failed to add subtask:', err);
+      showToast('Erro ao adicionar subtarefa.', 'error');
     } finally {
       setSubtaskSaving(false);
     }
@@ -1134,6 +1172,35 @@ export default function Backlog() {
           onCancel={() => setBulkDeleteBacklogConfirm(false)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

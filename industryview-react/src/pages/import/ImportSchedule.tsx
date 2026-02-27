@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { fadeUpChild, staggerParent, tableRowVariants } from '../../lib/motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -156,10 +156,24 @@ interface PreviewRow {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function ImportSchedule() {
   const navigate = useNavigate();
   const { projectsInfo } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [step, setStep] = useState<ImportStep>('upload');
   const [importMode, setImportMode] = useState<ImportMode>('create');
@@ -279,8 +293,10 @@ export default function ImportSchedule() {
       a.download = 'template_cronograma.xlsx';
       a.click();
       URL.revokeObjectURL(url);
+      showToast('Template baixado com sucesso.');
     } catch {
       setError('Erro ao baixar template. Verifique sua conexão e tente novamente.');
+      showToast('Erro ao baixar template.', 'error');
     } finally {
       setDownloadingTemplate(false);
     }
@@ -305,9 +321,11 @@ export default function ImportSchedule() {
       );
       setImportResult(result);
       setStep('resultado');
+      showToast('Importação concluída com sucesso.');
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };
       setError(axiosError?.response?.data?.message ?? 'Erro ao importar o cronograma. Verifique o arquivo e tente novamente.');
+      showToast('Erro ao importar o cronograma.', 'error');
     } finally {
       setUploading(false);
     }
@@ -897,6 +915,35 @@ export default function ImportSchedule() {
           )}
         </motion.div>
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

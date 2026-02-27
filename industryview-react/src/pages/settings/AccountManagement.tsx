@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
@@ -8,9 +8,23 @@ import PageHeader from '../../components/common/PageHeader';
 import { User, Lock, Globe, Save, Shield, Eye, EyeOff } from 'lucide-react';
 import { changeLanguage, getCurrentLanguage, LANGUAGES } from '../../i18n';
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function AccountManagement() {
   const { t } = useTranslation();
   const { user, updateUser } = useAuth();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [activeSection, setActiveSection] = useState<'profile' | 'password' | 'language'>('profile');
 
@@ -47,8 +61,10 @@ export default function AccountManagement() {
       });
       updateUser({ name: profileName.trim(), phone: profilePhone.trim() });
       setProfileSuccess(t('account.profileUpdated'));
+      showToast('Perfil atualizado com sucesso.');
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : t('common.error'));
+      showToast('Erro ao atualizar perfil.', 'error');
     } finally {
       setProfileSaving(false);
     }
@@ -75,9 +91,11 @@ export default function AccountManagement() {
       setNewPassword('');
       setConfirmPassword('');
       setPasswordSuccess(t('account.passwordChanged'));
+      showToast('Senha alterada com sucesso.');
     } catch (err) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setPasswordError(apiMessage ?? (err instanceof Error ? err.message : t('common.error')));
+      showToast('Erro ao alterar senha.', 'error');
     } finally {
       setPasswordSaving(false);
     }
@@ -281,6 +299,35 @@ export default function AccountManagement() {
           )}
         </div>
       </div>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

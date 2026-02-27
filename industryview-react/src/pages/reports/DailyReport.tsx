@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -12,11 +12,25 @@ import { ArrowLeft, Calendar, CloudSun, FileText, Download, Edit, Save } from 'l
 import { formatDate, formatDateTime } from '../../utils/dateUtils';
 import { generateSimplePdf } from '../../utils/pdfUtils';
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function DailyReport() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { projectsInfo } = useAppState();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const reportId = parseInt(searchParams.get('reportId') || '0', 10);
 
@@ -64,8 +78,10 @@ export default function DailyReport() {
       });
       setEditing(false);
       loadReport();
+      showToast('Relatório salvo com sucesso.');
     } catch (err) {
       console.error('Failed to save report:', err);
+      showToast('Erro ao salvar relatório.', 'error');
     } finally {
       setSaving(false);
     }
@@ -85,6 +101,7 @@ export default function DailyReport() {
       report.observations || '-',
     ].join('\n');
     generateSimplePdf(`RDO - ${formatDate(report.date || '')}`, content);
+    showToast('Relatório exportado com sucesso.');
   };
 
   if (loading) return <LoadingSpinner fullPage />;
@@ -187,6 +204,35 @@ export default function DailyReport() {
           </p>
         )}
       </motion.div>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

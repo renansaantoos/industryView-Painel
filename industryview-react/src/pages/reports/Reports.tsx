@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -18,11 +18,25 @@ import SearchableSelect from '../../components/common/SearchableSelect';
 import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
 import ProjectSelector from '../../components/common/ProjectSelector';
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function Reports() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { projectsInfo } = useAppState();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const projectsId = parseInt(searchParams.get('projectsId') || String(projectsInfo?.id || 0), 10);
   const sprintIdParam = parseInt(searchParams.get('sprintId') || '0', 10);
@@ -118,8 +132,10 @@ export default function Reports() {
       setCreateErrors({});
       setShowCreateModal(false);
       loadReports();
+      showToast('Relatório criado com sucesso.');
     } catch (err) {
       console.error('Failed to create report:', err);
+      showToast('Erro ao criar relatório.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -129,8 +145,10 @@ export default function Reports() {
     try {
       await reportsApi.deleteDailyReport(id);
       loadReports();
+      showToast('Relatório excluído com sucesso.');
     } catch (err) {
       console.error('Failed to delete report:', err);
+      showToast('Erro ao excluir relatório.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -146,6 +164,7 @@ export default function Reports() {
       `Relatorios - ${projectsInfo?.name || ''}`,
       lines.join('\n')
     );
+    showToast('Relatório exportado com sucesso.');
   };
 
   if (!projectsInfo) return <ProjectSelector />;
@@ -349,6 +368,35 @@ export default function Reports() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

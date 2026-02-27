@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, fadeUpChild, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -46,6 +46,15 @@ const EMPTY_FORM: TaskFormState = {
   selectedChecklistIds: [],
   selectedGoldenRuleIds: [],
 };
+
+// ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
 
 // ---------------------------------------------------------------------------
 // Section styles (matches CreateProject pattern)
@@ -96,6 +105,15 @@ export default function TaskList() {
   const { t } = useTranslation();
   const { setNavBarSelection } = useAppState();
   const { user } = useAuthContext();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // ------------------------------------------------------------------
   // List state
@@ -267,8 +285,10 @@ export default function TaskList() {
       });
       setSelectedGoldenRuleId(undefined);
       await loadLinkedGoldenRules(editingTask.id);
+      showToast('Regra de ouro vinculada com sucesso.');
     } catch (err) {
       console.error('Failed to add golden rule:', err);
+      showToast('Erro ao vincular regra de ouro.', 'error');
     } finally {
       setGoldenRulesLoading(false);
     }
@@ -280,8 +300,10 @@ export default function TaskList() {
     try {
       await qualityApi.deleteTaskGoldenRule(linkId);
       await loadLinkedGoldenRules(editingTask.id);
+      showToast('Regra de ouro removida com sucesso.');
     } catch (err) {
       console.error('Failed to remove golden rule:', err);
+      showToast('Erro ao remover regra de ouro.', 'error');
     } finally {
       setGoldenRulesLoading(false);
     }
@@ -317,8 +339,10 @@ export default function TaskList() {
       setNewRuleDescription('');
       setNewRuleSeverity('media');
       setShowNewRuleForm(false);
+      showToast('Regra de ouro criada com sucesso.');
     } catch (err) {
       console.error('Failed to create golden rule:', err);
+      showToast('Erro ao criar regra de ouro.', 'error');
     } finally {
       setNewRuleSaving(false);
     }
@@ -344,8 +368,10 @@ export default function TaskList() {
       setNewChecklistDescription('');
       setNewChecklistItems(['']);
       setShowNewChecklistForm(false);
+      showToast('Checklist criado com sucesso.');
     } catch (err) {
       console.error('Failed to create checklist template:', err);
+      showToast('Erro ao criar checklist.', 'error');
     } finally {
       setNewChecklistSaving(false);
     }
@@ -376,8 +402,10 @@ export default function TaskList() {
       });
       setSelectedChecklistId(undefined);
       await loadLinkedChecklists(editingTask.id);
+      showToast('Checklist vinculado com sucesso.');
     } catch (err) {
       console.error('Failed to add checklist:', err);
+      showToast('Erro ao vincular checklist.', 'error');
     } finally {
       setChecklistsLoading(false);
     }
@@ -389,8 +417,10 @@ export default function TaskList() {
     try {
       await qualityApi.deleteTaskChecklist(linkId);
       await loadLinkedChecklists(editingTask.id);
+      showToast('Checklist desvinculado com sucesso.');
     } catch (err) {
       console.error('Failed to remove checklist:', err);
+      showToast('Erro ao desvincular checklist.', 'error');
     } finally {
       setChecklistsLoading(false);
     }
@@ -450,8 +480,10 @@ export default function TaskList() {
       setShowCreateModal(false);
       setCreateForm(EMPTY_FORM);
       loadTasks();
+      showToast('Tarefa criada com sucesso.');
     } catch (err) {
       console.error('Failed to create task:', err);
+      showToast('Erro ao criar tarefa.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -509,8 +541,10 @@ export default function TaskList() {
       });
       setEditingTask(null);
       loadTasks();
+      showToast('Tarefa atualizada com sucesso.');
     } catch (err) {
       console.error('Failed to edit task:', err);
+      showToast('Erro ao atualizar tarefa.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -524,8 +558,10 @@ export default function TaskList() {
     try {
       await tasksApi.deleteTask(id);
       loadTasks();
+      showToast('Tarefa excluída com sucesso.');
     } catch (err) {
       console.error('Failed to delete task:', err);
+      showToast('Erro ao excluir tarefa.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -1299,6 +1335,35 @@ export default function TaskList() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

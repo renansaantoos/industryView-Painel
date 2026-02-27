@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,11 @@ import { Plus, Search, ArrowLeft, Eye, Trash2, Calendar, Kanban } from 'lucide-r
 import { formatTimestamp } from '../../utils/dateUtils';
 import { formatPercentage } from '../../utils/formatters';
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 type CategoryKey = 'sprints_ativa' | 'sprints_futura' | 'sprints_concluida';
 
 const CATEGORY_CONFIG: { key: CategoryKey; color: string; bgColor: string }[] = [
@@ -28,6 +33,15 @@ export default function SprintList() {
   const { t } = useTranslation();
 
   const { projectsInfo } = useAppState();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [sprintData, setSprintData] = useState<SprintListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,8 +111,10 @@ export default function SprintList() {
       setNewSprintStatusId(undefined);
       setShowCreateModal(false);
       loadSprints();
+      showToast('Sprint criada com sucesso.');
     } catch (err) {
       console.error('Failed to create sprint:', err);
+      showToast('Erro ao criar sprint.', 'error');
     } finally {
       setModalLoading(false);
     }
@@ -108,8 +124,10 @@ export default function SprintList() {
     try {
       await sprintsApi.deleteSprint(id);
       loadSprints();
+      showToast('Sprint excluída com sucesso.');
     } catch (err) {
       console.error('Failed to delete sprint:', err);
+      showToast('Erro ao excluir sprint.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -408,6 +426,35 @@ export default function SprintList() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

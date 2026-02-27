@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants, fadeUpChild } from '../../lib/motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -25,10 +25,24 @@ interface DailyProductionEntry {
   observations?: string;
 }
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function DailyProductionReport() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectsInfo } = useAppState();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [entries, setEntries] = useState<DailyProductionEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,10 +98,11 @@ export default function DailyProductionReport() {
       );
     } catch (err) {
       console.error('Failed to load daily production:', err);
+      showToast('Erro ao carregar produção diária.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [projectsInfo, page, perPage, dateFilter]);
+  }, [projectsInfo, page, perPage, dateFilter, showToast]);
 
   useEffect(() => {
     loadEntries();
@@ -230,6 +245,35 @@ export default function DailyProductionReport() {
           />
         </div>
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

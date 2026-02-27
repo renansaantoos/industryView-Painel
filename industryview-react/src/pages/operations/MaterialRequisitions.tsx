@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -32,6 +32,15 @@ const REQUISITION_PRIORITY_COLORS: Record<string, { bg: string; color: string; l
   alta:    { bg: '#ffedd5', color: '#c2410c', label: 'Alta' },
   urgente: { bg: '#fee2e2', color: '#dc2626', label: 'Urgente' },
 };
+
+// ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
 
 // ---------------------------------------------------------------------------
 // Types for the inline item editor
@@ -108,6 +117,18 @@ export default function MaterialRequisitions() {
   // Shared action loading
   // ------------------------------------------------------------------
   const [actionLoading, setActionLoading] = useState(false);
+
+  // ------------------------------------------------------------------
+  // Toast
+  // ------------------------------------------------------------------
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // ------------------------------------------------------------------
   // Load requisitions
@@ -202,8 +223,10 @@ export default function MaterialRequisitions() {
       });
       setShowCreateModal(false);
       loadRequisitions();
+      showToast('Requisição criada com sucesso.');
     } catch (err) {
       console.error('Failed to create requisition:', err);
+      showToast('Erro ao criar requisição.', 'error');
     } finally {
       setCreateModalLoading(false);
     }
@@ -217,8 +240,10 @@ export default function MaterialRequisitions() {
     try {
       await materialRequisitionsApi.submitRequisition(id);
       loadRequisitions();
+      showToast('Requisição submetida com sucesso.');
     } catch (err) {
       console.error('Failed to submit requisition:', err);
+      showToast('Erro ao submeter requisição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -229,8 +254,10 @@ export default function MaterialRequisitions() {
     try {
       await materialRequisitionsApi.approveRequisition(id);
       loadRequisitions();
+      showToast('Requisição aprovada com sucesso.');
     } catch (err) {
       console.error('Failed to approve requisition:', err);
+      showToast('Erro ao aprovar requisição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -246,8 +273,10 @@ export default function MaterialRequisitions() {
       setRejectingId(null);
       setRejectionReason('');
       loadRequisitions();
+      showToast('Requisição rejeitada.');
     } catch (err) {
       console.error('Failed to reject requisition:', err);
+      showToast('Erro ao rejeitar requisição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -597,6 +626,35 @@ export default function MaterialRequisitions() {
           </div>
         </div>
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

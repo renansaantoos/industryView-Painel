@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -45,6 +45,15 @@ const CERT_STATUS_COLORS: Record<string, { bg: string; color: string; label: str
 };
 
 // ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
+// ---------------------------------------------------------------------------
 // Types for expanded system data
 // ---------------------------------------------------------------------------
 
@@ -66,6 +75,18 @@ export default function CommissioningManagement() {
 
   useEffect(() => {
     setNavBarSelection(26);
+  }, []);
+
+  // ------------------------------------------------------------------
+  // Toast
+  // ------------------------------------------------------------------
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
   // ------------------------------------------------------------------
@@ -224,8 +245,10 @@ export default function CommissioningManagement() {
       }
       setShowSystemModal(false);
       loadSystems();
+      showToast(editingSystem ? 'Sistema atualizado com sucesso.' : 'Sistema criado com sucesso.');
     } catch (err) {
       console.error('Failed to save system:', err);
+      showToast(editingSystem ? 'Erro ao atualizar sistema.' : 'Erro ao criar sistema.', 'error');
     } finally {
       setSystemModalLoading(false);
     }
@@ -242,8 +265,10 @@ export default function CommissioningManagement() {
         setExpandedData(null);
       }
       loadSystems();
+      showToast('Sistema excluído com sucesso.');
     } catch (err) {
       console.error('Failed to delete system:', err);
+      showToast('Erro ao excluir sistema.', 'error');
     }
     setDeleteConfirm(null);
   };
@@ -259,8 +284,10 @@ export default function CommissioningManagement() {
         const punchList = await commissioningApi.getPunchList(expandedSystemId);
         setExpandedData((prev) => prev ? { ...prev, punchList } : null);
       }
+      showToast('Status do item atualizado.');
     } catch (err) {
       console.error('Failed to update punch list item:', err);
+      showToast('Erro ao atualizar status do item.', 'error');
     }
   };
 
@@ -290,8 +317,10 @@ export default function CommissioningManagement() {
       // Refresh punch list
       const punchList = await commissioningApi.getPunchList(punchSystemId);
       setExpandedData((prev) => prev ? { ...prev, punchList } : null);
+      showToast('Item adicionado ao punch list.');
     } catch (err) {
       console.error('Failed to create punch list item:', err);
+      showToast('Erro ao adicionar item ao punch list.', 'error');
     } finally {
       setPunchModalLoading(false);
     }
@@ -321,8 +350,10 @@ export default function CommissioningManagement() {
       // Refresh certificates
       const certificates = await commissioningApi.getCertificates(certSystemId);
       setExpandedData((prev) => prev ? { ...prev, certificates } : null);
+      showToast('Certificado adicionado com sucesso.');
     } catch (err) {
       console.error('Failed to create certificate:', err);
+      showToast('Erro ao adicionar certificado.', 'error');
     } finally {
       setCertModalLoading(false);
     }
@@ -802,6 +833,35 @@ export default function CommissioningManagement() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -32,6 +32,15 @@ const CLAIM_STATUS_COLORS: Record<string, { bg: string; color: string; label: st
   rejeitada:  { bg: 'transparent', color: '#dc2626', label: 'Rejeitada' },
   encerrada:  { bg: 'var(--color-alternate)', color: 'var(--color-secondary-text)', label: 'Encerrada' },
 };
+
+// ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -104,6 +113,18 @@ export default function ContractsManagement() {
 
   // Shared action loading
   const [actionLoading, setActionLoading] = useState(false);
+
+  // ------------------------------------------------------------------
+  // Toast
+  // ------------------------------------------------------------------
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   // ------------------------------------------------------------------
   // Load measurements
@@ -198,8 +219,10 @@ export default function ContractsManagement() {
       setTotalValue('');
       setShowCreateMeasurement(false);
       loadMeasurements();
+      showToast('Medição criada com sucesso.');
     } catch (err) {
       console.error('Failed to create measurement:', err);
+      showToast('Erro ao criar medição.', 'error');
     } finally {
       setMeasurementModalLoading(false);
     }
@@ -213,8 +236,10 @@ export default function ContractsManagement() {
     try {
       await contractsApi.submitMeasurement(id);
       loadMeasurements();
+      showToast('Medição submetida com sucesso.');
     } catch (err) {
       console.error('Failed to submit measurement:', err);
+      showToast('Erro ao submeter medição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -225,8 +250,10 @@ export default function ContractsManagement() {
     try {
       await contractsApi.approveMeasurement(id);
       loadMeasurements();
+      showToast('Medição aprovada com sucesso.');
     } catch (err) {
       console.error('Failed to approve measurement:', err);
+      showToast('Erro ao aprovar medição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -242,8 +269,10 @@ export default function ContractsManagement() {
       setRejectingMeasurementId(null);
       setRejectionReason('');
       loadMeasurements();
+      showToast('Medição rejeitada.');
     } catch (err) {
       console.error('Failed to reject measurement:', err);
+      showToast('Erro ao rejeitar medição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -290,8 +319,10 @@ export default function ContractsManagement() {
       setClaimEstimatedValue('');
       setShowCreateClaim(false);
       loadClaims();
+      showToast('Revindicação criada com sucesso.');
     } catch (err) {
       console.error('Failed to create claim:', err);
+      showToast('Erro ao criar revindicação.', 'error');
     } finally {
       setClaimModalLoading(false);
     }
@@ -305,8 +336,10 @@ export default function ContractsManagement() {
     try {
       await contractsApi.closeClaim(id);
       loadClaims();
+      showToast('Revindicação encerrada com sucesso.');
     } catch (err) {
       console.error('Failed to close claim:', err);
+      showToast('Erro ao encerrar revindicação.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -742,6 +775,35 @@ export default function ContractsManagement() {
       {/* ----------------------------------------------------------------
           Modal: Create Claim
       ---------------------------------------------------------------- */}
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {showCreateClaim && (
         <div className="modal-backdrop" onClick={() => setShowCreateClaim(false)}>
           <div className="modal-content" style={{ padding: '24px', width: '480px' }} onClick={(e) => e.stopPropagation()}>

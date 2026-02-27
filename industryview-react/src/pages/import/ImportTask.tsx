@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, fadeUpChild, tableRowVariants } from '../../lib/motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -29,11 +29,25 @@ const SYSTEM_FIELDS = [
   { key: 'skip', label: '-- Ignorar --' },
 ];
 
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function ImportTask() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectsInfo } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
 
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'importing' | 'done'>('upload');
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -130,6 +144,11 @@ export default function ImportTask() {
 
     setImportResult({ success, failed });
     setStep('done');
+    if (failed === 0) {
+      showToast(`Importação concluída com sucesso. ${success} tarefa(s) importada(s).`);
+    } else {
+      showToast(`Importação concluída. ${success} importada(s), ${failed} com falha.`, failed > 0 && success === 0 ? 'error' : 'success');
+    }
   };
 
   if (!projectsInfo) return <LoadingSpinner fullPage />;
@@ -280,6 +299,35 @@ export default function ImportTask() {
           </button>
         </motion.div>
       )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '24px',
+              zIndex: 2000,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontWeight: 500,
+              fontSize: '14px',
+              backgroundColor:
+                toast.type === 'success'
+                  ? 'var(--color-success, #028F58)'
+                  : 'var(--color-error, #C0392B)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
