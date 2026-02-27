@@ -31,10 +31,8 @@ import {
   MapPin,
   ClipboardList,
   AlertTriangle,
-  Wrench,
   Users,
   Calendar,
-  FileText,
   Info,
   ChevronRight,
   ChevronDown,
@@ -1049,7 +1047,6 @@ export default function CurrentSprint() {
                     const isCompleted = qty > 0 && qtyDone === qty;
                     const isOverDone = qty > 0 && qtyDone > qty;
                     const isChecked = addTaskSelectedSubs.has(sub.id);
-                    const remaining = qty - qtyDone;
                     const borderColor = isOverDone
                       ? 'var(--color-error, #ef4444)'
                       : isCompleted
