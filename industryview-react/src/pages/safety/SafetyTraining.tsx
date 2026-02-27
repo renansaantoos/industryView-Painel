@@ -452,9 +452,6 @@ export default function SafetyTraining() {
       errors.training_date = 'A data não pode ser maior que hoje';
     }
     if (!trainingInstructor.trim()) errors.instructor = 'Instrutor é obrigatório';
-    if (!trainingFile && !trainingCertificateUrl.trim()) {
-      errors.certificate_file = 'Anexe o certificado ou informe a URL de validação';
-    }
     setTrainingFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -1300,7 +1297,7 @@ export default function SafetyTraining() {
           >
             <h3 style={{ marginBottom: '4px' }}>{t('safety.createWorkerTraining')}</h3>
             <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-              Todos os campos são obrigatórios.
+              Os campos com * são obrigatórios.
             </p>
 
             {trainingApiError && (
@@ -1497,21 +1494,18 @@ export default function SafetyTraining() {
               {/* Certificado: Arquivo + URL */}
               <div
                 style={{
-                  border: `1px solid ${trainingFormErrors.certificate_file ? 'var(--color-error)' : 'var(--color-border)'}`,
+                  border: '1px solid var(--color-border)',
                   borderRadius: '8px',
                   padding: '12px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
-                  ...(trainingFormErrors.certificate_file
-                    ? { boxShadow: '0 0 0 2px rgba(192,57,43,0.12)' }
-                    : {}),
                 }}
               >
                 <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
-                  Certificado <span style={{ color: 'var(--color-error)' }}>*</span>
+                  Certificado
                   <span style={{ fontWeight: 400, color: 'var(--color-secondary-text)', marginLeft: '6px', fontSize: '12px' }}>
-                    (anexe o arquivo ou informe a URL)
+                    (opcional — anexe o arquivo ou informe a URL)
                   </span>
                 </p>
 
@@ -1601,11 +1595,6 @@ export default function SafetyTraining() {
                   />
                 </div>
 
-                {trainingFormErrors.certificate_file && (
-                  <span style={{ fontSize: '12px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <AlertTriangle size={12} /> {trainingFormErrors.certificate_file}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -1644,10 +1633,15 @@ export default function SafetyTraining() {
         <ConfirmModal
           title={t('common.confirmDelete')}
           message={t('safety.confirmDelete')}
-          onConfirm={() => {
-            // Worker training deletion — API doesn't have a dedicated delete endpoint,
-            // so we attempt a generic update or just refetch for now.
+          onConfirm={async () => {
+            const id = deleteTrainingConfirm;
             setDeleteTrainingConfirm(null);
+            try {
+              await safetyApi.deleteWorkerTraining(id);
+              loadWorkerTrainings();
+            } catch (err) {
+              console.error('Erro ao excluir treinamento:', err);
+            }
           }}
           onCancel={() => setDeleteTrainingConfirm(null)}
         />

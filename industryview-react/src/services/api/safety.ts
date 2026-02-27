@@ -173,9 +173,9 @@ export async function listWorkerTrainings(params?: {
     items: (data.items ?? []).map((item: any) => ({
       ...item,
       training_type_name: item.training_type_name || item.training_name || item.name,
-      nr_reference: item.nr_reference ?? null,
-      certificate_url: item.certificate_url || item.certificate_file,
       nr_reference: item.nr_reference ?? undefined,
+      certificate_url: item.certificate_url || item.certificate_file,
+      instructor: item.instructor_name || item.instructor || item.trainer || undefined,
       workload_hours: item.workload_hours ?? undefined,
     })),
   };
@@ -202,6 +202,11 @@ export async function getExpiredTrainings(params?: {
 export async function createWorkerTraining(data: Record<string, unknown>): Promise<WorkerTraining> {
   const response = await apiClient.post(`${SAFETY_BASE}/worker-trainings`, data);
   return response.data;
+}
+
+/** Delete a worker training record */
+export async function deleteWorkerTraining(id: number): Promise<void> {
+  await apiClient.delete(`${SAFETY_BASE}/worker-trainings/${id}`);
 }
 
 // ── Task Required Trainings ───────────────────────────────────────────────────

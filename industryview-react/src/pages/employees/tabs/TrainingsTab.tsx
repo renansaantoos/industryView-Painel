@@ -263,6 +263,7 @@ export default function TrainingsTab({ usersId }: TrainingsTabProps) {
                 <th>Ref. NR</th>
                 <th>Carga Horaria</th>
                 <th>Data Conclusão</th>
+                <th>Instrutor</th>
                 <th>Validade</th>
                 <th>Status</th>
                 <th>Certificado</th>
@@ -301,6 +302,7 @@ export default function TrainingsTab({ usersId }: TrainingsTabProps) {
                     )}
                   </td>
                   <td>{formatDate(training.training_date)}</td>
+                  <td>{training.instructor || <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>-</span>}</td>
                   <td>{formatDate(training.expiry_date)}</td>
                   <td>
                     <ValidityBadge expiryDate={training.expiry_date} />
