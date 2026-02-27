@@ -28,15 +28,16 @@ git reset --hard origin/main
 # ---------------------------------------------------------------------------
 echo "[2/5] Building frontend..."
 
-# Get the VM's external IP for API URL
+# Get the VM's external IP (used for CORS and display only)
 EXTERNAL_IP=$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H "Metadata-Flavor: Google" 2>/dev/null || echo "localhost")
+DOMAIN="industryview.doublex.ai"
 
 cd "$FRONTEND_DIR"
 npm ci
 
-# Set API URL to use the same origin (Nginx will proxy /api)
-echo "VITE_API_BASE_URL=http://${EXTERNAL_IP}/api/v1" > .env.production
-echo "Frontend will use API URL: http://${EXTERNAL_IP}/api/v1"
+# Use relative API URL so it works with both domain and IP, HTTP and HTTPS
+echo "VITE_API_BASE_URL=/api/v1" > .env.production
+echo "Frontend will use relative API URL: /api/v1"
 
 npm run build
 
@@ -52,7 +53,7 @@ echo "Frontend deployed to $WEB_DIR"
 # ---------------------------------------------------------------------------
 echo "[3/5] Updating CORS configuration..."
 cd "$DEPLOY_DIR"
-sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=http://${EXTERNAL_IP}|" .env.prod
+sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=https://${DOMAIN},http://${EXTERNAL_IP}|" .env.prod
 
 # ---------------------------------------------------------------------------
 # 4. Start Backend Services
@@ -95,7 +96,8 @@ echo ""
 echo "============================================"
 echo "  Deploy complete!"
 echo ""
-echo "  Frontend: http://${EXTERNAL_IP}"
-echo "  API:      http://${EXTERNAL_IP}/api/v1"
-echo "  Health:   http://${EXTERNAL_IP}/health"
+echo "  Frontend: https://${DOMAIN}"
+echo "  Also:     http://${EXTERNAL_IP}"
+echo "  API:      https://${DOMAIN}/api/v1"
+echo "  Health:   https://${DOMAIN}/health"
 echo "============================================"
