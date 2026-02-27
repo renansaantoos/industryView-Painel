@@ -180,7 +180,12 @@ export class PpeService {
       db.ppe_deliveries.count({ where: whereClause }),
     ]);
 
-    return buildPaginationResponse(items, total, page, per_page);
+    const enrichedItems = items.map(item => ({
+      ...item,
+      returned: item.return_date !== null,
+    }));
+
+    return buildPaginationResponse(enrichedItems, total, page, per_page);
   }
 
   /**
@@ -228,7 +233,7 @@ export class PpeService {
       throw new BadRequestError('Este EPI ja foi devolvido.');
     }
 
-    return db.ppe_deliveries.update({
+    const updated = await db.ppe_deliveries.update({
       where: { id: BigInt(id) },
       data: {
         return_date: new Date(),
@@ -241,6 +246,8 @@ export class PpeService {
         ppe_type: true,
       },
     });
+
+    return { ...updated, returned: true };
   }
 
   // ===========================================================================
