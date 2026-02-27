@@ -20,7 +20,8 @@ echo "============================================"
 # ---------------------------------------------------------------------------
 echo "[1/5] Pulling latest code..."
 cd "$APP_DIR"
-git pull origin main || git pull origin master
+git fetch origin main
+git reset --hard origin/main
 
 # ---------------------------------------------------------------------------
 # 2. Build Frontend
