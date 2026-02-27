@@ -29,6 +29,7 @@ import {
   Zap,
   ShoppingCart,
   GanttChartSquare,
+  CalendarDays,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
@@ -209,6 +210,13 @@ export default function ProjectDetails() {
           description: t('projects.cronogramaDesc'),
           icon: <GanttChartSquare size={24} />,
           onClick: () => navigate('/cronograma'),
+        },
+        {
+          key: 'calendar',
+          title: t('projects.projectCalendar'),
+          description: t('projects.projectCalendarDesc'),
+          icon: <CalendarDays size={24} />,
+          onClick: () => navigate('/projeto-calendario'),
         },
       ],
     },

@@ -111,7 +111,7 @@ export async function getProjectBacklog(backlogId: number): Promise<ProjectBackl
 }
 
 export async function getAllProjectBacklogs(projectId: number): Promise<ProjectBacklog[]> {
-  const response = await apiClient.post(`${PROJECTS_BASE}/projects_backlogs_list/${projectId}`, {});
+  const response = await apiClient.post(`${PROJECTS_BASE}/projects_backlogs_list/${projectId}`, { per_page: 100 });
   return response.data;
 }
 
@@ -223,6 +223,10 @@ export async function addSubtask(data: {
 
 export async function editSubtask(subtaskId: number, data: Record<string, unknown>): Promise<void> {
   await apiClient.put(`${PROJECTS_BASE}/subtasks/${subtaskId}`, data);
+}
+
+export async function deleteSubtask(subtaskId: number): Promise<void> {
+  await apiClient.delete(`${PROJECTS_BASE}/subtasks/${subtaskId}`);
 }
 
 export async function getSubtasks(backlogId: number): Promise<{ items: unknown[] }> {

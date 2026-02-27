@@ -8,12 +8,16 @@ import { Request, Response, NextFunction } from 'express';
 import { AgentsService } from './agents.service';
 import { InterpretingAgentService } from './interpreting-agent.service';
 import { ResponseGeneratorService } from './response-generator.service';
+import { WeightCalculatorAgentService } from './weight-calculator-agent.service';
+import { db } from '../../config/database';
 import {
   projectsAgentSearchSchema,
   invokeInterpretingAgentSchema,
   invokeGeneratorResponseAgentSchema,
   createAgentDashboardLogSchema,
   listAgentDashboardLogsSchema,
+  calculateWeightsSchema,
+  applyWeightsSchema,
 } from './agents.schema';
 
 /**
@@ -155,6 +159,93 @@ export class AgentsController {
       const { log_id } = req.params;
       const result = await AgentsService.deleteAgentDashboardLog(log_id);
       res.json({ success: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Weight Calculator Agent
+  // ===========================================================================
+
+  /**
+   * Calcula pesos de subtasks via IA
+   * Route: POST /api/v1/agents/calculate-weights
+   */
+  static async calculateWeights(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = calculateWeightsSchema.parse(req.body);
+
+      // Busca subtasks do backlog com dados necessarios
+      const subtasks = await db.subtasks.findMany({
+        where: {
+          projects_backlogs_id: BigInt(input.projects_backlogs_id),
+          deleted_at: null,
+        },
+        include: {
+          unity: true,
+        },
+      });
+
+      if (subtasks.length === 0) {
+        res.status(400).json({ error: 'Nenhuma subtask encontrada para este item do cronograma.' });
+        return;
+      }
+
+      // Busca disciplina do backlog pai
+      const backlog = await db.projects_backlogs.findFirst({
+        where: { id: BigInt(input.projects_backlogs_id), deleted_at: null },
+        include: { discipline: true },
+      });
+
+      // Prepara input para o agente
+      const subtaskInputs = subtasks.map((s) => ({
+        id: Number(s.id),
+        description: s.description || 'Sem descricao',
+        quantity: s.quantity ? Number(s.quantity) : null,
+        unity: s.unity?.unity || null,
+        discipline: backlog?.discipline?.discipline || null,
+      }));
+
+      // Chama o agente de IA
+      const weights = await WeightCalculatorAgentService.calculateWeights(subtaskInputs);
+
+      res.json({ weights });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Aplica pesos calculados nas subtasks
+   * Route: POST /api/v1/agents/apply-weights
+   */
+  static async applyWeights(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = applyWeightsSchema.parse(req.body);
+
+      // Atualiza peso de cada subtask
+      for (const w of input.weights) {
+        await db.subtasks.update({
+          where: { id: BigInt(w.subtask_id) },
+          data: { weight: w.weight, updated_at: new Date() },
+        });
+      }
+
+      // Busca o backlog_id da primeira subtask para disparar rollup
+      if (input.weights.length > 0) {
+        const firstSubtask = await db.subtasks.findFirst({
+          where: { id: BigInt(input.weights[0].subtask_id) },
+          select: { projects_backlogs_id: true },
+        });
+
+        if (firstSubtask?.projects_backlogs_id) {
+          const { ProgressRollupService } = await import('../../services/progressRollup');
+          await ProgressRollupService.rollupBacklog(Number(firstSubtask.projects_backlogs_id));
+        }
+      }
+
+      res.json({ success: true, updated: input.weights.length });
     } catch (error) {
       next(error);
     }

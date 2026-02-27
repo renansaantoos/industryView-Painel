@@ -9,6 +9,7 @@ import { SprintsService } from './sprints.service';
 import { AuthenticatedRequest } from '../../types';
 import { logger } from '../../utils/logger';
 import { serializeBigInt } from '../../utils/bigint';
+import { db } from '../../config/database';
 
 /**
  * SprintsController - Controller do modulo de sprints
@@ -655,6 +656,112 @@ export class SprintsController {
       const teamsId = req.query.teams_id ? parseInt(req.query.teams_id as string, 10) : null;
       const result = await SprintsService.getChartData(sprintId, teamsId);
       res.status(200).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+  // ===========================================================================
+  // Non-Execution Reasons
+  // ===========================================================================
+
+  /**
+   * GET /sprints/non-execution-reasons
+   * Lista motivos de nao execucao
+   */
+  static async listNonExecutionReasons(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      // @ts-ignore - companyId vem do middleware de autenticacao
+      const companyId = req.user?.companyId;
+      const reasons = await db.non_execution_reasons.findMany({
+        where: {
+          deleted_at: null,
+          ...(companyId ? { company_id: BigInt(companyId) } : {}),
+        },
+        orderBy: { name: 'asc' },
+      });
+      res.status(200).json(serializeBigInt(reasons));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /sprints/non-execution-reasons
+   * Cria motivo de nao execucao
+   */
+  static async createNonExecutionReason(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      // @ts-ignore
+      const companyId = req.user?.companyId;
+      const { name, category } = req.body;
+      if (!name || !name.trim()) {
+        res.status(400).json({ error: 'Nome e obrigatorio' });
+        return;
+      }
+      const created = await db.non_execution_reasons.create({
+        data: {
+          name: name.trim(),
+          category: category || 'outros',
+          company_id: BigInt(companyId),
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      res.status(201).json(serializeBigInt(created));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /sprints/non-execution-reasons/:id
+   * Atualiza motivo de nao execucao
+   */
+  static async updateNonExecutionReason(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { name, category } = req.body;
+      const updateData: any = { updated_at: new Date() };
+      if (name !== undefined) updateData.name = name.trim();
+      if (category !== undefined) updateData.category = category;
+      const updated = await db.non_execution_reasons.update({
+        where: { id: BigInt(id) },
+        data: updateData,
+      });
+      res.status(200).json(serializeBigInt(updated));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * DELETE /sprints/non-execution-reasons/:id
+   * Remove motivo de nao execucao (soft delete)
+   */
+  static async deleteNonExecutionReason(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await db.non_execution_reasons.update({
+        where: { id: BigInt(id) },
+        data: { deleted_at: new Date(), updated_at: new Date() },
+      });
+      res.status(200).json({ success: true });
     } catch (error) {
       next(error);
     }

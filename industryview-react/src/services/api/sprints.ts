@@ -116,6 +116,7 @@ export async function addSprintTask(data: {
   sprints_tasks_statuses_id?: number;
   scheduled_for?: string;
   quantity_done?: number;
+  quantity_assigned?: number;
 }): Promise<SprintTask> {
   const response = await apiClient.post(`${SPRINTS_BASE}/tasks`, data);
   return response.data;
@@ -126,6 +127,7 @@ export async function editSprintTask(taskId: number, data: Partial<{
   sprints_tasks_statuses_id: number;
   scheduled_for: string;
   quantity_done: number;
+  quantity_assigned: number;
   end_date: string;
 }>): Promise<SprintTask> {
   const response = await apiClient.patch(`${SPRINTS_BASE}/tasks/${taskId}`, data);
@@ -156,6 +158,20 @@ export async function getNonExecutionReasons(companyId?: number): Promise<NonExe
     params: companyId ? { company_id: companyId } : undefined,
   });
   return response.data;
+}
+
+export async function createNonExecutionReason(data: { name: string; category?: string }): Promise<NonExecutionReason> {
+  const response = await apiClient.post(`${SPRINTS_BASE}/non-execution-reasons`, data);
+  return response.data;
+}
+
+export async function updateNonExecutionReason(id: number, data: { name?: string; category?: string }): Promise<NonExecutionReason> {
+  const response = await apiClient.patch(`${SPRINTS_BASE}/non-execution-reasons/${id}`, data);
+  return response.data;
+}
+
+export async function deleteNonExecutionReason(id: number): Promise<void> {
+  await apiClient.delete(`${SPRINTS_BASE}/non-execution-reasons/${id}`);
 }
 
 // === Sprint Task Statuses ===

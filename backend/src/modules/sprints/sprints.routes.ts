@@ -538,6 +538,47 @@ router.post(
   SprintsController.create
 );
 
+// =============================================================================
+// NON-EXECUTION REASONS (must be before /:sprints_id to avoid param matching)
+// =============================================================================
+
+/**
+ * @swagger
+ * /api/sprints/non-execution-reasons:
+ *   get:
+ *     summary: Lista motivos de nao execucao
+ *     tags: [Sprints]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get(
+  '/non-execution-reasons',
+  authenticate,
+  SprintsController.listNonExecutionReasons
+);
+
+router.post(
+  '/non-execution-reasons',
+  authenticate,
+  SprintsController.createNonExecutionReason
+);
+
+router.patch(
+  '/non-execution-reasons/:id',
+  authenticate,
+  SprintsController.updateNonExecutionReason
+);
+
+router.delete(
+  '/non-execution-reasons/:id',
+  authenticate,
+  SprintsController.deleteNonExecutionReason
+);
+
+// =============================================================================
+// SPRINT BY ID (param routes must come last)
+// =============================================================================
+
 /**
  * @swagger
  * /api/sprints/{sprints_id}:

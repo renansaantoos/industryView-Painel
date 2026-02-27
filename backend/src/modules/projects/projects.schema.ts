@@ -428,6 +428,7 @@ export const createSubtaskSchema = z.object({
   quantity: z.number().optional().nullable(),
   task_quantity: z.number().int().min(1).default(1),
   quality_status_id: z.number().int().optional().nullable(),
+  unity_id: z.number().int().optional().nullable(),
 });
 
 export type CreateSubtaskInput = z.infer<typeof createSubtaskSchema>;

@@ -50,6 +50,7 @@ export interface GanttItem {
   planned_cost: number | null;
   actual_cost: number | null;
   is_milestone?: boolean;
+  parent_id?: number | null;
   dependencies?: { id: number; predecessor_backlog_id: number; dependency_type: string; lag_days: number }[];
 }
 
@@ -150,6 +151,9 @@ export interface CronogramaItem {
   percent_complete: number;
   planned_start_date: string | null;
   planned_end_date: string | null;
+  actual_start_date?: string | null;
+  actual_end_date?: string | null;
+  is_milestone?: boolean;
   parent_id: number | null;
   has_children: boolean;
   linked_tasks_count: number;

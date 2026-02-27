@@ -4,20 +4,20 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuth } from '../../hooks/useAuth';
-import { tasksApi, equipamentTypesApi, holidaysApi } from '../../services';
+import { tasksApi, equipamentTypesApi, holidaysApi, sprintsApi } from '../../services';
 import type { Holiday, WorkCalendar } from '../../services/api/holidays';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Trash2, Edit, Ruler, BookOpen, Tag, Calendar, CalendarDays, Save } from 'lucide-react';
+import { Plus, Trash2, Edit, Ruler, BookOpen, Tag, Calendar, CalendarDays, Save, AlertTriangle } from 'lucide-react';
 
 interface SettingsItem {
   id: number;
   displayName: string;
 }
 
-type ActiveTab = 'unity' | 'discipline' | 'category' | 'holidays' | 'work-calendar';
+type ActiveTab = 'unity' | 'discipline' | 'category' | 'failure-reasons' | 'holidays' | 'work-calendar';
 
 const WEEKDAY_KEYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const;
 
@@ -31,6 +31,7 @@ export default function Settings() {
   const [unities, setUnities] = useState<SettingsItem[]>([]);
   const [disciplines, setDisciplines] = useState<SettingsItem[]>([]);
   const [categories, setCategories] = useState<SettingsItem[]>([]);
+  const [failureReasons, setFailureReasons] = useState<SettingsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: ActiveTab; id: number } | null>(null);
 
@@ -74,15 +75,17 @@ export default function Settings() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [unityData, disciplineData, categoryData] = await Promise.all([
+      const [unityData, disciplineData, categoryData, failureData] = await Promise.all([
         tasksApi.getUnity().catch(() => []),
         tasksApi.getDisciplines().catch(() => []),
         equipamentTypesApi.queryAllEquipamentTypes().catch(() => []),
+        sprintsApi.getNonExecutionReasons().catch(() => []),
       ]);
 
       const rawUnities = Array.isArray(unityData) ? unityData : [];
       const rawDisciplines = Array.isArray(disciplineData) ? disciplineData : [];
       const rawCategories = Array.isArray(categoryData) ? categoryData : [];
+      const rawFailureReasons = Array.isArray(failureData) ? failureData : [];
 
       setUnities(rawUnities.map((u) => {
         const row = u as { id?: number | string; unity?: string; name?: string };
@@ -105,6 +108,14 @@ export default function Settings() {
         return {
           id: Number(row.id),
           displayName: row.type || row.name || `#${row.id}`,
+        };
+      }));
+
+      setFailureReasons(rawFailureReasons.map((r) => {
+        const row = r as { id?: number | string; name?: string };
+        return {
+          id: Number(row.id),
+          displayName: row.name || `#${row.id}`,
         };
       }));
     } catch (err) {
@@ -195,6 +206,12 @@ export default function Settings() {
         } else {
           await equipamentTypesApi.addEquipamentType({ type: itemName.trim() });
         }
+      } else if (activeTab === 'failure-reasons') {
+        if (editingItem) {
+          await sprintsApi.updateNonExecutionReason(editingItem.id, { name: itemName.trim() });
+        } else {
+          await sprintsApi.createNonExecutionReason({ name: itemName.trim() });
+        }
       }
       setShowModal(false);
       loadData();
@@ -213,6 +230,8 @@ export default function Settings() {
         await tasksApi.deleteDiscipline(id);
       } else if (type === 'category') {
         await equipamentTypesApi.deleteEquipamentType(id);
+      } else if (type === 'failure-reasons') {
+        await sprintsApi.deleteNonExecutionReason(id);
       } else if (type === 'holidays') {
         await holidaysApi.deleteHoliday(id);
         loadHolidays();
@@ -309,24 +328,27 @@ export default function Settings() {
   // ---------------------------------------------------------------------------
   // CRUD tab helpers
   // ---------------------------------------------------------------------------
-  const isCrudTab = activeTab === 'unity' || activeTab === 'discipline' || activeTab === 'category';
+  const isCrudTab = activeTab === 'unity' || activeTab === 'discipline' || activeTab === 'category' || activeTab === 'failure-reasons';
 
   const currentItems: SettingsItem[] = (() => {
     if (activeTab === 'unity') return unities;
     if (activeTab === 'discipline') return disciplines;
     if (activeTab === 'category') return categories;
+    if (activeTab === 'failure-reasons') return failureReasons;
     return [];
   })();
 
   const getAddLabel = () => {
     if (activeTab === 'unity') return t('settings.addUnity');
     if (activeTab === 'discipline') return t('settings.addDiscipline');
+    if (activeTab === 'failure-reasons') return 'Adicionar Motivo';
     return t('settings.addCategory');
   };
 
   const getModalTitle = () => {
     if (activeTab === 'unity') return editingItem ? t('settings.editUnity') : t('settings.addUnity');
     if (activeTab === 'discipline') return editingItem ? t('settings.editDiscipline') : t('settings.addDiscipline');
+    if (activeTab === 'failure-reasons') return editingItem ? 'Editar Motivo de Falha' : 'Adicionar Motivo de Falha';
     return editingItem ? t('settings.editCategory') : t('settings.addCategory');
   };
 
@@ -386,6 +408,10 @@ export default function Settings() {
         <button onClick={() => setActiveTab('category')} style={tabStyle('category')}>
           <Tag size={16} />
           {t('settings.categories')}
+        </button>
+        <button onClick={() => setActiveTab('failure-reasons')} style={tabStyle('failure-reasons')}>
+          <AlertTriangle size={16} />
+          Motivos de Falha
         </button>
         <button onClick={() => setActiveTab('holidays')} style={tabStyle('holidays')}>
           <Calendar size={16} />
@@ -522,7 +548,7 @@ export default function Settings() {
                 <motion.tbody key="holidays" variants={staggerParent} initial="initial" animate="animate">
                   {holidays.map((h) => (
                     <motion.tr key={h.id} variants={tableRowVariants}>
-                      <td>{new Date(h.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                      <td>{new Date(h.date.substring(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                       <td style={{ fontWeight: 500 }}>{h.name}</td>
                       <td>
                         <span style={{

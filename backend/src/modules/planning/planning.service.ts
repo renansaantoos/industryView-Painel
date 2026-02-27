@@ -80,6 +80,7 @@ interface GanttItem {
   planned_cost: number | null;
   actual_cost: number | null;
   is_milestone: boolean;
+  parent_id: number | null;
   dependencies: DependencyRef[];
 }
 
@@ -802,6 +803,7 @@ export class PlanningService {
       planned_cost: any;
       actual_cost: any;
       is_milestone: boolean | null;
+      projects_backlogs_id: bigint | null;
     };
 
     let backlogs: BacklogGanttRow[];
@@ -813,13 +815,15 @@ export class PlanningService {
           pb.planned_start_date, pb.planned_end_date,
           pb.actual_start_date, pb.actual_end_date,
           pb.percent_complete, pb.planned_duration_days,
-          pb.planned_cost, pb.actual_cost, pb.is_milestone
+          pb.planned_cost, pb.actual_cost, pb.is_milestone,
+          pb.projects_backlogs_id
         FROM projects_backlogs pb
         INNER JOIN sprints_tasks st ON st.projects_backlogs_id = pb.id
           AND st.sprints_id = ${BigInt(sprintsId)}
           AND st.deleted_at IS NULL
         WHERE pb.projects_id = ${BigInt(projectsId)}
           AND pb.deleted_at IS NULL
+          AND pb.wbs_code IS NOT NULL
         ORDER BY pb.sort_order ASC NULLS LAST, pb.wbs_code ASC NULLS LAST
       `;
     } else {
@@ -828,10 +832,12 @@ export class PlanningService {
           planned_start_date, planned_end_date,
           actual_start_date, actual_end_date,
           percent_complete, planned_duration_days,
-          planned_cost, actual_cost, is_milestone
+          planned_cost, actual_cost, is_milestone,
+          projects_backlogs_id
         FROM projects_backlogs
         WHERE projects_id = ${BigInt(projectsId)}
           AND deleted_at IS NULL
+          AND wbs_code IS NOT NULL
         ORDER BY sort_order ASC NULLS LAST, wbs_code ASC NULLS LAST
       `;
     }
@@ -893,6 +899,7 @@ export class PlanningService {
       planned_cost: b.planned_cost ? Number(b.planned_cost) : null,
       actual_cost: b.actual_cost ? Number(b.actual_cost) : null,
       is_milestone: b.is_milestone ?? false,
+      parent_id: b.projects_backlogs_id ? Number(b.projects_backlogs_id) : null,
       dependencies: depsBySuccessor.get(Number(b.id)) || [],
     }));
 
@@ -1202,6 +1209,7 @@ export class PlanningService {
         planned_cost, actual_cost, is_milestone, wbs_code, weight
       FROM projects_backlogs
       WHERE projects_id = ${BigInt(projectsId)} AND deleted_at IS NULL
+        AND wbs_code IS NOT NULL
     `;
 
     if (backlogs.length === 0) {
@@ -1378,6 +1386,9 @@ export class PlanningService {
       percent_complete: number | null;
       planned_start_date: Date | null;
       planned_end_date: Date | null;
+      actual_start_date: Date | null;
+      actual_end_date: Date | null;
+      is_milestone: boolean | null;
       projects_backlogs_id: bigint | null;
       has_children: bigint;
       linked_tasks_count: bigint;
@@ -1390,6 +1401,9 @@ export class PlanningService {
         pb.percent_complete,
         pb.planned_start_date,
         pb.planned_end_date,
+        pb.actual_start_date,
+        pb.actual_end_date,
+        pb.is_milestone,
         pb.projects_backlogs_id,
         (
           SELECT COUNT(*)
@@ -1421,6 +1435,9 @@ export class PlanningService {
       percent_complete: item.percent_complete ? Number(item.percent_complete) : 0,
       planned_start_date: item.planned_start_date?.toISOString?.().split('T')[0] || null,
       planned_end_date: item.planned_end_date?.toISOString?.().split('T')[0] || null,
+      actual_start_date: item.actual_start_date?.toISOString?.().split('T')[0] || null,
+      actual_end_date: item.actual_end_date?.toISOString?.().split('T')[0] || null,
+      is_milestone: item.is_milestone ?? false,
       parent_id: item.projects_backlogs_id ? Number(item.projects_backlogs_id) : null,
       has_children: Number(item.has_children) > 0,
       linked_tasks_count: Number(item.linked_tasks_count),

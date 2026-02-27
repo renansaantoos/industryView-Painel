@@ -29,4 +29,6 @@ export * as employeesApi from './api/employees';
 export * as clientsApi from './api/clients';
 export * as workScheduleApi from './api/workSchedule';
 export * as holidaysApi from './api/holidays';
+export * as projectCalendarApi from './api/projectCalendar';
+export * as agentsApi from './api/agents';
 export { default as apiClient } from './api/apiClient';

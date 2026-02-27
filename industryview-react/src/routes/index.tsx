@@ -14,6 +14,7 @@ import ProjectList from '../pages/projects/ProjectList';
 import CreateProject from '../pages/projects/CreateProject';
 import EditProject from '../pages/projects/EditProject';
 import ProjectDetails from '../pages/projects/ProjectDetails';
+import ProjectCalendar from '../pages/projects/ProjectCalendar';
 import TeamManagement from '../pages/team/TeamManagement';
 import SprintList from '../pages/sprints/SprintList';
 import CurrentSprint from '../pages/sprints/CurrentSprint';
@@ -122,6 +123,10 @@ export const router = createBrowserRouter([
       {
         path: '/projeto-detalhes',
         element: <ProjectDetails />,
+      },
+      {
+        path: '/projeto-calendario',
+        element: <ProjectCalendar />,
       },
 
       // Teams
