@@ -191,11 +191,11 @@ export class SafetyService {
       values.push(BigInt(projects_id));
     }
     if (severity) {
-      conditions.push(`severity = $${paramIndex++}`);
+      conditions.push(`severity::text = $${paramIndex++}`);
       values.push(severity);
     }
     if (status) {
-      conditions.push(`status = $${paramIndex++}`);
+      conditions.push(`status::text = $${paramIndex++}`);
       values.push(status);
     }
     if (initial_date) {
