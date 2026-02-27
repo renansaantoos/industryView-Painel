@@ -958,6 +958,15 @@ export class SafetyService {
   }
 
   /**
+   * Remove registro de treinamento de um trabalhador
+   */
+  static async deleteWorkerTraining(id: number) {
+    return db.worker_trainings.delete({
+      where: { id: BigInt(id) },
+    });
+  }
+
+  /**
    * Lista treinamentos proximos do vencimento (dentro de N dias)
    */
   static async getExpiringTrainings(input: GetExpiringTrainingsInput) {

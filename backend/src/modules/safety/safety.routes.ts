@@ -694,6 +694,7 @@ router.get('/worker-trainings', authenticate, SafetyController.listWorkerTrainin
  *         description: Tipo de treinamento nao encontrado
  */
 router.post('/worker-trainings', authenticate, SafetyController.createWorkerTraining);
+router.delete('/worker-trainings/:id', authenticate, SafetyController.deleteWorkerTraining);
 
 // ===========================================================================
 // Task Required Trainings Routes

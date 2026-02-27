@@ -354,6 +354,20 @@ export class SafetyController {
     }
   }
 
+  /**
+   * Remove registro de treinamento de um trabalhador
+   * Route: DELETE /api/v1/safety/worker-trainings/:id
+   */
+  static async deleteWorkerTraining(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const id = Number(req.params.id);
+      await SafetyService.deleteWorkerTraining(id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // ===========================================================================
   // Task Required Trainings
   // ===========================================================================
