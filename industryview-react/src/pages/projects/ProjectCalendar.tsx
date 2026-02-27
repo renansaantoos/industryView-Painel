@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectCalendarApi } from '../../services';
@@ -43,7 +43,6 @@ interface ToastState { message: string; type: 'success' | 'error' }
 
 export default function ProjectCalendar() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { projectsInfo } = useAppState();
 
   const [activeTab, setActiveTab] = useState<'holidays' | 'calendar'>('holidays');

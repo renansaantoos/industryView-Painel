@@ -24,8 +24,6 @@ import {
   Edit,
   Check,
   X,
-  CheckSquare,
-  Square,
   ChevronDown,
   ChevronRight,
   CalendarDays,
@@ -1226,7 +1224,7 @@ interface SubtaskPanelProps {
   currentBacklogId: number;
   onCopySubtasks: (subtaskIds: number[], targetBacklogId: number) => Promise<void>;
   onReloadSubtasks: () => void;
-  t: (key: string) => string;
+  t: ReturnType<typeof import('react-i18next').useTranslation>['t'];
 }
 
 function SubtaskPanel({
