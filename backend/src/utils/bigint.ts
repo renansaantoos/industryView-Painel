@@ -88,7 +88,7 @@ const transformValues = (value: any, key?: string): any => {
   }
 
   // Converte Decimal strings para number para campos especificos
-  const decimalFields = ['weight', 'quantity', 'quantity_done', 'amount', 'price', 'total', 'completion_percentage'];
+  const decimalFields = ['weight', 'quantity', 'quantity_done', 'quantity_assigned', 'amount', 'price', 'total', 'completion_percentage'];
   if (key && typeof value === 'string' && decimalFields.includes(key)) {
     const num = parseFloat(value);
     return isNaN(num) ? value : num;

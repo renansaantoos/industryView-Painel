@@ -44,11 +44,35 @@ export class ProgressRollupService {
 
     const backlogId = Number(task.projects_backlogs_id);
 
-    // Se tem subtask e status e Concluida (4), marca quantity_done = quantity
-    if (task.subtasks_id && Number(task.sprints_tasks_statuses_id) === SPRINT_TASK_STATUS.CONCLUIDA) {
+    // Se tem subtask, recalcula quantity_done e subtasks_statuses_id
+    if (task.subtasks_id) {
       await db.$executeRaw`
-        UPDATE subtasks
-        SET quantity_done = quantity, updated_at = NOW()
+        UPDATE subtasks SET
+          quantity_done = (
+            SELECT COALESCE(SUM(st.quantity_done), 0)
+            FROM sprints_tasks st
+            WHERE st.subtasks_id = ${task.subtasks_id}
+              AND st.deleted_at IS NULL
+              AND st.sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}
+          ),
+          subtasks_statuses_id = CASE
+            WHEN (
+              SELECT COALESCE(SUM(st.quantity_done), 0)
+              FROM sprints_tasks st
+              WHERE st.subtasks_id = ${task.subtasks_id}
+                AND st.deleted_at IS NULL
+                AND st.sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}
+            ) >= COALESCE(quantity, 0) AND COALESCE(quantity, 0) > 0 THEN 3
+            WHEN (
+              SELECT COALESCE(SUM(st.quantity_done), 0)
+              FROM sprints_tasks st
+              WHERE st.subtasks_id = ${task.subtasks_id}
+                AND st.deleted_at IS NULL
+                AND st.sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}
+            ) > 0 THEN 2
+            ELSE 1
+          END,
+          updated_at = NOW()
         WHERE id = ${task.subtasks_id}
       `;
     }

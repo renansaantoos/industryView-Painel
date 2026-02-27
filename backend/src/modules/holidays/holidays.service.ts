@@ -2,7 +2,7 @@ import { db } from '../../config/database';
 import { NotFoundError } from '../../utils/errors';
 
 // Feriados nacionais brasileiros fixos (dia/mês) e móveis calculados por ano
-function getBrazilianHolidays(year: number): { date: string; name: string; type: string; recurring: boolean }[] {
+export function getBrazilianHolidays(year: number): { date: string; name: string; type: string; recurring: boolean }[] {
   // Cálculo da Páscoa (algoritmo de Butcher)
   const a = year % 19;
   const b = Math.floor(year / 100);

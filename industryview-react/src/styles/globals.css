@@ -233,6 +233,11 @@ tr:hover td {
   background-color: var(--color-secondary);
 }
 
+.no-row-hover tr:hover td,
+tr.no-row-hover:hover td {
+  background-color: transparent;
+}
+
 /* === Input === */
 .input-group {
   display: flex;

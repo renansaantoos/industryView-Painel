@@ -284,5 +284,71 @@ router.get('/logs/:log_id', authenticate, AgentsController.getAgentDashboardLogB
  */
 router.delete('/logs/:log_id', authenticate, AgentsController.deleteAgentDashboardLog);
 
+// ===========================================================================
+// Weight Calculator Agent Routes
+// ===========================================================================
+
+/**
+ * @swagger
+ * /api/v1/agents/calculate-weights:
+ *   post:
+ *     summary: Calcula pesos de subtasks via IA
+ *     description: |
+ *       Envia as subtasks de um item do cronograma para o agente de IA
+ *       que analisa e sugere pesos relativos para cada tarefa.
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - projects_backlogs_id
+ *             properties:
+ *               projects_backlogs_id:
+ *                 type: integer
+ *                 description: ID do item do cronograma
+ *     responses:
+ *       200:
+ *         description: Pesos calculados com justificativas
+ */
+router.post('/calculate-weights', authenticate, AgentsController.calculateWeights);
+
+/**
+ * @swagger
+ * /api/v1/agents/apply-weights:
+ *   post:
+ *     summary: Aplica pesos nas subtasks
+ *     description: Salva os pesos finais (revisados pelo usuario) nas subtasks e dispara rollup
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - weights
+ *             properties:
+ *               weights:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     subtask_id:
+ *                       type: integer
+ *                     weight:
+ *                       type: number
+ *     responses:
+ *       200:
+ *         description: Pesos aplicados
+ */
+router.post('/apply-weights', authenticate, AgentsController.applyWeights);
+
 export { router as agentsRoutes };
 export default router;

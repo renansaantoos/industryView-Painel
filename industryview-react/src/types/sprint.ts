@@ -38,6 +38,34 @@ export interface SprintStatus {
   status: string;
 }
 
+/** Golden rule nested inside tasks_template */
+export interface TaskGoldenRuleEntry {
+  id: number;
+  golden_rule: {
+    id: number;
+    title: string;
+    description?: string;
+    severity?: string;
+    is_active?: boolean;
+  };
+}
+
+/** Tasks template with full relations */
+export interface TasksTemplateDetail {
+  id: number;
+  description?: string;
+  weight?: number;
+  fixed?: boolean;
+  is_inspection?: boolean;
+  installation_method?: string;
+  checklist_templates_id?: number;
+  checklist_template?: { id: number; name: string; checklist_type: string };
+  task_golden_rules?: TaskGoldenRuleEntry[];
+  discipline?: { id: number; discipline?: string; name?: string };
+  unity?: { id: number; unity?: string; name?: string };
+  equipaments_types?: { id: number; type?: string };
+}
+
 /** Sprint task record (full, from panel endpoint) */
 export interface SprintTask {
   id: number;
@@ -54,6 +82,7 @@ export interface SprintTask {
   criticality?: string;
   actualStartTime?: string;
   actualEndTime?: string;
+  quantityAssigned?: number;
   quantityDone?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -62,6 +91,7 @@ export interface SprintTask {
   assignedUser?: { id: number; name: string; email?: string };
   nonExecutionReason?: { id: number; name: string; category: string };
   projectsBacklogs?: SprintTaskBacklog;
+  subtasks?: SprintSubtask;
   sprints_tasks_statuses?: { id: number; name: string };
   // Legacy compat
   quantity?: number;
@@ -73,6 +103,17 @@ export interface SprintTask {
   total?: number;
 }
 
+/** Subtask nested inside sprint task */
+export interface SprintSubtask {
+  id: number;
+  description?: string;
+  quantity?: number;
+  quantity_done?: number;
+  weight?: number;
+  is_inspection?: boolean;
+  unity?: { id: number; unity?: string; name?: string };
+}
+
 /** Backlog nested inside sprint task */
 export interface SprintTaskBacklog {
   id: number;
@@ -80,14 +121,21 @@ export interface SprintTaskBacklog {
   weight?: number;
   quantity?: number;
   quantityDone?: number;
-  tasksTemplate?: {
-    id: number;
-    description?: string;
-    weight?: number;
-    fixed?: boolean;
-  };
-  discipline?: { id: number; name: string };
-  unity?: { id: number; name: string; abbreviation?: string };
+  is_inspection?: boolean;
+  wbs_code?: string;
+  percent_complete?: number;
+  planned_start_date?: string;
+  planned_end_date?: string;
+  actual_start_date?: string;
+  actual_end_date?: string;
+  tasksTemplate?: TasksTemplateDetail;
+  discipline?: { id: number; discipline?: string; name?: string };
+  unity?: { id: number; unity?: string; name?: string; abbreviation?: string };
+  equipaments_types?: { id: number; type?: string };
+  sections?: { id: number; section_number?: number };
+  rows?: { id: number; row_number?: number };
+  fields?: { id: number; name?: string };
+  trackers?: { id: number; trackers_types?: { id: number; type?: string }; manufacturers?: { id: number; name?: string } };
 }
 
 /** Sprint panel response (5 categories) */

@@ -453,7 +453,20 @@ export class SprintsService {
       projects_backlogs: {
         include: {
           projects_backlogs_statuses: true,
-          tasks_template: true,
+          tasks_template: {
+            include: {
+              checklist_template: { select: { id: true, name: true, checklist_type: true } },
+              task_golden_rules: {
+                where: { deleted_at: null },
+                include: {
+                  golden_rule: { select: { id: true, title: true, description: true, severity: true, is_active: true } },
+                },
+              },
+              discipline: true,
+              unity: true,
+              equipaments_types: true,
+            },
+          },
           discipline: true,
           unity: true,
           equipaments_types: true,
@@ -673,6 +686,7 @@ export class SprintsService {
         subtasks_id: input.subtasks_id || null,
         sprints_tasks_statuses_id: input.sprints_tasks_statuses_id || 1,
         scheduled_for: input.scheduled_for ? new Date(input.scheduled_for) : null,
+        quantity_assigned: input.quantity_assigned ?? null,
         created_at: new Date(),
         updated_at: new Date(),
         deleted_at: null,
@@ -726,6 +740,8 @@ export class SprintsService {
     if (input.end_date !== undefined) {
       updateData.executed_at = input.end_date ? new Date(input.end_date) : null;
     }
+    if (input.quantity_assigned !== undefined) updateData.quantity_assigned = input.quantity_assigned;
+    if (input.quantity_done !== undefined) updateData.quantity_done = input.quantity_done;
 
     return db.sprints_tasks.update({
       where: { id: taskId },
@@ -785,9 +801,13 @@ export class SprintsService {
       updateData.quantity_done = input.quantity_done;
     }
 
-    // Se status for concluida (4), define end_date
+    // Se status for concluida, define executed_at e quantity_done default
     if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
-      updateData.end_date = new Date();
+      updateData.executed_at = new Date();
+      // Se quantity_done nao foi informado, usa quantity_assigned como default
+      if (input.quantity_done === undefined && existing.quantity_assigned) {
+        updateData.quantity_done = existing.quantity_assigned;
+      }
     }
 
     const updated = await db.sprints_tasks.update({
@@ -824,7 +844,7 @@ export class SprintsService {
           data: {
             sprints_tasks_statuses_id: task.sprints_tasks_statuses_id,
             updated_at: new Date(),
-            ...(task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA ? { end_date: new Date() } : {}),
+            ...(task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA ? { executed_at: new Date() } : {}),
           },
         });
       })
@@ -1125,20 +1145,31 @@ export class SprintsService {
       throw new NotFoundError('Tarefa nao encontrada.');
     }
 
+    // quantity_done informado pelo usuario, ou usa quantity_assigned como default
+    const qtyDone = input.quantity_done ?? (task.quantity_assigned ? Number(task.quantity_assigned) : 0);
+
     const updated = await db.sprints_tasks.update({
       where: { id: input.sprints_tasks_id },
       data: {
         sprints_tasks_statuses_id: SPRINT_TASK_STATUS.CONCLUIDA,
+        quantity_done: qtyDone,
         executed_at: new Date(),
         updated_at: new Date(),
       },
     });
 
-    // Atualiza quantity_done da subtask vinculada
+    // Recalcula quantity_done da subtask como soma de todas sprint tasks concluidas
     if (task.subtasks_id) {
       await db.$executeRaw`
-        UPDATE subtasks
-        SET quantity_done = quantity, updated_at = NOW()
+        UPDATE subtasks SET
+          quantity_done = (
+            SELECT COALESCE(SUM(st.quantity_done), 0)
+            FROM sprints_tasks st
+            WHERE st.subtasks_id = ${task.subtasks_id}
+              AND st.deleted_at IS NULL
+              AND st.sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}
+          ),
+          updated_at = NOW()
         WHERE id = ${task.subtasks_id}
       `;
     }

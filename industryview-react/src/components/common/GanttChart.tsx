@@ -152,14 +152,17 @@ export default function GanttChart({
         planningApi.getGanttData({ projects_id: projectsId, sprints_id: sprintsId }),
         planningApi.getCriticalPath({ projects_id: projectsId }).catch(() => null),
       ]);
-      setTasks(Array.isArray(ganttData) ? ganttData : []);
+      const items = Array.isArray(ganttData) ? ganttData : [];
+      setTasks(items);
       setCriticalPath(criticalData);
-      // Expand top-level tasks by default
-      const topIds = new Set<number>();
-      if (Array.isArray(ganttData)) {
-        ganttData.slice(0, 10).forEach((t) => topIds.add(t.id));
+      // Expand root items (parent_id === null) by default
+      const rootIds = new Set<number>();
+      for (const t of items) {
+        if (!t.parent_id) {
+          rootIds.add(t.id);
+        }
       }
-      setExpandedIds(topIds);
+      setExpandedIds(rootIds);
     } catch {
       setError('Erro ao carregar dados do Gantt.');
     } finally {
@@ -184,16 +187,47 @@ export default function GanttChart({
   const timelineStart = timeline[0]?.start ?? new Date();
   const timelineEnd = timeline[timeline.length - 1]?.end ?? new Date();
 
+  // Build hierarchy: detect children, compute visibility based on ancestor expansion
   const rows = useMemo<GanttRow[]>(() => {
+    // Build a set of IDs that are parent of at least one item
+    const childrenByParent = new Map<number, number[]>();
+    const taskMap = new Map<number, GanttItem>();
+    for (const task of tasks) {
+      taskMap.set(task.id, task);
+      if (task.parent_id != null) {
+        const siblings = childrenByParent.get(task.parent_id);
+        if (siblings) {
+          siblings.push(task.id);
+        } else {
+          childrenByParent.set(task.parent_id, [task.id]);
+        }
+      }
+    }
+
+    // Check if all ancestors are expanded
+    const isAncestorChainExpanded = (task: GanttItem): boolean => {
+      let currentParentId = task.parent_id;
+      while (currentParentId != null) {
+        if (!expandedIds.has(currentParentId)) return false;
+        const parent = taskMap.get(currentParentId);
+        if (!parent) break;
+        currentParentId = parent.parent_id;
+      }
+      return true;
+    };
+
     return tasks.map((task) => ({
       ...task,
-      level: 0,
+      level: task.level ?? 0,
       isExpanded: expandedIds.has(task.id),
-      hasChildren: false,
-      isVisible: true,
+      hasChildren: childrenByParent.has(task.id),
+      isVisible: !task.parent_id || isAncestorChainExpanded(task),
       isCritical: criticalSet.has(task.id),
     }));
   }, [tasks, expandedIds, criticalSet]);
+
+  // Only render visible rows
+  const visibleRows = useMemo(() => rows.filter((r) => r.isVisible), [rows]);
 
   const handleProgressChange = useCallback(
     async (taskId: number, newPercent: number) => {
@@ -206,7 +240,7 @@ export default function GanttChart({
           ),
         );
       } catch {
-        // Silently ignore — optimistic update remains visible
+        // Silently ignore -- optimistic update remains visible
       }
     },
     [readOnly],
@@ -263,6 +297,7 @@ export default function GanttChart({
             <LegendDot color="#22c55e" label="Realizado" />
             <LegendDot color="#ef4444" label="Caminho crítico" />
             <LegendDot color="rgba(234,179,8,0.7)" label="Marco" />
+            <LegendDot color="#64748b" label="Resumo (pai)" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>
@@ -329,10 +364,10 @@ export default function GanttChart({
               }}
             >
               <span style={{ width: `${WBS_COLUMN_WIDTH}px`, padding: '0 8px', flexShrink: 0, borderRight: '1px solid var(--color-alternate)' }}>Item</span>
-              <span style={{ flex: 1, padding: '0 12px' }}>Descrição</span>
+              <span style={{ flex: 1, padding: '0 12px' }}>Descricao</span>
             </div>
             {/* Rows */}
-            {rows.map((row) => (
+            {visibleRows.map((row) => (
               <div
                 key={row.id}
                 style={{
@@ -343,7 +378,9 @@ export default function GanttChart({
                   fontSize: '13px',
                   background: row.isCritical
                     ? 'rgba(239,68,68,0.04)'
-                    : 'transparent',
+                    : row.hasChildren
+                      ? 'rgba(255,255,255,0.02)'
+                      : 'transparent',
                 }}
               >
                 {/* WBS column */}
@@ -409,7 +446,7 @@ export default function GanttChart({
                       whiteSpace: 'nowrap',
                       flex: 1,
                       color: row.isCritical ? '#ef4444' : 'var(--color-text)',
-                      fontWeight: row.isCritical ? 600 : 400,
+                      fontWeight: row.hasChildren || row.isCritical ? 600 : 400,
                     }}
                     title={row.description ?? ''}
                   >
@@ -463,7 +500,7 @@ export default function GanttChart({
             </div>
 
             {/* Gantt bars */}
-            {rows.map((row) => {
+            {visibleRows.map((row) => {
               const plannedPos = getBarPosition(
                 row.planned_start_date ?? undefined,
                 row.planned_end_date ?? undefined,
@@ -477,6 +514,8 @@ export default function GanttChart({
                 timelineEnd,
               );
 
+              const isSummary = row.hasChildren;
+
               return (
                 <div
                   key={row.id}
@@ -486,7 +525,9 @@ export default function GanttChart({
                     position: 'relative',
                     background: row.isCritical
                       ? 'rgba(239,68,68,0.03)'
-                      : 'transparent',
+                      : isSummary
+                        ? 'rgba(255,255,255,0.015)'
+                        : 'transparent',
                   }}
                 >
                   {/* Column grid lines */}
@@ -505,8 +546,57 @@ export default function GanttChart({
                     />
                   ))}
 
-                  {/* Planned bar */}
-                  {plannedPos && !row.is_milestone && (
+                  {/* Summary bar (parent items) */}
+                  {isSummary && plannedPos && !row.is_milestone && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: plannedPos.left,
+                        width: plannedPos.width,
+                        top: '15px',
+                        height: '4px',
+                        background: '#64748b',
+                        borderRadius: '0',
+                      }}
+                      title={`Resumo: ${row.planned_start_date ?? ''} -> ${row.planned_end_date ?? ''} | ${row.percent_complete ?? 0}%`}
+                    >
+                      {/* Left bracket */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: '-3px',
+                          width: '3px',
+                          height: '10px',
+                          background: '#64748b',
+                          borderRadius: '1px 0 0 1px',
+                        }}
+                      />
+                      {/* Right bracket */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: '-3px',
+                          width: '3px',
+                          height: '10px',
+                          background: '#64748b',
+                          borderRadius: '0 1px 1px 0',
+                        }}
+                      />
+                      {/* Progress overlay on summary */}
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${row.percent_complete ?? 0}%`,
+                          background: '#475569',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Planned bar (leaf items only) */}
+                  {!isSummary && plannedPos && !row.is_milestone && (
                     <div
                       style={{
                         position: 'absolute',
@@ -521,7 +611,7 @@ export default function GanttChart({
                         border: `1px solid ${row.isCritical ? '#ef4444' : '#3b82f6'}`,
                         overflow: 'hidden',
                       }}
-                      title={`Planejado: ${row.planned_start_date ?? ''} → ${row.planned_end_date ?? ''}`}
+                      title={`Planejado: ${row.planned_start_date ?? ''} -> ${row.planned_end_date ?? ''}`}
                     >
                       {/* Progress fill */}
                       <div
@@ -553,8 +643,8 @@ export default function GanttChart({
                     />
                   )}
 
-                  {/* Actual bar */}
-                  {actualPos && !row.is_milestone && (
+                  {/* Actual bar (leaf items only) */}
+                  {!isSummary && actualPos && !row.is_milestone && (
                     <div
                       style={{
                         position: 'absolute',
@@ -566,12 +656,12 @@ export default function GanttChart({
                         background: '#22c55e',
                         opacity: 0.85,
                       }}
-                      title={`Realizado: ${row.actual_start_date ?? ''} → ${row.actual_end_date ?? ''}`}
+                      title={`Realizado: ${row.actual_start_date ?? ''} -> ${row.actual_end_date ?? ''}`}
                     />
                   )}
 
-                  {/* Progress edit (not readOnly) */}
-                  {!readOnly && plannedPos && (
+                  {/* Progress edit (not readOnly, leaf items only) */}
+                  {!readOnly && !isSummary && plannedPos && (
                     <div
                       style={{
                         position: 'absolute',
@@ -606,7 +696,7 @@ export default function GanttChart({
 
       {criticalPath && (
         <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-          Caminho crítico: {criticalPath.critical_tasks.length} tarefas | Duração total: {criticalPath.total_duration} dias
+          Caminho critico: {criticalPath.critical_tasks.length} tarefas | Duracao total: {criticalPath.total_duration} dias
         </div>
       )}
     </div>

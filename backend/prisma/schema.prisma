@@ -547,6 +547,8 @@ model projects {
   environmental_licenses       environmental_licenses[]
   material_requisitions        material_requisitions[]
   schedule_imports             schedule_imports[]
+  project_holidays             project_holidays[]
+  project_work_calendar        project_work_calendar?
 
   @@index([company_id], map: "idx_projects_company_id")
   @@index([client_id], map: "idx_projects_client_id")
@@ -997,6 +999,8 @@ model sprints_tasks {
   criticality               String?                  @db.VarChar(20)
   actual_start_time         DateTime?                @db.Timestamptz(6)
   actual_end_time           DateTime?                @db.Timestamptz(6)
+  quantity_assigned          Decimal?                 @db.Decimal(10, 2)
+  quantity_done              Decimal?                 @db.Decimal(10, 2)
   created_at                DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at                DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at                DateTime?                @db.Timestamptz(6)
@@ -2874,4 +2878,111 @@ model company_work_calendar {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   company    company  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model project_holidays {
+  id          BigInt    @id @default(autoincrement())
+  projects_id BigInt
+  date        DateTime  @db.Date
+  name        String    @db.VarChar(120)
+  type        String    @default("national") @db.VarChar(20)
+  recurring   Boolean   @default(false)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  project     projects  @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([projects_id, date], map: "uq_project_holidays_project_date")
+  @@index([projects_id], map: "idx_project_holidays_projects_id")
+}
+
+model project_work_calendar {
+  id                BigInt   @id @default(autoincrement())
+  projects_id       BigInt   @unique
+  seg_ativo         Boolean  @default(true)
+  seg_entrada       String   @default("08:00") @db.VarChar(5)
+  seg_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  seg_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  seg_saida         String   @default("17:00") @db.VarChar(5)
+  ter_ativo         Boolean  @default(true)
+  ter_entrada       String   @default("08:00") @db.VarChar(5)
+  ter_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  ter_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  ter_saida         String   @default("17:00") @db.VarChar(5)
+  qua_ativo         Boolean  @default(true)
+  qua_entrada       String   @default("08:00") @db.VarChar(5)
+  qua_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  qua_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  qua_saida         String   @default("17:00") @db.VarChar(5)
+  qui_ativo         Boolean  @default(true)
+  qui_entrada       String   @default("08:00") @db.VarChar(5)
+  qui_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  qui_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  qui_saida         String   @default("17:00") @db.VarChar(5)
+  sex_ativo         Boolean  @default(true)
+  sex_entrada       String   @default("08:00") @db.VarChar(5)
+  sex_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  sex_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  sex_saida         String   @default("17:00") @db.VarChar(5)
+  sab_ativo         Boolean  @default(false)
+  sab_entrada       String   @default("08:00") @db.VarChar(5)
+  sab_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  sab_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  sab_saida         String   @default("17:00") @db.VarChar(5)
+  dom_ativo         Boolean  @default(false)
+  dom_entrada       String   @default("08:00") @db.VarChar(5)
+  dom_intervalo_ini String   @default("12:00") @db.VarChar(5)
+  dom_intervalo_fim String   @default("13:00") @db.VarChar(5)
+  dom_saida         String   @default("17:00") @db.VarChar(5)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  project           projects @relation(fields: [projects_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  overrides         project_work_calendar_override[]
+}
+
+model project_work_calendar_override {
+  id                        BigInt   @id @default(autoincrement())
+  project_work_calendar_id  BigInt
+  month                     Int
+  year                      Int?
+  seg_ativo                 Boolean  @default(true)
+  seg_entrada               String   @default("08:00") @db.VarChar(5)
+  seg_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  seg_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  seg_saida                 String   @default("17:00") @db.VarChar(5)
+  ter_ativo                 Boolean  @default(true)
+  ter_entrada               String   @default("08:00") @db.VarChar(5)
+  ter_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  ter_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  ter_saida                 String   @default("17:00") @db.VarChar(5)
+  qua_ativo                 Boolean  @default(true)
+  qua_entrada               String   @default("08:00") @db.VarChar(5)
+  qua_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  qua_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  qua_saida                 String   @default("17:00") @db.VarChar(5)
+  qui_ativo                 Boolean  @default(true)
+  qui_entrada               String   @default("08:00") @db.VarChar(5)
+  qui_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  qui_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  qui_saida                 String   @default("17:00") @db.VarChar(5)
+  sex_ativo                 Boolean  @default(true)
+  sex_entrada               String   @default("08:00") @db.VarChar(5)
+  sex_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  sex_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  sex_saida                 String   @default("17:00") @db.VarChar(5)
+  sab_ativo                 Boolean  @default(false)
+  sab_entrada               String   @default("08:00") @db.VarChar(5)
+  sab_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  sab_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  sab_saida                 String   @default("17:00") @db.VarChar(5)
+  dom_ativo                 Boolean  @default(false)
+  dom_entrada               String   @default("08:00") @db.VarChar(5)
+  dom_intervalo_ini         String   @default("12:00") @db.VarChar(5)
+  dom_intervalo_fim         String   @default("13:00") @db.VarChar(5)
+  dom_saida                 String   @default("17:00") @db.VarChar(5)
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  calendar                  project_work_calendar @relation(fields: [project_work_calendar_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([project_work_calendar_id, month, year], map: "uq_project_work_calendar_override")
 }

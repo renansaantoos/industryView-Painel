@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
 import { Link } from 'react-router-dom';
 import { useAppState } from '../../contexts/AppStateContext';
 import { planningApi } from '../../services';
-import type { ScheduleHealthData, CurveSData, ScheduleBaseline, GanttItem } from '../../types';
+import type { ScheduleHealthData, CurveSData, ScheduleBaseline, CronogramaItem } from '../../types';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   Clock,
   Link2,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import {
   PieChart,
@@ -190,34 +192,61 @@ function ProgressBar({ planned, actual }: { planned: number; actual: number }) {
   );
 }
 
-// WBS tree row component
+// WBS tree row component with hierarchy support
 interface WbsRowProps {
-  item: GanttItem;
-  isCritical: boolean;
-  linkedTasksCount?: number;
+  item: CronogramaItem;
+  isExpanded: boolean;
+  onToggle: (id: number) => void;
 }
 
-function WbsRow({ item, isCritical, linkedTasksCount }: WbsRowProps) {
+function WbsRow({ item, isExpanded, onToggle }: WbsRowProps) {
   const percentComplete = item.percent_complete ?? 0;
   const statusColor =
     percentComplete >= 100 ? '#22c55e' : percentComplete > 0 ? '#3b82f6' : 'var(--color-secondary-text)';
   const statusLabel =
-    percentComplete >= 100 ? 'Concluído' : percentComplete > 0 ? 'Em andamento' : 'Não iniciado';
+    percentComplete >= 100 ? 'Concluido' : percentComplete > 0 ? 'Em andamento' : 'Nao iniciado';
+  const isParent = item.has_children;
 
   return (
     <tr
       style={{
         borderBottom: '1px solid var(--color-alternate)',
-        background: isCritical ? 'rgba(239,68,68,0.04)' : 'transparent',
+        background: isParent ? 'rgba(255,255,255,0.02)' : 'transparent',
       }}
     >
       <td style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap' }}>
         {item.wbs_code || '-'}
       </td>
       <td style={{ padding: '10px 12px', fontSize: '13px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            paddingLeft: `${item.level * 20}px`,
+          }}
+        >
+          {isParent ? (
+            <button
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px',
+                color: 'var(--color-secondary-text)',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              onClick={() => onToggle(item.id)}
+            >
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+          ) : (
+            <span style={{ width: '18px', flexShrink: 0 }} />
+          )}
           {item.is_milestone && <Flag size={12} color="#eab308" />}
-          <span style={{ color: isCritical ? '#ef4444' : 'var(--color-text)', fontWeight: isCritical ? 600 : 400 }}>
+          <span style={{ color: 'var(--color-text)', fontWeight: isParent ? 600 : 400 }}>
             {item.description || '-'}
           </span>
         </div>
@@ -268,11 +297,11 @@ function WbsRow({ item, isCritical, linkedTasksCount }: WbsRowProps) {
         </span>
       </td>
       <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-        {linkedTasksCount != null && linkedTasksCount > 0 ? (
+        {item.linked_tasks_count > 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
             <Link2 size={12} color="var(--color-primary)" />
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)' }}>
-              {linkedTasksCount}
+              {item.linked_tasks_count}
             </span>
           </div>
         ) : (
@@ -280,6 +309,69 @@ function WbsRow({ item, isCritical, linkedTasksCount }: WbsRowProps) {
         )}
       </td>
     </tr>
+  );
+}
+
+function WbsTable({
+  items,
+  expandedIds,
+  onToggle,
+}: {
+  items: CronogramaItem[];
+  expandedIds: Set<number>;
+  onToggle: (id: number) => void;
+}) {
+  // Build item map for ancestor chain check
+  const itemMap = useMemo(() => {
+    const map = new Map<number, CronogramaItem>();
+    for (const item of items) map.set(item.id, item);
+    return map;
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    return items.filter((item) => {
+      // Root items are always visible
+      if (!item.parent_id) return true;
+      // Walk up the ancestor chain - all must be expanded
+      let currentParentId: number | null = item.parent_id;
+      while (currentParentId != null) {
+        if (!expandedIds.has(currentParentId)) return false;
+        const parent = itemMap.get(currentParentId);
+        if (!parent) break;
+        currentParentId = parent.parent_id;
+      }
+      return true;
+    });
+  }, [items, expandedIds, itemMap]);
+
+  return (
+    <div className="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: '80px' }}>WBS</th>
+            <th>Descricao</th>
+            <th style={{ width: '90px' }}>Inicio Plan.</th>
+            <th style={{ width: '90px' }}>Fim Plan.</th>
+            <th style={{ width: '90px' }}>Inicio Real</th>
+            <th style={{ width: '90px' }}>Fim Real</th>
+            <th style={{ width: '140px' }}>Progresso</th>
+            <th style={{ width: '100px' }}>Status</th>
+            <th style={{ width: '70px', textAlign: 'center' }}>Tarefas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleItems.map((item) => (
+            <WbsRow
+              key={item.id}
+              item={item}
+              isExpanded={expandedIds.has(item.id)}
+              onToggle={onToggle}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -297,10 +389,9 @@ export default function CronogramaView() {
   const [rollupLoading, setRollupLoading] = useState(false);
 
   // WBS tab
-  const [wbsItems, setWbsItems] = useState<GanttItem[]>([]);
+  const [wbsItems, setWbsItems] = useState<CronogramaItem[]>([]);
   const [wbsLoading, setWbsLoading] = useState(false);
-  const [criticalIds, setCriticalIds] = useState<Set<number>>(new Set());
-  const [linkedTasksMap, setLinkedTasksMap] = useState<Record<number, number>>({});
+  const [wbsExpandedIds, setWbsExpandedIds] = useState<Set<number>>(new Set());
 
   // Curva S tab
   const [baselines, setBaselines] = useState<ScheduleBaseline[]>([]);
@@ -331,25 +422,19 @@ export default function CronogramaView() {
     if (!projectsInfo) return;
     setWbsLoading(true);
     try {
-      const [ganttData, criticalData, cronogramaData] = await Promise.all([
-        planningApi.getGanttData({ projects_id: projectsInfo.id }),
-        planningApi.getCriticalPath({ projects_id: projectsInfo.id }).catch(() => null),
-        planningApi.listCronogramaItems({ projects_id: projectsInfo.id }).catch(() => []),
-      ]);
-      setWbsItems(Array.isArray(ganttData) ? ganttData : []);
-      if (criticalData) {
-        setCriticalIds(new Set(criticalData.critical_tasks));
-      }
-      // Build map of linked tasks count per cronograma item
-      const tasksMap: Record<number, number> = {};
-      for (const item of cronogramaData) {
-        if (item.linked_tasks_count > 0) {
-          tasksMap[item.id] = item.linked_tasks_count;
+      const cronogramaData = await planningApi.listCronogramaItems({ projects_id: projectsInfo.id });
+      const items = Array.isArray(cronogramaData) ? cronogramaData : [];
+      setWbsItems(items);
+      // Auto-expand root items
+      const rootIds = new Set<number>();
+      for (const item of items) {
+        if (!item.parent_id) {
+          rootIds.add(item.id);
         }
       }
-      setLinkedTasksMap(tasksMap);
+      setWbsExpandedIds(rootIds);
     } catch {
-      showToast('Erro ao carregar árvore WBS', 'error');
+      showToast('Erro ao carregar arvore WBS', 'error');
     } finally {
       setWbsLoading(false);
     }
@@ -619,35 +704,20 @@ export default function CronogramaView() {
           {wbsLoading ? (
             <LoadingSpinner />
           ) : wbsItems.length === 0 ? (
-            <EmptyState message="Nenhuma tarefa encontrada. Importe o cronograma para visualizar a árvore WBS." />
+            <EmptyState message="Nenhuma tarefa encontrada. Importe o cronograma para visualizar a arvore WBS." />
           ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th style={{ width: '80px' }}>WBS</th>
-                    <th>Descrição</th>
-                    <th style={{ width: '90px' }}>Início Plan.</th>
-                    <th style={{ width: '90px' }}>Fim Plan.</th>
-                    <th style={{ width: '90px' }}>Início Real</th>
-                    <th style={{ width: '90px' }}>Fim Real</th>
-                    <th style={{ width: '140px' }}>Progresso</th>
-                    <th style={{ width: '100px' }}>Status</th>
-                    <th style={{ width: '70px', textAlign: 'center' }}>Tarefas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wbsItems.map((item) => (
-                    <WbsRow
-                      key={item.id}
-                      item={item}
-                      isCritical={criticalIds.has(item.id)}
-                      linkedTasksCount={linkedTasksMap[item.id]}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <WbsTable
+              items={wbsItems}
+              expandedIds={wbsExpandedIds}
+              onToggle={(id) => {
+                setWbsExpandedIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                });
+              }}
+            />
           )}
         </motion.div>
       )}

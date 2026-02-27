@@ -126,43 +126,43 @@ export const sprintTasksPanelSchema = z.object({
   ),
   // Paginacao por status - Preprocess para converter null em undefined (ativando default) e garantir number
   pagePen: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().optional().default(1)
   ),
   per_pagePen: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().max(100).optional().default(20)
   ),
   pageAnd: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().optional().default(1)
   ),
   per_pageAnd: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().max(100).optional().default(20)
   ),
   pageIns: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().optional().default(1)
   ),
   per_pageIns: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().max(100).optional().default(20)
   ),
   pageSem: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().optional().default(1)
   ),
   per_pageSem: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().max(100).optional().default(20)
   ),
   pageConc: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().optional().default(1)
   ),
   per_pageConc: z.preprocess(
-    (val) => (val === null || val === '' ? undefined : Number(val)),
+    (val) => (val == null || val === '' ? undefined : Number(val)),
     z.number().int().positive().max(100).optional().default(20)
   ),
 });
@@ -188,6 +188,7 @@ export const createSprintTaskSchema = z.object({
     z.string().datetime({ local: true, offset: true }).optional().nullable()
   ),
   quantity_done: z.number().optional().default(0),
+  quantity_assigned: z.number().positive().optional(),
 });
 
 export type CreateSprintTaskInput = z.infer<typeof createSprintTaskSchema>;
@@ -217,6 +218,7 @@ export const updateSprintTaskSchema = z.object({
     z.string().datetime({ local: true, offset: true }).optional().nullable()
   ),
   quantity_done: z.number().optional(),
+  quantity_assigned: z.number().positive().optional(),
   end_date: z.string().datetime({ local: true, offset: true }).optional().nullable(),
 });
 

@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
-import { motion } from 'framer-motion';
-import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { projectsApi, tasksApi } from '../../services';
+import { projectsApi, tasksApi, agentsApi } from '../../services';
 import { useBusinessDays } from '../../hooks/useBusinessDays';
 import { toDateKey } from '../../utils/businessDays';
 import type { ProjectBacklog, TaskListItem, Unity, Discipline } from '../../types';
@@ -22,12 +20,17 @@ import {
   ArrowLeft,
   Trash2,
   Edit,
+  Check,
+  X,
   CheckSquare,
   Square,
   ChevronDown,
   ChevronRight,
   CalendarDays,
+  Copy,
+  Sparkles,
 } from 'lucide-react';
+import type { WeightSuggestion } from '../../services/api/agents';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,6 +41,8 @@ interface SubtaskItem {
   description?: string;
   name?: string;
   quantity?: number;
+  quantity_done?: number;
+  weight?: number;
   unity?: { id: number; unity: string } | null;
   subtasks_statuses_id?: number;
   status?: boolean;
@@ -102,10 +107,16 @@ function backlogToEditForm(backlog: ProjectBacklog): EditForm {
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '-';
-  // Handle timestamps or ISO strings
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString();
+  // Parse YYYY-MM-DD as local date (not UTC) to avoid timezone shift
+  const dateOnly = dateStr.slice(0, 10);
+  const [y, m, d] = dateOnly.split('-').map(Number);
+  if (y && m && d) {
+    const local = new Date(y, m - 1, d);
+    if (!isNaN(local.getTime())) return local.toLocaleDateString();
+  }
+  const fallback = new Date(dateStr);
+  if (isNaN(fallback.getTime())) return dateStr;
+  return fallback.toLocaleDateString();
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +157,11 @@ export default function Backlog() {
 
   // --- Delete confirm ---
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  // --- Bulk selection ---
+  const [selectedBacklogIds, setSelectedBacklogIds] = useState<Set<number>>(new Set());
+  const [bulkDeleteBacklogConfirm, setBulkDeleteBacklogConfirm] = useState(false);
+  const [bulkDeletingBacklogs, setBulkDeletingBacklogs] = useState(false);
 
   // --- Expansion & subtasks ---
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set());
@@ -306,15 +322,23 @@ export default function Backlog() {
   };
 
   // ---------------------------------------------------------------------------
-  // Check/uncheck
+  // Selection
   // ---------------------------------------------------------------------------
 
-  const handleToggleCheck = async (backlog: ProjectBacklog) => {
-    try {
-      await projectsApi.checkTaskBacklog(backlog.id, { checked: !backlog.checked });
-      loadBacklogs();
-    } catch (err) {
-      console.error('Failed to toggle check:', err);
+  const toggleBacklogSelect = (id: number) => {
+    setSelectedBacklogIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleBacklogSelectAll = () => {
+    if (selectedBacklogIds.size === visibleBacklogs.length) {
+      setSelectedBacklogIds(new Set());
+    } else {
+      setSelectedBacklogIds(new Set(visibleBacklogs.map((b) => b.id)));
     }
   };
 
@@ -330,6 +354,22 @@ export default function Backlog() {
       console.error('Failed to delete backlog:', err);
     }
     setDeleteConfirm(null);
+  };
+
+  const handleBulkDeleteBacklogs = async () => {
+    setBulkDeletingBacklogs(true);
+    try {
+      for (const id of selectedBacklogIds) {
+        await projectsApi.deleteProjectBacklog(id);
+      }
+      setSelectedBacklogIds(new Set());
+      loadBacklogs();
+    } catch (err) {
+      console.error('Failed to bulk delete backlogs:', err);
+    } finally {
+      setBulkDeletingBacklogs(false);
+      setBulkDeleteBacklogConfirm(false);
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -452,18 +492,88 @@ export default function Backlog() {
       });
       setNewSubtaskTaskId((prev) => ({ ...prev, [backlogId]: '' }));
       setNewSubtaskQuantity((prev) => ({ ...prev, [backlogId]: '' }));
-      // Reload subtasks
+      // Reload subtasks and backlog (percent_complete may have changed)
       const result = await projectsApi.getSubtasks(backlogId);
       setSubtasksMap((prev) => ({
         ...prev,
         [backlogId]: (result.items as SubtaskItem[]) || [],
       }));
+      loadBacklogs();
     } catch (err) {
       console.error('Failed to add subtask:', err);
     } finally {
       setSubtaskSaving(false);
     }
   };
+
+  // ---------------------------------------------------------------------------
+  // Subtask edit & delete
+  // ---------------------------------------------------------------------------
+
+  const reloadSubtasks = async (backlogId: number) => {
+    const result = await projectsApi.getSubtasks(backlogId);
+    setSubtasksMap((prev) => ({
+      ...prev,
+      [backlogId]: (result.items as SubtaskItem[]) || [],
+    }));
+  };
+
+  const handleEditSubtask = async (backlogId: number, subtaskId: number, data: Record<string, unknown>) => {
+    await projectsApi.editSubtask(subtaskId, data);
+    await reloadSubtasks(backlogId);
+    loadBacklogs();
+  };
+
+  const handleDeleteSubtask = async (backlogId: number, subtaskId: number) => {
+    await projectsApi.deleteSubtask(subtaskId);
+    await reloadSubtasks(backlogId);
+    loadBacklogs();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Subtask copy to another backlog
+  // ---------------------------------------------------------------------------
+
+  const handleCopySubtasks = async (sourceBacklogId: number, subtaskIds: number[], targetBacklogId: number) => {
+    const sourceSubtasks = subtasksMap[sourceBacklogId] ?? [];
+    for (const id of subtaskIds) {
+      const subtask = sourceSubtasks.find((s) => s.id === id);
+      if (!subtask) continue;
+      await projectsApi.addSubtask({
+        backlog_id: targetBacklogId,
+        name: subtask.description || subtask.name || '',
+        quantity: subtask.quantity ?? undefined,
+        unity_id: subtask.unity?.id ?? undefined,
+      });
+    }
+    // Reload target subtasks if expanded
+    if (expandedLeafIds.has(targetBacklogId)) {
+      await reloadSubtasks(targetBacklogId);
+    }
+    loadBacklogs();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Load all backlogs for copy target selection
+  // ---------------------------------------------------------------------------
+
+  const [allBacklogs, setAllBacklogs] = useState<ProjectBacklog[]>([]);
+
+  useEffect(() => {
+    if (!projectsInfo) return;
+    const loadAll = async () => {
+      try {
+        const data = await projectsApi.queryAllProjectBacklogIds({
+          projects_id: projectsInfo.id,
+          per_page: 1000,
+        });
+        setAllBacklogs(data.items || []);
+      } catch (err) {
+        console.error('Failed to load all backlogs:', err);
+      }
+    };
+    loadAll();
+  }, [projectsInfo]);
 
   // ---------------------------------------------------------------------------
   // Guard
@@ -544,6 +654,18 @@ export default function Backlog() {
             {t('backlog.completed')}
           </button>
         </div>
+        {selectedBacklogIds.size > 0 && (
+          <button
+            className="btn btn-danger"
+            style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => setBulkDeleteBacklogConfirm(true)}
+            disabled={bulkDeletingBacklogs}
+          >
+            {bulkDeletingBacklogs
+              ? <span className="spinner" style={{ width: '14px', height: '14px' }} />
+              : <><Trash2 size={14} /> {t('common.delete')} ({selectedBacklogIds.size})</>}
+          </button>
+        )}
       </div>
 
       {/* Backlog table */}
@@ -563,7 +685,13 @@ export default function Backlog() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: '40px' }}></th>
+                <th style={{ width: '40px' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleBacklogs.length > 0 && selectedBacklogIds.size === visibleBacklogs.length}
+                    onChange={toggleBacklogSelectAll}
+                  />
+                </th>
                 <SortableHeader label={t('backlog.taskName')} field="taskName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.wbsCode')} field="wbsCode" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.discipline')} field="disciplineName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
@@ -576,7 +704,7 @@ export default function Backlog() {
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
-            <motion.tbody variants={staggerParent} initial="initial" animate="animate">
+            <tbody>
               {visibleBacklogs.map((backlog) => {
                 const level = getWbsLevel(backlog.wbsCode);
                 const isParent = hasChildren.has(backlog.id);
@@ -586,20 +714,14 @@ export default function Backlog() {
 
                 return (
                 <Fragment key={backlog.id}>
-                  <motion.tr variants={tableRowVariants}>
-                    {/* Checkbox */}
+                  <tr>
+                    {/* Selection checkbox */}
                     <td>
-                      <button
-                        className="btn btn-icon"
-                        onClick={() => handleToggleCheck(backlog)}
-                        style={{ padding: '2px' }}
-                      >
-                        {backlog.checked ? (
-                          <CheckSquare size={18} color="var(--color-success)" />
-                        ) : (
-                          <Square size={18} color="var(--color-secondary-text)" />
-                        )}
-                      </button>
+                      <input
+                        type="checkbox"
+                        checked={selectedBacklogIds.has(backlog.id)}
+                        onChange={() => toggleBacklogSelect(backlog.id)}
+                      />
                     </td>
 
                     {/* Task name + expand toggle */}
@@ -619,7 +741,6 @@ export default function Backlog() {
                         <span
                           style={{
                             fontWeight: isParent ? 600 : 500,
-                            textDecoration: backlog.checked ? 'line-through' : 'none',
                           }}
                         >
                           {backlog.taskName || backlog.name || '-'}
@@ -724,12 +845,12 @@ export default function Backlog() {
                         </button>
                       </div>
                     </td>
-                  </motion.tr>
+                  </tr>
 
                   {/* Subtask expansion row — only for leaf items (no WBS children) */}
                   {isExpanded && !isParent && (
-                    <tr>
-                      <td colSpan={11} style={{ padding: 0 }}>
+                    <tr className="no-row-hover">
+                      <td colSpan={11} style={{ padding: 0, backgroundColor: 'transparent' }}>
                         <SubtaskPanel
                           backlogId={backlog.id}
                           subtasks={subtasksMap[backlog.id] ?? null}
@@ -745,6 +866,14 @@ export default function Backlog() {
                             setNewSubtaskQuantity((prev) => ({ ...prev, [backlog.id]: val }))
                           }
                           onAddSubtask={() => handleAddSubtask(backlog.id)}
+                          onEditSubtask={(subtaskId, data) => handleEditSubtask(backlog.id, subtaskId, data)}
+                          onDeleteSubtask={(subtaskId) => handleDeleteSubtask(backlog.id, subtaskId)}
+                          backlogs={allBacklogs}
+                          currentBacklogId={backlog.id}
+                          onCopySubtasks={(subtaskIds, targetBacklogId) =>
+                            handleCopySubtasks(backlog.id, subtaskIds, targetBacklogId)
+                          }
+                          onReloadSubtasks={() => { reloadSubtasks(backlog.id); loadBacklogs(); }}
                           t={t}
                         />
                       </td>
@@ -753,7 +882,7 @@ export default function Backlog() {
                 </Fragment>
                 );
               })}
-            </motion.tbody>
+            </tbody>
           </table>
           <Pagination
             currentPage={page}
@@ -996,6 +1125,15 @@ export default function Backlog() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {bulkDeleteBacklogConfirm && (
+        <ConfirmModal
+          title={t('common.confirmDelete')}
+          message={t('common.confirmDeleteMessage')}
+          onConfirm={handleBulkDeleteBacklogs}
+          onCancel={() => setBulkDeleteBacklogConfirm(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1015,10 +1153,17 @@ interface SubtaskPanelProps {
   onTaskChange: (value: string) => void;
   onQuantityChange: (value: string) => void;
   onAddSubtask: () => void;
+  onEditSubtask: (subtaskId: number, data: Record<string, unknown>) => Promise<void>;
+  onDeleteSubtask: (subtaskId: number) => Promise<void>;
+  backlogs: ProjectBacklog[];
+  currentBacklogId: number;
+  onCopySubtasks: (subtaskIds: number[], targetBacklogId: number) => Promise<void>;
+  onReloadSubtasks: () => void;
   t: (key: string) => string;
 }
 
 function SubtaskPanel({
+  backlogId,
   subtasks,
   loading,
   allTasks,
@@ -1028,23 +1173,249 @@ function SubtaskPanel({
   onTaskChange,
   onQuantityChange,
   onAddSubtask,
+  onEditSubtask,
+  onDeleteSubtask,
+  onReloadSubtasks,
+  backlogs,
+  currentBacklogId,
+  onCopySubtasks,
   t,
 }: SubtaskPanelProps) {
   const selectedTask = selectedTaskId
     ? allTasks.find((tk) => tk.id === parseInt(selectedTaskId, 10))
     : null;
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTaskId, setEditTaskId] = useState<string>('');
+  const [editQuantity, setEditQuantity] = useState<string>('');
+  const [editWeight, setEditWeight] = useState<string>('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyTargetId, setCopyTargetId] = useState<string>('');
+  const [copying, setCopying] = useState(false);
+
+  // AI weight calculation
+  const [aiWeightsLoading, setAiWeightsLoading] = useState(false);
+  const [aiWeightsModal, setAiWeightsModal] = useState(false);
+  const [aiWeightsSuggestions, setAiWeightsSuggestions] = useState<(WeightSuggestion & { finalWeight: number })[]>([]);
+  const [applyingWeights, setApplyingWeights] = useState(false);
+
+  // Inline weight editing
+  const [editingWeightId, setEditingWeightId] = useState<number | null>(null);
+  const [editingWeightValue, setEditingWeightValue] = useState<string>('');
+  const [savingWeight, setSavingWeight] = useState(false);
+
+  const handleCalculateWeights = async () => {
+    setAiWeightsLoading(true);
+    try {
+      const result = await agentsApi.calculateWeights(backlogId);
+      setAiWeightsSuggestions(
+        result.weights.map((w) => ({ ...w, finalWeight: w.weight }))
+      );
+      setAiWeightsModal(true);
+    } catch (err) {
+      console.error('Failed to calculate weights:', err);
+    } finally {
+      setAiWeightsLoading(false);
+    }
+  };
+
+  const handleApplyWeights = async () => {
+    setApplyingWeights(true);
+    try {
+      await agentsApi.applyWeights({
+        weights: aiWeightsSuggestions.map((w) => ({
+          subtask_id: w.subtask_id,
+          weight: w.finalWeight,
+        })),
+      });
+      setAiWeightsModal(false);
+      setAiWeightsSuggestions([]);
+      onReloadSubtasks();
+    } catch (err) {
+      console.error('Failed to apply weights:', err);
+    } finally {
+      setApplyingWeights(false);
+    }
+  };
+
+  // Helper: sum of weights of all subtasks except the one being edited
+  const getOthersWeightSum = (excludeId: number) => {
+    if (!subtasks) return 0;
+    return subtasks
+      .filter((s) => s.id !== excludeId)
+      .reduce((sum, s) => sum + (s.weight ?? 0), 0);
+  };
+
+  const handleSaveWeight = async (subtaskId: number) => {
+    const val = parseFloat(editingWeightValue);
+    if (isNaN(val) || val < 0) return;
+    const othersSum = getOthersWeightSum(subtaskId);
+    if (othersSum + val > 1) return; // block if sum > 1
+    setSavingWeight(true);
+    try {
+      await onEditSubtask(subtaskId, { weight: val });
+      setEditingWeightId(null);
+      setEditingWeightValue('');
+    } finally {
+      setSavingWeight(false);
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!subtasks) return;
+    if (selectedIds.size === subtasks.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(subtasks.map((s) => s.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      for (const id of selectedIds) {
+        await onDeleteSubtask(id);
+      }
+      setSelectedIds(new Set());
+    } finally {
+      setBulkDeleting(false);
+      setBulkDeleteConfirm(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!copyTargetId) return;
+    setCopying(true);
+    try {
+      await onCopySubtasks(Array.from(selectedIds), parseInt(copyTargetId, 10));
+      setSelectedIds(new Set());
+      setCopyModalOpen(false);
+      setCopyTargetId('');
+    } catch (err) {
+      console.error('Failed to copy subtasks:', err);
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  const startEdit = (subtask: SubtaskItem) => {
+    setEditingId(subtask.id);
+    const matchedTask = allTasks.find(
+      (tk) => (tk.description || tk.name || '').toLowerCase() === (subtask.description || subtask.name || '').toLowerCase()
+    );
+    setEditTaskId(matchedTask ? String(matchedTask.id) : '');
+    setEditQuantity(subtask.quantity != null ? String(subtask.quantity) : '');
+    setEditWeight(subtask.weight != null ? String(subtask.weight) : '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTaskId('');
+    setEditQuantity('');
+    setEditWeight('');
+  };
+
+  const saveEdit = async (subtaskId: number) => {
+    const task = editTaskId ? allTasks.find((tk) => tk.id === parseInt(editTaskId, 10)) : null;
+    const weightVal = editWeight ? parseFloat(editWeight) : null;
+    if (weightVal != null) {
+      const othersSum = getOthersWeightSum(subtaskId);
+      if (othersSum + weightVal > 1) return; // block if sum > 1
+    }
+    setEditSaving(true);
+    try {
+      await onEditSubtask(subtaskId, {
+        description: task ? (task.description || task.name || '') : undefined,
+        quantity: editQuantity ? parseFloat(editQuantity) : null,
+        unity_id: task?.unity_id ?? null,
+        ...(weightVal != null ? { weight: weightVal } : {}),
+      });
+      cancelEdit();
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async (subtaskId: number) => {
+    setDeletingId(subtaskId);
+    try {
+      await onDeleteSubtask(subtaskId);
+    } finally {
+      setDeletingId(null);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const editSelectedTask = editTaskId
+    ? allTasks.find((tk) => tk.id === parseInt(editTaskId, 10))
+    : null;
+
   return (
     <div
       style={{
-        backgroundColor: 'var(--color-tertiary-bg)',
-        borderTop: '1px solid var(--color-alternate)',
+        backgroundColor: 'var(--color-secondary-bg)',
+        borderTop: '2px solid var(--color-alternate)',
         padding: '12px 24px 16px 56px',
       }}
     >
-      <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {t('backlog.subtasks')}
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+            {t('backlog.subtasks')}
+          </p>
+          {subtasks && subtasks.length > 0 && (
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: '11px', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={handleCalculateWeights}
+              disabled={aiWeightsLoading}
+            >
+              {aiWeightsLoading
+                ? <span className="spinner" style={{ width: '12px', height: '12px' }} />
+                : <><Sparkles size={12} /> {t('backlog.calculateWeightsAI', 'Calcular Pesos com IA')}</>}
+            </button>
+          )}
+        </div>
+        {selectedIds.size > 0 && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              className="btn btn-primary"
+              style={{ fontSize: '12px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => setCopyModalOpen(true)}
+              disabled={copying}
+            >
+              {copying
+                ? <span className="spinner" style={{ width: '12px', height: '12px' }} />
+                : <><Copy size={12} /> {t('backlog.copyTo')} ({selectedIds.size})</>}
+            </button>
+            <button
+              className="btn btn-danger"
+              style={{ fontSize: '12px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => setBulkDeleteConfirm(true)}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting
+                ? <span className="spinner" style={{ width: '12px', height: '12px' }} />
+                : <><Trash2 size={12} /> {t('common.delete')} ({selectedIds.size})</>}
+            </button>
+          </div>
+        )}
+      </div>
 
       {loading || subtasks === null ? (
         <div style={{ padding: '8px 0' }}>
@@ -1055,11 +1426,19 @@ function SubtaskPanel({
           {t('backlog.noSubtasks')}
         </p>
       ) : (
-        <table style={{ width: '100%', marginBottom: '10px', fontSize: '13px', borderCollapse: 'collapse' }}>
+        <>
+        <table className="no-row-hover" style={{ width: '100%', marginBottom: '10px', fontSize: '13px', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={{ padding: '4px 8px', width: '32px' }}>
+                <input
+                  type="checkbox"
+                  checked={subtasks !== null && subtasks.length > 0 && selectedIds.size === subtasks.length}
+                  onChange={toggleSelectAll}
+                />
+              </th>
               <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500 }}>
-                {t('backlog.taskName')}
+                {t('backlog.subtaskName')}
               </th>
               <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '100px' }}>
                 {t('backlog.quantity')}
@@ -1067,43 +1446,439 @@ function SubtaskPanel({
               <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '100px' }}>
                 {t('backlog.unity')}
               </th>
+              <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '70px' }}>
+                {t('backlog.weight', 'Peso')}
+              </th>
+              <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '140px' }}>
+                {t('backlog.progress', 'Progresso')}
+              </th>
               <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '120px' }}>
                 {t('backlog.status')}
+              </th>
+              <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--color-secondary-text)', fontWeight: 500, width: '80px' }}>
+                {t('common.actions')}
               </th>
             </tr>
           </thead>
           <tbody>
-            {subtasks.map((subtask) => (
-              <tr key={subtask.id} style={{ borderTop: '1px solid var(--color-alternate)' }}>
-                <td style={{ padding: '6px 8px' }}>{subtask.description || subtask.name || '-'}</td>
-                <td style={{ padding: '6px 8px' }}>
-                  {subtask.quantity != null ? subtask.quantity : '-'}
-                </td>
-                <td style={{ padding: '6px 8px' }}>
-                  {subtask.unity?.unity || '-'}
-                </td>
-                <td style={{ padding: '6px 8px' }}>
-                  <span
-                    className="badge"
-                    style={{
-                      backgroundColor: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-status-04)' : 'var(--color-status-02)',
-                      color: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-success)' : 'var(--color-warning)',
-                    }}
-                  >
-                    {(subtask.subtasks_statuses_id === 3 || subtask.status) ? t('backlog.completed') : t('backlog.pending')}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {subtasks.map((subtask) => {
+              const isEditing = editingId === subtask.id;
+
+              if (isEditing) {
+                return (
+                  <tr key={subtask.id} style={{ borderTop: '1px solid var(--color-alternate)' }}>
+                    <td style={{ padding: '6px 8px', width: '32px' }}>
+                      <input type="checkbox" checked={selectedIds.has(subtask.id)} onChange={() => toggleSelect(subtask.id)} />
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <SearchableSelect
+                        options={allTasks.map((tk) => ({
+                          value: tk.id,
+                          label: tk.description || tk.name || '',
+                        }))}
+                        value={editTaskId || undefined}
+                        onChange={(value) => setEditTaskId(value ? String(value) : '')}
+                        placeholder={t('backlog.selectTask')}
+                        searchPlaceholder={t('common.search')}
+                      />
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <input
+                        type="number"
+                        className="input-field"
+                        value={editQuantity}
+                        onChange={(e) => setEditQuantity(e.target.value)}
+                        style={{ fontSize: '13px', width: '80px' }}
+                        min={0}
+                      />
+                    </td>
+                    <td style={{ padding: '6px 8px', color: 'var(--color-secondary-text)' }}>
+                      {editSelectedTask?.unity?.unity || '-'}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                      {(() => {
+                        const othersSum = getOthersWeightSum(subtask.id);
+                        const maxAllowed = Math.round((1 - othersSum) * 10000) / 10000;
+                        const currentVal = editWeight ? parseFloat(editWeight) : 0;
+                        const isOverLimit = currentVal > maxAllowed + 0.0001;
+                        return (
+                          <div>
+                            <input
+                              type="number"
+                              className="input-field"
+                              value={editWeight}
+                              onChange={(e) => setEditWeight(e.target.value)}
+                              style={{
+                                fontSize: '13px', width: '65px', textAlign: 'center', padding: '2px 4px',
+                                borderColor: isOverLimit ? 'var(--color-error)' : undefined,
+                              }}
+                              min={0}
+                              max={maxAllowed}
+                              step={0.01}
+                            />
+                            {isOverLimit && (
+                              <p style={{ fontSize: '10px', color: 'var(--color-error)', margin: '2px 0 0' }}>
+                                max: {maxAllowed.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td style={{ padding: '6px 8px', color: 'var(--color-secondary-text)' }}>
+                      {subtask.quantity != null ? `${subtask.quantity_done ?? 0} / ${subtask.quantity}` : '-'}
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-status-04)' : 'var(--color-status-02)',
+                          color: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-success)' : 'var(--color-warning)',
+                        }}
+                      >
+                        {(subtask.subtasks_statuses_id === 3 || subtask.status) ? t('backlog.completed') : t('backlog.pending')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <button
+                          className="btn btn-icon"
+                          title={t('common.save')}
+                          onClick={() => saveEdit(subtask.id)}
+                          disabled={editSaving}
+                        >
+                          {editSaving ? <span className="spinner" style={{ width: '14px', height: '14px' }} /> : <Check size={14} color="var(--color-success)" />}
+                        </button>
+                        <button
+                          className="btn btn-icon"
+                          title={t('common.cancel')}
+                          onClick={cancelEdit}
+                          disabled={editSaving}
+                        >
+                          <X size={14} color="var(--color-secondary-text)" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <tr key={subtask.id} style={{ borderTop: '1px solid var(--color-alternate)' }}>
+                  <td style={{ padding: '6px 8px', width: '32px' }}>
+                    <input type="checkbox" checked={selectedIds.has(subtask.id)} onChange={() => toggleSelect(subtask.id)} />
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>{subtask.description || subtask.name || '-'}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    {subtask.quantity != null ? subtask.quantity : '-'}
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>
+                    {subtask.unity?.unity || '-'}
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                    {editingWeightId === subtask.id ? (
+                      (() => {
+                        const othersSum = getOthersWeightSum(subtask.id);
+                        const maxAllowed = Math.round((1 - othersSum) * 10000) / 10000;
+                        const currentVal = editingWeightValue ? parseFloat(editingWeightValue) : 0;
+                        const isOverLimit = currentVal > maxAllowed + 0.0001;
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', gap: '2px', alignItems: 'center', justifyContent: 'center' }}>
+                              <input
+                                type="number"
+                                className="input-field"
+                                value={editingWeightValue}
+                                onChange={(e) => setEditingWeightValue(e.target.value)}
+                                style={{
+                                  fontSize: '12px', width: '55px', padding: '2px 4px', textAlign: 'center',
+                                  borderColor: isOverLimit ? 'var(--color-error)' : undefined,
+                                }}
+                                min={0}
+                                max={maxAllowed}
+                                step={0.01}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveWeight(subtask.id);
+                                  if (e.key === 'Escape') { setEditingWeightId(null); setEditingWeightValue(''); }
+                                }}
+                              />
+                              <button className="btn btn-icon" onClick={() => handleSaveWeight(subtask.id)} disabled={savingWeight || isOverLimit} style={{ padding: '1px' }}>
+                                <Check size={12} color="var(--color-success)" />
+                              </button>
+                            </div>
+                            {isOverLimit && (
+                              <p style={{ fontSize: '10px', color: 'var(--color-error)', margin: '2px 0 0' }}>
+                                max: {maxAllowed.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span
+                        style={{ cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 500 }}
+                        title={t('backlog.clickToEditWeight', 'Clique para editar peso')}
+                        onClick={() => { setEditingWeightId(subtask.id); setEditingWeightValue(subtask.weight != null ? String(subtask.weight) : '0'); }}
+                      >
+                        {subtask.weight ?? 1}
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>
+                    {subtask.quantity != null ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          {subtask.quantity_done ?? 0} / {subtask.quantity}
+                        </span>
+                        <div style={{ flex: 1, height: '4px', backgroundColor: 'var(--color-alternate)', borderRadius: '2px', minWidth: '30px' }}>
+                          <div
+                            style={{
+                              height: '100%',
+                              width: `${subtask.quantity > 0 ? Math.min(((subtask.quantity_done ?? 0) / subtask.quantity) * 100, 100) : 0}%`,
+                              backgroundColor: 'var(--color-primary)',
+                              borderRadius: '2px',
+                              transition: 'width 0.3s ease',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : '-'}
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-status-04)' : 'var(--color-status-02)',
+                        color: (subtask.subtasks_statuses_id === 3 || subtask.status) ? 'var(--color-success)' : 'var(--color-warning)',
+                      }}
+                    >
+                      {(subtask.subtasks_statuses_id === 3 || subtask.status) ? t('backlog.completed') : t('backlog.pending')}
+                    </span>
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                      <button
+                        className="btn btn-icon"
+                        title={t('common.edit')}
+                        onClick={() => startEdit(subtask)}
+                      >
+                        <Edit size={14} color="var(--color-primary)" />
+                      </button>
+                      <button
+                        className="btn btn-icon"
+                        title={t('common.delete')}
+                        onClick={() => setDeleteConfirmId(subtask.id)}
+                        disabled={deletingId === subtask.id}
+                      >
+                        {deletingId === subtask.id
+                          ? <span className="spinner" style={{ width: '14px', height: '14px' }} />
+                          : <Trash2 size={14} color="var(--color-error)" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        {/* Weight sum indicator */}
+        {(() => {
+          const totalWeight = subtasks.reduce((sum, s) => sum + (s.weight ?? 0), 0);
+          const roundedTotal = Math.round(totalWeight * 100) / 100;
+          if (roundedTotal === 1) return null;
+          return (
+            <p style={{ fontSize: '12px', color: 'var(--color-error)', margin: '0 0 8px 8px' }}>
+              A soma dos pesos e {roundedTotal.toFixed(2)} — deve ser igual a 1.
+            </p>
+          );
+        })()}
+        </>
+      )}
+
+      {/* Delete confirmation */}
+      {deleteConfirmId !== null && (
+        <ConfirmModal
+          title={t('common.confirm')}
+          message={t('common.confirmDeleteMessage')}
+          onConfirm={() => handleDelete(deleteConfirmId)}
+          onCancel={() => setDeleteConfirmId(null)}
+        />
+      )}
+
+      {/* Bulk delete confirmation */}
+      {bulkDeleteConfirm && (
+        <ConfirmModal
+          title={t('common.confirm')}
+          message={t('common.confirmDeleteMessage')}
+          onConfirm={handleBulkDelete}
+          onCancel={() => setBulkDeleteConfirm(false)}
+        />
+      )}
+
+      {/* Copy modal */}
+      {copyModalOpen && (
+        <div className="modal-overlay" onClick={() => { setCopyModalOpen(false); setCopyTargetId(''); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3>{t('backlog.copySubtasks')}</h3>
+              <button className="btn btn-icon" onClick={() => { setCopyModalOpen(false); setCopyTargetId(''); }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-secondary-text)', marginBottom: '8px', display: 'block' }}>
+                {t('backlog.selectTargetBacklog')}
+              </label>
+              <SearchableSelect
+                options={backlogs
+                  .filter((b) => b.id !== currentBacklogId)
+                  .map((b) => ({
+                    value: b.id,
+                    label: b.description || `#${b.id}`,
+                  }))}
+                value={copyTargetId || undefined}
+                onChange={(value) => setCopyTargetId(value ? String(value) : '')}
+                placeholder={t('backlog.selectTargetBacklog')}
+                searchPlaceholder={t('common.search')}
+              />
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setCopyModalOpen(false); setCopyTargetId(''); }}
+                disabled={copying}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleCopy}
+                disabled={!copyTargetId || copying}
+              >
+                {copying
+                  ? <span className="spinner" style={{ width: '14px', height: '14px' }} />
+                  : t('backlog.copySubtasks')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Weights Modal */}
+      {aiWeightsModal && (
+        <div className="modal-overlay" onClick={() => setAiWeightsModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} /> {t('backlog.aiWeightsSuggestion', 'Sugestao de Pesos - IA')}
+              </h3>
+              <button className="btn btn-icon" onClick={() => setAiWeightsModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '12px' }}>
+                {t('backlog.aiWeightsDescription', 'Revise os pesos sugeridos pela IA e ajuste se necessario antes de aplicar.')}
+              </p>
+              <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--color-alternate)' }}>
+                      {t('backlog.subtaskName')}
+                    </th>
+                    <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid var(--color-alternate)', width: '90px' }}>
+                      {t('backlog.suggestedWeight', 'Peso IA')}
+                    </th>
+                    <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid var(--color-alternate)', width: '90px' }}>
+                      {t('backlog.finalWeight', 'Peso Final')}
+                    </th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--color-alternate)' }}>
+                      {t('backlog.justification', 'Justificativa')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiWeightsSuggestions.map((suggestion) => {
+                    const subtask = subtasks?.find((s) => s.id === suggestion.subtask_id);
+                    return (
+                      <tr key={suggestion.subtask_id} style={{ borderBottom: '1px solid var(--color-alternate)' }}>
+                        <td style={{ padding: '6px 8px' }}>{subtask?.description || subtask?.name || `#${suggestion.subtask_id}`}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--color-secondary-text)' }}>
+                          {suggestion.weight}
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            className="input-field"
+                            value={suggestion.finalWeight}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setAiWeightsSuggestions((prev) =>
+                                prev.map((s) =>
+                                  s.subtask_id === suggestion.subtask_id ? { ...s, finalWeight: isNaN(val) ? 0 : Math.min(1, Math.max(0, val)) } : s
+                                )
+                              );
+                            }}
+                            style={{ fontSize: '13px', width: '65px', textAlign: 'center', padding: '2px 4px' }}
+                            min={0}
+                            max={1}
+                            step={0.01}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px', fontSize: '12px', color: 'var(--color-secondary-text)', fontStyle: 'italic' }}>
+                          {suggestion.justification}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {/* Sum indicator */}
+              {(() => {
+                const totalWeight = aiWeightsSuggestions.reduce((sum, s) => sum + s.finalWeight, 0);
+                const isOver = totalWeight > 1.0001;
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '10px', padding: '0 8px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: isOver ? 'var(--color-error)' : 'var(--color-success)' }}>
+                      {t('backlog.totalWeight', 'Total')}: {totalWeight.toFixed(2)}
+                    </span>
+                    {isOver && (
+                      <span style={{ fontSize: '12px', color: 'var(--color-error)' }}>
+                        ({t('backlog.weightSumExceeds', 'A soma nao pode ultrapassar 1')})
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setAiWeightsModal(false)}
+                disabled={applyingWeights}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleApplyWeights}
+                disabled={applyingWeights || aiWeightsSuggestions.reduce((sum, s) => sum + s.finalWeight, 0) > 1.0001}
+              >
+                {applyingWeights
+                  ? <span className="spinner" style={{ width: '14px', height: '14px' }} />
+                  : t('backlog.applyWeights', 'Aplicar Pesos')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add subtask form */}
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', maxWidth: '640px' }}>
         <div style={{ flex: 2 }}>
           <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-secondary-text)', marginBottom: '4px', display: 'block' }}>
-            {t('backlog.taskName')}
+            {t('backlog.subtaskName')}
           </label>
           <SearchableSelect
             options={allTasks.map((tk) => ({

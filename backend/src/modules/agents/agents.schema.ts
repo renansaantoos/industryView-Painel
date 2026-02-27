@@ -113,6 +113,31 @@ export const relatoriosEvolucaoAgentSchema = z.object({
 });
 
 // =============================================================================
+// Weight Calculator Agent Schemas
+// =============================================================================
+
+/**
+ * Schema para calculo de pesos via IA
+ */
+export const calculateWeightsSchema = z.object({
+  projects_backlogs_id: z.coerce.number().int().positive('ID do backlog e obrigatorio'),
+});
+
+export type CalculateWeightsInput = z.infer<typeof calculateWeightsSchema>;
+
+/**
+ * Schema para aplicar pesos calculados
+ */
+export const applyWeightsSchema = z.object({
+  weights: z.array(z.object({
+    subtask_id: z.number().int().positive(),
+    weight: z.number().min(0).max(1),
+  })),
+});
+
+export type ApplyWeightsInput = z.infer<typeof applyWeightsSchema>;
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 

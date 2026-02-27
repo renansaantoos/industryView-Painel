@@ -1385,9 +1385,9 @@ export class ProjectsService {
    * Equivalente a: query subtasks verb=POST do Xano (endpoint 663)
    */
   static async createSubtask(input: CreateSubtaskInput) {
-    const { projects_backlogs_id, description, weight, quantity, task_quantity, quality_status_id } = input;
+    const { projects_backlogs_id, description, weight, quantity, task_quantity, quality_status_id, unity_id } = input;
 
-    // Busca o backlog pai para pegar unity_id e verificar se esta na sprint
+    // Busca o backlog pai para verificar se esta na sprint
     const parentBacklog = await db.projects_backlogs.findFirst({
       where: { id: projects_backlogs_id },
     });
@@ -1407,7 +1407,7 @@ export class ProjectsService {
           description_normalized: descNormalized,
           weight: weight || null,
           is_inspection: false,
-          unity_id: parentBacklog?.unity_id || null,
+          unity_id: unity_id ? BigInt(unity_id) : parentBacklog?.unity_id || null,
           quantity: quantity || null,
           quantity_done: 0,
           subtasks_statuses_id: 1,
@@ -1441,6 +1441,14 @@ export class ProjectsService {
       }
 
       lastCreated = subtask;
+    }
+
+    // Trigger rollup para recalcular percent_complete apos adicionar subtask
+    if (lastCreated) {
+      const backlogId = Number(projects_backlogs_id);
+      if (backlogId) {
+        await ProgressRollupService.rollupBacklog(backlogId);
+      }
     }
 
     return lastCreated;
@@ -1528,6 +1536,12 @@ export class ProjectsService {
         updated_at: new Date(),
       },
     });
+
+    // Trigger rollup para recalcular percent_complete apos remover subtask
+    const backlogId = Number(existing.projects_backlogs_id);
+    if (backlogId) {
+      await ProgressRollupService.rollupBacklog(backlogId);
+    }
 
     return { message: 'Subtask removida com sucesso' };
   }
