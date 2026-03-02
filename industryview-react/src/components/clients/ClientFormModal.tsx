@@ -54,6 +54,53 @@ function maskPhone(value: string): string {
   return applyMask(value, '(99) 99999-9999');
 }
 
+// ── Country codes ──────────────────────────────────────────────────────────────
+
+const COUNTRY_CODES = [
+  { code: '+55', label: '+55 Brasil' },
+  { code: '+1', label: '+1 EUA / Canadá' },
+  { code: '+44', label: '+44 Reino Unido' },
+  { code: '+49', label: '+49 Alemanha' },
+  { code: '+33', label: '+33 França' },
+  { code: '+34', label: '+34 Espanha' },
+  { code: '+39', label: '+39 Itália' },
+  { code: '+54', label: '+54 Argentina' },
+  { code: '+56', label: '+56 Chile' },
+  { code: '+57', label: '+57 Colômbia' },
+  { code: '+51', label: '+51 Peru' },
+  { code: '+598', label: '+598 Uruguai' },
+  { code: '+595', label: '+595 Paraguai' },
+  { code: '+591', label: '+591 Bolívia' },
+  { code: '+58', label: '+58 Venezuela' },
+  { code: '+86', label: '+86 China' },
+  { code: '+81', label: '+81 Japão' },
+];
+
+interface PhonePrefixes {
+  purchasing: string;
+  financial: string;
+  warehouse: string;
+}
+
+function emptyPrefixes(): PhonePrefixes {
+  return { purchasing: '+55', financial: '+55', warehouse: '+55' };
+}
+
+function parsePhonePrefix(stored: string): { prefix: string; localDigits: string } {
+  if (!stored) return { prefix: '+55', localDigits: '' };
+  const allDigits = stored.replace(/\D/g, '');
+  if (stored.startsWith('+')) {
+    const sorted = COUNTRY_CODES.slice().sort((a, b) => b.code.length - a.code.length);
+    for (const { code } of sorted) {
+      const codeDigits = code.replace(/\D/g, '');
+      if (allDigits.startsWith(codeDigits)) {
+        return { prefix: code, localDigits: allDigits.slice(codeDigits.length) };
+      }
+    }
+  }
+  return { prefix: '+55', localDigits: allDigits };
+}
+
 function maskCNAE(value: string): string {
   return applyMask(value, '9999-9/99');
 }
@@ -306,6 +353,45 @@ function CepSpinner() {
   );
 }
 
+// ── PhoneInput ────────────────────────────────────────────────────────────────
+
+interface PhoneInputProps {
+  prefix: string;
+  onPrefixChange: (p: string) => void;
+  value: string;
+  onChange: (masked: string) => void;
+  onBlur?: () => void;
+  placeholder?: string;
+}
+
+function PhoneInput({ prefix, onPrefixChange, value, onChange, onBlur, placeholder }: PhoneInputProps) {
+  return (
+    <div style={{ display: 'flex', gap: '6px' }}>
+      <select
+        value={prefix}
+        onChange={(e) => onPrefixChange(e.target.value)}
+        className="input-field"
+        style={{ width: '140px', flexShrink: 0, fontSize: '0.8rem', padding: '0 6px', cursor: 'pointer' }}
+      >
+        {COUNTRY_CODES.map((c) => (
+          <option key={c.code} value={c.code}>{c.label}</option>
+        ))}
+      </select>
+      <input
+        type="text"
+        className="input-field"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        placeholder={placeholder ?? '(00) 00000-0000'}
+        maxLength={15}
+        inputMode="numeric"
+        style={{ flex: 1 }}
+      />
+    </div>
+  );
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 export interface ClientFormModalProps {
@@ -328,6 +414,7 @@ export function ClientFormModal({
   const [activeTab, setActiveTab] = useState<ModalTab>('registration');
   const [formData, setFormData] = useState<ClientPayload>(emptyForm());
   const [display, setDisplay] = useState<MaskedDisplayState>(emptyDisplay());
+  const [phonePrefixes, setPhonePrefixes] = useState<PhonePrefixes>(emptyPrefixes());
   const [formErrors, setFormErrors] = useState<Partial<Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
   const [shakeBtn, setShakeBtn] = useState(false);
@@ -456,6 +543,16 @@ export function ClientFormModal({
       const rawFinancialPhone = editingClient.financial_contact_phone || '';
       const rawWarehousePhone = editingClient.warehouse_contact_phone || '';
 
+      const parsedPurchasing = parsePhonePrefix(rawPurchasingPhone);
+      const parsedFinancial = parsePhonePrefix(rawFinancialPhone);
+      const parsedWarehouse = parsePhonePrefix(rawWarehousePhone);
+
+      setPhonePrefixes({
+        purchasing: parsedPurchasing.prefix,
+        financial: parsedFinancial.prefix,
+        warehouse: parsedWarehouse.prefix,
+      });
+
       setFormData({
         legal_name: editingClient.legal_name || '',
         trade_name: editingClient.trade_name || '',
@@ -484,13 +581,13 @@ export function ClientFormModal({
         longitude: editingClient.longitude ?? undefined,
         purchasing_contact_name: editingClient.purchasing_contact_name || '',
         purchasing_contact_email: editingClient.purchasing_contact_email || '',
-        purchasing_contact_phone: unmask(rawPurchasingPhone),
+        purchasing_contact_phone: parsedPurchasing.localDigits,
         financial_contact_name: editingClient.financial_contact_name || '',
         financial_contact_email: editingClient.financial_contact_email || '',
-        financial_contact_phone: unmask(rawFinancialPhone),
+        financial_contact_phone: parsedFinancial.localDigits,
         warehouse_contact_name: editingClient.warehouse_contact_name || '',
         warehouse_contact_email: editingClient.warehouse_contact_email || '',
-        warehouse_contact_phone: unmask(rawWarehousePhone),
+        warehouse_contact_phone: parsedWarehouse.localDigits,
         industry_segment: editingClient.industry_segment || '',
         purchase_potential: editingClient.purchase_potential || '',
         default_payment_terms: editingClient.default_payment_terms || '',
@@ -503,9 +600,9 @@ export function ClientFormModal({
         main_cnae: maskCNAE(rawCnae),
         billing_cep: maskCEP(rawBillingCep),
         delivery_cep: maskCEP(rawDeliveryCep),
-        purchasing_contact_phone: maskPhone(rawPurchasingPhone),
-        financial_contact_phone: maskPhone(rawFinancialPhone),
-        warehouse_contact_phone: maskPhone(rawWarehousePhone),
+        purchasing_contact_phone: maskPhone(parsedPurchasing.localDigits),
+        financial_contact_phone: maskPhone(parsedFinancial.localDigits),
+        warehouse_contact_phone: maskPhone(parsedWarehouse.localDigits),
       });
       if (editingClient.id) {
         clientsApi.listClientUnits(editingClient.id)
@@ -515,6 +612,7 @@ export function ClientFormModal({
     } else {
       setFormData(emptyForm());
       setDisplay(emptyDisplay());
+      setPhonePrefixes(emptyPrefixes());
       setUnits([]);
       setUnitFormOpen(false);
       setEditingUnit(null);
@@ -865,13 +963,13 @@ export function ClientFormModal({
         longitude: formData.longitude,
         purchasing_contact_name: trimStr(formData.purchasing_contact_name),
         purchasing_contact_email: trimStr(formData.purchasing_contact_email),
-        purchasing_contact_phone: trimStr(unmask(formData.purchasing_contact_phone || '')),
+        purchasing_contact_phone: trimStr(phonePrefixes.purchasing + unmask(formData.purchasing_contact_phone || '')),
         financial_contact_name: trimStr(formData.financial_contact_name),
         financial_contact_email: trimStr(formData.financial_contact_email),
-        financial_contact_phone: trimStr(unmask(formData.financial_contact_phone || '')),
+        financial_contact_phone: trimStr(phonePrefixes.financial + unmask(formData.financial_contact_phone || '')),
         warehouse_contact_name: trimStr(formData.warehouse_contact_name),
         warehouse_contact_email: trimStr(formData.warehouse_contact_email),
-        warehouse_contact_phone: trimStr(unmask(formData.warehouse_contact_phone || '')),
+        warehouse_contact_phone: trimStr(phonePrefixes.warehouse + unmask(formData.warehouse_contact_phone || '')),
         industry_segment: trimStr(formData.industry_segment),
         purchase_potential: trimStr(formData.purchase_potential),
         default_payment_terms: trimStr(formData.default_payment_terms),
@@ -1691,21 +1789,16 @@ export function ClientFormModal({
                       error={formErrors['purchasing_contact_phone']}
                       fieldKey="purchasing_contact_phone"
                     >
-                      <input
-                        type="text"
-                        className="input-field"
+                      <PhoneInput
+                        prefix={phonePrefixes.purchasing}
+                        onPrefixChange={(p) => setPhonePrefixes((prev) => ({ ...prev, purchasing: p }))}
                         value={display.purchasing_contact_phone}
                         onChange={(e) => {
-                          const masked = maskPhone(e.target.value);
+                          const masked = maskPhone(e);
                           setDisplay((prev) => ({ ...prev, purchasing_contact_phone: masked }));
                           handleFieldChange('purchasing_contact_phone', unmask(masked));
                         }}
-                        onBlur={() =>
-                          handleFieldBlur('purchasing_contact_phone', formData.purchasing_contact_phone)
-                        }
-                        placeholder="(00) 00000-0000"
-                        maxLength={15}
-                        inputMode="numeric"
+                        onBlur={() => handleFieldBlur('purchasing_contact_phone', formData.purchasing_contact_phone)}
                       />
                     </FormField>
                   </div>
@@ -1748,21 +1841,16 @@ export function ClientFormModal({
                       error={formErrors['financial_contact_phone']}
                       fieldKey="financial_contact_phone"
                     >
-                      <input
-                        type="text"
-                        className="input-field"
+                      <PhoneInput
+                        prefix={phonePrefixes.financial}
+                        onPrefixChange={(p) => setPhonePrefixes((prev) => ({ ...prev, financial: p }))}
                         value={display.financial_contact_phone}
                         onChange={(e) => {
-                          const masked = maskPhone(e.target.value);
+                          const masked = maskPhone(e);
                           setDisplay((prev) => ({ ...prev, financial_contact_phone: masked }));
                           handleFieldChange('financial_contact_phone', unmask(masked));
                         }}
-                        onBlur={() =>
-                          handleFieldBlur('financial_contact_phone', formData.financial_contact_phone)
-                        }
-                        placeholder="(00) 00000-0000"
-                        maxLength={15}
-                        inputMode="numeric"
+                        onBlur={() => handleFieldBlur('financial_contact_phone', formData.financial_contact_phone)}
                       />
                     </FormField>
                   </div>
@@ -1797,21 +1885,16 @@ export function ClientFormModal({
                       error={formErrors['warehouse_contact_phone']}
                       fieldKey="warehouse_contact_phone"
                     >
-                      <input
-                        type="text"
-                        className="input-field"
+                      <PhoneInput
+                        prefix={phonePrefixes.warehouse}
+                        onPrefixChange={(p) => setPhonePrefixes((prev) => ({ ...prev, warehouse: p }))}
                         value={display.warehouse_contact_phone}
                         onChange={(e) => {
-                          const masked = maskPhone(e.target.value);
+                          const masked = maskPhone(e);
                           setDisplay((prev) => ({ ...prev, warehouse_contact_phone: masked }));
                           handleFieldChange('warehouse_contact_phone', unmask(masked));
                         }}
-                        onBlur={() =>
-                          handleFieldBlur('warehouse_contact_phone', formData.warehouse_contact_phone)
-                        }
-                        placeholder="(00) 00000-0000"
-                        maxLength={15}
-                        inputMode="numeric"
+                        onBlur={() => handleFieldBlur('warehouse_contact_phone', formData.warehouse_contact_phone)}
                       />
                     </FormField>
                   </div>
