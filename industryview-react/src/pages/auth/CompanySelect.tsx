@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { usersApi } from '../../services';
 import { Building2, Plus, LogOut } from 'lucide-react';
 import { MotionPage } from '../../lib/motion';
-import { CnpjInput } from '../../components/company/CnpjInput';
+import { CnpjInput, isValidCnpj } from '../../components/company/CnpjInput';
 import { CepLookup } from '../../components/company/CepLookup';
 import type { CepAddress } from '../../components/company/CepLookup';
 import './Auth.css';
@@ -63,6 +63,7 @@ export default function CompanySelect() {
   const [form, setForm] = useState<CompanyForm>(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cnpjError, setCnpjError] = useState('');
 
   const firstName = useMemo(() => user?.name?.split(' ')[0] || '', [user?.name]);
   const greeting = useMemo(() => getGreeting(), []);
@@ -90,6 +91,17 @@ export default function CompanySelect() {
       setError('O nome fantasia da empresa é obrigatório');
       return;
     }
+
+    const cnpjDigits = form.cnpj.replace(/\D/g, '');
+    if (cnpjDigits.length > 0 && cnpjDigits.length < 14) {
+      setCnpjError('CNPJ incompleto — informe todos os 14 dígitos');
+      return;
+    }
+    if (cnpjDigits.length === 14 && !isValidCnpj(cnpjDigits)) {
+      setCnpjError('CNPJ inválido — verifique os dígitos informados');
+      return;
+    }
+    setCnpjError('');
 
     setLoading(true);
     try {
@@ -227,7 +239,8 @@ export default function CompanySelect() {
 
               <CnpjInput
                 value={form.cnpj}
-                onChange={(val) => updateField('cnpj', val)}
+                onChange={(val) => { updateField('cnpj', val); setCnpjError(''); }}
+                error={cnpjError}
               />
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-lg)' }}>

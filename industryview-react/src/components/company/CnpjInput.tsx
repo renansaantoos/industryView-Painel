@@ -22,7 +22,7 @@ function applyCnpjMask(raw: string): string {
 /**
  * Validates CNPJ check digits according to the Brazilian algorithm.
  */
-function isValidCnpj(cnpj: string): boolean {
+export function isValidCnpj(cnpj: string): boolean {
   const digits = cnpj.replace(/\D/g, '');
   if (digits.length !== 14) return false;
 
