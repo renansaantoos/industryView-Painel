@@ -280,7 +280,7 @@ export default function TaskList() {
     setGoldenRulesLoading(true);
     try {
       await qualityApi.createTaskGoldenRule({
-        tasks_id: editingTask.id,
+        task_templates_id: editingTask.id,
         golden_rules_id: selectedGoldenRuleId,
       });
       setSelectedGoldenRuleId(undefined);
@@ -324,7 +324,7 @@ export default function TaskList() {
       // If editing a task, auto-link immediately
       if (editingTask && created.id) {
         await qualityApi.createTaskGoldenRule({
-          tasks_id: editingTask.id,
+          task_templates_id: editingTask.id,
           golden_rules_id: created.id,
         });
         await loadLinkedGoldenRules(editingTask.id);
@@ -381,7 +381,7 @@ export default function TaskList() {
   const loadLinkedChecklists = async (taskId: number) => {
     setChecklistsLoading(true);
     try {
-      const result = await qualityApi.listTaskChecklists({ tasks_id: taskId });
+      const result = await qualityApi.listTaskChecklists({ tasks_template_id: taskId });
       const list = Array.isArray(result) ? result : (result as any)?.items ?? [];
       setLinkedChecklists(list);
     } catch (err) {
@@ -473,7 +473,7 @@ export default function TaskList() {
       if (created?.id && createForm.selectedGoldenRuleIds.length > 0) {
         await Promise.all(
           createForm.selectedGoldenRuleIds.map((grId) =>
-            qualityApi.createTaskGoldenRule({ tasks_id: created.id, golden_rules_id: grId })
+            qualityApi.createTaskGoldenRule({ task_templates_id: created.id, golden_rules_id: grId })
           ),
         );
       }
