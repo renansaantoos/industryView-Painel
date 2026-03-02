@@ -26,7 +26,7 @@ export interface EmployeeHrData {
   // Profissional
   matricula?: string;
   data_admissao?: string;
-  data_demissao?: string;
+  data_demissao?: string | null;
   tipo_contrato?: string;
   cargo?: string;
   senioridade?: string;

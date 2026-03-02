@@ -108,7 +108,7 @@ export class EmployeesService {
       estado: data.estado,
       matricula: data.matricula,
       data_admissao: data.data_admissao ? new Date(data.data_admissao) : undefined,
-      data_demissao: data.data_demissao ? new Date(data.data_demissao) : undefined,
+      data_demissao: data.data_demissao === null ? null : (data.data_demissao ? new Date(data.data_demissao) : undefined),
       tipo_contrato: data.tipo_contrato,
       cargo: data.cargo,
       senioridade: data.senioridade,

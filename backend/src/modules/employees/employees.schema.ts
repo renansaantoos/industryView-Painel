@@ -39,7 +39,7 @@ export const upsertHrDataSchema = z.object({
   // Dados profissionais
   matricula: z.string().trim().optional(),
   data_admissao: z.string().optional(),
-  data_demissao: z.string().optional(),
+  data_demissao: z.string().nullable().optional(),
   tipo_contrato: z.string().trim().optional(),
   cargo: z.string().trim().optional(),
   senioridade: z.string().trim().optional(),

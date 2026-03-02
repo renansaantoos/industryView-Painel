@@ -82,7 +82,7 @@ export default function Employees() {
 
   const handleReactivate = async (emp: UserFull) => {
     try {
-      await employeesApi.upsertHrData(emp.id, { data_demissao: '' });
+      await employeesApi.upsertHrData(emp.id, { data_demissao: null });
       loadEmployees();
     } catch (err) {
       console.error('Failed to reactivate employee:', err);

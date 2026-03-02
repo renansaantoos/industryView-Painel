@@ -98,7 +98,7 @@ export class UsersService {
           select: { id: true, brand_name: true },
         },
         hr_data: {
-          select: { cargo: true, nome_completo: true },
+          select: { cargo: true, nome_completo: true, data_demissao: true },
         },
       },
       orderBy: (() => {
