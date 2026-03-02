@@ -52,6 +52,10 @@ const upload = multer();
  *                   type: integer
  *               company_id:
  *                 type: integer
+ *               status:
+ *                 type: string
+ *                 enum: [ativo, inativo]
+ *                 description: Filtra por status do usuario (ativo = sem data_demissao, inativo = com data_demissao)
  *     responses:
  *       200:
  *         description: Lista de usuarios

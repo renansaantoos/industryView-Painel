@@ -29,7 +29,7 @@ export class UsersService {
    * Equivalente a: query users_list verb=POST do Xano (endpoint 406)
    */
   static async list(input: ListUsersInput, _authUserId: number) {
-    const { page, per_page, search, users_roles_id, company_id, sort_field, sort_direction } = input;
+    const { page, per_page, search, users_roles_id, company_id, sort_field, sort_direction, status } = input;
 
     // Base query conditions
     const whereConditions: any = {
@@ -55,6 +55,23 @@ export class UsersService {
         { name_normalized: { contains: searchNormalized } },
         { email: { contains: search.toLowerCase() } },
       ];
+    }
+
+    // Filtro por status (ativo/inativo) baseado em hr_data.data_demissao
+    if (status === 'ativo') {
+      // Ativo: usuario sem data de demissao preenchida
+      // Usa NOT para excluir usuarios que TEM data_demissao preenchida
+      // Isso inclui usuarios sem registro hr_data E usuarios com data_demissao = null
+      whereConditions.NOT = {
+        hr_data: {
+          data_demissao: { not: null },
+        },
+      };
+    } else if (status === 'inativo') {
+      // Inativo: usuario com data de demissao preenchida
+      whereConditions.hr_data = {
+        data_demissao: { not: null },
+      };
     }
 
     // Conta total de registros

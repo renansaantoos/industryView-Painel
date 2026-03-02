@@ -18,6 +18,7 @@ export const listUsersSchema = z.object({
   company_id: z.number().int().optional(),
   sort_field: z.string().optional(),
   sort_direction: z.enum(['asc', 'desc']).optional(),
+  status: z.enum(['ativo', 'inativo']).optional(),
 });
 
 export type ListUsersInput = z.infer<typeof listUsersSchema>;
