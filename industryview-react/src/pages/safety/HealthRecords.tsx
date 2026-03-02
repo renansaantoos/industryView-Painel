@@ -668,6 +668,7 @@ export default function HealthRecords() {
                     type="date"
                     className="input-field"
                     value={form.expiry_date}
+                    min={form.exam_date || undefined}
                     onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
                     style={{ borderColor: formTouched && formErrors.expiry_date ? 'var(--color-error)' : undefined }}
                   />
