@@ -277,6 +277,23 @@ export default function HealthTab({ usersId }: HealthTabProps) {
       return;
     }
 
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const examDate = new Date(form.exam_date + 'T00:00:00');
+
+    if (examDate > today) {
+      showToast('Data do exame não pode ser maior que hoje.', 'error');
+      return;
+    }
+
+    if (form.expiry_date) {
+      const expiryDate = new Date(form.expiry_date + 'T00:00:00');
+      if (expiryDate < examDate) {
+        showToast('Data de validade não pode ser menor que a data do exame.', 'error');
+        return;
+      }
+    }
+
     setModalLoading(true);
     try {
       if (editingItem) {
