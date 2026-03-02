@@ -3,9 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { clientsApi, projectsApi } from '../../services';
+import { clientsApi } from '../../services';
 import type { Client } from '../../services/api/clients';
-import type { ProjectInfo } from '../../types/project';
 import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -22,7 +21,6 @@ import {
   MapPin,
   FileText,
   Briefcase,
-  FolderOpen,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -105,9 +103,6 @@ export default function Clients() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  // Projects state (for linked projects column)
-  const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
-
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -132,10 +127,6 @@ export default function Clients() {
 
   useEffect(() => {
     setNavBarSelection(32);
-    projectsApi
-      .queryAllProjects({ per_page: 100 })
-      .then((res) => setAllProjects(res.items || []))
-      .catch(() => {});
   }, []);
 
   // ── Toast helpers ──────────────────────────────────────────────────────────
@@ -207,11 +198,6 @@ export default function Clients() {
     showToast(isEdit ? t('clients.updateSuccess') : t('clients.createSuccess'));
     closeModal();
     loadClients();
-    // Reload projects to reflect any project-client linking changes
-    projectsApi
-      .queryAllProjects({ per_page: 100 })
-      .then((res) => setAllProjects(res.items || []))
-      .catch(() => {});
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────────
@@ -227,12 +213,6 @@ export default function Clients() {
     } finally {
       setDeleteConfirm(null);
     }
-  }
-
-  // ── Linked projects helper ─────────────────────────────────────────────────
-
-  function getClientProjects(clientId: number): ProjectInfo[] {
-    return allProjects.filter((p) => p.client_id === clientId);
   }
 
   // ── Industry segment label lookup ──────────────────────────────────────────
@@ -314,7 +294,6 @@ export default function Clients() {
                 <th>{t('clients.city')} / {t('clients.state')}</th>
                 <th>{t('clients.purchasingContact')}</th>
                 <th>Matriz / Filiais</th>
-                <th>{t('clients.linkedProjects')}</th>
                 <th>{t('clients.actions')}</th>
               </tr>
             </thead>
@@ -439,35 +418,6 @@ export default function Clients() {
                     })()}
                   </td>
 
-                  {/* Linked Projects */}
-                  <td>
-                    {(() => {
-                      const linked = getClientProjects(client.id);
-                      if (linked.length === 0) {
-                        return (
-                          <span style={{ color: 'var(--color-secondary-text)' }}>—</span>
-                        );
-                      }
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          {linked.map((p) => (
-                            <span
-                              key={p.id}
-                              style={{
-                                fontSize: '13px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
-                            >
-                              <FolderOpen size={13} color="var(--color-primary)" />
-                              {p.name}
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </td>
                   {/* Actions */}
                   <td>
                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -499,7 +449,7 @@ export default function Clients() {
                       exit={{ opacity: 0, scaleY: 0.8 }}
                       style={{ transformOrigin: 'top' }}
                     >
-                      <td colSpan={8} style={{ padding: '0', background: 'var(--color-surface, #f8f9fa)', borderBottom: '2px solid var(--color-primary)' }}>
+                      <td colSpan={7} style={{ padding: '0', background: 'var(--color-surface, #f8f9fa)', borderBottom: '2px solid var(--color-primary)' }}>
                         <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
                           {client.units!.map((u) => (
                             <div key={u.id} style={{
