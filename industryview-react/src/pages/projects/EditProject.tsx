@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { useAppState } from '../../contexts/AppStateContext';
 import { projectsApi, clientsApi } from '../../services';
-import type { Client } from '../../services/api/clients';
+import type { Client, ClientUnit } from '../../services/api/clients';
 import type { CreateProjectRequest, CepResponse, ProjectStatus, ProjectWorkSituation } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -59,6 +59,12 @@ export default function EditProject() {
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
+  // Client units (filiais/matriz)
+  const [clientUnits, setClientUnits] = useState<ClientUnit[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [selectedUnitId, setSelectedUnitId] = useState<number | undefined>();
+  const [unitError, setUnitError] = useState(false);
+
   const { register, handleSubmit, setValue, reset } = useForm<CreateProjectRequest>();
 
   // ── Data loading ──────────────────────────────────────────────────────────
@@ -106,6 +112,10 @@ export default function EditProject() {
     if (p.client_id) {
       setSelectedClientId(Number(p.client_id));
     }
+    // Pre-select the unit that was previously saved
+    if (p.client_unit_id) {
+      setSelectedUnitId(Number(p.client_unit_id));
+    }
   }, [projectsInfo]);
 
   // After clients load, resolve the pre-selected client object for the summary card
@@ -114,6 +124,19 @@ export default function EditProject() {
     const client = allClients.find((c) => c.id === selectedClientId) ?? null;
     setSelectedClient(client);
   }, [selectedClientId, allClients]);
+
+  // Load units whenever the selected client changes
+  useEffect(() => {
+    if (!selectedClientId) {
+      setClientUnits([]);
+      return;
+    }
+    setUnitsLoading(true);
+    clientsApi.listClientUnits(selectedClientId)
+      .then((units) => setClientUnits(Array.isArray(units) ? units : []))
+      .catch(() => setClientUnits([]))
+      .finally(() => setUnitsLoading(false));
+  }, [selectedClientId]);
 
   const loadDropdowns = async () => {
     try {
@@ -145,18 +168,57 @@ export default function EditProject() {
     if (!clientId) {
       setSelectedClientId(undefined);
       setSelectedClient(null);
+      setClientUnits([]);
+      setSelectedUnitId(undefined);
+      setValue('cnpj', '');
       return;
     }
     const id = Number(clientId);
     const client = allClients.find((c) => c.id === id) ?? null;
     setSelectedClientId(id);
     setSelectedClient(client);
+    // Reset unit when client changes — useEffect will reload units
+    setSelectedUnitId(undefined);
+    setUnitError(false);
+    setValue('cnpj', '');
+  }
+
+  function handleUnitSelect(unitId: string | number | undefined) {
+    if (!unitId) {
+      setSelectedUnitId(undefined);
+      setValue('cnpj', '');
+      return;
+    }
+    const id = Number(unitId);
+    const unit = clientUnits.find((u) => u.id === id) ?? null;
+    setSelectedUnitId(id);
+    setUnitError(false);
+    if (unit?.cnpj) {
+      const digits = unit.cnpj.replace(/\D/g, '').slice(0, 14);
+      // apply mask inline
+      let masked = digits;
+      if (digits.length > 2) masked = digits.slice(0, 2) + '.' + digits.slice(2);
+      if (digits.length > 5) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5);
+      if (digits.length > 8) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8);
+      if (digits.length > 12) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8, 12) + '-' + digits.slice(12);
+      setValue('cnpj', masked);
+    } else {
+      setValue('cnpj', '');
+    }
   }
 
   // ── Form submission ───────────────────────────────────────────────────────
 
   const onSubmit = async (data: CreateProjectRequest) => {
     if (!projectsInfo) return;
+
+    // Validate required unit (filial/matriz)
+    if (!selectedUnitId) {
+      setUnitError(true);
+      return;
+    }
+    setUnitError(false);
+
     setLoading(true);
     setError('');
     try {
@@ -165,6 +227,7 @@ export default function EditProject() {
         projects_statuses_id: selectedStatusId,
         projects_works_situations_id: selectedWorkSituationId,
         client_id: selectedClientId ?? undefined,
+        client_unit_id: selectedUnitId,
       });
       navigate('/projetos');
     } catch (err) {
@@ -292,6 +355,41 @@ export default function EditProject() {
                   searchPlaceholder={t('common.search')}
                 />
               </div>
+
+              {/* Seletor de filial/matriz */}
+              {selectedClientId && (
+                <div className="input-group" style={{ marginTop: '14px' }}>
+                  <label>{t('projects.unitSection', 'Filial / Matriz')} *</label>
+                  <div style={unitError ? { border: '1.5px solid var(--color-error, #C0392B)', borderRadius: '8px' } : undefined}>
+                    <SearchableSelect
+                      options={clientUnits.map((u) => ({
+                        value: u.id,
+                        label: [
+                          u.unit_type === 'MATRIZ' ? 'Matriz' : 'Filial',
+                          u.label,
+                          u.cnpj ? `— ${maskCNPJ(u.cnpj)}` : null,
+                          u.city ? `(${u.city}${u.state ? `/${u.state}` : ''})` : null,
+                        ].filter(Boolean).join(' '),
+                      }))}
+                      value={selectedUnitId}
+                      onChange={handleUnitSelect}
+                      placeholder={
+                        unitsLoading
+                          ? t('common.loading')
+                          : clientUnits.length === 0
+                          ? t('projects.noUnits', 'Nenhuma filial cadastrada')
+                          : t('projects.selectUnit', 'Selecione a filial/matriz')
+                      }
+                      searchPlaceholder={t('common.search')}
+                    />
+                  </div>
+                  {unitError && (
+                    <span style={{ color: 'var(--color-error, #C0392B)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      {t('projects.unitRequired', 'Selecione uma filial/matriz')}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Selected client summary card */}
               {selectedClient && (

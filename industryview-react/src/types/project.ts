@@ -149,6 +149,8 @@ export interface CreateProjectRequest {
   resulting_work_area?: string;
   /** ID of the associated client (foreign key to clients table) */
   client_id?: number;
+  /** ID of the client unit (filial/matriz) associated with this project */
+  client_unit_id?: number;
 }
 
 /** Edit project request */

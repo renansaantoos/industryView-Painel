@@ -70,24 +70,56 @@ export default function Employees() {
   }, [loadEmployees]);
 
   const handleDismiss = async (emp: UserFull) => {
+    setDismissConfirm(null);
     try {
       const today = new Date().toISOString().split('T')[0];
       await employeesApi.upsertHrData(emp.id, { data_demissao: today });
+      // Optimistic update: atualiza o estado local imediatamente
+      setEmployees((prev) =>
+        prev
+          .map((e) =>
+            e.id === emp.id
+              ? { ...e, hr_data: { ...e.hr_data, data_demissao: today } }
+              : e
+          )
+          .filter((e) => {
+            if (statusFilter === 'ativo') return !e.hr_data?.data_demissao;
+            if (statusFilter === 'inativo') return !!e.hr_data?.data_demissao;
+            return true;
+          })
+      );
+      // Reload em background para sincronizar com o servidor
       loadEmployees();
     } catch (err) {
       console.error('Failed to dismiss employee:', err);
+      loadEmployees(); // recarrega para garantir consistência em caso de erro
     }
-    setDismissConfirm(null);
   };
 
   const handleReactivate = async (emp: UserFull) => {
+    setReactivateConfirm(null);
     try {
       await employeesApi.upsertHrData(emp.id, { data_demissao: null });
+      // Optimistic update: atualiza o estado local imediatamente
+      setEmployees((prev) =>
+        prev
+          .map((e) =>
+            e.id === emp.id
+              ? { ...e, hr_data: { ...e.hr_data, data_demissao: undefined } }
+              : e
+          )
+          .filter((e) => {
+            if (statusFilter === 'ativo') return !e.hr_data?.data_demissao;
+            if (statusFilter === 'inativo') return !!e.hr_data?.data_demissao;
+            return true;
+          })
+      );
+      // Reload em background para sincronizar com o servidor
       loadEmployees();
     } catch (err) {
       console.error('Failed to reactivate employee:', err);
+      loadEmployees();
     }
-    setReactivateConfirm(null);
   };
 
   return (

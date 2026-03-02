@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
 import { projectsApi, clientsApi } from '../../services';
-import type { Client } from '../../services/api/clients';
+import type { Client, ClientUnit } from '../../services/api/clients';
 import type { CreateProjectRequest, CepResponse, ProjectStatus, ProjectWorkSituation } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SearchableSelect from '../../components/common/SearchableSelect';
@@ -75,6 +75,12 @@ export default function CreateProject() {
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
+  // Client units (filiais/matriz)
+  const [clientUnits, setClientUnits] = useState<ClientUnit[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [selectedUnitId, setSelectedUnitId] = useState<number | undefined>();
+  const [unitError, setUnitError] = useState(false);
+
   // Client creation modal
   const [showClientModal, setShowClientModal] = useState(false);
   const [clientError, setClientError] = useState(false);
@@ -130,13 +136,15 @@ export default function CreateProject() {
   /**
    * When a client is selected from the dropdown:
    * - Store the client object for the summary card
-   * - Auto-fill the CNPJ field in the project form
+   * - Load client units (filiais/matriz) for the second selector
+   * - Reset unit selection and CNPJ
    */
-  function handleClientSelect(clientId: string | number | undefined) {
+  async function handleClientSelect(clientId: string | number | undefined) {
     if (!clientId) {
       setSelectedClientId(undefined);
       setSelectedClient(null);
-      // Clear CNPJ auto-fill
+      setClientUnits([]);
+      setSelectedUnitId(undefined);
       setValue('cnpj', '');
       return;
     }
@@ -147,9 +155,41 @@ export default function CreateProject() {
     setSelectedClient(client);
     setClientError(false);
 
-    if (client?.cnpj) {
-      const digits = client.cnpj.replace(/\D/g, '').slice(0, 14);
+    // Reset unit before loading new ones
+    setSelectedUnitId(undefined);
+    setUnitError(false);
+    setValue('cnpj', '');
+
+    setUnitsLoading(true);
+    try {
+      const units = await clientsApi.listClientUnits(id);
+      setClientUnits(Array.isArray(units) ? units : []);
+    } catch {
+      setClientUnits([]);
+    } finally {
+      setUnitsLoading(false);
+    }
+  }
+
+  /**
+   * When a client unit (filial/matriz) is selected:
+   * - Auto-fill CNPJ from the unit
+   */
+  function handleUnitSelect(unitId: string | number | undefined) {
+    if (!unitId) {
+      setSelectedUnitId(undefined);
+      setValue('cnpj', '');
+      return;
+    }
+    const id = Number(unitId);
+    const unit = clientUnits.find((u) => u.id === id) ?? null;
+    setSelectedUnitId(id);
+    setUnitError(false);
+    if (unit?.cnpj) {
+      const digits = unit.cnpj.replace(/\D/g, '').slice(0, 14);
       setValue('cnpj', applyInlineCnpjMask(digits));
+    } else {
+      setValue('cnpj', '');
     }
   }
 
@@ -162,10 +202,12 @@ export default function CreateProject() {
   function handleNewClientSaved(newClient: Client) {
     setShowClientModal(false);
     setAllClients((prev) => {
-      // Avoid duplicates if the list already contains the client
       const exists = prev.some((c) => c.id === newClient.id);
       return exists ? prev : [...prev, newClient];
     });
+    setClientUnits([]);
+    setSelectedUnitId(undefined);
+    setValue('cnpj', '');
     handleClientSelect(newClient.id);
     showToast(t('clients.createSuccess'));
   }
@@ -180,6 +222,15 @@ export default function CreateProject() {
       return;
     }
     setClientError(false);
+
+    // Validate required unit (filial/matriz)
+    if (!selectedUnitId) {
+      setUnitError(true);
+      showToast(t('projects.unitRequired', 'Selecione uma filial/matriz'), 'error');
+      return;
+    }
+    setUnitError(false);
+
     setLoading(true);
     setError('');
     try {
@@ -188,6 +239,7 @@ export default function CreateProject() {
         projects_statuses_id: selectedStatusId,
         projects_works_situations_id: selectedWorkSituationId,
         client_id: selectedClientId,
+        client_unit_id: selectedUnitId,
       });
       navigate('/projetos');
     } catch (err) {
@@ -297,7 +349,7 @@ export default function CreateProject() {
               </div>
             </div>
             <div style={sectionBodyStyle}>
-              {/* Dropdown row */}
+              {/* Cliente + botão novo */}
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                 <div className="input-group" style={{ flex: 1 }}>
                   <label>{t('projects.clientSection')} *</label>
@@ -331,6 +383,41 @@ export default function CreateProject() {
                   {t('projects.addNewClient')}
                 </button>
               </div>
+
+              {/* Seletor de filial/matriz — aparece após selecionar o cliente */}
+              {selectedClientId && (
+                <div className="input-group" style={{ marginTop: '14px' }}>
+                  <label>{t('projects.unitSection', 'Filial / Matriz')} *</label>
+                  <div style={unitError ? { border: '1.5px solid var(--color-error, #C0392B)', borderRadius: '8px' } : undefined}>
+                    <SearchableSelect
+                      options={clientUnits.map((u) => ({
+                        value: u.id,
+                        label: [
+                          u.unit_type === 'MATRIZ' ? 'Matriz' : 'Filial',
+                          u.label,
+                          u.cnpj ? `— ${maskCNPJ(u.cnpj)}` : null,
+                          u.city ? `(${u.city}${u.state ? `/${u.state}` : ''})` : null,
+                        ].filter(Boolean).join(' '),
+                      }))}
+                      value={selectedUnitId}
+                      onChange={handleUnitSelect}
+                      placeholder={
+                        unitsLoading
+                          ? t('common.loading')
+                          : clientUnits.length === 0
+                          ? t('projects.noUnits', 'Nenhuma filial cadastrada')
+                          : t('projects.selectUnit', 'Selecione a filial/matriz')
+                      }
+                      searchPlaceholder={t('common.search')}
+                    />
+                  </div>
+                  {unitError && (
+                    <span style={{ color: 'var(--color-error, #C0392B)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      {t('projects.unitRequired', 'Selecione uma filial/matriz')}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Selected client summary card */}
               {selectedClient && (
