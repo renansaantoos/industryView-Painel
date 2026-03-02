@@ -378,6 +378,7 @@ export default function Clients() {
                         <button
                           type="button"
                           onClick={() => toggleUnits(client.id)}
+                          title="M = Matriz · F = Filial"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
