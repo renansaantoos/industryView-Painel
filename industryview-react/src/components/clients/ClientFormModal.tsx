@@ -492,6 +492,7 @@ export function ClientFormModal({
   const [unitForm, setUnitForm] = useState<ClientUnitPayload>(emptyUnitForm());
   const [unitCepDisplay, setUnitCepDisplay] = useState('');
   const [unitCnpjDisplay, setUnitCnpjDisplay] = useState('');
+  const [unitCnpjError, setUnitCnpjError] = useState('');
 
   // Project linking state
   const [availableProjects, setAvailableProjects] = useState<ProjectInfo[]>([]);
@@ -926,6 +927,16 @@ export function ClientFormModal({
 
   async function handleSaveUnit() {
     if (!unitForm.unit_type) return;
+    const unitCnpjDigits = unitForm.cnpj?.replace(/\D/g, '') || '';
+    if (unitCnpjDigits.length > 0 && unitCnpjDigits.length < 14) {
+      setUnitCnpjError('CNPJ incompleto — informe todos os 14 dígitos');
+      return;
+    }
+    if (unitCnpjDigits.length === 14 && !validateCNPJChecksum(unitCnpjDigits)) {
+      setUnitCnpjError('CNPJ inválido — verifique os dígitos informados');
+      return;
+    }
+    setUnitCnpjError('');
     setSavingUnit(true);
     try {
       if (editingUnit && editingClient) {
@@ -1713,14 +1724,16 @@ export function ClientFormModal({
                           </div>
                           <div>
                             <label style={{ fontSize: '0.82rem', fontWeight: 500, display: 'block', marginBottom: '4px' }}>CNPJ</label>
-                            <input type="text" className="input-field" placeholder="00.000.000/0000-00"
+                            <input type="text" className={`input-field${unitCnpjError ? ' error' : ''}`} placeholder="00.000.000/0000-00"
                               value={unitCnpjDisplay}
                               inputMode="numeric" maxLength={18}
                               onChange={(e) => {
                                 const masked = maskCNPJ(e.target.value);
                                 setUnitCnpjDisplay(masked);
                                 setUnitForm((f) => ({ ...f, cnpj: unmask(masked) }));
+                                setUnitCnpjError('');
                               }} />
+                            {unitCnpjError && <span style={{ fontSize: '0.75rem', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>{unitCnpjError}</span>}
                           </div>
                         </div>
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
 import type { CompanyBranch, BranchPayload, RepresentanteLegal } from '../../types/company';
 import CepLookup, { type CepAddress } from './CepLookup';
-import CnpjInput from './CnpjInput';
+import CnpjInput, { isValidCnpj } from './CnpjInput';
 import { isValidCpf } from '../../utils/validators';
 
 interface BranchFormProps {
@@ -229,7 +229,8 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
     if (!form.brand_name.trim()) errors.brand_name = 'Nome Fantasia e obrigatorio';
     if (!form.legal_name.trim()) errors.legal_name = 'Razao Social e obrigatoria';
     if (!form.cnpj.replace(/\D/g, '')) errors.cnpj = 'CNPJ e obrigatorio';
-    else if (form.cnpj.replace(/\D/g, '').length !== 14) errors.cnpj = 'CNPJ deve ter 14 digitos';
+    else if (form.cnpj.replace(/\D/g, '').length < 14) errors.cnpj = 'CNPJ incompleto — informe todos os 14 dígitos';
+    else if (!isValidCnpj(form.cnpj.replace(/\D/g, ''))) errors.cnpj = 'CNPJ inválido — verifique os dígitos informados';
     if (form.cnae.replace(/\D/g, '') && form.cnae.replace(/\D/g, '').length !== 7) errors.cnae = 'CNAE deve ter 7 digitos';
 
     // Contato

@@ -3,7 +3,7 @@ import { X, Save, Plus, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { CompanyFull, CompanyUpdatePayload, RegimeTributario, RepresentanteLegal } from '../../types/company';
 import CepLookup, { type CepAddress } from './CepLookup';
-import CnpjInput from './CnpjInput';
+import CnpjInput, { isValidCnpj } from './CnpjInput';
 import SearchableSelect from '../common/SearchableSelect';
 import { modalBackdropVariants, modalContentVariants } from '../../lib/motion';
 import { isValidCpf } from '../../utils/validators';
@@ -171,6 +171,18 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
   const handleSubmit = async () => {
     if (!form.brand_name.trim()) {
       setError('O Nome Fantasia e obrigatorio');
+      setActiveTab('identificacao');
+      return;
+    }
+
+    const cnpjDigits = form.cnpj.replace(/\D/g, '');
+    if (cnpjDigits.length > 0 && cnpjDigits.length < 14) {
+      setError('CNPJ incompleto — informe todos os 14 dígitos');
+      setActiveTab('identificacao');
+      return;
+    }
+    if (cnpjDigits.length === 14 && !isValidCnpj(cnpjDigits)) {
+      setError('CNPJ inválido — verifique os dígitos informados');
       setActiveTab('identificacao');
       return;
     }
