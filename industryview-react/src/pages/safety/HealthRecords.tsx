@@ -655,7 +655,6 @@ export default function HealthRecords() {
                     type="date"
                     className="input-field"
                     value={form.exam_date}
-                    max={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setForm((f) => ({ ...f, exam_date: e.target.value }))}
                     style={{ borderColor: formTouched && formErrors.exam_date ? 'var(--color-error)' : undefined }}
                   />
