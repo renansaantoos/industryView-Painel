@@ -65,6 +65,24 @@ function maskPhone(value: string): string {
   return applyMask(value, '(99) 99999-9999');
 }
 
+// Códigos de país ordenados do mais longo para o mais curto (para match correto)
+const PHONE_COUNTRY_CODES = ['+598', '+595', '+591', '+44', '+49', '+33', '+34', '+39', '+54', '+56', '+57', '+51', '+58', '+86', '+81', '+55', '+1'];
+
+function formatPhoneWithPrefix(raw: string): string {
+  if (!raw) return '';
+  const allDigits = raw.replace(/\D/g, '');
+  if (raw.startsWith('+')) {
+    for (const code of PHONE_COUNTRY_CODES) {
+      const codeDigits = code.replace(/\D/g, '');
+      if (allDigits.startsWith(codeDigits)) {
+        const localDigits = allDigits.slice(codeDigits.length);
+        return `${code} ${maskPhone(localDigits)}`;
+      }
+    }
+  }
+  return maskPhone(raw);
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
 interface ToastState {
@@ -359,7 +377,7 @@ export default function Clients() {
                           }}
                         >
                           <Phone size={11} />
-                          {maskPhone(client.purchasing_contact_phone)}
+                          {formatPhoneWithPrefix(client.purchasing_contact_phone)}
                         </div>
                       )}
                     </div>
