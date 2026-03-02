@@ -28,6 +28,7 @@ export default function Employees() {
   const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'ativo' | 'inativo'>('ativo');
   const [dismissConfirm, setDismissConfirm] = useState<UserFull | null>(null);
   const [reactivateConfirm, setReactivateConfirm] = useState<UserFull | null>(null);
 
@@ -46,8 +47,15 @@ export default function Employees() {
         search: search || undefined,
         sort_field: sortField || undefined,
         sort_direction: sortDirection || undefined,
+        status: statusFilter !== 'todos' ? statusFilter : undefined,
       });
-      setEmployees(data.items || []);
+      // client-side filter as fallback if backend does not support status param
+      const items = (data.items || []).filter((emp) => {
+        if (statusFilter === 'ativo') return !emp.hr_data?.data_demissao;
+        if (statusFilter === 'inativo') return !!emp.hr_data?.data_demissao;
+        return true;
+      });
+      setEmployees(items);
       setTotalPages(data.pageTotal || 1);
       setTotalItems(data.itemsTotal || 0);
     } catch (err) {
@@ -55,7 +63,7 @@ export default function Employees() {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, search, sortField, sortDirection]);
+  }, [page, perPage, search, sortField, sortDirection, statusFilter]);
 
   useEffect(() => {
     loadEmployees();
@@ -94,8 +102,8 @@ export default function Employees() {
         }
       />
 
-      {/* Search */}
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+      {/* Search + Filters */}
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, maxWidth: '400px', position: 'relative' }}>
           <Search
             size={18}
@@ -118,6 +126,33 @@ export default function Employees() {
             }}
             style={{ paddingLeft: '36px' }}
           />
+        </div>
+
+        {/* Status filter */}
+        <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-alternate)' }}>
+          {(['ativo', 'inativo', 'todos'] as const).map((opt) => {
+            const labels = { ativo: 'Ativos', inativo: 'Inativos', todos: 'Todos' };
+            const active = statusFilter === opt;
+            return (
+              <button
+                key={opt}
+                onClick={() => { setStatusFilter(opt); setPage(1); }}
+                style={{
+                  padding: '7px 16px',
+                  fontSize: '0.82rem',
+                  fontWeight: active ? 600 : 400,
+                  background: active ? 'var(--color-primary)' : 'transparent',
+                  color: active ? '#fff' : 'var(--color-secondary-text)',
+                  border: 'none',
+                  borderRight: opt !== 'todos' ? '1px solid var(--color-alternate)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {labels[opt]}
+              </button>
+            );
+          })}
         </div>
       </div>
 

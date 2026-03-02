@@ -19,6 +19,7 @@ export async function queryAllUsers(params: {
   team_id?: number;
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
+  status?: 'ativo' | 'inativo';
 }): Promise<PaginatedResponse<UserFull>> {
   const response = await apiClient.post(`${USERS_BASE}/list`, params);
   return response.data;
