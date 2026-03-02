@@ -365,18 +365,78 @@ interface PhoneInputProps {
 }
 
 function PhoneInput({ prefix, onPrefixChange, value, onChange, onBlur, placeholder }: PhoneInputProps) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, []);
+
   return (
     <div style={{ display: 'flex', gap: '6px' }}>
-      <select
-        value={prefix}
-        onChange={(e) => onPrefixChange(e.target.value)}
-        className="input-field"
-        style={{ width: '140px', flexShrink: 0, fontSize: '0.8rem', padding: '0 6px', cursor: 'pointer' }}
-      >
-        {COUNTRY_CODES.map((c) => (
-          <option key={c.code} value={c.code}>{c.label}</option>
-        ))}
-      </select>
+      {/* Prefix trigger */}
+      <div ref={wrapRef} style={{ position: 'relative', flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="input-field"
+          style={{
+            width: '68px',
+            cursor: 'pointer',
+            textAlign: 'center',
+            fontWeight: 600,
+            fontSize: '0.82rem',
+            padding: '0 8px',
+            userSelect: 'none',
+          }}
+        >
+          {prefix}
+        </button>
+        {open && (
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            zIndex: 200,
+            background: 'var(--color-surface, #fff)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '8px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
+            minWidth: '190px',
+            maxHeight: '220px',
+            overflowY: 'auto',
+          }}>
+            {COUNTRY_CODES.map((c) => (
+              <div
+                key={c.code}
+                onMouseDown={(e) => { e.preventDefault(); onPrefixChange(c.code); setOpen(false); }}
+                style={{
+                  padding: '8px 14px',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                  background: c.code === prefix ? 'var(--color-primary)' : 'transparent',
+                  color: c.code === prefix ? '#fff' : 'var(--color-text)',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => {
+                  if (c.code !== prefix) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-alternate, rgba(0,0,0,0.05))';
+                }}
+                onMouseLeave={(e) => {
+                  if (c.code !== prefix) (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+                }}
+              >
+                {c.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Number input */}
       <input
         type="text"
         className="input-field"
