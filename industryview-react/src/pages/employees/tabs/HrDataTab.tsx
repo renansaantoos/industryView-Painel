@@ -6,6 +6,7 @@ import type { EmployeeHrData } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import SearchableSelect from '../../../components/common/SearchableSelect';
 import { Save, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { isValidCpf } from '../../../utils/validators';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -349,6 +350,16 @@ export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
   }, [form.cep]);
 
   async function handleSave() {
+    const cpfDigits = (form.cpf || '').replace(/\D/g, '');
+    if (cpfDigits.length > 0 && cpfDigits.length < 11) {
+      showToast('CPF incompleto — informe todos os 11 dígitos.', 'error');
+      return;
+    }
+    if (cpfDigits.length === 11 && !isValidCpf(cpfDigits)) {
+      showToast('CPF inválido — verifique os dígitos informados.', 'error');
+      return;
+    }
+
     const todayIso = getTodayIsoDate();
     if (form.rg_data_emissao && form.rg_data_emissao > todayIso) {
       showToast('Data de emissão do RG não pode ser futura.', 'error');
