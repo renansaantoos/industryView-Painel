@@ -1,10 +1,10 @@
 #!/bin/bash
 # =============================================================================
 # INDUSTRYVIEW - Deploy Script
-# Builds frontend, starts backend services via Docker Compose
+# Builds frontend, runs migrations, starts backend services via Docker Compose
 # Usage: sudo bash deploy.sh
 # =============================================================================
-set -e
+set -euo pipefail
 
 APP_DIR="/opt/industryview"
 DEPLOY_DIR="$APP_DIR/deploy"
@@ -18,7 +18,7 @@ echo "============================================"
 # ---------------------------------------------------------------------------
 # 1. Pull latest code
 # ---------------------------------------------------------------------------
-echo "[1/5] Pulling latest code..."
+echo "[1/6] Pulling latest code..."
 cd "$APP_DIR"
 git fetch origin main
 git reset --hard origin/main
@@ -26,7 +26,7 @@ git reset --hard origin/main
 # ---------------------------------------------------------------------------
 # 2. Build Frontend
 # ---------------------------------------------------------------------------
-echo "[2/5] Building frontend..."
+echo "[2/6] Building frontend..."
 
 # Get the VM's external IP (used for CORS and display only)
 EXTERNAL_IP=$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H "Metadata-Flavor: Google" 2>/dev/null || echo "localhost")
@@ -51,14 +51,14 @@ echo "Frontend deployed to $WEB_DIR"
 # ---------------------------------------------------------------------------
 # 3. Update CORS in .env.prod
 # ---------------------------------------------------------------------------
-echo "[3/5] Updating CORS configuration..."
+echo "[3/6] Updating CORS configuration..."
 cd "$DEPLOY_DIR"
 sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=https://${DOMAIN},http://${EXTERNAL_IP}|" .env.prod
 
 # ---------------------------------------------------------------------------
 # 4. Start Backend Services
 # ---------------------------------------------------------------------------
-echo "[4/5] Starting backend services..."
+echo "[4/6] Starting backend services..."
 cd "$DEPLOY_DIR"
 
 # Source env vars for docker compose
@@ -73,9 +73,16 @@ echo "Waiting for services to be healthy..."
 sleep 15
 
 # ---------------------------------------------------------------------------
-# 5. Verify
+# 5. Run Prisma Migrations
 # ---------------------------------------------------------------------------
-echo "[5/5] Verifying deployment..."
+echo "[5/6] Running database migrations..."
+docker exec industryview-app npx prisma migrate deploy
+echo "Migrations applied successfully"
+
+# ---------------------------------------------------------------------------
+# 6. Verify
+# ---------------------------------------------------------------------------
+echo "[6/6] Verifying deployment..."
 
 # Check Docker containers
 echo ""
@@ -85,7 +92,14 @@ docker compose -f docker-compose.prod.yml ps
 # Check health endpoint
 echo ""
 echo "Health check:"
-curl -s http://localhost:3000/health || echo "Backend not responding yet (may need more time)"
+HEALTH=$(curl -sf http://localhost:3000/health || true)
+if echo "$HEALTH" | grep -q '"status":"healthy"'; then
+  echo "$HEALTH"
+  echo "Health check PASSED"
+else
+  echo "Health check FAILED: $HEALTH"
+  exit 1
+fi
 
 # Check Nginx
 echo ""

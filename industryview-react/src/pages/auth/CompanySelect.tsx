@@ -8,7 +8,7 @@ import { MotionPage } from '../../lib/motion';
 import { CnpjInput, isValidCnpj } from '../../components/company/CnpjInput';
 import { CepLookup } from '../../components/company/CepLookup';
 import type { CepAddress } from '../../components/company/CepLookup';
-import { PhonePrefixDropdown, parsePhonePrefix } from '../../components/common/PhonePrefixDropdown';
+import { PhonePrefixDropdown } from '../../components/common/PhonePrefixDropdown';
 import './Auth.css';
 
 interface CompanyForm {

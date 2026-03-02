@@ -23,6 +23,7 @@ jobs:
           key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
           command_timeout: 12m
           script: |
+            set -e
             echo "=== Starting deploy at $(date) ==="
             sudo bash /opt/industryview/deploy/deploy.sh
             echo "=== Deploy finished at $(date) ==="
@@ -34,6 +35,7 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
           script: |
+            set -e
             echo "Waiting for service to be healthy..."
             for i in $(seq 1 10); do
               STATUS=$(curl -sf http://localhost:3000/health | grep -o '"status":"healthy"' || true)
