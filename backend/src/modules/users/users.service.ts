@@ -605,11 +605,19 @@ export class UsersService {
     // Isso evita conflitos de merge entre multiplos OR/AND
     const topLevelAnd: any[] = [];
 
-    // Condicoes basicas: nao deletado e da empresa correta
+    // Condicoes basicas: nao deletado, da empresa correta e nao demitido
     topLevelAnd.push({ deleted_at: null });
     if (company_id) {
       topLevelAnd.push({ company_id: BigInt(company_id) });
     }
+    // Excluir usuarios inativos (com data_demissao preenchida)
+    topLevelAnd.push({
+      NOT: {
+        hr_data: {
+          data_demissao: { not: null },
+        },
+      },
+    });
 
     // Filtro de busca por nome
     if (search && search.trim() !== '') {

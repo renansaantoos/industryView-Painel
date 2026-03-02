@@ -483,19 +483,23 @@ export class TeamsService {
       whereConditions.teams = { projects_id: projectId, deleted_at: null };
     }
 
+    // Sempre excluir usuarios inativos (com data_demissao preenchida)
+    whereConditions.users = {
+      NOT: {
+        hr_data: {
+          data_demissao: { not: null },
+        },
+      },
+    };
+
     // Filtros adicionais (search e usersRolesId)
     if (search && search.trim() !== '') {
-      whereConditions.users = {
-        name: { contains: search, mode: 'insensitive' },
-      };
+      whereConditions.users.name = { contains: search, mode: 'insensitive' };
     }
 
     if (usersRolesId && usersRolesId.length > 0) {
-      // Se nao tiver filtro de user, inicializa
-      if (!whereConditions.users) whereConditions.users = {};
-
       whereConditions.users.users_permissions = {
-        users_roles_id: { in: usersRolesId }
+        users_roles_id: { in: usersRolesId },
       };
     }
 
