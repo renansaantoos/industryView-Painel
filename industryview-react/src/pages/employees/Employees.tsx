@@ -5,14 +5,14 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuth } from '../../hooks/useAuth';
-import { usersApi } from '../../services';
+import { usersApi, employeesApi } from '../../services';
 import type { UserFull } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Search, Edit, Trash2, UserCircle, Mail, Phone, Shield } from 'lucide-react';
+import { Plus, Search, Edit, UserCircle, Mail, Phone, Shield, UserMinus, UserCheck } from 'lucide-react';
 import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
 
 export default function Employees() {
@@ -28,7 +28,8 @@ export default function Employees() {
   const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [dismissConfirm, setDismissConfirm] = useState<UserFull | null>(null);
+  const [reactivateConfirm, setReactivateConfirm] = useState<UserFull | null>(null);
 
   const { sortField, sortDirection, handleSort } = useBackendSort();
 
@@ -60,14 +61,25 @@ export default function Employees() {
     loadEmployees();
   }, [loadEmployees]);
 
-  const handleDelete = async (id: number) => {
+  const handleDismiss = async (emp: UserFull) => {
     try {
-      await usersApi.deleteUser(id);
+      const today = new Date().toISOString().split('T')[0];
+      await employeesApi.upsertHrData(emp.id, { data_demissao: today });
       loadEmployees();
     } catch (err) {
-      console.error('Failed to delete employee:', err);
+      console.error('Failed to dismiss employee:', err);
     }
-    setDeleteConfirm(null);
+    setDismissConfirm(null);
+  };
+
+  const handleReactivate = async (emp: UserFull) => {
+    try {
+      await employeesApi.upsertHrData(emp.id, { data_demissao: '' });
+      loadEmployees();
+    } catch (err) {
+      console.error('Failed to reactivate employee:', err);
+    }
+    setReactivateConfirm(null);
   };
 
   return (
@@ -130,55 +142,86 @@ export default function Employees() {
                 <SortableHeader label={t('employees.email')} field="email" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('employees.phone')} field="phone" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('employees.role')} field="roleName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <th>Status</th>
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {employees.map((emp) => (
-                <motion.tr
-                  key={emp.id}
-                  variants={tableRowVariants}
-                  onClick={() => navigate(`/funcionario/${emp.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <UserCircle size={20} color="var(--color-primary)" />
-                      <span style={{ fontWeight: 500 }}>{emp.hr_data?.nome_completo || emp.name || '-'}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Mail size={14} color="var(--color-secondary-text)" />
-                      {emp.email || '-'}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Phone size={14} color="var(--color-secondary-text)" />
-                      {emp.phone || '-'}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Shield size={14} color="var(--color-secondary-text)" />
-                      {emp.hr_data?.cargo || '-'}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
-                      <Link to={`/funcionario/${emp.id}`} className="btn btn-icon" title={t('common.edit')}>
-                        <Edit size={16} color="var(--color-secondary-text)" />
-                      </Link>
-                      {emp.id !== user?.id && (
-                        <button className="btn btn-icon" title={t('common.delete')} onClick={() => setDeleteConfirm(emp.id)}>
-                          <Trash2 size={16} color="var(--color-error)" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+              {employees.map((emp) => {
+                const isInactive = !!emp.hr_data?.data_demissao;
+                return (
+                  <motion.tr
+                    key={emp.id}
+                    variants={tableRowVariants}
+                    onClick={() => navigate(`/funcionario/${emp.id}`)}
+                    style={{ cursor: 'pointer', opacity: isInactive ? 0.6 : 1 }}
+                  >
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <UserCircle size={20} color={isInactive ? 'var(--color-secondary-text)' : 'var(--color-primary)'} />
+                        <span style={{ fontWeight: 500 }}>{emp.hr_data?.nome_completo || emp.name || '-'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Mail size={14} color="var(--color-secondary-text)" />
+                        {emp.email || '-'}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Phone size={14} color="var(--color-secondary-text)" />
+                        {emp.phone || '-'}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Shield size={14} color="var(--color-secondary-text)" />
+                        {emp.hr_data?.cargo || '-'}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 10px',
+                        borderRadius: '999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        background: isInactive ? 'var(--color-alternate)' : 'rgba(34,197,94,0.12)',
+                        color: isInactive ? 'var(--color-secondary-text)' : '#16a34a',
+                      }}>
+                        {isInactive ? 'Inativo' : 'Ativo'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                        <Link to={`/funcionario/${emp.id}`} className="btn btn-icon" title={t('common.edit')}>
+                          <Edit size={16} color="var(--color-secondary-text)" />
+                        </Link>
+                        {emp.id !== user?.id && (
+                          isInactive ? (
+                            <button
+                              className="btn btn-icon"
+                              title="Reativar funcionário"
+                              onClick={() => setReactivateConfirm(emp)}
+                            >
+                              <UserCheck size={16} color="var(--color-success, #16a34a)" />
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-icon"
+                              title="Demitir funcionário"
+                              onClick={() => setDismissConfirm(emp)}
+                            >
+                              <UserMinus size={16} color="var(--color-error)" />
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              })}
             </motion.tbody>
           </table>
           <Pagination
@@ -195,13 +238,23 @@ export default function Employees() {
         </div>
       )}
 
-      {/* Delete Confirm */}
-      {deleteConfirm !== null && (
+      {/* Dismiss Confirm */}
+      {dismissConfirm !== null && (
         <ConfirmModal
-          title={t('common.confirmDelete')}
-          message={t('employees.confirmDelete')}
-          onConfirm={() => handleDelete(deleteConfirm)}
-          onCancel={() => setDeleteConfirm(null)}
+          title="Demitir funcionário"
+          message={`Tem certeza que deseja demitir ${dismissConfirm.hr_data?.nome_completo || dismissConfirm.name}? O funcionário será marcado como inativo e seu histórico será preservado.`}
+          onConfirm={() => handleDismiss(dismissConfirm)}
+          onCancel={() => setDismissConfirm(null)}
+        />
+      )}
+
+      {/* Reactivate Confirm */}
+      {reactivateConfirm !== null && (
+        <ConfirmModal
+          title="Reativar funcionário"
+          message={`Deseja reativar ${reactivateConfirm.hr_data?.nome_completo || reactivateConfirm.name}?`}
+          onConfirm={() => handleReactivate(reactivateConfirm)}
+          onCancel={() => setReactivateConfirm(null)}
         />
       )}
     </div>
