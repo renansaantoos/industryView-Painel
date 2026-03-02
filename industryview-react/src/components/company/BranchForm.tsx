@@ -4,6 +4,7 @@ import type { CompanyBranch, BranchPayload, RepresentanteLegal } from '../../typ
 import CepLookup, { type CepAddress } from './CepLookup';
 import CnpjInput, { isValidCnpj } from './CnpjInput';
 import { isValidCpf } from '../../utils/validators';
+import { PhonePrefixDropdown, parsePhonePrefix } from '../common/PhonePrefixDropdown';
 
 interface BranchFormProps {
   /** Pass null to create, pass branch to edit */
@@ -67,6 +68,15 @@ const emptyForm: FormState = {
   ativo: true,
 };
 
+function maskLocalPhone(digits: string): string {
+  const d = digits.replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 function branchToForm(branch: CompanyBranch): FormState {
   // Build representantes list from new field or fallback to legacy fields
   let representantes: RepresentanteLegal[] = [];
@@ -89,7 +99,7 @@ function branchToForm(branch: CompanyBranch): FormState {
     inscricao_estadual: branch.inscricao_estadual || '',
     inscricao_municipal: branch.inscricao_municipal || '',
     cnae: branch.cnae || '',
-    phone: branch.phone || '',
+    phone: maskLocalPhone(parsePhonePrefix(branch.phone || '').localDigits),
     email: branch.email || '',
     contact_name: branch.contact_name || '',
     website: branch.website || '',
@@ -137,6 +147,7 @@ type FieldErrors = Partial<Record<string, string>>;
 export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
   const isEditing = branch !== null;
   const [form, setForm] = useState<FormState>(isEditing ? branchToForm(branch) : emptyForm);
+  const [phonePrefix, setPhonePrefix] = useState(() => isEditing ? parsePhonePrefix(branch.phone || '').prefix : '+55');
   const [activeTab, setActiveTab] = useState<Tab>('identificacao');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -144,6 +155,7 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
 
   useEffect(() => {
     setForm(isEditing ? branchToForm(branch) : emptyForm);
+    setPhonePrefix(isEditing ? parsePhonePrefix(branch.phone || '').prefix : '+55');
     setActiveTab('identificacao');
     setError('');
     setFieldErrors({});
@@ -295,7 +307,7 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
         inscricao_estadual: form.inscricao_estadual.trim() || undefined,
         inscricao_municipal: form.inscricao_municipal.trim() || undefined,
         cnae: form.cnae.trim() || undefined,
-        phone: form.phone.trim() || undefined,
+        phone: form.phone.trim() ? phonePrefix + form.phone.replace(/\D/g, '') : undefined,
         email: form.email.trim() || undefined,
         contact_name: form.contact_name.trim() || null,
         website: normalizeWebsite(form.website),
@@ -494,23 +506,18 @@ export function BranchForm({ branch, onSave, onClose }: BranchFormProps) {
               {inputField('Nome do Contato', 'contact_name', { placeholder: 'Nome da pessoa de contato' })}
               <div className="input-group">
                 <label>Telefone <span style={{ color: 'var(--color-error)', marginLeft: '2px' }}>*</span></label>
-                <input
-                  type="tel"
-                  className={`input-field ${fieldErrors.phone ? 'error' : ''}`}
-                  value={form.phone}
-                  onChange={e => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-                    let masked = '';
-                    if (digits.length === 0) masked = '';
-                    else if (digits.length <= 2) masked = `(${digits}`;
-                    else if (digits.length <= 7) masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-                    else if (digits.length <= 10) masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-                    else masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-                    setField('phone', masked);
-                  }}
-                  placeholder="(00) 00000-0000"
-                  maxLength={15}
-                />
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <PhonePrefixDropdown prefix={phonePrefix} onChange={setPhonePrefix} />
+                  <input
+                    type="tel"
+                    className={`input-field ${fieldErrors.phone ? 'error' : ''}`}
+                    value={form.phone}
+                    onChange={e => setField('phone', maskLocalPhone(e.target.value))}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                    style={{ flex: 1 }}
+                  />
+                </div>
                 {fieldErrors.phone && <span className="input-error">{fieldErrors.phone}</span>}
               </div>
               <div className="input-group">

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { CompanyFull, CompanyUpdatePayload, RegimeTributario, RepresentanteLegal } from '../../types/company';
 import CepLookup, { type CepAddress } from './CepLookup';
 import CnpjInput, { isValidCnpj } from './CnpjInput';
+import { PhonePrefixDropdown, parsePhonePrefix } from '../common/PhonePrefixDropdown';
 import SearchableSelect from '../common/SearchableSelect';
 import { modalBackdropVariants, modalContentVariants } from '../../lib/motion';
 import { isValidCpf } from '../../utils/validators';
@@ -64,6 +65,15 @@ function formatCpfMask(value: string): string {
   return masked;
 }
 
+function maskLocalPhone(digits: string): string {
+  const d = digits.replace(/\D/g, '').slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 function companyToForm(company: CompanyFull): FormState {
   // Build representantes list from new field or fallback to legacy fields
   let representantes: RepresentanteLegal[] = [];
@@ -87,7 +97,7 @@ function companyToForm(company: CompanyFull): FormState {
     inscricao_municipal: company.inscricao_municipal || '',
     cnae: company.cnae || '',
     regime_tributario: company.regime_tributario || '',
-    phone: company.phone || '',
+    phone: maskLocalPhone(parsePhonePrefix(company.phone || '').localDigits),
     email: company.email || '',
     contact_name: company.contact_name || '',
     website: company.website || '',
@@ -105,6 +115,7 @@ function companyToForm(company: CompanyFull): FormState {
 
 export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: CompanyEditModalProps) {
   const [form, setForm] = useState<FormState>(companyToForm(company));
+  const [phonePrefix, setPhonePrefix] = useState(() => parsePhonePrefix(company.phone || '').prefix);
   const [activeTab, setActiveTab] = useState<Tab>('identificacao');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -112,6 +123,7 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
 
   useEffect(() => {
     setForm(companyToForm(company));
+    setPhonePrefix(parsePhonePrefix(company.phone || '').prefix);
   }, [company]);
 
   const setField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -222,7 +234,7 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
         inscricao_municipal: form.inscricao_municipal.trim() || undefined,
         cnae: form.cnae.trim() || undefined,
         regime_tributario: (form.regime_tributario as RegimeTributario) || undefined,
-        phone: form.phone.trim() || undefined,
+        phone: form.phone.trim() ? phonePrefix + form.phone.replace(/\D/g, '') : undefined,
         email: form.email.trim() || undefined,
         contact_name: form.contact_name.trim() || null,
         website: normalizeWebsite(form.website),
@@ -369,23 +381,18 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
                   {inputField('Nome do Contato', 'contact_name', { placeholder: 'Nome da pessoa de contato' })}
                   <div className="input-group">
                     <label>Telefone</label>
-                    <input
-                      type="tel"
-                      className="input-field"
-                      value={form.phone}
-                      onChange={e => {
-                        const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-                        let masked = '';
-                        if (digits.length === 0) masked = '';
-                        else if (digits.length <= 2) masked = `(${digits}`;
-                        else if (digits.length <= 7) masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-                        else if (digits.length <= 10) masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-                        else masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-                        setField('phone', masked);
-                      }}
-                      placeholder="(00) 00000-0000"
-                      maxLength={15}
-                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <PhonePrefixDropdown prefix={phonePrefix} onChange={setPhonePrefix} />
+                      <input
+                        type="tel"
+                        className="input-field"
+                        value={form.phone}
+                        onChange={e => setField('phone', maskLocalPhone(e.target.value))}
+                        placeholder="(00) 00000-0000"
+                        maxLength={15}
+                        style={{ flex: 1 }}
+                      />
+                    </div>
                   </div>
                   <div className="input-group">
                     <label>E-mail</label>

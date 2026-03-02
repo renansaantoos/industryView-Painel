@@ -8,6 +8,7 @@ import { MotionPage } from '../../lib/motion';
 import { CnpjInput, isValidCnpj } from '../../components/company/CnpjInput';
 import { CepLookup } from '../../components/company/CepLookup';
 import type { CepAddress } from '../../components/company/CepLookup';
+import { PhonePrefixDropdown, parsePhonePrefix } from '../../components/common/PhonePrefixDropdown';
 import './Auth.css';
 
 interface CompanyForm {
@@ -61,6 +62,7 @@ export default function CompanySelect() {
   const { user, updateUser, logout } = useAuth();
 
   const [form, setForm] = useState<CompanyForm>(initialForm);
+  const [phonePrefix, setPhonePrefix] = useState('+55');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [cnpjError, setCnpjError] = useState('');
@@ -109,7 +111,7 @@ export default function CompanySelect() {
         name: form.brand_name,
         legal_name: form.legal_name || undefined,
         cnpj: form.cnpj || undefined,
-        phone: form.phone || undefined,
+        phone: form.phone ? phonePrefix + form.phone.replace(/\D/g, '') : undefined,
         email: form.email || undefined,
         cep: form.cep || undefined,
         numero: form.numero || undefined,
@@ -246,15 +248,19 @@ export default function CompanySelect() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-lg)' }}>
                 <div className="input-group">
                   <label htmlFor="phone">Telefone</label>
-                  <input
-                    id="phone"
-                    type="text"
-                    className="input-field"
-                    placeholder="(00) 0 0000-0000"
-                    value={form.phone}
-                    onChange={(e) => updateField('phone', applyPhoneMask(e.target.value))}
-                    maxLength={16}
-                  />
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <PhonePrefixDropdown prefix={phonePrefix} onChange={setPhonePrefix} />
+                    <input
+                      id="phone"
+                      type="text"
+                      className="input-field"
+                      placeholder="(00) 0 0000-0000"
+                      value={form.phone}
+                      onChange={(e) => updateField('phone', applyPhoneMask(e.target.value))}
+                      maxLength={16}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
                 </div>
 
                 <div className="input-group">
