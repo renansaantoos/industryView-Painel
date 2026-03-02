@@ -239,7 +239,21 @@ export default function HealthRecords() {
     const errors: Partial<Record<keyof RecordForm, string>> = {};
     if (!form.users_id) errors.users_id = 'Selecione um colaborador';
     if (!form.exam_type) errors.exam_type = 'Selecione o tipo de exame';
-    if (!form.exam_date) errors.exam_date = 'Informe a data do exame';
+    if (!form.exam_date) {
+      errors.exam_date = 'Informe a data do exame';
+    } else {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const examDate = new Date(form.exam_date + 'T00:00:00');
+      if (examDate > today) {
+        errors.exam_date = 'Data do exame não pode ser maior que hoje';
+      } else if (form.expiry_date) {
+        const expiryDate = new Date(form.expiry_date + 'T00:00:00');
+        if (expiryDate < examDate) {
+          errors.expiry_date = 'Data de validade não pode ser menor que a data do exame';
+        }
+      }
+    }
     if (!form.result) errors.result = 'Selecione o resultado';
     if (form.result === 'apto_restricao' && !form.restriction_description.trim()) {
       errors.restriction_description = 'Descreva a restrição para resultado "Apto com Restrição"';
@@ -641,6 +655,7 @@ export default function HealthRecords() {
                     type="date"
                     className="input-field"
                     value={form.exam_date}
+                    max={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setForm((f) => ({ ...f, exam_date: e.target.value }))}
                     style={{ borderColor: formTouched && formErrors.exam_date ? 'var(--color-error)' : undefined }}
                   />
@@ -655,7 +670,11 @@ export default function HealthRecords() {
                     className="input-field"
                     value={form.expiry_date}
                     onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
+                    style={{ borderColor: formTouched && formErrors.expiry_date ? 'var(--color-error)' : undefined }}
                   />
+                  {formTouched && formErrors.expiry_date && (
+                    <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{formErrors.expiry_date}</span>
+                  )}
                 </div>
               </div>
 
