@@ -390,7 +390,6 @@ function PhoneInput({ prefix, onPrefixChange, value, onChange, onBlur, placehold
             textAlign: 'center',
             fontWeight: 600,
             fontSize: '0.82rem',
-            padding: '0 8px',
             userSelect: 'none',
           }}
         >
