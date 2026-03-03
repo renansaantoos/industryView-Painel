@@ -22,6 +22,13 @@ router.post('/categories', authenticate, ToolsController.createCategory);
 router.patch('/categories/:id', authenticate, ToolsController.updateCategory);
 router.delete('/categories/:id', authenticate, ToolsController.deleteCategory);
 
+// Tool Models - catalogo (ANTES de /:id)
+router.get('/models', authenticate, ToolsController.listToolModels);
+router.post('/models', authenticate, ToolsController.createToolModel);
+router.get('/models/:id', authenticate, ToolsController.getToolModelById);
+router.patch('/models/:id', authenticate, ToolsController.updateToolModel);
+router.delete('/models/:id', authenticate, ToolsController.deleteToolModel);
+
 // Movements (ANTES de /:id)
 router.get('/movements', authenticate, ToolsController.listMovements);
 router.post('/movements/transfer', authenticate, ToolsController.transfer);

@@ -19,11 +19,13 @@ export const getDepartmentByIdSchema = z.object({
 
 export const createDepartmentSchema = z.object({
   company_id: z.coerce.number().int().min(1, 'company_id e obrigatorio'),
+  branch_id: z.coerce.number().int().min(1, 'Filial/Matriz e obrigatoria'),
   name: z.string().trim().min(1, 'name e obrigatorio'),
   description: z.string().trim().optional(),
 });
 
 export const updateDepartmentSchema = z.object({
+  branch_id: z.coerce.number().int().optional(),
   name: z.string().trim().min(1).optional(),
   description: z.string().trim().optional(),
 });
@@ -52,18 +54,51 @@ export const updateCategorySchema = z.object({
 });
 
 // =============================================================================
-// Tools Schemas
+// Tool Models Schemas (catalogo)
+// =============================================================================
+
+export const listToolModelsSchema = z.object({
+  category_id: z.coerce.number().int().optional(),
+  search: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  per_page: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+export const getToolModelByIdSchema = z.object({
+  id: z.coerce.number().int().min(1),
+});
+
+export const createToolModelSchema = z.object({
+  company_id: z.coerce.number().int().min(1, 'company_id e obrigatorio'),
+  name: z.string().trim().min(1, 'name e obrigatorio'),
+  control_type: z.enum(['patrimonio', 'quantidade']),
+  category_id: z.coerce.number().int().optional(),
+  brand: z.string().trim().optional(),
+  model: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+});
+
+export const updateToolModelSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  control_type: z.enum(['patrimonio', 'quantidade']).optional(),
+  category_id: z.coerce.number().int().nullable().optional(),
+  brand: z.string().trim().optional(),
+  model: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+});
+
+// =============================================================================
+// Tools Schemas (instancias fisicas)
 // =============================================================================
 
 export const listToolsSchema = z.object({
   company_id: z.coerce.number().int().optional(),
-  category_id: z.coerce.number().int().optional(),
+  model_id: z.coerce.number().int().optional(),
   branch_id: z.coerce.number().int().optional(),
   department_id: z.coerce.number().int().optional(),
   project_id: z.coerce.number().int().optional(),
   assigned_user_id: z.coerce.number().int().optional(),
   assigned_team_id: z.coerce.number().int().optional(),
-  control_type: z.enum(['patrimonio', 'quantidade']).optional(),
   condition: z.enum(['novo', 'bom', 'regular', 'danificado', 'descartado']).optional(),
   search: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -76,14 +111,9 @@ export const getToolByIdSchema = z.object({
 
 export const createToolSchema = z.object({
   company_id: z.coerce.number().int().min(1, 'company_id e obrigatorio'),
-  category_id: z.coerce.number().int().optional(),
-  name: z.string().trim().min(1, 'name e obrigatorio'),
-  description: z.string().trim().optional(),
-  control_type: z.enum(['patrimonio', 'quantidade']),
+  model_id: z.coerce.number().int().min(1, 'model_id e obrigatorio'),
   patrimonio_code: z.string().trim().optional(),
   quantity_total: z.coerce.number().int().min(1).optional().default(1),
-  brand: z.string().trim().optional(),
-  model: z.string().trim().optional(),
   serial_number: z.string().trim().optional(),
   condition: z.enum(['novo', 'bom', 'regular', 'danificado', 'descartado']).optional().default('novo'),
   branch_id: z.coerce.number().int().optional(),
@@ -93,13 +123,8 @@ export const createToolSchema = z.object({
 });
 
 export const updateToolSchema = z.object({
-  category_id: z.coerce.number().int().optional(),
-  name: z.string().trim().min(1).optional(),
-  description: z.string().trim().optional(),
   patrimonio_code: z.string().trim().optional(),
   quantity_total: z.coerce.number().int().min(1).optional(),
-  brand: z.string().trim().optional(),
-  model: z.string().trim().optional(),
   serial_number: z.string().trim().optional(),
   condition: z.enum(['novo', 'bom', 'regular', 'danificado', 'descartado']).optional(),
   branch_id: z.coerce.number().int().nullable().optional(),
@@ -215,7 +240,7 @@ export const updateKitSchema = z.object({
 });
 
 export const addKitItemSchema = z.object({
-  category_id: z.coerce.number().int().min(1, 'category_id e obrigatorio'),
+  model_id: z.coerce.number().int().min(1, 'model_id e obrigatorio'),
   quantity: z.coerce.number().int().min(1).optional().default(1),
 });
 
@@ -242,6 +267,9 @@ export type UpdateDepartmentInput = z.infer<typeof updateDepartmentSchema>;
 export type ListCategoriesInput = z.infer<typeof listCategoriesSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type ListToolModelsInput = z.infer<typeof listToolModelsSchema>;
+export type CreateToolModelInput = z.infer<typeof createToolModelSchema>;
+export type UpdateToolModelInput = z.infer<typeof updateToolModelSchema>;
 export type ListToolsInput = z.infer<typeof listToolsSchema>;
 export type CreateToolInput = z.infer<typeof createToolSchema>;
 export type UpdateToolInput = z.infer<typeof updateToolSchema>;

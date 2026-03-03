@@ -17,6 +17,10 @@ import {
   getCategoryByIdSchema,
   createCategorySchema,
   updateCategorySchema,
+  listToolModelsSchema,
+  getToolModelByIdSchema,
+  createToolModelSchema,
+  updateToolModelSchema,
   listToolsSchema,
   getToolByIdSchema,
   createToolSchema,
@@ -206,7 +210,98 @@ export class ToolsController {
   }
 
   // ===========================================================================
-  // Tools
+  // Tool Models (catalogo)
+  // ===========================================================================
+
+  static async listToolModels(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const input = listToolModelsSchema.parse(req.query);
+      const companyId = req.user!.companyId!;
+      const result = await ToolsService.listToolModels(companyId, input);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getToolModelById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = getToolModelByIdSchema.parse(req.params);
+      const companyId = req.user!.companyId!;
+      const result = await ToolsService.getToolModelById(companyId, id);
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createToolModel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const body = { ...req.body };
+      if (req.user?.companyId) body.company_id = req.user.companyId;
+      const input = createToolModelSchema.parse(body);
+      const companyId = req.user!.companyId!;
+      const result = await ToolsService.createToolModel(companyId, input);
+
+      await AuditService.logAction({
+        table_name: 'tool_models',
+        record_id: Number(result.id),
+        action: 'create',
+        new_values: { name: result.name, control_type: result.control_type },
+        users_id: req.user!.id,
+        ip_address: req.ip,
+      });
+
+      res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateToolModel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = getToolModelByIdSchema.parse(req.params);
+      const input = updateToolModelSchema.parse(req.body);
+      const companyId = req.user!.companyId!;
+      const result = await ToolsService.updateToolModel(companyId, id, input);
+
+      await AuditService.logAction({
+        table_name: 'tool_models',
+        record_id: id,
+        action: 'update',
+        new_values: { name: result.name, control_type: result.control_type },
+        users_id: req.user!.id,
+        ip_address: req.ip,
+      });
+
+      res.json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteToolModel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = getToolModelByIdSchema.parse(req.params);
+      const companyId = req.user!.companyId!;
+      await ToolsService.deleteToolModel(companyId, id);
+
+      await AuditService.logAction({
+        table_name: 'tool_models',
+        record_id: id,
+        action: 'delete',
+        users_id: req.user!.id,
+        ip_address: req.ip,
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Tools (instancias fisicas)
   // ===========================================================================
 
   static async listTools(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -241,7 +336,7 @@ export class ToolsController {
         table_name: 'tools',
         record_id: Number(result.id),
         action: 'create',
-        new_values: { name: result.name, control_type: result.control_type, patrimonio_code: result.patrimonio_code },
+        new_values: { model_id: Number(result.model_id), patrimonio_code: result.patrimonio_code, condition: result.condition },
         users_id: req.user!.id,
         ip_address: req.ip,
       });
@@ -265,8 +360,8 @@ export class ToolsController {
         table_name: 'tools',
         record_id: id,
         action: 'update',
-        old_values: { name: old.name, condition: old.condition },
-        new_values: { name: result.name, condition: result.condition },
+        old_values: { condition: old.condition, patrimonio_code: old.patrimonio_code },
+        new_values: { condition: result.condition, patrimonio_code: result.patrimonio_code },
         users_id: req.user!.id,
         ip_address: req.ip,
       });
@@ -524,7 +619,7 @@ export class ToolsController {
         table_name: 'tool_kit_items',
         record_id: Number(result.id),
         action: 'create',
-        new_values: { kit_id: id, category_id: input.category_id, quantity: input.quantity },
+        new_values: { kit_id: id, model_id: input.model_id, quantity: input.quantity },
         users_id: req.user!.id,
         ip_address: req.ip,
       });

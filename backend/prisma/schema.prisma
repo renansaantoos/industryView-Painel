@@ -321,6 +321,7 @@ model company {
   company_work_calendar company_work_calendar?
   departments           departments[]
   tool_categories       tool_categories[]
+  tool_models           tool_models[]
   tools                 tools[]
   tool_kits             tool_kits[]
 
@@ -357,8 +358,9 @@ model company_branches {
   updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at          DateTime? @db.Timestamptz(6)
 
-  company             company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company             company       @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   tools               tools[]
+  departments         departments[]
 
   @@index([company_id])
   @@index([created_at(sort: Desc)])
@@ -3005,16 +3007,19 @@ model project_work_calendar_override {
 model departments {
   id          BigInt    @id @default(autoincrement())
   company_id  BigInt
+  branch_id   BigInt?
   name        String    @db.VarChar(120)
   description String?
   created_at  DateTime  @default(now()) @db.Timestamptz(6)
   updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at  DateTime? @db.Timestamptz(6)
 
-  company     company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  company     company          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  branch      company_branches? @relation(fields: [branch_id], references: [id], onUpdate: NoAction)
   tools       tools[]
 
   @@index([company_id], map: "idx_departments_company_id")
+  @@index([branch_id], map: "idx_departments_branch_id")
   @@index([created_at(sort: Desc)], map: "idx_departments_created_at")
 }
 
@@ -3028,25 +3033,42 @@ model tool_categories {
   deleted_at  DateTime? @db.Timestamptz(6)
 
   company     company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  tools       tools[]
-  tool_kit_items tool_kit_items[]
+  tool_models tool_models[]
 
   @@index([company_id], map: "idx_tool_categories_company_id")
   @@index([created_at(sort: Desc)], map: "idx_tool_categories_created_at")
 }
 
+model tool_models {
+  id           BigInt    @id @default(autoincrement())
+  company_id   BigInt
+  category_id  BigInt?
+  name         String    @db.VarChar(200)
+  brand        String?   @db.VarChar(100)
+  model        String?   @db.VarChar(100)
+  description  String?
+  control_type String    @default("patrimonio") @db.VarChar(20) // 'patrimonio' | 'quantidade'
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+
+  company      company          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  category     tool_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  tools        tools[]
+  kit_items    tool_kit_items[]
+
+  @@index([company_id], map: "idx_tool_models_company_id")
+  @@index([category_id], map: "idx_tool_models_category_id")
+  @@index([created_at(sort: Desc)], map: "idx_tool_models_created_at")
+}
+
 model tools {
   id                  BigInt    @id @default(autoincrement())
   company_id          BigInt
-  category_id         BigInt?
-  name                String    @db.VarChar(200)
-  description         String?
-  control_type        String    @db.VarChar(20) // 'patrimonio' | 'quantidade'
+  model_id            BigInt
   patrimonio_code     String?   @db.VarChar(50)
   quantity_total      Int       @default(1)
   quantity_available  Int       @default(1)
-  brand               String?   @db.VarChar(100)
-  model               String?   @db.VarChar(100)
   serial_number       String?   @db.VarChar(100)
   condition           String    @default("novo") @db.VarChar(20) // 'novo','bom','regular','danificado','descartado'
   branch_id           BigInt?
@@ -3060,7 +3082,7 @@ model tools {
   deleted_at          DateTime? @db.Timestamptz(6)
 
   company             company          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  category            tool_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  model               tool_models      @relation(fields: [model_id], references: [id], onUpdate: NoAction)
   branch              company_branches? @relation(fields: [branch_id], references: [id], onUpdate: NoAction)
   department          departments?     @relation(fields: [department_id], references: [id], onUpdate: NoAction)
   project             projects?        @relation(fields: [project_id], references: [id], onUpdate: NoAction)
@@ -3071,13 +3093,12 @@ model tools {
 
   @@unique([company_id, patrimonio_code], map: "uq_tools_patrimonio_code")
   @@index([company_id], map: "idx_tools_company_id")
-  @@index([category_id], map: "idx_tools_category_id")
+  @@index([model_id], map: "idx_tools_model_id")
   @@index([branch_id], map: "idx_tools_branch_id")
   @@index([department_id], map: "idx_tools_department_id")
   @@index([project_id], map: "idx_tools_project_id")
   @@index([assigned_user_id], map: "idx_tools_assigned_user_id")
   @@index([assigned_team_id], map: "idx_tools_assigned_team_id")
-  @@index([control_type], map: "idx_tools_control_type")
   @@index([created_at(sort: Desc)], map: "idx_tools_created_at")
 }
 
@@ -3150,14 +3171,14 @@ model tool_kits {
 model tool_kit_items {
   id              BigInt    @id @default(autoincrement())
   kit_id          BigInt
-  category_id     BigInt
+  model_id        BigInt
   quantity        Int       @default(1)
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
 
-  kit             tool_kits       @relation(fields: [kit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  category        tool_categories @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  kit             tool_kits   @relation(fields: [kit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  model           tool_models @relation(fields: [model_id], references: [id], onUpdate: NoAction)
 
-  @@unique([kit_id, category_id], map: "uq_tool_kit_items_kit_category")
+  @@unique([kit_id, model_id], map: "uq_tool_kit_items_kit_model")
   @@index([kit_id], map: "idx_tool_kit_items_kit_id")
-  @@index([category_id], map: "idx_tool_kit_items_category_id")
+  @@index([model_id], map: "idx_tool_kit_items_model_id")
 }

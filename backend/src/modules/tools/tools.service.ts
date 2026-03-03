@@ -13,6 +13,9 @@ import {
   ListCategoriesInput,
   CreateCategoryInput,
   UpdateCategoryInput,
+  ListToolModelsInput,
+  CreateToolModelInput,
+  UpdateToolModelInput,
   ListToolsInput,
   CreateToolInput,
   UpdateToolInput,
@@ -46,6 +49,7 @@ export class ToolsService {
     }
     return db.departments.findMany({
       where: whereClause,
+      include: { branch: { select: { id: true, brand_name: true } } },
       orderBy: { name: 'asc' },
     });
   }
@@ -54,9 +58,11 @@ export class ToolsService {
     return db.departments.create({
       data: {
         company_id: BigInt(input.company_id),
+        branch_id: BigInt(input.branch_id),
         name: input.name,
         description: input.description ?? null,
       },
+      include: { branch: { select: { id: true, brand_name: true } } },
     });
   }
 
@@ -69,10 +75,12 @@ export class ToolsService {
     return db.departments.update({
       where: { id: BigInt(id) },
       data: {
+        branch_id: input.branch_id ? BigInt(input.branch_id) : undefined,
         name: input.name,
         description: input.description,
         updated_at: new Date(),
       },
+      include: { branch: { select: { id: true, brand_name: true } } },
     });
   }
 
@@ -142,7 +150,111 @@ export class ToolsService {
   }
 
   // ===========================================================================
-  // Tools
+  // Tool Models (catalogo)
+  // ===========================================================================
+
+  static async listToolModels(companyId: number, input: ListToolModelsInput) {
+    const { page, per_page, search, category_id } = input;
+    const skip = (page - 1) * per_page;
+
+    const whereClause: any = { deleted_at: null, company_id: BigInt(companyId) };
+    if (category_id) whereClause.category_id = BigInt(category_id);
+
+    if (search && search.trim()) {
+      whereClause.OR = [
+        { name: { contains: search.trim(), mode: 'insensitive' } },
+        { brand: { contains: search.trim(), mode: 'insensitive' } },
+        { model: { contains: search.trim(), mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      db.tool_models.findMany({
+        where: whereClause,
+        include: { category: { select: { id: true, name: true } } },
+        orderBy: { name: 'asc' },
+        skip,
+        take: per_page,
+      }),
+      db.tool_models.count({ where: whereClause }),
+    ]);
+
+    return buildPaginationResponse(items, total, page, per_page);
+  }
+
+  static async getToolModelById(companyId: number, id: number) {
+    const toolModel = await db.tool_models.findFirst({
+      where: { id: BigInt(id), company_id: BigInt(companyId), deleted_at: null },
+      include: {
+        category: { select: { id: true, name: true } },
+        tools: {
+          where: { deleted_at: null },
+          select: { id: true, patrimonio_code: true, serial_number: true, condition: true, quantity_total: true, quantity_available: true },
+        },
+      },
+    });
+    if (!toolModel) throw new NotFoundError('Modelo de ferramenta nao encontrado.');
+    return toolModel;
+  }
+
+  static async createToolModel(companyId: number, input: CreateToolModelInput) {
+    return db.tool_models.create({
+      data: {
+        company_id: BigInt(companyId),
+        category_id: input.category_id ? BigInt(input.category_id) : null,
+        name: input.name,
+        brand: input.brand ?? null,
+        model: input.model ?? null,
+        description: input.description ?? null,
+        control_type: input.control_type,
+      },
+      include: { category: { select: { id: true, name: true } } },
+    });
+  }
+
+  static async updateToolModel(companyId: number, id: number, input: UpdateToolModelInput) {
+    const toolModel = await db.tool_models.findFirst({
+      where: { id: BigInt(id), company_id: BigInt(companyId), deleted_at: null },
+    });
+    if (!toolModel) throw new NotFoundError('Modelo de ferramenta nao encontrado.');
+
+    const data: any = { updated_at: new Date() };
+    if (input.name !== undefined) data.name = input.name;
+    if (input.control_type !== undefined) data.control_type = input.control_type;
+    if (input.category_id !== undefined) data.category_id = input.category_id ? BigInt(input.category_id) : null;
+    if (input.brand !== undefined) data.brand = input.brand;
+    if (input.model !== undefined) data.model = input.model;
+    if (input.description !== undefined) data.description = input.description;
+
+    return db.tool_models.update({
+      where: { id: BigInt(id) },
+      data,
+      include: { category: { select: { id: true, name: true } } },
+    });
+  }
+
+  static async deleteToolModel(companyId: number, id: number) {
+    const toolModel = await db.tool_models.findFirst({
+      where: { id: BigInt(id), company_id: BigInt(companyId), deleted_at: null },
+    });
+    if (!toolModel) throw new NotFoundError('Modelo de ferramenta nao encontrado.');
+
+    // Bloquear exclusao se houver instancias ativas
+    const instanceCount = await db.tools.count({
+      where: { model_id: BigInt(id), deleted_at: null },
+    });
+    if (instanceCount > 0) {
+      throw new BadRequestError(`Nao e possivel excluir: existem ${instanceCount} instancia(s) cadastrada(s) para este modelo.`);
+    }
+
+    return db.tool_models.update({
+      where: { id: BigInt(id) },
+      data: { deleted_at: new Date(), updated_at: new Date() },
+    });
+  }
+
+  // ===========================================================================
+  // Tools (instancias fisicas)
   // ===========================================================================
 
   static async listTools(input: ListToolsInput) {
@@ -152,34 +264,35 @@ export class ToolsService {
     const whereClause: any = { deleted_at: null };
 
     if (filters.company_id) whereClause.company_id = BigInt(filters.company_id);
-    if (filters.category_id) whereClause.category_id = BigInt(filters.category_id);
+    if (filters.model_id) whereClause.model_id = BigInt(filters.model_id);
     if (filters.branch_id) whereClause.branch_id = BigInt(filters.branch_id);
     if (filters.department_id) whereClause.department_id = BigInt(filters.department_id);
     if (filters.project_id) whereClause.project_id = BigInt(filters.project_id);
     if (filters.assigned_user_id) whereClause.assigned_user_id = BigInt(filters.assigned_user_id);
     if (filters.assigned_team_id) whereClause.assigned_team_id = BigInt(filters.assigned_team_id);
-    if (filters.control_type) whereClause.control_type = filters.control_type;
     if (filters.condition) whereClause.condition = filters.condition;
 
     if (search && search.trim()) {
       whereClause.OR = [
-        { name: { contains: search.trim(), mode: 'insensitive' } },
         { patrimonio_code: { contains: search.trim(), mode: 'insensitive' } },
         { serial_number: { contains: search.trim(), mode: 'insensitive' } },
+        { model: { name: { contains: search.trim(), mode: 'insensitive' } } },
       ];
     }
+
+    const toolInclude = {
+      model: { include: { category: { select: { id: true, name: true } } } },
+      branch: { select: { id: true, brand_name: true } },
+      department: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
+      assigned_user: { select: { id: true, name: true } },
+      assigned_team: { select: { id: true, name: true } },
+    };
 
     const [items, total] = await Promise.all([
       db.tools.findMany({
         where: whereClause,
-        include: {
-          category: { select: { id: true, name: true } },
-          branch: { select: { id: true, brand_name: true } },
-          department: { select: { id: true, name: true } },
-          project: { select: { id: true, name: true } },
-          assigned_user: { select: { id: true, name: true } },
-          assigned_team: { select: { id: true, name: true } },
-        },
+        include: toolInclude,
         orderBy: { created_at: 'desc' },
         skip,
         take: per_page,
@@ -194,7 +307,7 @@ export class ToolsService {
     const tool = await db.tools.findFirst({
       where: { id: BigInt(id), deleted_at: null },
       include: {
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
         branch: { select: { id: true, brand_name: true } },
         department: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
@@ -207,23 +320,25 @@ export class ToolsService {
   }
 
   static async createTool(input: CreateToolInput, performedById: number) {
-    // Valida patrimonio_code se tipo patrimonio
-    if (input.control_type === 'patrimonio' && !input.patrimonio_code) {
+    // Busca o modelo para validar control_type e patrimonio_code
+    const toolModel = await db.tool_models.findFirst({
+      where: { id: BigInt(input.model_id), deleted_at: null },
+    });
+    if (!toolModel) throw new NotFoundError('Modelo de ferramenta nao encontrado.');
+
+    if (toolModel.control_type === 'patrimonio' && !input.patrimonio_code) {
       throw new BadRequestError('patrimonio_code e obrigatorio para controle tipo patrimonio.');
     }
+
+    const qty = toolModel.control_type === 'quantidade' ? input.quantity_total : 1;
 
     const tool = await db.tools.create({
       data: {
         company_id: BigInt(input.company_id),
-        category_id: input.category_id ? BigInt(input.category_id) : null,
-        name: input.name,
-        description: input.description ?? null,
-        control_type: input.control_type,
+        model_id: BigInt(input.model_id),
         patrimonio_code: input.patrimonio_code ?? null,
-        quantity_total: input.control_type === 'quantidade' ? input.quantity_total : 1,
-        quantity_available: input.control_type === 'quantidade' ? input.quantity_total : 1,
-        brand: input.brand ?? null,
-        model: input.model ?? null,
+        quantity_total: qty,
+        quantity_available: qty,
         serial_number: input.serial_number ?? null,
         condition: input.condition,
         branch_id: input.branch_id ? BigInt(input.branch_id) : null,
@@ -232,7 +347,7 @@ export class ToolsService {
         notes: input.notes ?? null,
       },
       include: {
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
         branch: { select: { id: true, brand_name: true } },
         department: { select: { id: true, name: true } },
       },
@@ -243,7 +358,7 @@ export class ToolsService {
       data: {
         tool_id: tool.id,
         movement_type: 'entrada',
-        quantity: input.control_type === 'quantidade' ? input.quantity_total : 1,
+        quantity: qty,
         to_branch_id: input.branch_id ? BigInt(input.branch_id) : null,
         to_department_id: input.department_id ? BigInt(input.department_id) : null,
         condition: input.condition,
@@ -258,23 +373,19 @@ export class ToolsService {
   static async updateTool(id: number, input: UpdateToolInput) {
     const tool = await db.tools.findFirst({
       where: { id: BigInt(id), deleted_at: null },
+      include: { model: true },
     });
     if (!tool) throw new NotFoundError('Ferramenta nao encontrada.');
 
     const data: any = { updated_at: new Date() };
-    if (input.name !== undefined) data.name = input.name;
-    if (input.description !== undefined) data.description = input.description;
-    if (input.category_id !== undefined) data.category_id = input.category_id ? BigInt(input.category_id) : null;
     if (input.patrimonio_code !== undefined) data.patrimonio_code = input.patrimonio_code;
     if (input.quantity_total !== undefined) {
-      if (tool.control_type === 'quantidade') {
+      if (tool.model.control_type === 'quantidade') {
         const diff = input.quantity_total - tool.quantity_total;
         data.quantity_total = input.quantity_total;
         data.quantity_available = Math.max(0, tool.quantity_available + diff);
       }
     }
-    if (input.brand !== undefined) data.brand = input.brand;
-    if (input.model !== undefined) data.model = input.model;
     if (input.serial_number !== undefined) data.serial_number = input.serial_number;
     if (input.condition !== undefined) data.condition = input.condition;
     if (input.branch_id !== undefined) data.branch_id = input.branch_id ? BigInt(input.branch_id) : null;
@@ -286,7 +397,7 @@ export class ToolsService {
       where: { id: BigInt(id) },
       data,
       include: {
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
         branch: { select: { id: true, brand_name: true } },
         department: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
@@ -330,7 +441,7 @@ export class ToolsService {
       db.tool_movements.findMany({
         where: whereClause,
         include: {
-          tool: { select: { id: true, name: true, patrimonio_code: true } },
+          tool: { select: { id: true, patrimonio_code: true, model: { select: { id: true, name: true } } } },
           performed_by: { select: { id: true, name: true } },
         },
         orderBy: { created_at: 'desc' },
@@ -356,10 +467,11 @@ export class ToolsService {
   static async transfer(input: TransferInput, performedById: number) {
     const tool = await db.tools.findFirst({
       where: { id: BigInt(input.tool_id), deleted_at: null },
+      include: { model: true },
     });
     if (!tool) throw new NotFoundError('Ferramenta nao encontrada.');
 
-    if (tool.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
+    if (tool.model.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
       throw new BadRequestError('Quantidade indisponivel para transferencia.');
     }
 
@@ -389,7 +501,7 @@ export class ToolsService {
         updated_at: new Date(),
       },
       include: {
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
         branch: { select: { id: true, brand_name: true } },
         department: { select: { id: true, name: true } },
       },
@@ -402,7 +514,8 @@ export class ToolsService {
     });
     if (!tool) throw new NotFoundError('Ferramenta nao encontrada.');
 
-    if (tool.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
+    const toolModel = await db.tool_models.findFirst({ where: { id: tool.model_id } });
+    if (toolModel?.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
       throw new BadRequestError('Quantidade indisponivel para atribuicao.');
     }
 
@@ -432,7 +545,7 @@ export class ToolsService {
 
     // Atualiza ferramenta
     const updateData: any = { assigned_user_id: BigInt(input.user_id), updated_at: new Date() };
-    if (tool.control_type === 'quantidade') {
+    if (toolModel?.control_type === 'quantidade') {
       updateData.quantity_available = tool.quantity_available - input.quantity;
     }
 
@@ -441,7 +554,7 @@ export class ToolsService {
       data: updateData,
       include: {
         assigned_user: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
       },
     });
   }
@@ -452,7 +565,8 @@ export class ToolsService {
     });
     if (!tool) throw new NotFoundError('Ferramenta nao encontrada.');
 
-    if (tool.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
+    const toolModel2 = await db.tool_models.findFirst({ where: { id: tool.model_id } });
+    if (toolModel2?.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
       throw new BadRequestError('Quantidade indisponivel para atribuicao.');
     }
 
@@ -470,7 +584,7 @@ export class ToolsService {
     });
 
     const updateData: any = { assigned_team_id: BigInt(input.team_id), updated_at: new Date() };
-    if (tool.control_type === 'quantidade') {
+    if (toolModel2?.control_type === 'quantidade') {
       updateData.quantity_available = tool.quantity_available - input.quantity;
     }
 
@@ -479,7 +593,7 @@ export class ToolsService {
       data: updateData,
       include: {
         assigned_team: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
       },
     });
   }
@@ -490,7 +604,8 @@ export class ToolsService {
     });
     if (!tool) throw new NotFoundError('Ferramenta nao encontrada.');
 
-    if (tool.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
+    const toolModel3 = await db.tool_models.findFirst({ where: { id: tool.model_id } });
+    if (toolModel3?.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
       throw new BadRequestError('Quantidade indisponivel para atribuicao.');
     }
 
@@ -508,7 +623,7 @@ export class ToolsService {
     });
 
     const updateData: any = { project_id: BigInt(input.project_id), updated_at: new Date() };
-    if (tool.control_type === 'quantidade') {
+    if (toolModel3?.control_type === 'quantidade') {
       updateData.quantity_available = tool.quantity_available - input.quantity;
     }
 
@@ -517,7 +632,7 @@ export class ToolsService {
       data: updateData,
       include: {
         project: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
       },
     });
   }
@@ -554,7 +669,8 @@ export class ToolsService {
     if (input.to_branch_id) updateData.branch_id = BigInt(input.to_branch_id);
     if (input.to_department_id) updateData.department_id = BigInt(input.to_department_id);
 
-    if (tool.control_type === 'quantidade') {
+    const toolModelRet = await db.tool_models.findFirst({ where: { id: tool.model_id } });
+    if (toolModelRet?.control_type === 'quantidade') {
       updateData.quantity_available = Math.min(
         tool.quantity_total,
         tool.quantity_available + input.quantity,
@@ -565,7 +681,7 @@ export class ToolsService {
       where: { id: BigInt(input.tool_id) },
       data: updateData,
       include: {
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
         branch: { select: { id: true, brand_name: true } },
         department: { select: { id: true, name: true } },
       },
@@ -577,71 +693,73 @@ export class ToolsService {
       where: { id: BigInt(input.kit_id), deleted_at: null },
       include: {
         items: {
-          include: { category: true },
+          include: { model: true },
         },
       },
     });
     if (!kit) throw new NotFoundError('Kit nao encontrado.');
     if (kit.items.length === 0) throw new BadRequestError('Kit nao possui itens.');
 
-    // Busca ferramentas disponiveis por categoria do kit
+    // Para cada modelo no kit, encontra uma instancia disponivel da empresa
     return db.$transaction(async (tx) => {
       const assignedTools: any[] = [];
 
       for (const kitItem of kit.items) {
-        // Busca ferramentas disponiveis da categoria
-        const availableTools = await tx.tools.findMany({
+        const toolModel = kitItem.model;
+
+        // Busca instancia disponivel do modelo na empresa do kit
+        const tool = await tx.tools.findFirst({
           where: {
-            category_id: kitItem.category_id,
+            model_id: toolModel.id,
+            company_id: kit.company_id,
             deleted_at: null,
             assigned_user_id: null,
-            OR: [
-              { control_type: 'patrimonio' },
-              { control_type: 'quantidade', quantity_available: { gte: 1 } },
-            ],
+            ...(toolModel.control_type === 'quantidade'
+              ? { quantity_available: { gte: kitItem.quantity } }
+              : {}),
           },
-          take: kitItem.quantity,
         });
 
-        for (const tool of availableTools) {
-          // Movement
-          await tx.tool_movements.create({
-            data: {
-              tool_id: tool.id,
-              movement_type: 'atribuicao_kit',
-              quantity: 1,
-              to_user_id: BigInt(input.user_id),
-              notes: `Kit: ${kit.name} - ${input.notes ?? ''}`.trim(),
-              performed_by_id: BigInt(performedById),
-            },
-          });
+        if (!tool) continue; // sem instancia disponivel, pula
 
-          // Acceptance term
-          await tx.tool_acceptance_terms.create({
-            data: {
-              tool_id: tool.id,
-              delivered_by_id: BigInt(performedById),
-              received_by_id: BigInt(input.user_id),
-              notes: `Kit: ${kit.name}`,
-            },
-          });
+        const qty = toolModel.control_type === 'quantidade' ? kitItem.quantity : 1;
 
-          // Update tool
-          const updateData: any = {
-            assigned_user_id: BigInt(input.user_id),
-            updated_at: new Date(),
-          };
-          if (tool.control_type === 'quantidade') {
-            updateData.quantity_available = tool.quantity_available - 1;
+        // Movimento
+        await tx.tool_movements.create({
+          data: {
+            tool_id: tool.id,
+            movement_type: 'atribuicao_kit',
+            quantity: qty,
+            to_user_id: BigInt(input.user_id),
+            notes: `Kit: ${kit.name}${input.notes ? ' - ' + input.notes : ''}`,
+            performed_by_id: BigInt(performedById),
+          },
+        });
+
+        // Termo de aceite
+        await tx.tool_acceptance_terms.create({
+          data: {
+            tool_id: tool.id,
+            delivered_by_id: BigInt(performedById),
+            received_by_id: BigInt(input.user_id),
+            notes: `Kit: ${kit.name}`,
+          },
+        });
+
+        // Atualiza ferramenta
+        const updateData: any = { updated_at: new Date() };
+        if (toolModel.control_type === 'patrimonio') {
+          updateData.assigned_user_id = BigInt(input.user_id);
+        } else {
+          updateData.quantity_available = tool.quantity_available - qty;
+          if (updateData.quantity_available === 0) {
+            updateData.assigned_user_id = BigInt(input.user_id);
           }
-
-          await tx.tools.update({
-            where: { id: tool.id },
-            data: updateData,
-          });
-
-          assignedTools.push({ tool_id: Number(tool.id), name: tool.name, category: kitItem.category.name });
         }
+
+        await tx.tools.update({ where: { id: tool.id }, data: updateData });
+
+        assignedTools.push({ tool_id: Number(tool.id), name: toolModel.name, model_id: Number(toolModel.id) });
       }
 
       return { kit_id: Number(kit.id), kit_name: kit.name, user_id: input.user_id, assigned_tools: assignedTools };
@@ -668,7 +786,7 @@ export class ToolsService {
       db.tool_acceptance_terms.findMany({
         where: whereClause,
         include: {
-          tool: { select: { id: true, name: true, patrimonio_code: true } },
+          tool: { select: { id: true, patrimonio_code: true, model: { select: { id: true, name: true } } } },
           delivered_by: { select: { id: true, name: true } },
           received_by: { select: { id: true, name: true } },
         },
@@ -686,7 +804,7 @@ export class ToolsService {
     const term = await db.tool_acceptance_terms.findFirst({
       where: { id: BigInt(id) },
       include: {
-        tool: { select: { id: true, name: true, patrimonio_code: true } },
+        tool: { select: { id: true, patrimonio_code: true, model: { select: { id: true, name: true } } } },
         delivered_by: { select: { id: true, name: true } },
         received_by: { select: { id: true, name: true } },
       },
@@ -704,7 +822,7 @@ export class ToolsService {
         notes: input.notes ?? null,
       },
       include: {
-        tool: { select: { id: true, name: true } },
+        tool: { select: { id: true, patrimonio_code: true, model: { select: { id: true, name: true } } } },
         delivered_by: { select: { id: true, name: true } },
         received_by: { select: { id: true, name: true } },
       },
@@ -724,7 +842,7 @@ export class ToolsService {
       where: whereClause,
       include: {
         items: {
-          include: { category: { select: { id: true, name: true } } },
+          include: { model: { select: { id: true, name: true, brand: true, control_type: true } } },
         },
       },
       orderBy: { name: 'asc' },
@@ -736,7 +854,7 @@ export class ToolsService {
       where: { id: BigInt(id), deleted_at: null },
       include: {
         items: {
-          include: { category: { select: { id: true, name: true } } },
+          include: { model: { select: { id: true, name: true, brand: true, control_type: true } } },
         },
       },
     });
@@ -753,7 +871,7 @@ export class ToolsService {
       },
       include: {
         items: {
-          include: { category: { select: { id: true, name: true } } },
+          include: { model: { select: { id: true, name: true, brand: true, control_type: true } } },
         },
       },
     });
@@ -769,7 +887,7 @@ export class ToolsService {
       },
       include: {
         items: {
-          include: { category: { select: { id: true, name: true } } },
+          include: { model: { select: { id: true, name: true, brand: true, control_type: true } } },
         },
       },
     });
@@ -791,7 +909,7 @@ export class ToolsService {
       },
       include: {
         items: {
-          include: { category: { select: { id: true, name: true } } },
+          include: { model: { select: { id: true, name: true, brand: true, control_type: true } } },
         },
       },
     });
@@ -815,20 +933,25 @@ export class ToolsService {
     });
     if (!kit) throw new NotFoundError('Kit nao encontrado.');
 
+    const toolModel = await db.tool_models.findFirst({
+      where: { id: BigInt(input.model_id), company_id: kit.company_id, deleted_at: null },
+    });
+    if (!toolModel) throw new NotFoundError('Modelo de ferramenta nao encontrado.');
+
     // Verifica duplicata
     const existing = await db.tool_kit_items.findFirst({
-      where: { kit_id: BigInt(kitId), category_id: BigInt(input.category_id) },
+      where: { kit_id: BigInt(kitId), model_id: BigInt(input.model_id) },
     });
-    if (existing) throw new BadRequestError('Esta categoria ja existe neste kit.');
+    if (existing) throw new BadRequestError('Este modelo ja esta neste kit.');
 
     return db.tool_kit_items.create({
       data: {
         kit_id: BigInt(kitId),
-        category_id: BigInt(input.category_id),
+        model_id: BigInt(input.model_id),
         quantity: input.quantity,
       },
       include: {
-        category: { select: { id: true, name: true } },
+        model: { select: { id: true, name: true, brand: true, control_type: true } },
       },
     });
   }
@@ -855,21 +978,20 @@ export class ToolsService {
         deleted_at: null,
       },
       include: {
-        category: { select: { id: true, name: true } },
+        model: { include: { category: { select: { id: true, name: true } } } },
         branch: { select: { id: true, brand_name: true } },
         department: { select: { id: true, name: true } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: { created_at: 'desc' },
     });
   }
 
   static async getSummary(companyId: number) {
     const where = { company_id: BigInt(companyId), deleted_at: null };
 
-    const [total, byCondition, byControlType, assigned, available] = await Promise.all([
+    const [total, byCondition, assigned, available] = await Promise.all([
       db.tools.count({ where }),
       db.tools.groupBy({ by: ['condition'], where, _count: true }),
-      db.tools.groupBy({ by: ['control_type'], where, _count: true }),
       db.tools.count({ where: { ...where, assigned_user_id: { not: null } } }),
       db.tools.count({ where: { ...where, assigned_user_id: null } }),
     ]);
@@ -879,7 +1001,6 @@ export class ToolsService {
       assigned,
       available,
       by_condition: byCondition.map(c => ({ condition: c.condition, count: c._count })),
-      by_control_type: byControlType.map(c => ({ control_type: c.control_type, count: c._count })),
     };
   }
 }
