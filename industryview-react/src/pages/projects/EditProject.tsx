@@ -63,6 +63,7 @@ export default function EditProject() {
   const [clientUnits, setClientUnits] = useState<ClientUnit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<number | undefined>();
+  const [selectedUnit, setSelectedUnit] = useState<ClientUnit | null>(null);
   const [unitError, setUnitError] = useState(false);
 
   const { register, handleSubmit, setValue, reset } = useForm<CreateProjectRequest>();
@@ -116,6 +117,7 @@ export default function EditProject() {
     if (p.client_unit_id) {
       setSelectedUnitId(Number(p.client_unit_id));
     }
+    // (se client_unit_id não vier da API, o match por CNPJ no carregamento das unidades resolve)
   }, [projectsInfo]);
 
   // After clients load, resolve the pre-selected client object for the summary card
@@ -125,15 +127,36 @@ export default function EditProject() {
     setSelectedClient(client);
   }, [selectedClientId, allClients]);
 
+  // Reactive sync: resolve selectedUnit whenever selectedUnitId or clientUnits changes
+  useEffect(() => {
+    if (!selectedUnitId) { setSelectedUnit(null); return; }
+    if (clientUnits.length === 0) return;
+    const unit = clientUnits.find((u) => String(u.id) === String(selectedUnitId)) ?? null;
+    setSelectedUnit(unit);
+  }, [selectedUnitId, clientUnits]);
+
   // Load units whenever the selected client changes
   useEffect(() => {
     if (!selectedClientId) {
       setClientUnits([]);
+      setSelectedUnit(null);
       return;
     }
     setUnitsLoading(true);
     clientsApi.listClientUnits(selectedClientId)
-      .then((units) => setClientUnits(Array.isArray(units) ? units : []))
+      .then((units) => {
+        const list = Array.isArray(units) ? units : [];
+        setClientUnits(list);
+
+        // Se não há unit_id salvo, tenta achar a filial pelo CNPJ do projeto
+        if (!selectedUnitId && projectsInfo) {
+          const projectCnpj = ((projectsInfo as any).cnpj ?? '').replace(/\D/g, '');
+          if (projectCnpj) {
+            const matched = list.find((u) => (u.cnpj ?? '').replace(/\D/g, '') === projectCnpj);
+            if (matched) setSelectedUnitId(matched.id);
+          }
+        }
+      })
       .catch(() => setClientUnits([]))
       .finally(() => setUnitsLoading(false));
   }, [selectedClientId]);
@@ -170,6 +193,7 @@ export default function EditProject() {
       setSelectedClient(null);
       setClientUnits([]);
       setSelectedUnitId(undefined);
+      setSelectedUnit(null);
       setValue('cnpj', '');
       return;
     }
@@ -179,6 +203,7 @@ export default function EditProject() {
     setSelectedClient(client);
     // Reset unit when client changes — useEffect will reload units
     setSelectedUnitId(undefined);
+    setSelectedUnit(null);
     setUnitError(false);
     setValue('cnpj', '');
   }
@@ -186,20 +211,21 @@ export default function EditProject() {
   function handleUnitSelect(unitId: string | number | undefined) {
     if (!unitId) {
       setSelectedUnitId(undefined);
+      setSelectedUnit(null);
       setValue('cnpj', '');
       return;
     }
     const id = Number(unitId);
-    const unit = clientUnits.find((u) => u.id === id) ?? null;
+    const unit = clientUnits.find((u) => String(u.id) === String(unitId)) ?? null;
     setSelectedUnitId(id);
+    setSelectedUnit(unit);
     setUnitError(false);
     if (unit?.cnpj) {
       const digits = unit.cnpj.replace(/\D/g, '').slice(0, 14);
-      // apply mask inline
       let masked = digits;
-      if (digits.length > 2) masked = digits.slice(0, 2) + '.' + digits.slice(2);
-      if (digits.length > 5) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5);
-      if (digits.length > 8) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8);
+      if (digits.length > 2)  masked = digits.slice(0, 2) + '.' + digits.slice(2);
+      if (digits.length > 5)  masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5);
+      if (digits.length > 8)  masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8);
       if (digits.length > 12) masked = digits.slice(0, 2) + '.' + digits.slice(2, 5) + '.' + digits.slice(5, 8) + '/' + digits.slice(8, 12) + '-' + digits.slice(12);
       setValue('cnpj', masked);
     } else {
@@ -389,6 +415,57 @@ export default function EditProject() {
                     </span>
                   )}
                 </div>
+              )}
+
+              {/* Card de info da filial selecionada */}
+              {selectedUnit && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    marginTop: '14px',
+                    padding: '14px 16px',
+                    borderRadius: '10px',
+                    background: 'var(--color-status-04, rgba(34,197,94,0.06))',
+                    border: '1px solid var(--color-alternate)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px',
+                      borderRadius: '4px', letterSpacing: '0.05em',
+                      background: selectedUnit.unit_type === 'MATRIZ' ? 'var(--color-primary)' : 'transparent',
+                      color: selectedUnit.unit_type === 'MATRIZ' ? '#fff' : 'var(--color-primary)',
+                      border: selectedUnit.unit_type === 'MATRIZ' ? 'none' : '1px solid var(--color-primary)',
+                    }}>
+                      {selectedUnit.unit_type}
+                    </span>
+                    {selectedUnit.label && (
+                      <span style={{ fontWeight: 600, fontSize: '14px' }}>{selectedUnit.label}</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                    {selectedUnit.cnpj && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <FileText size={12} />
+                        CNPJ: {maskCNPJ(selectedUnit.cnpj)}
+                      </span>
+                    )}
+                    {(selectedUnit.address || selectedUnit.city) && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={12} />
+                        {[
+                          selectedUnit.address && selectedUnit.number
+                            ? `${selectedUnit.address}, ${selectedUnit.number}`
+                            : selectedUnit.address,
+                          selectedUnit.city && selectedUnit.state
+                            ? `${selectedUnit.city} - ${selectedUnit.state}`
+                            : selectedUnit.city || selectedUnit.state,
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
               )}
 
               {/* Selected client summary card */}

@@ -52,6 +52,8 @@ export interface ProjectInfo {
   client_id?: number | null;
   /** Client name (trade_name or legal_name, enriched by backend) */
   client_name?: string | null;
+  /** ID of the client unit (filial/matriz) linked to this project */
+  client_unit_id?: number | null;
 }
 
 export interface LastTeamCreated {

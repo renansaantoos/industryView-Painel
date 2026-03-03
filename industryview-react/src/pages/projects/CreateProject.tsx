@@ -79,6 +79,7 @@ export default function CreateProject() {
   const [clientUnits, setClientUnits] = useState<ClientUnit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [selectedUnitId, setSelectedUnitId] = useState<number | undefined>();
+  const [selectedUnit, setSelectedUnit] = useState<ClientUnit | null>(null);
   const [unitError, setUnitError] = useState(false);
 
   // Client creation modal
@@ -105,6 +106,14 @@ export default function CreateProject() {
     loadDropdowns();
     loadClients();
   }, []);
+
+  // Reactive sync: resolve selectedUnit whenever selectedUnitId or clientUnits changes
+  useEffect(() => {
+    if (!selectedUnitId) { setSelectedUnit(null); return; }
+    if (clientUnits.length === 0) return;
+    const unit = clientUnits.find((u) => String(u.id) === String(selectedUnitId)) ?? null;
+    setSelectedUnit(unit);
+  }, [selectedUnitId, clientUnits]);
 
   const loadDropdowns = async () => {
     try {
@@ -145,6 +154,7 @@ export default function CreateProject() {
       setSelectedClient(null);
       setClientUnits([]);
       setSelectedUnitId(undefined);
+      setSelectedUnit(null);
       setValue('cnpj', '');
       return;
     }
@@ -157,6 +167,7 @@ export default function CreateProject() {
 
     // Reset unit before loading new ones
     setSelectedUnitId(undefined);
+    setSelectedUnit(null);
     setUnitError(false);
     setValue('cnpj', '');
 
@@ -178,12 +189,14 @@ export default function CreateProject() {
   function handleUnitSelect(unitId: string | number | undefined) {
     if (!unitId) {
       setSelectedUnitId(undefined);
+      setSelectedUnit(null);
       setValue('cnpj', '');
       return;
     }
     const id = Number(unitId);
-    const unit = clientUnits.find((u) => u.id === id) ?? null;
+    const unit = clientUnits.find((u) => String(u.id) === String(unitId)) ?? null;
     setSelectedUnitId(id);
+    setSelectedUnit(unit);
     setUnitError(false);
     if (unit?.cnpj) {
       const digits = unit.cnpj.replace(/\D/g, '').slice(0, 14);
@@ -207,6 +220,7 @@ export default function CreateProject() {
     });
     setClientUnits([]);
     setSelectedUnitId(undefined);
+    setSelectedUnit(null);
     setValue('cnpj', '');
     handleClientSelect(newClient.id);
     showToast(t('clients.createSuccess'));
@@ -417,6 +431,57 @@ export default function CreateProject() {
                     </span>
                   )}
                 </div>
+              )}
+
+              {/* Card de info da filial selecionada */}
+              {selectedUnit && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    marginTop: '14px',
+                    padding: '14px 16px',
+                    borderRadius: '10px',
+                    background: 'var(--color-status-04, rgba(34,197,94,0.06))',
+                    border: '1px solid var(--color-alternate)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px',
+                      borderRadius: '4px', letterSpacing: '0.05em',
+                      background: selectedUnit.unit_type === 'MATRIZ' ? 'var(--color-primary)' : 'transparent',
+                      color: selectedUnit.unit_type === 'MATRIZ' ? '#fff' : 'var(--color-primary)',
+                      border: selectedUnit.unit_type === 'MATRIZ' ? 'none' : '1px solid var(--color-primary)',
+                    }}>
+                      {selectedUnit.unit_type}
+                    </span>
+                    {selectedUnit.label && (
+                      <span style={{ fontWeight: 600, fontSize: '14px' }}>{selectedUnit.label}</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                    {selectedUnit.cnpj && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <FileText size={12} />
+                        CNPJ: {maskCNPJ(selectedUnit.cnpj)}
+                      </span>
+                    )}
+                    {(selectedUnit.address || selectedUnit.city) && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={12} />
+                        {[
+                          selectedUnit.address && selectedUnit.number
+                            ? `${selectedUnit.address}, ${selectedUnit.number}`
+                            : selectedUnit.address,
+                          selectedUnit.city && selectedUnit.state
+                            ? `${selectedUnit.city} - ${selectedUnit.state}`
+                            : selectedUnit.city || selectedUnit.state,
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
               )}
 
               {/* Selected client summary card */}
