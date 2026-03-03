@@ -272,7 +272,10 @@ export default function WorkPermits() {
   useEffect(() => {
     setTasksLoading(true);
     tasksApi.queryAllTasksNoPagination()
-      .then((data) => setAllTasks(Array.isArray(data) ? data : []))
+      .then((data: any) => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setAllTasks(list);
+      })
       .catch(() => {})
       .finally(() => setTasksLoading(false));
   }, []);
@@ -869,7 +872,7 @@ export default function WorkPermits() {
               <div className="input-group">
                 <label>Tarefa vinculada</label>
                 <SearchableSelect
-                  options={allTasks.map((t) => ({ value: t.id, label: t.name }))}
+                  options={allTasks.map((t) => ({ value: t.id, label: t.description || t.name || `#${t.id}` }))}
                   value={createTaskId || undefined}
                   onChange={(val) => setCreateTaskId(val !== undefined ? Number(val) : '')}
                   placeholder={tasksLoading ? 'Carregando tarefas...' : 'Selecione uma tarefa (opcional)...'}
