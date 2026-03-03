@@ -55,6 +55,7 @@ import DocumentManagement from '../pages/operations/DocumentManagement';
 import ContractsManagement from '../pages/operations/ContractsManagement';
 import CommissioningManagement from '../pages/operations/CommissioningManagement';
 import MaterialRequisitions from '../pages/operations/MaterialRequisitions';
+import ToolsManagement from '../pages/tools/ToolsManagement';
 
 // Planning pages
 import PlanningBaseline from '../pages/planning/PlanningBaseline';
@@ -264,6 +265,10 @@ export const router = createBrowserRouter([
       {
         path: '/operacoes/requisicoes',
         element: <MaterialRequisitions />,
+      },
+      {
+        path: '/ferramentas',
+        element: <ToolsManagement />,
       },
 
       // Planning

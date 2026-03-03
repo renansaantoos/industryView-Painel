@@ -36,6 +36,7 @@ import {
   ShoppingCart,
   BarChart3,
   CheckSquare,
+  Wrench,
 } from 'lucide-react';
 import { staggerParent, fadeUpChild, slideDownVariants } from '../../lib/motion';
 import './Sidebar.css';
@@ -80,6 +81,7 @@ export default function Sidebar() {
     { key: 'clients', label: t('nav.clients'), icon: <Building2 size={18} />, path: '/clientes', selectionIndex: 32, requireAuth: true },
     { key: 'inventory', label: t('nav.inventory'), icon: <Package size={18} />, path: '/estoque', selectionIndex: 9 },
     { key: 'planning', label: t('nav.planning'), icon: <BarChart3 size={18} />, path: '/planejamento', selectionIndex: 28, requireAuth: true },
+    { key: 'aiAssistant', label: t('nav.aiAssistant', 'Assistente IA'), icon: <Bot size={18} />, path: '/assistente-ia', selectionIndex: 50 },
   ];
 
   const ssmaItems: NavItem[] = [
@@ -100,6 +102,7 @@ export default function Sidebar() {
     { key: 'contracts', label: t('nav.contracts'), icon: <Receipt size={18} />, path: '/operacoes/contratos', selectionIndex: 25 },
     { key: 'commissioning', label: t('nav.commissioning'), icon: <Zap size={18} />, path: '/operacoes/comissionamento', selectionIndex: 26 },
     { key: 'materialRequisitions', label: t('nav.materialRequisitions'), icon: <ShoppingCart size={18} />, path: '/operacoes/requisicoes', selectionIndex: 27 },
+    { key: 'tools', label: t('nav.tools'), icon: <Wrench size={18} />, path: '/ferramentas', selectionIndex: 28 },
   ];
 
   const bottomItems: NavItem[] = [

@@ -2,6 +2,10 @@ import apiClient from './apiClient';
 
 const AGENTS_BASE = '/agents';
 
+// =============================================================================
+// Weight Calculator (existing)
+// =============================================================================
+
 export interface WeightSuggestion {
   subtask_id: number;
   weight: number;
@@ -27,5 +31,33 @@ export async function calculateWeights(projectsBacklogsId: number): Promise<Calc
 /** Apply reviewed weights to subtasks */
 export async function applyWeights(payload: ApplyWeightsPayload): Promise<{ success: boolean; updated: number }> {
   const response = await apiClient.post(`${AGENTS_BASE}/apply-weights`, payload);
+  return response.data;
+}
+
+// =============================================================================
+// Chat Unificado (new)
+// =============================================================================
+
+export interface ChatRequest {
+  message: string;
+  context?: {
+    project_id?: number;
+    domain?: 'executive' | 'safety' | 'planning' | 'workforce' | 'quality' | 'general';
+  };
+}
+
+export interface ChatResponse {
+  response: string;
+  domain: string;
+  confidence: number;
+  metadata: {
+    agent: string;
+    processing_time_ms: number;
+  };
+}
+
+/** Send a chat message to the AI agent router */
+export async function sendChatMessage(input: ChatRequest): Promise<ChatResponse> {
+  const response = await apiClient.post(`${AGENTS_BASE}/chat`, input);
   return response.data;
 }
