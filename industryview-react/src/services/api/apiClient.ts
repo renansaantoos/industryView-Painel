@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
       if (status === 401 && window.location.pathname !== '/login') {
         localStorage.removeItem('ff_token');
         localStorage.removeItem('ff_infoUser');
-        window.location.href = '/login';
+        window.location.href = '/login?expired=1';
       }
 
       // Forbidden

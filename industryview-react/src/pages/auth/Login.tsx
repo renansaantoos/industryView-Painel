@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AxiosError } from 'axios';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,6 +11,8 @@ import './Auth.css';
 export default function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('expired') === '1';
   const { login, isLoggedIn } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -87,6 +89,16 @@ export default function Login() {
 
             <h2 className="auth-title">{t('auth.welcome')}</h2>
             <p className="auth-subtitle">{t('auth.loginSubtitle')}</p>
+
+            {sessionExpired && (
+              <div className="auth-error" style={{
+                background: 'rgba(234,179,8,0.1)',
+                borderColor: 'rgba(234,179,8,0.4)',
+                color: 'var(--color-warning, #b45309)',
+              }}>
+                Sua sessão expirou. Por favor, faça login novamente.
+              </div>
+            )}
 
             {error && (
               <div className="auth-error">
