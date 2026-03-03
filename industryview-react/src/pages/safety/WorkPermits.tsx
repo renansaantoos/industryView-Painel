@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
 import { workPermitsApi, projectsApi } from '../../services';
-import type { WorkPermit, WorkPermitSignature, ProjectInfo } from '../../types';
+import type { WorkPermit, WorkPermitSignature, ProjectInfo, ProjectBacklog } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import SortableHeader from '../../components/common/SortableHeader';
@@ -181,6 +181,9 @@ export default function WorkPermits() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [createProjectId, setCreateProjectId] = useState<number | ''>('');
+  const [createBacklogId, setCreateBacklogId] = useState<number | ''>('');
+  const [projectBacklogs, setProjectBacklogs] = useState<ProjectBacklog[]>([]);
+  const [backlogsLoading, setBacklogsLoading] = useState(false);
 
   // ── Projects list for modal dropdown ────────────────────────────────────────
   const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
@@ -195,6 +198,13 @@ export default function WorkPermits() {
 
   // ── Toast ────────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<ToastState | null>(null);
+
+  // Current datetime for min constraint on valid_from
+  const nowDateTime = useMemo(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d.toISOString().slice(0, 16);
+  }, [showCreateModal]);
 
   const projectMap = useMemo(() => {
     const map: Record<number, string> = {};
@@ -257,6 +267,16 @@ export default function WorkPermits() {
     if (projectsInfo?.id) setCreateProjectId(projectsInfo.id);
   }, [projectsInfo]);
 
+  // Load backlogs when project selection changes in create modal
+  useEffect(() => {
+    if (!createProjectId) { setProjectBacklogs([]); setCreateBacklogId(''); return; }
+    setBacklogsLoading(true);
+    projectsApi.getAllProjectBacklogs(Number(createProjectId))
+      .then((data) => setProjectBacklogs(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setBacklogsLoading(false));
+  }, [createProjectId]);
+
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -315,6 +335,10 @@ export default function WorkPermits() {
     if (!createLocation.trim()) errors.location = t('workPermits.locationRequired');
     if (!createRiskDescription.trim()) errors.riskDescription = t('workPermits.riskDescriptionRequired');
     if (!createControlMeasures.trim()) errors.controlMeasures = t('workPermits.controlMeasuresRequired');
+    if (!createValidUntil) errors.validUntil = 'A data de vencimento é obrigatória';
+    if (createValidFrom && createValidUntil && createValidUntil <= createValidFrom) {
+      errors.validUntil = 'O vencimento deve ser posterior ao início';
+    }
     setCreateErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -332,6 +356,7 @@ export default function WorkPermits() {
         valid_until: createValidUntil || undefined,
         projects_id: Number(createProjectId),
         company_id: user?.companyId,
+        projects_backlogs_id: createBacklogId ? Number(createBacklogId) : undefined,
       });
       setCreateLocation('');
       setCreateRiskDescription('');
@@ -339,6 +364,7 @@ export default function WorkPermits() {
       setCreateValidFrom('');
       setCreateValidUntil('');
       setCreateType('pt_geral');
+      setCreateBacklogId('');
       setCreateErrors({});
       setShowCreateModal(false);
       showToast(t('workPermits.createSuccess'), 'success');
@@ -398,11 +424,13 @@ export default function WorkPermits() {
     }
   };
 
-  const formatDate = (dateStr?: string) => {
+  const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return '-';
     try {
-      const [year, month, day] = dateStr.split('T')[0].split('-');
-      return `${day}/${month}/${year}`;
+      const [datePart, timePart] = dateStr.split('T');
+      const [year, month, day] = datePart.split('-');
+      const time = timePart ? timePart.slice(0, 5) : '';
+      return time ? `${day}/${month}/${year} ${time}` : `${day}/${month}/${year}`;
     } catch {
       return dateStr;
     }
@@ -535,12 +563,44 @@ export default function WorkPermits() {
                       </td>
                       <td>
                         <StatusBadge status={permit.status} colorMap={STATUS_COLOR_MAP} />
+                        {permit.cancellation_reason && (
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--color-error)',
+                              marginTop: '3px',
+                              maxWidth: '130px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={permit.cancellation_reason}
+                          >
+                            ✕ {permit.cancellation_reason}
+                          </div>
+                        )}
+                        {permit.renewal_reason && (
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--color-warning)',
+                              marginTop: '3px',
+                              maxWidth: '130px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={permit.renewal_reason}
+                          >
+                            ↻ {permit.renewal_reason}
+                          </div>
+                        )}
                       </td>
                       <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
-                        {formatDate(permit.valid_from)}
+                        {formatDateTime(permit.valid_from)}
                       </td>
                       <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
-                        {formatDate(permit.valid_until)}
+                        {formatDateTime(permit.valid_until)}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap' }}>
@@ -773,7 +833,7 @@ export default function WorkPermits() {
 
       {/* Create Permit Modal */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
+        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); setCreateBacklogId(''); }}>
           <div
             className="modal-content"
             style={{ padding: '24px', width: '540px' }}
@@ -804,6 +864,16 @@ export default function WorkPermits() {
                   options={PERMIT_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
                   value={createType}
                   onChange={(val) => setCreateType(String(val ?? ''))}
+                />
+              </div>
+              <div className="input-group">
+                <label>Tarefa vinculada</label>
+                <SearchableSelect
+                  options={projectBacklogs.map((b) => ({ value: b.id, label: b.name || b.description || `#${b.id}` }))}
+                  value={createBacklogId || undefined}
+                  onChange={(val) => setCreateBacklogId(val !== undefined ? Number(val) : '')}
+                  placeholder={backlogsLoading ? 'Carregando tarefas...' : (createProjectId ? 'Selecione uma tarefa (opcional)...' : 'Selecione um projeto primeiro')}
+                  allowClear
                 />
               </div>
               <div className="input-group">
@@ -856,22 +926,33 @@ export default function WorkPermits() {
                     type="datetime-local"
                     className="input-field"
                     value={createValidFrom}
-                    onChange={(e) => setCreateValidFrom(e.target.value)}
+                    min={nowDateTime}
+                    onChange={(e) => {
+                      setCreateValidFrom(e.target.value);
+                      if (createValidUntil && createValidUntil <= e.target.value) {
+                        setCreateValidUntil('');
+                      }
+                    }}
                   />
                 </div>
                 <div className="input-group">
-                  <label>{t('workPermits.validUntil')}</label>
+                  <label>{t('workPermits.validUntil')} *</label>
                   <input
                     type="datetime-local"
-                    className="input-field"
+                    className={`input-field${createErrors.validUntil ? ' error' : ''}`}
                     value={createValidUntil}
-                    onChange={(e) => setCreateValidUntil(e.target.value)}
+                    min={createValidFrom || nowDateTime}
+                    onChange={(e) => {
+                      setCreateValidUntil(e.target.value);
+                      if (createErrors.validUntil) setCreateErrors((prev) => { const n = { ...prev }; delete n.validUntil; return n; });
+                    }}
                   />
+                  {createErrors.validUntil && <span className="input-error">{createErrors.validUntil}</span>}
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); }}>
+              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); setCreateBacklogId(''); }}>
                 {t('common.cancel')}
               </button>
               <button

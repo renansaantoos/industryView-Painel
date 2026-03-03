@@ -35,6 +35,7 @@ export async function createWorkPermit(data: {
   control_measures: string;
   valid_from?: string;
   valid_until?: string;
+  projects_backlogs_id?: number;
 }): Promise<WorkPermit> {
   const response = await apiClient.post(BASE, data);
   return response.data;
