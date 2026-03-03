@@ -2,8 +2,10 @@
 export interface Department {
   id: number;
   company_id: number;
+  branch_id?: number;
   name: string;
   description?: string;
+  branch?: { id: number; brand_name: string };
   created_at: string;
   updated_at: string;
 }
@@ -18,19 +20,41 @@ export interface ToolCategory {
   updated_at: string;
 }
 
-/** Tool */
-export interface Tool {
+/** Tool Model (catalogo — tipo/molde da ferramenta) */
+export interface ToolModel {
   id: number;
   company_id: number;
   category_id?: number;
   name: string;
+  brand?: string;
+  model?: string;
   description?: string;
   control_type: 'patrimonio' | 'quantidade';
+  category?: { id: number; name: string };
+  tools?: ToolModelInstanceSummary[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Resumo de instancia usado dentro de ToolModel */
+export interface ToolModelInstanceSummary {
+  id: number;
+  patrimonio_code?: string;
+  serial_number?: string;
+  condition: string;
+  quantity_total: number;
+  quantity_available: number;
+}
+
+/** Tool (instancia fisica de uma ferramenta) */
+export interface Tool {
+  id: number;
+  company_id: number;
+  model_id: number;
+  model?: ToolModel;
   patrimonio_code?: string;
   quantity_total: number;
   quantity_available: number;
-  brand?: string;
-  model?: string;
   serial_number?: string;
   condition: 'novo' | 'bom' | 'regular' | 'danificado' | 'descartado';
   branch_id?: number;
@@ -39,7 +63,6 @@ export interface Tool {
   assigned_user_id?: number;
   assigned_team_id?: number;
   notes?: string;
-  category?: { id: number; name: string };
   branch?: { id: number; brand_name: string };
   department?: { id: number; name: string };
   project?: { id: number; name: string };
@@ -68,7 +91,7 @@ export interface ToolMovement {
   condition?: string;
   notes?: string;
   performed_by_id: number;
-  tool?: { id: number; name: string; patrimonio_code?: string };
+  tool?: { id: number; patrimonio_code?: string; model?: { id: number; name: string } };
   performed_by?: { id: number; name: string };
   created_at: string;
 }
@@ -81,7 +104,7 @@ export interface ToolAcceptanceTerm {
   received_by_id: number;
   delivery_date: string;
   notes?: string;
-  tool?: { id: number; name: string; patrimonio_code?: string };
+  tool?: { id: number; patrimonio_code?: string; model?: { id: number; name: string } };
   delivered_by?: { id: number; name: string };
   received_by?: { id: number; name: string };
   created_at: string;
@@ -99,13 +122,13 @@ export interface ToolKit {
   updated_at: string;
 }
 
-/** Tool Kit Item */
+/** Tool Kit Item (define quais modelos compõem o kit) */
 export interface ToolKitItem {
   id: number;
   kit_id: number;
-  category_id: number;
+  model_id: number;
   quantity: number;
-  category?: { id: number; name: string };
+  model?: { id: number; name: string; brand?: string; control_type: string };
   created_at: string;
 }
 
@@ -115,7 +138,6 @@ export interface ToolsSummary {
   assigned: number;
   available: number;
   by_condition: { condition: string; count: number }[];
-  by_control_type: { control_type: string; count: number }[];
 }
 
 /** Assign Kit Result */
@@ -123,5 +145,5 @@ export interface AssignKitResult {
   kit_id: number;
   kit_name: string;
   user_id: number;
-  assigned_tools: { tool_id: number; name: string; category: string }[];
+  assigned_tools: { tool_id: number; name: string; model_id: number }[];
 }

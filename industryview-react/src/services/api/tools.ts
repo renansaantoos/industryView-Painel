@@ -2,6 +2,7 @@ import apiClient from './apiClient';
 import type {
   Department,
   ToolCategory,
+  ToolModel,
   Tool,
   ToolMovement,
   ToolAcceptanceTerm,
@@ -23,12 +24,12 @@ export async function listDepartments(): Promise<Department[]> {
   return response.data;
 }
 
-export async function createDepartment(data: { name: string; description?: string }): Promise<Department> {
+export async function createDepartment(data: { name: string; branch_id: number; description?: string }): Promise<Department> {
   const response = await apiClient.post(`${BASE}/departments`, data);
   return response.data;
 }
 
-export async function updateDepartment(id: number, data: { name?: string; description?: string }): Promise<Department> {
+export async function updateDepartment(id: number, data: { name?: string; branch_id?: number; description?: string }): Promise<Department> {
   const response = await apiClient.patch(`${BASE}/departments/${id}`, data);
   return response.data;
 }
@@ -61,15 +62,61 @@ export async function deleteCategory(id: number): Promise<void> {
 }
 
 // =============================================================================
-// Tools
+// Tool Models (catalogo)
+// =============================================================================
+
+export async function listToolModels(params?: {
+  category_id?: number;
+  search?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<PaginatedResponse<ToolModel>> {
+  const response = await apiClient.get(`${BASE}/models`, { params });
+  return response.data;
+}
+
+export async function getToolModelById(id: number): Promise<ToolModel> {
+  const response = await apiClient.get(`${BASE}/models/${id}`);
+  return response.data;
+}
+
+export async function createToolModel(data: {
+  name: string;
+  control_type: 'patrimonio' | 'quantidade';
+  category_id?: number;
+  brand?: string;
+  model?: string;
+  description?: string;
+}): Promise<ToolModel> {
+  const response = await apiClient.post(`${BASE}/models`, data);
+  return response.data;
+}
+
+export async function updateToolModel(id: number, data: {
+  name?: string;
+  control_type?: 'patrimonio' | 'quantidade';
+  category_id?: number | null;
+  brand?: string;
+  model?: string;
+  description?: string;
+}): Promise<ToolModel> {
+  const response = await apiClient.patch(`${BASE}/models/${id}`, data);
+  return response.data;
+}
+
+export async function deleteToolModel(id: number): Promise<void> {
+  await apiClient.delete(`${BASE}/models/${id}`);
+}
+
+// =============================================================================
+// Tools (instancias fisicas)
 // =============================================================================
 
 export async function listTools(params?: {
-  category_id?: number;
+  model_id?: number;
   branch_id?: number;
   department_id?: number;
   project_id?: number;
-  control_type?: string;
   condition?: string;
   search?: string;
   page?: number;
@@ -85,14 +132,9 @@ export async function getToolById(id: number): Promise<Tool> {
 }
 
 export async function createTool(data: {
-  name: string;
-  control_type: 'patrimonio' | 'quantidade';
-  category_id?: number;
-  description?: string;
+  model_id: number;
   patrimonio_code?: string;
   quantity_total?: number;
-  brand?: string;
-  model?: string;
   serial_number?: string;
   condition?: string;
   branch_id?: number;
@@ -261,7 +303,7 @@ export async function deleteKit(id: number): Promise<void> {
   await apiClient.delete(`${BASE}/kits/${id}`);
 }
 
-export async function addKitItem(kitId: number, data: { category_id: number; quantity?: number }): Promise<ToolKitItem> {
+export async function addKitItem(kitId: number, data: { model_id: number; quantity?: number }): Promise<ToolKitItem> {
   const response = await apiClient.post(`${BASE}/kits/${kitId}/items`, data);
   return response.data;
 }

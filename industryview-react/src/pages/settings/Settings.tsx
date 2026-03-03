@@ -4,20 +4,21 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
 import { useAuth } from '../../hooks/useAuth';
-import { tasksApi, equipamentTypesApi, holidaysApi, sprintsApi } from '../../services';
+import { tasksApi, equipamentTypesApi, holidaysApi, sprintsApi, toolsApi, companyApi } from '../../services';
 import type { Holiday, WorkCalendar } from '../../services/api/holidays';
+import type { Department } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { Plus, Trash2, Edit, Ruler, BookOpen, Tag, Calendar, CalendarDays, Save, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit, Ruler, BookOpen, Tag, Calendar, CalendarDays, Save, AlertTriangle, Building2 } from 'lucide-react';
 
 interface SettingsItem {
   id: number;
   displayName: string;
 }
 
-type ActiveTab = 'unity' | 'discipline' | 'category' | 'failure-reasons' | 'holidays' | 'work-calendar';
+type ActiveTab = 'unity' | 'discipline' | 'category' | 'failure-reasons' | 'holidays' | 'work-calendar' | 'departments';
 
 const WEEKDAY_KEYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const;
 
@@ -64,6 +65,16 @@ export default function Settings() {
   const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
   const [holidayForm, setHolidayForm] = useState({ date: '', name: '', type: 'custom' as string, recurring: false });
   const [holidayModalLoading, setHolidayModalLoading] = useState(false);
+
+  // Departments state
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [branches, setBranches] = useState<{ id: number; brand_name: string }[]>([]);
+  const [showDeptModal, setShowDeptModal] = useState(false);
+  const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [deptForm, setDeptForm] = useState({ name: '', branch_id: '', description: '' });
+  const [deptFormLoading, setDeptFormLoading] = useState(false);
+  const [deleteDeptConfirm, setDeleteDeptConfirm] = useState<Department | null>(null);
 
   // Work Calendar state
   const [workCalendar, setWorkCalendar] = useState<WorkCalendar>({
@@ -182,6 +193,39 @@ export default function Settings() {
   useEffect(() => {
     if (activeTab === 'work-calendar') loadWorkCalendar();
   }, [activeTab, loadWorkCalendar]);
+
+  // ---------------------------------------------------------------------------
+  // Load departments and branches
+  // ---------------------------------------------------------------------------
+  const loadDepartments = useCallback(async () => {
+    if (!companyId) return;
+    setDepartmentsLoading(true);
+    try {
+      const data = await toolsApi.listDepartments();
+      setDepartments(Array.isArray(data) ? data : []);
+    } catch {
+      showToast('Erro ao carregar departamentos.', 'error');
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  }, [companyId, showToast]);
+
+  const loadBranches = useCallback(async () => {
+    if (!companyId) return;
+    try {
+      const data = await companyApi.getBranches(companyId);
+      setBranches(Array.isArray(data) ? data.map((b) => ({ id: Number(b.id), brand_name: b.brand_name })) : []);
+    } catch {
+      // silent
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    if (activeTab === 'departments') {
+      loadDepartments();
+      if (branches.length === 0) loadBranches();
+    }
+  }, [activeTab, loadDepartments, loadBranches]);
 
   // ---------------------------------------------------------------------------
   // CRUD handlers (unity/discipline/category)
@@ -350,6 +394,60 @@ export default function Settings() {
   };
 
   // ---------------------------------------------------------------------------
+  // Department handlers
+  // ---------------------------------------------------------------------------
+  const openDeptModal = (dept?: Department) => {
+    if (dept) {
+      setEditingDept(dept);
+      setDeptForm({ name: dept.name, branch_id: dept.branch_id ? String(dept.branch_id) : '', description: dept.description || '' });
+    } else {
+      setEditingDept(null);
+      setDeptForm({ name: '', branch_id: '', description: '' });
+    }
+    setShowDeptModal(true);
+  };
+
+  const handleDeptSubmit = async () => {
+    if (!deptForm.name.trim()) { showToast('Nome e obrigatorio.', 'error'); return; }
+    if (!deptForm.branch_id) { showToast('Selecione uma Matriz ou Filial.', 'error'); return; }
+    setDeptFormLoading(true);
+    try {
+      if (editingDept) {
+        await toolsApi.updateDepartment(editingDept.id, {
+          name: deptForm.name,
+          branch_id: parseInt(deptForm.branch_id, 10),
+          description: deptForm.description || undefined,
+        });
+        showToast('Departamento atualizado com sucesso.');
+      } else {
+        await toolsApi.createDepartment({
+          name: deptForm.name,
+          branch_id: parseInt(deptForm.branch_id, 10),
+          description: deptForm.description || undefined,
+        });
+        showToast('Departamento criado com sucesso.');
+      }
+      setShowDeptModal(false);
+      loadDepartments();
+    } catch {
+      showToast('Erro ao salvar departamento.', 'error');
+    } finally {
+      setDeptFormLoading(false);
+    }
+  };
+
+  const handleDeleteDept = async (id: number) => {
+    try {
+      await toolsApi.deleteDepartment(id);
+      showToast('Departamento excluido com sucesso.');
+      loadDepartments();
+    } catch {
+      showToast('Erro ao excluir departamento.', 'error');
+    }
+    setDeleteDeptConfirm(null);
+  };
+
+  // ---------------------------------------------------------------------------
   // CRUD tab helpers
   // ---------------------------------------------------------------------------
   const isCrudTab = activeTab === 'unity' || activeTab === 'discipline' || activeTab === 'category' || activeTab === 'failure-reasons';
@@ -444,6 +542,10 @@ export default function Settings() {
         <button onClick={() => setActiveTab('work-calendar')} style={tabStyle('work-calendar')}>
           <CalendarDays size={16} />
           {t('settings.workCalendar')}
+        </button>
+        <button onClick={() => setActiveTab('departments')} style={tabStyle('departments')}>
+          <Building2 size={16} />
+          Departamentos
         </button>
       </div>
 
@@ -774,6 +876,158 @@ export default function Settings() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* Departments Tab */}
+      {/* ================================================================= */}
+      {activeTab === 'departments' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: 0 }}>
+              {departments.length} {departments.length === 1 ? 'departamento' : 'departamentos'}
+            </p>
+            <button className="btn btn-primary" onClick={() => openDeptModal()}>
+              <Plus size={18} />
+              Novo Departamento
+            </button>
+          </div>
+
+          {departmentsLoading ? (
+            <LoadingSpinner />
+          ) : departments.length === 0 ? (
+            <EmptyState
+              icon={<Building2 size={48} />}
+              title="Nenhum departamento"
+              description="Crie departamentos associados a uma matriz ou filial"
+              action={
+                <button className="btn btn-primary" onClick={() => openDeptModal()}>
+                  <Plus size={18} />
+                  Novo Departamento
+                </button>
+              }
+            />
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Filial / Matriz</th>
+                    <th>Descricao</th>
+                    <th>{t('common.actions')}</th>
+                  </tr>
+                </thead>
+                <motion.tbody key="departments" variants={staggerParent} initial="initial" animate="animate">
+                  {departments.map((dept) => (
+                    <motion.tr key={dept.id} variants={tableRowVariants}>
+                      <td style={{ fontWeight: 500 }}>{dept.name}</td>
+                      <td>
+                        {dept.branch ? (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                            <Building2 size={14} style={{ color: 'var(--color-secondary-text)' }} />
+                            {dept.branch.brand_name}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>-</span>
+                        )}
+                      </td>
+                      <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{dept.description || '-'}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button className="btn btn-icon" title={t('common.edit')} onClick={() => openDeptModal(dept)}>
+                            <Edit size={16} color="var(--color-secondary-text)" />
+                          </button>
+                          <button
+                            className="btn btn-icon"
+                            title={t('common.delete')}
+                            onClick={() => setDeleteDeptConfirm(dept)}
+                          >
+                            <Trash2 size={16} color="var(--color-error)" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </motion.tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ================================================================= */}
+      {/* Department Create/Edit Modal */}
+      {/* ================================================================= */}
+      {showDeptModal && (
+        <div className="modal-backdrop" onClick={() => setShowDeptModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%' }}>
+            <h3 style={{ marginBottom: '16px' }}>
+              {editingDept ? 'Editar Departamento' : 'Novo Departamento'}
+            </h3>
+            <div className="input-group">
+              <label>Nome *</label>
+              <input
+                className="input-field"
+                value={deptForm.name}
+                onChange={(e) => setDeptForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Ex: Manutencao, Elétrica, Civil..."
+                autoFocus
+              />
+            </div>
+            <div className="input-group" style={{ marginTop: '12px' }}>
+              <label>Filial / Matriz *</label>
+              {branches.length === 0 ? (
+                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: '4px 0' }}>
+                  Nenhuma filial cadastrada. Cadastre uma filial na pagina de Empresa primeiro.
+                </p>
+              ) : (
+                <select
+                  className="input-field"
+                  value={deptForm.branch_id}
+                  onChange={(e) => setDeptForm((p) => ({ ...p, branch_id: e.target.value }))}
+                >
+                  <option value="">Selecione a Matriz ou Filial...</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.brand_name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="input-group" style={{ marginTop: '12px' }}>
+              <label>Descricao</label>
+              <textarea
+                className="input-field"
+                rows={3}
+                value={deptForm.description}
+                onChange={(e) => setDeptForm((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Descricao opcional do departamento..."
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowDeptModal(false)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleDeptSubmit}
+                disabled={deptFormLoading || !deptForm.name.trim() || !deptForm.branch_id}
+              >
+                {deptFormLoading ? <span className="spinner" /> : editingDept ? 'Atualizar' : 'Criar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Department Delete Confirm */}
+      {deleteDeptConfirm && (
+        <ConfirmModal
+          title="Excluir Departamento"
+          message={`Deseja excluir o departamento "${deleteDeptConfirm.name}"?`}
+          onConfirm={() => handleDeleteDept(deleteDeptConfirm.id)}
+          onCancel={() => setDeleteDeptConfirm(null)}
+        />
       )}
 
       {/* Delete Confirm */}
