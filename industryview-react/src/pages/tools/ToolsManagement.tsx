@@ -265,8 +265,8 @@ export default function ToolsManagement() {
       if (filterCondition) params.condition = filterCondition;
       const data = await toolsApi.listTools(params);
       setTools(data.items ?? []);
-      setToolTotalPages(data.pageTotal ?? 1);
-      setToolTotalItems(data.itemsTotal ?? 0);
+      setToolTotalPages(Number(data.pageTotal) || 1);
+      setToolTotalItems(Number(data.itemsTotal) || 0);
     } catch {
       showToast('Erro ao carregar ferramentas', 'error');
     } finally {
@@ -280,9 +280,9 @@ export default function ToolsManagement() {
       const data = await toolsApi.listToolModels({ page, per_page: PER_PAGE });
       setToolModels(data.items ?? []);
       setToolModelsPagination({
-        page: data.curPage ?? page,
-        totalPages: data.pageTotal ?? 1,
-        totalItems: data.itemsTotal ?? 0,
+        page: Number(data.curPage) || page,
+        totalPages: Number(data.pageTotal) || 1,
+        totalItems: Number(data.itemsTotal) || 0,
       });
     } catch {
       showToast('Erro ao carregar modelos de ferramentas', 'error');
@@ -296,8 +296,8 @@ export default function ToolsManagement() {
     try {
       const data = await toolsApi.listMovements({ page: movPage, per_page: PER_PAGE });
       setMovements(data.items ?? []);
-      setMovTotalPages(data.pageTotal ?? 1);
-      setMovTotalItems(data.itemsTotal ?? 0);
+      setMovTotalPages(Number(data.pageTotal) || 1);
+      setMovTotalItems(Number(data.itemsTotal) || 0);
     } catch {
       showToast('Erro ao carregar movimentacoes', 'error');
     } finally {

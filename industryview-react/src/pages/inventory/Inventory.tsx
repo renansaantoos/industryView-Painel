@@ -150,9 +150,9 @@ export default function Inventory() {
       // Backend returns { result1: { items, pageTotal, ... }, low, no, all }
       const result1 = data.result1;
       setProducts(result1?.items || []);
-      setTotalPages(result1?.pageTotal || 1);
-      setTotalItems(result1?.itemsTotal || 0);
-      setKpiLow(data.low || 0);
+      setTotalPages(Number(result1?.pageTotal) || 1);
+      setTotalItems(Number(result1?.itemsTotal) || 0);
+      setKpiLow(Number(data.low) || 0);
       setKpiNo(data.no || 0);
       setKpiAll(typeof data.all === 'number' ? data.all : 0);
     } catch (err) {

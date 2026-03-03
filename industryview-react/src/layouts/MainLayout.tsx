@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useOutlet, useLocation } from 'react-router-dom';
+import { useLocation, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from '../components/navigation/Sidebar';
 import NavBar from '../components/navigation/NavBar';
@@ -12,8 +11,7 @@ import './MainLayout.css';
  */
 function FrozenOutlet() {
   const outlet = useOutlet();
-  const [frozen] = useState(outlet);
-  return frozen;
+  return <>{outlet}</>;
 }
 
 /**
@@ -30,7 +28,7 @@ export default function MainLayout() {
       <Sidebar />
       <NavBar />
       <main className="main-content">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
             variants={pageVariants}
