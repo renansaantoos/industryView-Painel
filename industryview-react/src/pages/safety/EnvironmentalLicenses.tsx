@@ -425,6 +425,10 @@ export default function EnvironmentalLicenses() {
       showToast('Número, tipo, órgão emissor, emissão e validade são obrigatórios', 'error');
       return;
     }
+    if (form.expiry_date < form.issue_date) {
+      showToast('A data de validade não pode ser anterior à data de emissão', 'error');
+      return;
+    }
     if (!projectsInfo?.id) {
       showToast('Selecione um projeto antes de salvar a licença', 'error');
       return;
@@ -675,7 +679,15 @@ export default function EnvironmentalLicenses() {
                     type="date"
                     className="input-field"
                     value={form.issue_date}
-                    onChange={(e) => setForm((f) => ({ ...f, issue_date: e.target.value }))}
+                    onChange={(e) => {
+                      const newIssue = e.target.value;
+                      setForm((f) => ({
+                        ...f,
+                        issue_date: newIssue,
+                        // limpa validade se ficou anterior à nova emissão
+                        expiry_date: f.expiry_date && f.expiry_date < newIssue ? '' : f.expiry_date,
+                      }));
+                    }}
                   />
                 </div>
                 <div className="input-group">
@@ -684,6 +696,7 @@ export default function EnvironmentalLicenses() {
                     type="date"
                     className="input-field"
                     value={form.expiry_date}
+                    min={form.issue_date || undefined}
                     onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
                   />
                 </div>
