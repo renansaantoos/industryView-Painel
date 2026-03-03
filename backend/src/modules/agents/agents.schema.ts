@@ -138,6 +138,38 @@ export const applyWeightsSchema = z.object({
 export type ApplyWeightsInput = z.infer<typeof applyWeightsSchema>;
 
 // =============================================================================
+// Chat Schemas
+// =============================================================================
+
+/**
+ * Schema para mensagem de chat unificado
+ */
+export const chatMessageSchema = z.object({
+  message: z.string().trim().min(1, 'Mensagem e obrigatoria'),
+  context: z.object({
+    project_id: z.coerce.number().int().optional(),
+    domain: z.enum(['executive', 'safety', 'planning', 'workforce', 'quality', 'general']).optional(),
+  }).optional(),
+});
+
+export type ChatMessageInput = z.infer<typeof chatMessageSchema>;
+
+/**
+ * Schema de resposta do chat
+ */
+export const chatResponseSchema = z.object({
+  response: z.string(),
+  domain: z.string(),
+  confidence: z.number(),
+  metadata: z.object({
+    agent: z.string(),
+    processing_time_ms: z.number(),
+  }),
+});
+
+export type ChatResponse = z.infer<typeof chatResponseSchema>;
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 

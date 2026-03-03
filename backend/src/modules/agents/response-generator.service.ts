@@ -2,11 +2,10 @@
 // INDUSTRYVIEW BACKEND - Response Generator Agent Service
 // Service do agente gerador de respostas humanizadas
 // Equivalente ao agent GeneratorResponseAgent do Xano
-// Usa OpenAI GPT-4 mini para gerar respostas em Markdown
+// Usa Anthropic Claude para gerar respostas em Markdown
 // =============================================================================
 
-import OpenAI from 'openai';
-import { config } from '../../config/env';
+import { claudeTextCompletion } from '../../services/claude-client';
 import { GeneratorResponseAgentResponse } from './agents.schema';
 import { logger } from '../../utils/logger';
 
@@ -52,57 +51,23 @@ Os projetos sob responsabilidade do Myrko sao:
  * ResponseGeneratorService - Service do agente gerador de respostas
  */
 export class ResponseGeneratorService {
-  private static openai: OpenAI | null = null;
-
-  /**
-   * Inicializa o cliente OpenAI
-   */
-  private static getOpenAI(): OpenAI {
-    if (!this.openai) {
-      const apiKey = config.openai?.apiKey || process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error('OPENAI_API_KEY nao configurada');
-      }
-      this.openai = new OpenAI({ apiKey });
-    }
-    return this.openai;
-  }
-
   /**
    * Gera uma resposta humanizada a partir de dados estruturados
    * Equivalente a: ai.agent.run "GeneratorResponseAgent" do Xano
    */
   static async generate(data: unknown): Promise<GeneratorResponseAgentResponse> {
     try {
-      const openai = this.getOpenAI();
-
       // Converte dados para JSON string se necessario
       const dataString = typeof data === 'string' ? data : JSON.stringify(data);
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Equivalente ao gpt-4.1-mini do Xano
-        messages: [
-          {
-            role: 'system',
-            content: GENERATOR_RESPONSE_SYSTEM_PROMPT,
-          },
-          {
-            role: 'user',
-            content: dataString,
-          },
-        ],
+      const content = await claudeTextCompletion({
+        system: GENERATOR_RESPONSE_SYSTEM_PROMPT,
+        userMessage: dataString,
         temperature: 0.9,
       });
 
-      const content = completion.choices[0]?.message?.content;
-      if (!content) {
-        return {
-          response: 'Nao foi possivel gerar uma resposta.',
-        };
-      }
-
       return {
-        response: content.trim(),
+        response: content,
       };
     } catch (error) {
       logger.error({ error }, 'Erro no GeneratorResponseAgent');

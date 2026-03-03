@@ -10,6 +10,7 @@ import { InterpretingAgentService } from './interpreting-agent.service';
 import { ResponseGeneratorService } from './response-generator.service';
 import { WeightCalculatorAgentService } from './weight-calculator-agent.service';
 import { db } from '../../config/database';
+import { ChatService } from './chat.service';
 import {
   projectsAgentSearchSchema,
   invokeInterpretingAgentSchema,
@@ -18,6 +19,7 @@ import {
   listAgentDashboardLogsSchema,
   calculateWeightsSchema,
   applyWeightsSchema,
+  chatMessageSchema,
 } from './agents.schema';
 
 /**
@@ -159,6 +161,26 @@ export class AgentsController {
       const { log_id } = req.params;
       const result = await AgentsService.deleteAgentDashboardLog(log_id);
       res.json({ success: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Chat Unificado
+  // ===========================================================================
+
+  /**
+   * Chat unificado com roteamento inteligente
+   * Route: POST /api/v1/agents/chat
+   */
+  static async chat(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = chatMessageSchema.parse(req.body);
+      // @ts-ignore - company_id vem do usuario autenticado
+      const companyId = req.user?.companyId;
+      const result = await ChatService.processMessage(input, companyId);
+      res.json(result);
     } catch (error) {
       next(error);
     }

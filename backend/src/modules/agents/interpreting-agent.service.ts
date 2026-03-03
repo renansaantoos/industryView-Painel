@@ -2,11 +2,10 @@
 // INDUSTRYVIEW BACKEND - Interpreting Agent Service
 // Service do agente de interpretacao de perguntas
 // Equivalente ao agent InterpretingAgent do Xano
-// Usa OpenAI GPT-4 mini para interpretar queries
+// Usa Anthropic Claude para interpretar queries
 // =============================================================================
 
-import OpenAI from 'openai';
-import { config } from '../../config/env';
+import { claudeJsonCompletion } from '../../services/claude-client';
 import { InterpretingAgentResponse } from './agents.schema';
 import { logger } from '../../utils/logger';
 
@@ -166,60 +165,18 @@ Nunca retorne mais de um is_about_*: true.
  * InterpretingAgentService - Service do agente de interpretacao
  */
 export class InterpretingAgentService {
-  private static openai: OpenAI | null = null;
-
-  /**
-   * Inicializa o cliente OpenAI
-   */
-  private static getOpenAI(): OpenAI {
-    if (!this.openai) {
-      const apiKey = config.openai?.apiKey || process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error('OPENAI_API_KEY nao configurada');
-      }
-      this.openai = new OpenAI({ apiKey });
-    }
-    return this.openai;
-  }
-
   /**
    * Interpreta uma pergunta em linguagem natural
    * Equivalente a: ai.agent.run "InterpretingAgent" do Xano
    */
   static async interpret(question: string): Promise<InterpretingAgentResponse> {
     try {
-      const openai = this.getOpenAI();
-
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Equivalente ao gpt-4.1-mini do Xano
-        messages: [
-          {
-            role: 'system',
-            content: INTERPRETING_AGENT_SYSTEM_PROMPT,
-          },
-          {
-            role: 'user',
-            content: question,
-          },
-        ],
+      const parsed = await claudeJsonCompletion<{ result?: InterpretingAgentResponse } & InterpretingAgentResponse>({
+        system: INTERPRETING_AGENT_SYSTEM_PROMPT,
+        userMessage: question,
         temperature: 0.6,
-        response_format: { type: 'json_object' },
       });
 
-      const content = completion.choices[0]?.message?.content;
-      if (!content) {
-        return {
-          is_about_projects: false,
-          is_about_delayed_tasks: false,
-          is_about_structure: false,
-          requested_info: undefined,
-          query: undefined,
-          error: 'Nao foi possivel processar a pergunta.',
-        };
-      }
-
-      // Parse da resposta JSON
-      const parsed = JSON.parse(content);
       const result = parsed.result || parsed;
 
       return {

@@ -1,35 +1,14 @@
 // =============================================================================
 // INDUSTRYVIEW BACKEND - AI Agent Service
-// Servico para agentes de IA (OpenAI)
+// Servico para agentes de IA (Anthropic Claude)
 // Equivalente aos agents e tools do Xano
 // =============================================================================
 
-import OpenAI from 'openai';
-import { config } from '../config/env';
+import { claudeJsonCompletion, claudeTextCompletion } from './claude-client';
 import { db } from '../config/database';
 import { ExternalServiceError } from '../utils/errors';
 import { agentLogger } from '../utils/logger';
 import { InterpretingAgentResult } from '../types';
-
-// Inicializa o cliente OpenAI
-let openaiClient: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!config.openai.apiKey) {
-    throw new ExternalServiceError(
-      'OpenAI',
-      'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.'
-    );
-  }
-
-  if (!openaiClient) {
-    openaiClient = new OpenAI({
-      apiKey: config.openai.apiKey,
-    });
-  }
-
-  return openaiClient;
-}
 
 /**
  * AgentService - Servico para agentes de IA
@@ -41,8 +20,6 @@ export class AgentService {
    * Equivalente ao: InterpretingAgent do Xano
    */
   static async interpretQuestion(question: string): Promise<InterpretingAgentResult> {
-    const client = getOpenAIClient();
-
     const systemPrompt = `
 # Prompt de Interpretacao de Perguntas
 
@@ -143,24 +120,11 @@ Nunca inclua explicacoes, somente o JSON.
     try {
       agentLogger.info({ question }, 'Interpreting question');
 
-      const response = await client.chat.completions.create({
-        model: config.openai.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: question },
-        ],
+      const result = await claudeJsonCompletion<InterpretingAgentResult>({
+        system: systemPrompt,
+        userMessage: question,
         temperature: 0.6,
-        max_tokens: config.openai.maxTokens,
-        response_format: { type: 'json_object' },
       });
-
-      const content = response.choices[0]?.message?.content;
-
-      if (!content) {
-        throw new ExternalServiceError('OpenAI', 'Empty response from AI');
-      }
-
-      const result = JSON.parse(content) as InterpretingAgentResult;
 
       agentLogger.info({ question, result }, 'Question interpreted successfully');
 
@@ -169,7 +133,7 @@ Nunca inclua explicacoes, somente o JSON.
       agentLogger.error({ error, question }, 'Failed to interpret question');
 
       if (error instanceof SyntaxError) {
-        throw new ExternalServiceError('OpenAI', 'Failed to parse AI response');
+        throw new ExternalServiceError('Anthropic', 'Failed to parse AI response');
       }
 
       throw error;
@@ -184,8 +148,6 @@ Nunca inclua explicacoes, somente o JSON.
     question: string,
     data: unknown
   ): Promise<string> {
-    const client = getOpenAIClient();
-
     const systemPrompt = `
 Voce e um assistente que transforma dados tecnicos sobre projetos em respostas amigaveis em formato Markdown.
 
@@ -211,24 +173,11 @@ Os projetos sob responsabilidade do Myrko sao:
     try {
       agentLogger.info({ question }, 'Generating humanized response');
 
-      const response = await client.chat.completions.create({
-        model: config.openai.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: `Pergunta: ${question}\n\nDados: ${JSON.stringify(data)}`,
-          },
-        ],
+      const content = await claudeTextCompletion({
+        system: systemPrompt,
+        userMessage: `Pergunta: ${question}\n\nDados: ${JSON.stringify(data)}`,
         temperature: 0.9,
-        max_tokens: config.openai.maxTokens,
       });
-
-      const content = response.choices[0]?.message?.content;
-
-      if (!content) {
-        throw new ExternalServiceError('OpenAI', 'Empty response from AI');
-      }
 
       agentLogger.info({ question }, 'Response generated successfully');
 

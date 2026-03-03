@@ -285,6 +285,67 @@ router.get('/logs/:log_id', authenticate, AgentsController.getAgentDashboardLogB
 router.delete('/logs/:log_id', authenticate, AgentsController.deleteAgentDashboardLog);
 
 // ===========================================================================
+// Chat Unificado Route
+// ===========================================================================
+
+/**
+ * @swagger
+ * /api/v1/agents/chat:
+ *   post:
+ *     summary: Chat unificado com roteamento inteligente
+ *     description: |
+ *       Recebe uma mensagem em linguagem natural, classifica a intencao
+ *       e despacha para o agente especializado correto (executivo, seguranca,
+ *       planejamento, efetivo ou qualidade).
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: Mensagem do usuario
+ *                 example: "Quantos incidentes de seguranca este mes?"
+ *               context:
+ *                 type: object
+ *                 properties:
+ *                   project_id:
+ *                     type: integer
+ *                   domain:
+ *                     type: string
+ *                     enum: [executive, safety, planning, workforce, quality, general]
+ *     responses:
+ *       200:
+ *         description: Resposta do agente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 response:
+ *                   type: string
+ *                 domain:
+ *                   type: string
+ *                 confidence:
+ *                   type: number
+ *                 metadata:
+ *                   type: object
+ *                   properties:
+ *                     agent:
+ *                       type: string
+ *                     processing_time_ms:
+ *                       type: number
+ */
+router.post('/chat', authenticate, AgentsController.chat);
+
+// ===========================================================================
 // Weight Calculator Agent Routes
 // ===========================================================================
 

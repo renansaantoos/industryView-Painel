@@ -37,11 +37,11 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_ID: z.string().optional(),
 
-  // OpenAI
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default('gpt-4o-mini'),
-  OPENAI_MAX_TOKENS: z.string().transform(Number).default('2000'),
-  OPENAI_TEMPERATURE: z.string().transform(Number).default('0.7'),
+  // Anthropic Claude
+  ANTHROPIC_API_KEY: z.string().optional(),
+  CLAUDE_MODEL: z.string().default('claude-sonnet-4-20250514'),
+  CLAUDE_ROUTER_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+  CLAUDE_MAX_TOKENS: z.string().transform(Number).default('2000'),
 
   // Storage
   STORAGE_TYPE: z.enum(['local', 's3']).default('local'),
@@ -148,11 +148,11 @@ export const config = {
     webhookSecret: env.STRIPE_WEBHOOK_SECRET,
     priceId: env.STRIPE_PRICE_ID,
   },
-  openai: {
-    apiKey: env.OPENAI_API_KEY,
-    model: env.OPENAI_MODEL,
-    maxTokens: env.OPENAI_MAX_TOKENS,
-    temperature: env.OPENAI_TEMPERATURE,
+  claude: {
+    apiKey: env.ANTHROPIC_API_KEY,
+    model: env.CLAUDE_MODEL,
+    routerModel: env.CLAUDE_ROUTER_MODEL,
+    maxTokens: env.CLAUDE_MAX_TOKENS,
   },
   storage: {
     type: env.STORAGE_TYPE,

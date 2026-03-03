@@ -1,11 +1,10 @@
 // =============================================================================
 // INDUSTRYVIEW BACKEND - Weight Calculator Agent Service
 // Agente de IA para calculo de pesos de subtasks
-// Usa OpenAI GPT-4o-mini para analisar tarefas e atribuir pesos relativos
+// Usa Anthropic Claude para analisar tarefas e atribuir pesos relativos
 // =============================================================================
 
-import OpenAI from 'openai';
-import { config } from '../../config/env';
+import { claudeJsonCompletion } from '../../services/claude-client';
 import { logger } from '../../utils/logger';
 
 const WEIGHT_CALCULATOR_SYSTEM_PROMPT = `
@@ -56,26 +55,11 @@ export interface WeightResult {
  * WeightCalculatorAgentService - Agente de IA para calculo de pesos
  */
 export class WeightCalculatorAgentService {
-  private static openai: OpenAI | null = null;
-
-  private static getOpenAI(): OpenAI {
-    if (!this.openai) {
-      const apiKey = config.openai?.apiKey || process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error('OPENAI_API_KEY nao configurada');
-      }
-      this.openai = new OpenAI({ apiKey });
-    }
-    return this.openai;
-  }
-
   /**
    * Calcula pesos para uma lista de subtasks usando IA
    */
   static async calculateWeights(subtasks: SubtaskInput[]): Promise<WeightResult[]> {
     try {
-      const openai = this.getOpenAI();
-
       const userMessage = subtasks
         .map(
           (s) =>
@@ -83,22 +67,12 @@ export class WeightCalculatorAgentService {
         )
         .join('\n');
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: WEIGHT_CALCULATOR_SYSTEM_PROMPT },
-          { role: 'user', content: `Analise as seguintes tarefas e atribua pesos:\n\n${userMessage}` },
-        ],
+      const parsed = await claudeJsonCompletion<{ weights: WeightResult[] }>({
+        system: WEIGHT_CALCULATOR_SYSTEM_PROMPT,
+        userMessage: `Analise as seguintes tarefas e atribua pesos:\n\n${userMessage}`,
         temperature: 0.4,
-        response_format: { type: 'json_object' },
       });
 
-      const content = completion.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('Resposta vazia da IA');
-      }
-
-      const parsed = JSON.parse(content);
       const weights: WeightResult[] = parsed.weights || [];
 
       // Valida que todos os IDs retornados existem nas subtasks originais
