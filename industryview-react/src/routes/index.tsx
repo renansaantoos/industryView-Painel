@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
+import RouteErrorFallback from '../components/common/RouteErrorFallback';
 
 // Auth pages (no layout)
 import Login from '../pages/auth/Login';
@@ -68,6 +69,7 @@ import GoldenRulesManagement from '../pages/quality/GoldenRulesManagement';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import AuditLogs from '../pages/audit/AuditLogs';
 import Clients from '../pages/clients/Clients';
+import AiAssistant from '../pages/chat/AiAssistant';
 
 /**
  * Application routes.
@@ -95,6 +97,7 @@ export const router = createBrowserRouter([
   // Main app routes (with sidebar/navbar layout)
   // ProtectedRoute wraps the layout so ALL children require login + company
   {
+    errorElement: <RouteErrorFallback />,
     element: (
       <ProtectedRoute>
         <MainLayout />
@@ -293,6 +296,12 @@ export const router = createBrowserRouter([
       {
         path: '/notificacoes',
         element: <NotificationsPage />,
+      },
+
+      // AI Assistant
+      {
+        path: '/assistente-ia',
+        element: <AiAssistant />,
       },
 
       // Audit

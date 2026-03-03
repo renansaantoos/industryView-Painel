@@ -217,7 +217,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuthContext() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    // Context lost (HMR, cache corruption, etc.) — clear stale data and force login
+    localStorage.removeItem('ff_token');
+    localStorage.removeItem('ff_infoUser');
+    localStorage.removeItem('ff_projectsInfo');
+    window.location.replace('/login');
+    // Return a dummy value so React doesn't crash before the redirect completes
+    return {
+      loading: true,
+      isLoggedIn: false,
+      token: '',
+      user: null,
+      login: async () => {},
+      signup: async () => {},
+      logout: () => {},
+      refreshUser: async () => {},
+      updateUser: () => {},
+    } as AuthContextValue;
   }
   return context;
 }
