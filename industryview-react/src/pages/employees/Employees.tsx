@@ -28,7 +28,7 @@ export default function Employees() {
   const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<'todos' | 'ativo' | 'inativo'>('ativo');
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'ativo' | 'inativo'>('todos');
   const [dismissConfirm, setDismissConfirm] = useState<UserFull | null>(null);
   const [reactivateConfirm, setReactivateConfirm] = useState<UserFull | null>(null);
 

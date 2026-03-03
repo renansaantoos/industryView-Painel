@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUpChild } from '../../../lib/motion';
-import { employeesApi } from '../../../services';
+import { employeesApi, usersApi } from '../../../services';
 import type { EmployeeHrData } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import SearchableSelect from '../../../components/common/SearchableSelect';
@@ -15,7 +15,9 @@ interface HrDataTabProps {
   onSave?: () => void;
 }
 
-type HrFormData = Omit<EmployeeHrData, 'id' | 'users_id' | 'foto_documento_url' | 'created_at' | 'updated_at' | 'user'>;
+type HrFormData = Omit<EmployeeHrData, 'id' | 'users_id' | 'foto_documento_url' | 'created_at' | 'updated_at' | 'user'> & {
+  email?: string;
+};
 
 interface ToastState {
   message: string;
@@ -34,6 +36,7 @@ interface ViaCepResponse {
 
 const EMPTY_FORM: HrFormData = {
   nome_completo: '',
+  email: '',
   cpf: '',
   rg: '',
   rg_orgao_emissor: '',
@@ -256,6 +259,7 @@ export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
           const booleanFields = new Set(['pcd', 'trabalho_insalubre', 'reabilitado_inss']);
           setForm({
             ...EMPTY_FORM,
+            email: data.user?.email || '',
             ...Object.fromEntries(
               Object.entries(data)
                 .filter(([key]) => key in EMPTY_FORM)
@@ -376,13 +380,15 @@ export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
 
     setIsSaving(true);
     try {
+      const { email, ...hrFormData } = form;
+
       const dateFields = new Set([
         'rg_data_emissao', 'data_nascimento', 'data_admissao',
         'data_demissao', 'cnh_validade',
       ]);
 
       const payload = Object.fromEntries(
-        Object.entries(form).map(([k, v]) => {
+        Object.entries(hrFormData).map(([k, v]) => {
           if (v === '' || v == null) return [k, undefined];
           // Ensure date fields are always sent as YYYY-MM-DD strings
           if (dateFields.has(k) && typeof v === 'number') {
@@ -392,7 +398,11 @@ export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
         })
       ) as Partial<EmployeeHrData>;
 
-      await employeesApi.upsertHrData(usersId, payload);
+      await Promise.all([
+        employeesApi.upsertHrData(usersId, payload),
+        email ? usersApi.patchUser(usersId, { email }) : Promise.resolve(),
+      ]);
+
       showToast('Dados salvos com sucesso.', 'success');
       onSave?.();
     } catch {
@@ -474,6 +484,7 @@ export default function HrDataTab({ usersId, onSave }: HrDataTabProps) {
       {/* ── Dados Pessoais ─────────────────────────────────────────────── */}
       <Section title="Dados Pessoais" isOpen={openSections.pessoal} onToggle={() => toggleSection('pessoal')}>
         <Field label="Nome Completo">{textInput('nome_completo', 'Nome completo do funcionário')}</Field>
+        <Field label="E-mail">{textInput('email' as any, 'exemplo@empresa.com')}</Field>
         <Field label="CPF">{textInput('cpf', '000.000.000-00')}</Field>
         <Field label="RG">{textInput('rg')}</Field>
         <Field label="Órgão Emissor RG">{textInput('rg_orgao_emissor', 'Ex: SSP-SP')}</Field>

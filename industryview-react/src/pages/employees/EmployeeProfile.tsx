@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   HeartPulse,
   IdCard,
+  Wrench,
 } from 'lucide-react';
 
 // Tab components
@@ -36,6 +37,7 @@ import CareerHistoryTab from './tabs/CareerHistoryTab';
 import BenefitsTab from './tabs/BenefitsTab';
 import IncidentsTab from './tabs/IncidentsTab';
 import HealthTab from './tabs/HealthTab';
+import ToolsTab from './tabs/ToolsTab';
 
 type TabKey =
   | 'dados'
@@ -48,13 +50,15 @@ type TabKey =
   | 'historico'
   | 'beneficios'
   | 'incidentes'
-  | 'saude';
+  | 'saude'
+  | 'ferramentas';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'dados', label: 'Dados Pessoais', icon: <User size={16} /> },
   { key: 'ferias', label: 'Ferias/Licencas', icon: <Calendar size={16} /> },
   { key: 'documentos', label: 'Documentos', icon: <FileText size={16} /> },
   { key: 'epis', label: 'EPIs', icon: <HardHat size={16} /> },
+  { key: 'ferramentas', label: 'Ferramentas', icon: <Wrench size={16} /> },
   { key: 'treinamentos', label: 'Treinamentos', icon: <GraduationCap size={16} /> },
   { key: 'ponto', label: 'Ponto', icon: <Clock size={16} /> },
   { key: 'folgas', label: 'Folgas', icon: <Coffee size={16} /> },
@@ -386,6 +390,7 @@ export default function EmployeeProfile() {
         {activeTab === 'beneficios' && <BenefitsTab usersId={usersId} />}
         {activeTab === 'saude' && <HealthTab usersId={usersId} />}
         {activeTab === 'incidentes' && <IncidentsTab usersId={usersId} />}
+        {activeTab === 'ferramentas' && <ToolsTab usersId={usersId} />}
       </motion.div>
     </motion.div>
   );
