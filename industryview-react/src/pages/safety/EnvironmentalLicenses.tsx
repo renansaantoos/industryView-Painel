@@ -679,6 +679,7 @@ export default function EnvironmentalLicenses() {
                     type="date"
                     className="input-field"
                     value={form.issue_date}
+                    max={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => {
                       const newIssue = e.target.value;
                       setForm((f) => ({
