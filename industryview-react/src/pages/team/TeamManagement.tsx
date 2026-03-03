@@ -849,11 +849,7 @@ export default function TeamManagement() {
           userEmail: (users?.email ?? '') as string,
           senioridade: ((users?.hr_data as Record<string, unknown>)?.senioridade ?? '') as string,
           nivel: ((users?.hr_data as Record<string, unknown>)?.nivel ?? '') as string,
-          roleName: (() => {
-            const perms = (item.users as Record<string, unknown>)?.users_permissions as Record<string, unknown> | undefined;
-            const roles = perms?.users_roles as Record<string, unknown> | undefined;
-            return (roles?.name ?? roles?.role ?? '-') as string;
-          })(),
+          roleName: ((users?.hr_data as Record<string, unknown>)?.cargo ?? '') as string,
         };
       }));
     } catch (err) {
