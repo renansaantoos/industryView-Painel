@@ -116,7 +116,7 @@ function PieChartCard({ title, data, height = 280 }: { title: string; data: { na
       <ResponsiveContainer width="100%" height={height}>
         <PieChart>
           <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3} dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
             {data.map((entry, i) => (
               <Cell key={i} fill={entry.color || PIE_PALETTE[i % PIE_PALETTE.length]} />
             ))}
@@ -370,7 +370,7 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={taskDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                 {taskDistribution.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip />
@@ -653,7 +653,7 @@ export default function Dashboard() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              variants={tabContentVariants}
+              variants={tabContentVariants as any}
               initial="hidden"
               animate="visible"
               exit="exit"

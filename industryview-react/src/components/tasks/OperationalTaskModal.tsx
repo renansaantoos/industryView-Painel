@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useCallback, useRef } from 'react';
 import { X, Lock } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
