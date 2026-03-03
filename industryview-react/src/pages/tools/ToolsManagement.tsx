@@ -163,7 +163,7 @@ export default function ToolsManagement() {
   const [movPage, setMovPage] = useState(1);
   const [movTotalPages, setMovTotalPages] = useState(1);
   const [movTotalItems, setMovTotalItems] = useState(0);
-  const [showMovModal, setShowMovModal] = useState<string | null>(null); // 'transfer' | 'assign-employee' | ...
+  const [showMovModal, setShowMovModal] = useState<string | null>(null);
   const [movForm, setMovForm] = useState<Record<string, string>>({});
   const [movFormLoading, setMovFormLoading] = useState(false);
 
@@ -552,7 +552,6 @@ export default function ToolsManagement() {
       setShowAddItemModal(false);
       setAddItemForm({ category_id: '', quantity: '1' });
       loadKits();
-      // Refresh selected kit
       const updated = await toolsApi.getKitById(selectedKit.id);
       setSelectedKit(updated);
     } catch {
@@ -673,10 +672,10 @@ export default function ToolsManagement() {
      ========================================= */
 
   const tabs: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { key: 'cadastro', label: 'Cadastro', icon: <Wrench size={16} /> },
-    { key: 'movimentacoes', label: 'Movimentacoes', icon: <ArrowRightLeft size={16} /> },
-    { key: 'kits', label: 'Kits', icon: <PackagePlus size={16} /> },
-    { key: 'departamentos', label: 'Departamentos', icon: <Building2 size={16} /> },
+    { key: 'cadastro', label: 'Cadastro', icon: <Wrench className="w-5 h-5" /> },
+    { key: 'movimentacoes', label: 'Movimentacoes', icon: <ArrowRightLeft className="w-5 h-5" /> },
+    { key: 'kits', label: 'Kits', icon: <PackagePlus className="w-5 h-5" /> },
+    { key: 'departamentos', label: 'Departamentos', icon: <Building2 className="w-5 h-5" /> },
   ];
 
   /* =========================================
@@ -701,359 +700,341 @@ export default function ToolsManagement() {
      ========================================= */
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50">
       <PageHeader title="Ferramentas" subtitle="Gerenciamento de ferramentas, movimentacoes e kits" />
 
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-          {toast.message}
-        </div>
-      )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Toast */}
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`mb-4 p-4 rounded-lg ${
+              toast.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}
+          >
+            {toast.message}
+          </motion.div>
+        )}
 
-      {/* Tabs */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.key
-                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-6">
-          {/* ============= CADASTRO TAB ============= */}
-          {activeTab === 'cadastro' && (
-            <div>
-              {/* Detail view */}
-              {selectedTool ? (
-                <div>
-                  <button onClick={() => setSelectedTool(null)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 mb-4">
-                    <ChevronRight size={14} className="rotate-180" /> Voltar para lista
-                  </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedTool.name}</h3>
-                      <p className="text-sm text-gray-500">{selectedTool.description || '-'}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${CONDITION_COLORS[selectedTool.condition] || 'bg-gray-100'}`}>
-                          {CONDITION_LABELS[selectedTool.condition] || selectedTool.condition}
-                        </span>
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                          {selectedTool.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                      {selectedTool.patrimonio_code && <p><strong>Patrimonio:</strong> {selectedTool.patrimonio_code}</p>}
-                      {selectedTool.control_type === 'quantidade' && <p><strong>Disponivel:</strong> {selectedTool.quantity_available} / {selectedTool.quantity_total}</p>}
-                      {selectedTool.category && <p><strong>Categoria:</strong> {selectedTool.category.name}</p>}
-                      {selectedTool.branch && <p><strong>Filial:</strong> {selectedTool.branch.brand_name}</p>}
-                      {selectedTool.department && <p><strong>Departamento:</strong> {selectedTool.department.name}</p>}
-                      {selectedTool.assigned_user && <p><strong>Funcionario:</strong> {selectedTool.assigned_user.name}</p>}
-                      {selectedTool.assigned_team && <p><strong>Equipe:</strong> {selectedTool.assigned_team.name}</p>}
-                      {selectedTool.brand && <p><strong>Marca:</strong> {selectedTool.brand}</p>}
-                      {selectedTool.model && <p><strong>Modelo:</strong> {selectedTool.model}</p>}
-                    </div>
-                  </div>
-
-                  <h4 className="text-md font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-                    <History size={16} /> Historico de Movimentacoes
-                  </h4>
-                  {toolMovementsLoading ? <LoadingSpinner /> : toolMovements.length === 0 ? (
-                    <EmptyState message="Nenhuma movimentacao encontrada" />
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50 dark:bg-gray-700">
-                          <tr>
-                            <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Tipo</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Qtd</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Condicao</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Por</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Obs</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Data</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                          {toolMovements.map(m => (
-                            <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                              <td className="px-4 py-2">{MOVEMENT_LABELS[m.movement_type] || m.movement_type}</td>
-                              <td className="px-4 py-2">{m.quantity}</td>
-                              <td className="px-4 py-2">{m.condition ? (CONDITION_LABELS[m.condition] || m.condition) : '-'}</td>
-                              <td className="px-4 py-2">{m.performed_by?.name || '-'}</td>
-                              <td className="px-4 py-2 max-w-[200px] truncate">{m.notes || '-'}</td>
-                              <td className="px-4 py-2">{formatDate(m.created_at)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+        {/* Tabs */}
+        <div className="mb-8">
+          <div className="flex gap-4">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === tab.key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {tab.icon}
+                  {tab.label}
                 </div>
-              ) : (
-                <>
-                  {/* Filters + Actions */}
-                  <div className="flex flex-wrap gap-3 mb-4 items-end">
-                    <div className="flex-1 min-w-[200px]">
-                      <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Buscar por nome, patrimonio, serial..."
-                          value={filterSearch}
-                          onChange={(e) => { setFilterSearch(e.target.value); setToolPage(1); }}
-                          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        />
-                      </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ============= CADASTRO TAB ============= */}
+        {activeTab === 'cadastro' && (
+          <motion.div key="cadastro-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+            {selectedTool ? (
+              <div className="bg-white rounded-lg shadow p-6">
+                <button onClick={() => setSelectedTool(null)} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mb-4">
+                  <ChevronRight size={14} className="rotate-180" /> Voltar para lista
+                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{selectedTool.name}</h3>
+                    <p className="text-sm text-gray-500">{selectedTool.description || '-'}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${CONDITION_COLORS[selectedTool.condition] || 'bg-gray-100'}`}>
+                        {CONDITION_LABELS[selectedTool.condition] || selectedTool.condition}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                        {selectedTool.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
+                      </span>
                     </div>
-                    <select
-                      value={filterCategory}
-                      onChange={(e) => { setFilterCategory(e.target.value); setToolPage(1); }}
-                      className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">Todas categorias</option>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <select
-                      value={filterControlType}
-                      onChange={(e) => { setFilterControlType(e.target.value); setToolPage(1); }}
-                      className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">Todos tipos</option>
-                      <option value="patrimonio">Patrimonio</option>
-                      <option value="quantidade">Quantidade</option>
-                    </select>
-                    <select
-                      value={filterCondition}
-                      onChange={(e) => { setFilterCondition(e.target.value); setToolPage(1); }}
-                      className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">Todas condicoes</option>
-                      {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
-                    <button
-                      onClick={() => openToolModal()}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                      <Plus size={16} /> Nova Ferramenta
-                    </button>
                   </div>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    {selectedTool.patrimonio_code && <p><strong>Patrimonio:</strong> {selectedTool.patrimonio_code}</p>}
+                    {selectedTool.control_type === 'quantidade' && <p><strong>Disponivel:</strong> {selectedTool.quantity_available} / {selectedTool.quantity_total}</p>}
+                    {selectedTool.category && <p><strong>Categoria:</strong> {selectedTool.category.name}</p>}
+                    {selectedTool.branch && <p><strong>Filial:</strong> {selectedTool.branch.brand_name}</p>}
+                    {selectedTool.department && <p><strong>Departamento:</strong> {selectedTool.department.name}</p>}
+                    {selectedTool.assigned_user && <p><strong>Funcionario:</strong> {selectedTool.assigned_user.name}</p>}
+                    {selectedTool.assigned_team && <p><strong>Equipe:</strong> {selectedTool.assigned_team.name}</p>}
+                    {selectedTool.brand && <p><strong>Marca:</strong> {selectedTool.brand}</p>}
+                    {selectedTool.model && <p><strong>Modelo:</strong> {selectedTool.model}</p>}
+                  </div>
+                </div>
 
-                  {/* Tools Table */}
-                  {toolsLoading ? <LoadingSpinner /> : tools.length === 0 ? (
-                    <EmptyState message="Nenhuma ferramenta encontrada" />
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto">
-                        <motion.table variants={staggerParent} initial="hidden" animate="show" className="min-w-full text-sm">
-                          <thead className="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Nome</th>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Categoria</th>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Tipo</th>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Patrimonio/Qtd</th>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Condicao</th>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Atribuido</th>
-                              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Acoes</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {tools.map(tool => (
-                              <motion.tr key={tool.id} variants={tableRowVariants} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => loadToolDetail(tool)}>
-                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{tool.name}</td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{tool.category?.name || '-'}</td>
-                                <td className="px-4 py-3">
-                                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                                    {tool.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                  {tool.control_type === 'patrimonio' ? (tool.patrimonio_code || '-') : `${tool.quantity_available}/${tool.quantity_total}`}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CONDITION_COLORS[tool.condition] || 'bg-gray-100'}`}>
-                                    {CONDITION_LABELS[tool.condition] || tool.condition}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                                  {tool.assigned_user?.name || tool.assigned_team?.name || '-'}
-                                </td>
-                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex gap-1">
-                                    <button onClick={() => openToolModal(tool)} className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
-                                      <Edit size={14} />
-                                    </button>
-                                    <button onClick={() => setDeleteToolConfirm(tool)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Excluir">
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </motion.tr>
-                            ))}
-                          </tbody>
-                        </motion.table>
-                      </div>
-                      <div className="mt-4">
-                        <Pagination currentPage={toolPage} totalPages={toolTotalPages} onPageChange={setToolPage} totalItems={toolTotalItems} itemsPerPage={PER_PAGE} />
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ============= MOVIMENTACOES TAB ============= */}
-          {activeTab === 'movimentacoes' && (
-            <div>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {([
-                  { key: 'transfer', label: 'Transferir', icon: <ArrowRightLeft size={14} /> },
-                  { key: 'assign-employee', label: 'Atribuir Func.', icon: <UserPlus size={14} /> },
-                  { key: 'assign-team', label: 'Atribuir Equipe', icon: <Users size={14} /> },
-                  { key: 'assign-project', label: 'Atribuir Projeto', icon: <FolderKanban size={14} /> },
-                  { key: 'return', label: 'Devolver', icon: <RotateCcw size={14} /> },
-                  { key: 'assign-kit', label: 'Atribuir Kit', icon: <PackagePlus size={14} /> },
-                ] as const).map(action => (
-                  <button
-                    key={action.key}
-                    onClick={() => { setShowMovModal(action.key); setMovForm({ quantity: '1' }); }}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    {action.icon} {action.label}
-                  </button>
-                ))}
-              </div>
-
-              {movementsLoading ? <LoadingSpinner /> : movements.length === 0 ? (
-                <EmptyState message="Nenhuma movimentacao encontrada" />
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
+                <h4 className="text-md font-semibold text-gray-900 flex items-center gap-2 mb-3">
+                  <History size={16} /> Historico de Movimentacoes
+                </h4>
+                {toolMovementsLoading ? <LoadingSpinner /> : toolMovements.length === 0 ? (
+                  <EmptyState message="Nenhuma movimentacao encontrada" />
+                ) : (
+                  <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-100 border-b border-gray-300">
                         <tr>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Ferramenta</th>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Tipo</th>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Qtd</th>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Condicao</th>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Realizado por</th>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Obs</th>
-                          <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Data</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Qtd</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Condicao</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Por</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Obs</th>
+                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {movements.map(m => (
-                          <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{m.tool?.name || '-'}{m.tool?.patrimonio_code ? ` (${m.tool.patrimonio_code})` : ''}</td>
-                            <td className="px-4 py-3">{MOVEMENT_LABELS[m.movement_type] || m.movement_type}</td>
-                            <td className="px-4 py-3">{m.quantity}</td>
-                            <td className="px-4 py-3">{m.condition ? (CONDITION_LABELS[m.condition] || m.condition) : '-'}</td>
-                            <td className="px-4 py-3">{m.performed_by?.name || '-'}</td>
-                            <td className="px-4 py-3 max-w-[200px] truncate">{m.notes || '-'}</td>
-                            <td className="px-4 py-3">{formatDate(m.created_at)}</td>
+                      <tbody>
+                        {toolMovements.map(m => (
+                          <tr key={m.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 text-sm text-gray-900">{MOVEMENT_LABELS[m.movement_type] || m.movement_type}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{m.quantity}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{m.condition ? (CONDITION_LABELS[m.condition] || m.condition) : '-'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{m.performed_by?.name || '-'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">{m.notes || '-'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{formatDate(m.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-4">
-                    <Pagination currentPage={movPage} totalPages={movTotalPages} onPageChange={setMovPage} totalItems={movTotalItems} itemsPerPage={PER_PAGE} />
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Filters */}
+                <div className="mb-6 flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nome, patrimonio, serial..."
+                        value={filterSearch}
+                        onChange={(e) => { setFilterSearch(e.target.value); setToolPage(1); }}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                  <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setToolPage(1); }} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Todas categorias</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <select value={filterControlType} onChange={(e) => { setFilterControlType(e.target.value); setToolPage(1); }} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Todos tipos</option>
+                    <option value="patrimonio">Patrimonio</option>
+                    <option value="quantidade">Quantidade</option>
+                  </select>
+                  <select value={filterCondition} onChange={(e) => { setFilterCondition(e.target.value); setToolPage(1); }} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Todas condicoes</option>
+                    {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                  <button onClick={() => openToolModal()} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <Plus className="w-5 h-5" /> Nova Ferramenta
+                  </button>
+                </div>
 
-          {/* ============= KITS TAB ============= */}
-          {activeTab === 'kits' && (
+                {/* Table */}
+                {toolsLoading ? <LoadingSpinner /> : tools.length === 0 ? (
+                  <EmptyState icon={<Wrench className="w-12 h-12" />} title="Nenhuma ferramenta encontrada" description="Comece cadastrando uma nova ferramenta" />
+                ) : (
+                  <>
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-100 border-b border-gray-300">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nome</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Categoria</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Patrimonio/Qtd</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Condicao</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Atribuido</th>
+                            <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Acoes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <motion.div variants={staggerParent} initial="initial" animate="animate">
+                            {tools.map(tool => (
+                              <motion.tr key={tool.id} variants={tableRowVariants} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => loadToolDetail(tool)}>
+                                <td className="px-6 py-4 text-sm text-gray-900">{tool.name}</td>
+                                <td className="px-6 py-4 text-sm text-gray-900">{tool.category?.name || '-'}</td>
+                                <td className="px-6 py-4 text-sm">
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                                    {tool.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-900">
+                                  {tool.control_type === 'patrimonio' ? (tool.patrimonio_code || '-') : `${tool.quantity_available}/${tool.quantity_total}`}
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${CONDITION_COLORS[tool.condition] || 'bg-gray-100'}`}>
+                                    {CONDITION_LABELS[tool.condition] || tool.condition}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-900">
+                                  {tool.assigned_user?.name || tool.assigned_team?.name || '-'}
+                                </td>
+                                <td className="px-6 py-4 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                                  <button onClick={() => openToolModal(tool)} className="inline-flex items-center gap-2 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors">
+                                    <Edit className="w-4 h-4" /> Editar
+                                  </button>
+                                  <button onClick={() => setDeleteToolConfirm(tool)} className="inline-flex items-center gap-2 px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                                    <Trash2 className="w-4 h-4" /> Deletar
+                                  </button>
+                                </td>
+                              </motion.tr>
+                            ))}
+                          </motion.div>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4">
+                      <Pagination currentPage={toolPage} totalPages={toolTotalPages} onPageChange={setToolPage} totalItems={toolTotalItems} itemsPerPage={PER_PAGE} />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* ============= MOVIMENTACOES TAB ============= */}
+        {activeTab === 'movimentacoes' && (
+          <motion.div key="movimentacoes-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+            <div className="mb-6 flex flex-wrap gap-3">
+              {([
+                { key: 'transfer', label: 'Transferir', icon: <ArrowRightLeft className="w-4 h-4" /> },
+                { key: 'assign-employee', label: 'Atribuir Func.', icon: <UserPlus className="w-4 h-4" /> },
+                { key: 'assign-team', label: 'Atribuir Equipe', icon: <Users className="w-4 h-4" /> },
+                { key: 'assign-project', label: 'Atribuir Projeto', icon: <FolderKanban className="w-4 h-4" /> },
+                { key: 'return', label: 'Devolver', icon: <RotateCcw className="w-4 h-4" /> },
+                { key: 'assign-kit', label: 'Atribuir Kit', icon: <PackagePlus className="w-4 h-4" /> },
+              ] as const).map(action => (
+                <button
+                  key={action.key}
+                  onClick={() => { setShowMovModal(action.key); setMovForm({ quantity: '1' }); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  {action.icon} {action.label}
+                </button>
+              ))}
+            </div>
+
+            {movementsLoading ? <LoadingSpinner /> : movements.length === 0 ? (
+              <EmptyState icon={<ArrowRightLeft className="w-12 h-12" />} title="Nenhuma movimentacao encontrada" description="Utilize os botoes acima para registrar movimentacoes" />
+            ) : (
+              <>
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 border-b border-gray-300">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Ferramenta</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Qtd</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Condicao</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Realizado por</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Obs</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movements.map(m => (
+                        <tr key={m.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 text-sm text-gray-900">{m.tool?.name || '-'}{m.tool?.patrimonio_code ? ` (${m.tool.patrimonio_code})` : ''}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{MOVEMENT_LABELS[m.movement_type] || m.movement_type}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{m.quantity}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{m.condition ? (CONDITION_LABELS[m.condition] || m.condition) : '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{m.performed_by?.name || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">{m.notes || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{formatDate(m.created_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4">
+                  <Pagination currentPage={movPage} totalPages={movTotalPages} onPageChange={setMovPage} totalItems={movTotalItems} itemsPerPage={PER_PAGE} />
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* ============= KITS TAB ============= */}
+        {activeTab === 'kits' && (
+          <motion.div key="kits-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Left: Kit list */}
               <div className="md:col-span-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Kits</h3>
-                  <button onClick={() => openKitModal()} className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                    <Plus size={12} /> Novo Kit
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700">Kits</h3>
+                  <button onClick={() => openKitModal()} className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <Plus className="w-4 h-4" /> Novo Kit
                   </button>
                 </div>
                 {kitsLoading ? <LoadingSpinner /> : kits.length === 0 ? (
-                  <EmptyState message="Nenhum kit cadastrado" />
+                  <EmptyState icon={<PackagePlus className="w-12 h-12" />} title="Nenhum kit cadastrado" description="Crie um kit para agrupar ferramentas por cargo" />
                 ) : (
                   <div className="space-y-2">
                     {kits.map(kit => (
-                      <div
-                        key={kit.id}
-                        onClick={() => setSelectedKit(kit)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedKit?.id === kit.id
-                            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                        }`}
-                      >
+                      <div key={kit.id} onClick={() => setSelectedKit(kit)} className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedKit?.id === kit.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">{kit.name}</p>
-                            <p className="text-xs text-gray-500">{kit.cargo}</p>
+                            <p className="text-sm font-medium text-gray-900">{kit.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">{kit.cargo}</p>
                           </div>
                           <div className="flex gap-1">
-                            <button onClick={(e) => { e.stopPropagation(); openKitModal(kit); }} className="p-1 text-gray-400 hover:text-indigo-600"><Edit size={12} /></button>
-                            <button onClick={(e) => { e.stopPropagation(); setDeleteKitConfirm(kit); }} className="p-1 text-gray-400 hover:text-red-600"><Trash2 size={12} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); openKitModal(kit); }} className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"><Edit className="w-3 h-3" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteKitConfirm(kit); }} className="inline-flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"><Trash2 className="w-3 h-3" /></button>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">{kit.items?.length || 0} itens</p>
+                        <p className="text-xs text-gray-400 mt-2">{kit.items?.length || 0} itens</p>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Right: Kit detail */}
               <div className="md:col-span-2">
                 {selectedKit ? (
-                  <div>
+                  <div className="bg-white rounded-lg shadow p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedKit.name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">{selectedKit.name}</h3>
                         <p className="text-sm text-gray-500">Cargo: {selectedKit.cargo}</p>
                         {selectedKit.description && <p className="text-sm text-gray-400 mt-1">{selectedKit.description}</p>}
                       </div>
-                      <button
-                        onClick={() => setShowAddItemModal(true)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                      >
-                        <Plus size={14} /> Adicionar Item
+                      <button onClick={() => setShowAddItemModal(true)} className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <Plus className="w-4 h-4" /> Adicionar Item
                       </button>
                     </div>
                     {(selectedKit.items?.length || 0) === 0 ? (
                       <EmptyState message="Nenhum item neste kit" />
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                          <thead className="bg-gray-50 dark:bg-gray-700">
+                      <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-gray-100 border-b border-gray-300">
                             <tr>
-                              <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Categoria</th>
-                              <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Quantidade</th>
-                              <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Acoes</th>
+                              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Categoria</th>
+                              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Quantidade</th>
+                              <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Acoes</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                          <tbody>
                             {selectedKit.items?.map(item => (
-                              <tr key={item.id}>
-                                <td className="px-4 py-2">{item.category?.name || '-'}</td>
-                                <td className="px-4 py-2">{item.quantity}</td>
-                                <td className="px-4 py-2">
-                                  <button onClick={() => setDeleteKitItemConfirm(item)} className="p-1 text-gray-400 hover:text-red-600">
-                                    <Trash2 size={14} />
+                              <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4 text-sm text-gray-900">{item.category?.name || '-'}</td>
+                                <td className="px-6 py-4 text-sm text-gray-900">{item.quantity}</td>
+                                <td className="px-6 py-4 text-right">
+                                  <button onClick={() => setDeleteKitItemConfirm(item)} className="inline-flex items-center gap-2 px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                                    <Trash2 className="w-4 h-4" /> Remover
                                   </button>
                                 </td>
                               </tr>
@@ -1064,38 +1045,39 @@ export default function ToolsManagement() {
                     )}
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+                  <div className="bg-white rounded-lg shadow flex items-center justify-center h-48 text-gray-400 text-sm">
                     Selecione um kit para ver detalhes
                   </div>
                 )}
               </div>
             </div>
-          )}
+          </motion.div>
+        )}
 
-          {/* ============= DEPARTAMENTOS TAB ============= */}
-          {activeTab === 'departamentos' && (
+        {/* ============= DEPARTAMENTOS TAB ============= */}
+        {activeTab === 'departamentos' && (
+          <motion.div key="departamentos-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Departments */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><Building2 size={16} /> Departamentos</h3>
-                  <button onClick={() => openDeptModal()} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                    <Plus size={12} /> Novo
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Building2 className="w-5 h-5" /> Departamentos</h3>
+                  <button onClick={() => openDeptModal()} className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <Plus className="w-4 h-4" /> Novo
                   </button>
                 </div>
                 {departments.length === 0 ? (
-                  <EmptyState message="Nenhum departamento" />
+                  <EmptyState icon={<Building2 className="w-12 h-12" />} title="Nenhum departamento" description="Crie departamentos para organizar ferramentas" />
                 ) : (
                   <div className="space-y-2">
                     {departments.map(d => (
-                      <div key={d.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <div key={d.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{d.name}</p>
-                          {d.description && <p className="text-xs text-gray-500">{d.description}</p>}
+                          <p className="text-sm font-medium text-gray-900">{d.name}</p>
+                          {d.description && <p className="text-xs text-gray-500 mt-1">{d.description}</p>}
                         </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => openDeptModal(d)} className="p-1.5 text-gray-400 hover:text-indigo-600"><Edit size={14} /></button>
-                          <button onClick={() => setDeleteDeptConfirm(d)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                        <div className="flex gap-2">
+                          <button onClick={() => openDeptModal(d)} className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => setDeleteDeptConfirm(d)} className="inline-flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     ))}
@@ -1103,27 +1085,26 @@ export default function ToolsManagement() {
                 )}
               </div>
 
-              {/* Categories */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><Tag size={16} /> Categorias de Ferramentas</h3>
-                  <button onClick={() => openCatModal()} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                    <Plus size={12} /> Nova
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2"><Tag className="w-5 h-5" /> Categorias de Ferramentas</h3>
+                  <button onClick={() => openCatModal()} className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <Plus className="w-4 h-4" /> Nova
                   </button>
                 </div>
                 {categories.length === 0 ? (
-                  <EmptyState message="Nenhuma categoria" />
+                  <EmptyState icon={<Tag className="w-12 h-12" />} title="Nenhuma categoria" description="Crie categorias para classificar ferramentas" />
                 ) : (
                   <div className="space-y-2">
                     {categories.map(c => (
-                      <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <div key={c.id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{c.name}</p>
-                          {c.description && <p className="text-xs text-gray-500">{c.description}</p>}
+                          <p className="text-sm font-medium text-gray-900">{c.name}</p>
+                          {c.description && <p className="text-xs text-gray-500 mt-1">{c.description}</p>}
                         </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => openCatModal(c)} className="p-1.5 text-gray-400 hover:text-indigo-600"><Edit size={14} /></button>
-                          <button onClick={() => setDeleteCatConfirm(c)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                        <div className="flex gap-2">
+                          <button onClick={() => openCatModal(c)} className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => setDeleteCatConfirm(c)} className="inline-flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     ))}
@@ -1131,354 +1112,250 @@ export default function ToolsManagement() {
                 )}
               </div>
             </div>
-          )}
-        </div>
+          </motion.div>
+        )}
+
+        {/* ============= MODALS ============= */}
+
+        {/* Tool Modal */}
+        {showToolModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">{editingTool ? 'Editar Ferramenta' : 'Nova Ferramenta'}</h2>
+                <button onClick={() => setShowToolModal(false)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+                  <input type="text" value={toolForm.name} onChange={(e) => setToolForm({ ...toolForm, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                {!editingTool && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Controle *</label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="control_type" value="patrimonio" checked={toolForm.control_type === 'patrimonio'} onChange={() => setToolForm({ ...toolForm, control_type: 'patrimonio' })} /> Patrimonio (codigo unico)</label>
+                      <label className="flex items-center gap-2 text-sm"><input type="radio" name="control_type" value="quantidade" checked={toolForm.control_type === 'quantidade'} onChange={() => setToolForm({ ...toolForm, control_type: 'quantidade' })} /> Quantidade (volume)</label>
+                    </div>
+                  </div>
+                )}
+                {toolForm.control_type === 'patrimonio' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Codigo Patrimonio *</label>
+                    <input type="text" value={toolForm.patrimonio_code} onChange={(e) => setToolForm({ ...toolForm, patrimonio_code: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  </div>
+                )}
+                {toolForm.control_type === 'quantidade' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade Total</label>
+                    <input type="number" min="1" value={toolForm.quantity_total} onChange={(e) => setToolForm({ ...toolForm, quantity_total: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                  <SearchableSelect options={catOptions} value={toolForm.category_id ? parseInt(toolForm.category_id, 10) : undefined} onChange={(v) => setToolForm({ ...toolForm, category_id: v ? String(v) : '' })} placeholder="Selecione categoria..." />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+                    <input type="text" value={toolForm.brand} onChange={(e) => setToolForm({ ...toolForm, brand: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                    <input type="text" value={toolForm.model} onChange={(e) => setToolForm({ ...toolForm, model: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero de Serie</label>
+                  <input type="text" value={toolForm.serial_number} onChange={(e) => setToolForm({ ...toolForm, serial_number: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Condicao</label>
+                  <select value={toolForm.condition} onChange={(e) => setToolForm({ ...toolForm, condition: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Filial</label>
+                    <SearchableSelect options={branchOptions} value={toolForm.branch_id ? parseInt(toolForm.branch_id, 10) : undefined} onChange={(v) => setToolForm({ ...toolForm, branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+                    <SearchableSelect options={deptOptions} value={toolForm.department_id ? parseInt(toolForm.department_id, 10) : undefined} onChange={(v) => setToolForm({ ...toolForm, department_id: v ? String(v) : '' })} placeholder="Selecione depto..." />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label>
+                  <textarea rows={3} value={toolForm.description} onChange={(e) => setToolForm({ ...toolForm, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
+                  <textarea rows={3} value={toolForm.notes} onChange={(e) => setToolForm({ ...toolForm, notes: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowToolModal(false)} className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancelar</button>
+                  <button onClick={handleToolSubmit} disabled={toolFormLoading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    {toolFormLoading ? 'Salvando...' : editingTool ? 'Atualizar' : 'Cadastrar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Movement Modal */}
+        {showMovModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {showMovModal === 'transfer' && 'Transferir Ferramenta'}
+                  {showMovModal === 'assign-employee' && 'Atribuir a Funcionario'}
+                  {showMovModal === 'assign-team' && 'Atribuir a Equipe'}
+                  {showMovModal === 'assign-project' && 'Atribuir a Projeto'}
+                  {showMovModal === 'return' && 'Devolver Ferramenta'}
+                  {showMovModal === 'assign-kit' && 'Atribuir Kit'}
+                </h2>
+                <button onClick={() => { setShowMovModal(null); setMovForm({}); }} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                {showMovModal !== 'assign-kit' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ferramenta *</label>
+                    <SearchableSelect options={toolOptions} value={movForm.tool_id ? parseInt(movForm.tool_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, tool_id: v ? String(v) : '' })} placeholder="Selecione ferramenta..." />
+                  </div>
+                )}
+                {showMovModal === 'transfer' && (<>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Filial destino</label><SearchableSelect options={branchOptions} value={movForm.to_branch_id ? parseInt(movForm.to_branch_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Departamento destino</label><SearchableSelect options={deptOptions} value={movForm.to_department_id ? parseInt(movForm.to_department_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_department_id: v ? String(v) : '' })} placeholder="Selecione depto..." /></div>
+                </>)}
+                {showMovModal === 'assign-employee' && (
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Funcionario *</label><SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionario..." /></div>
+                )}
+                {showMovModal === 'assign-team' && (
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Equipe *</label><SearchableSelect options={teamOptions} value={movForm.team_id ? parseInt(movForm.team_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, team_id: v ? String(v) : '' })} placeholder="Selecione equipe..." /></div>
+                )}
+                {showMovModal === 'assign-project' && (
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Projeto *</label><SearchableSelect options={projectOptions} value={movForm.project_id ? parseInt(movForm.project_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, project_id: v ? String(v) : '' })} placeholder="Selecione projeto..." /></div>
+                )}
+                {showMovModal === 'return' && (<>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Condicao</label><select value={movForm.condition || 'bom'} onChange={(e) => setMovForm({ ...movForm, condition: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Filial destino</label><SearchableSelect options={branchOptions} value={movForm.to_branch_id ? parseInt(movForm.to_branch_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." /></div>
+                </>)}
+                {showMovModal === 'assign-kit' && (<>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Funcionario *</label><SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionario..." /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Kit *</label><SearchableSelect options={kitOptions} value={movForm.kit_id ? parseInt(movForm.kit_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, kit_id: v ? String(v) : '' })} placeholder="Selecione kit..." /></div>
+                </>)}
+                {showMovModal !== 'assign-kit' && (
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Quantidade</label><input type="number" min="1" value={movForm.quantity || '1'} onChange={(e) => setMovForm({ ...movForm, quantity: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                )}
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Observacoes</label><textarea rows={3} value={movForm.notes || ''} onChange={(e) => setMovForm({ ...movForm, notes: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => { setShowMovModal(null); setMovForm({}); }} className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancelar</button>
+                  <button onClick={handleMovAction} disabled={movFormLoading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    {movFormLoading ? 'Processando...' : 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Kit Modal */}
+        {showKitModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">{editingKit ? 'Editar Kit' : 'Novo Kit'}</h2>
+                <button onClick={() => setShowKitModal(false)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label><input type="text" value={kitForm.name} onChange={(e) => setKitForm({ ...kitForm, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Cargo *</label><input type="text" value={kitForm.cargo} onChange={(e) => setKitForm({ ...kitForm, cargo: e.target.value })} placeholder="Ex: Eletricista, Encanador..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label><textarea rows={3} value={kitForm.description} onChange={(e) => setKitForm({ ...kitForm, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowKitModal(false)} className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancelar</button>
+                  <button onClick={handleKitSubmit} disabled={kitFormLoading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    {kitFormLoading ? 'Salvando...' : editingKit ? 'Atualizar' : 'Criar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Add Kit Item Modal */}
+        {showAddItemModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Adicionar Item ao Kit</h2>
+                <button onClick={() => setShowAddItemModal(false)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Categoria *</label><SearchableSelect options={catOptions} value={addItemForm.category_id ? parseInt(addItemForm.category_id, 10) : undefined} onChange={(v) => setAddItemForm({ ...addItemForm, category_id: v ? String(v) : '' })} placeholder="Selecione categoria..." /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Quantidade</label><input type="number" min="1" value={addItemForm.quantity} onChange={(e) => setAddItemForm({ ...addItemForm, quantity: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowAddItemModal(false)} className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancelar</button>
+                  <button onClick={handleAddKitItem} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Adicionar</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Department Modal */}
+        {showDeptModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">{editingDept ? 'Editar Departamento' : 'Novo Departamento'}</h2>
+                <button onClick={() => setShowDeptModal(false)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label><input type="text" value={deptForm.name} onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label><textarea rows={3} value={deptForm.description} onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowDeptModal(false)} className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancelar</button>
+                  <button onClick={handleDeptSubmit} disabled={deptFormLoading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    {deptFormLoading ? 'Salvando...' : editingDept ? 'Atualizar' : 'Criar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Category Modal */}
+        {showCatModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">{editingCat ? 'Editar Categoria' : 'Nova Categoria'}</h2>
+                <button onClick={() => setShowCatModal(false)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label><input type="text" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label><textarea rows={3} value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowCatModal(false)} className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancelar</button>
+                  <button onClick={handleCatSubmit} disabled={catFormLoading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    {catFormLoading ? 'Salvando...' : editingCat ? 'Atualizar' : 'Criar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Confirm Modals */}
+        <ConfirmModal isOpen={!!deleteToolConfirm} title="Excluir Ferramenta" message={`Deseja excluir a ferramenta "${deleteToolConfirm?.name}"?`} onConfirm={handleDeleteTool} onCancel={() => setDeleteToolConfirm(null)} />
+        <ConfirmModal isOpen={!!deleteKitConfirm} title="Excluir Kit" message={`Deseja excluir o kit "${deleteKitConfirm?.name}"?`} onConfirm={handleDeleteKit} onCancel={() => setDeleteKitConfirm(null)} />
+        <ConfirmModal isOpen={!!deleteKitItemConfirm} title="Remover Item" message={`Deseja remover "${deleteKitItemConfirm?.category?.name}" do kit?`} onConfirm={handleDeleteKitItem} onCancel={() => setDeleteKitItemConfirm(null)} />
+        <ConfirmModal isOpen={!!deleteDeptConfirm} title="Excluir Departamento" message={`Deseja excluir o departamento "${deleteDeptConfirm?.name}"?`} onConfirm={handleDeleteDept} onCancel={() => setDeleteDeptConfirm(null)} />
+        <ConfirmModal isOpen={!!deleteCatConfirm} title="Excluir Categoria" message={`Deseja excluir a categoria "${deleteCatConfirm?.name}"?`} onConfirm={handleDeleteCat} onCancel={() => setDeleteCatConfirm(null)} />
       </div>
-
-      {/* ============= MODALS ============= */}
-
-      {/* Tool Modal */}
-      {showToolModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowToolModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingTool ? 'Editar Ferramenta' : 'Nova Ferramenta'}</h3>
-              <button onClick={() => setShowToolModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome *</label>
-                <input type="text" value={toolForm.name} onChange={(e) => setToolForm({ ...toolForm, name: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              {!editingTool && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo de Controle *</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input type="radio" name="control_type" value="patrimonio" checked={toolForm.control_type === 'patrimonio'} onChange={() => setToolForm({ ...toolForm, control_type: 'patrimonio' })} />
-                      Patrimonio (codigo unico)
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input type="radio" name="control_type" value="quantidade" checked={toolForm.control_type === 'quantidade'} onChange={() => setToolForm({ ...toolForm, control_type: 'quantidade' })} />
-                      Quantidade (volume)
-                    </label>
-                  </div>
-                </div>
-              )}
-              {toolForm.control_type === 'patrimonio' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Codigo Patrimonio *</label>
-                  <input type="text" value={toolForm.patrimonio_code} onChange={(e) => setToolForm({ ...toolForm, patrimonio_code: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                </div>
-              )}
-              {toolForm.control_type === 'quantidade' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quantidade Total</label>
-                  <input type="number" min="1" value={toolForm.quantity_total} onChange={(e) => setToolForm({ ...toolForm, quantity_total: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Categoria</label>
-                <SearchableSelect options={catOptions} value={toolForm.category_id ? parseInt(toolForm.category_id, 10) : undefined} onChange={(v) => setToolForm({ ...toolForm, category_id: v ? String(v) : '' })} placeholder="Selecione categoria..." />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Marca</label>
-                  <input type="text" value={toolForm.brand} onChange={(e) => setToolForm({ ...toolForm, brand: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Modelo</label>
-                  <input type="text" value={toolForm.model} onChange={(e) => setToolForm({ ...toolForm, model: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Numero de Serie</label>
-                <input type="text" value={toolForm.serial_number} onChange={(e) => setToolForm({ ...toolForm, serial_number: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Condicao</label>
-                <select value={toolForm.condition} onChange={(e) => setToolForm({ ...toolForm, condition: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Filial</label>
-                  <SearchableSelect options={branchOptions} value={toolForm.branch_id ? parseInt(toolForm.branch_id, 10) : undefined} onChange={(v) => setToolForm({ ...toolForm, branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Departamento</label>
-                  <SearchableSelect options={deptOptions} value={toolForm.department_id ? parseInt(toolForm.department_id, 10) : undefined} onChange={(v) => setToolForm({ ...toolForm, department_id: v ? String(v) : '' })} placeholder="Selecione depto..." />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descricao</label>
-                <textarea rows={2} value={toolForm.description} onChange={(e) => setToolForm({ ...toolForm, description: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Observacoes</label>
-                <textarea rows={2} value={toolForm.notes} onChange={(e) => setToolForm({ ...toolForm, notes: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowToolModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-              <button onClick={handleToolSubmit} disabled={toolFormLoading} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                {toolFormLoading ? 'Salvando...' : editingTool ? 'Atualizar' : 'Cadastrar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Movement Modal */}
-      {showMovModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowMovModal(null); setMovForm({}); }}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {showMovModal === 'transfer' && 'Transferir Ferramenta'}
-                {showMovModal === 'assign-employee' && 'Atribuir a Funcionario'}
-                {showMovModal === 'assign-team' && 'Atribuir a Equipe'}
-                {showMovModal === 'assign-project' && 'Atribuir a Projeto'}
-                {showMovModal === 'return' && 'Devolver Ferramenta'}
-                {showMovModal === 'assign-kit' && 'Atribuir Kit'}
-              </h3>
-              <button onClick={() => { setShowMovModal(null); setMovForm({}); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="space-y-3">
-              {showMovModal !== 'assign-kit' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Ferramenta *</label>
-                  <SearchableSelect options={toolOptions} value={movForm.tool_id ? parseInt(movForm.tool_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, tool_id: v ? String(v) : '' })} placeholder="Selecione ferramenta..." />
-                </div>
-              )}
-              {showMovModal === 'transfer' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Filial destino</label>
-                    <SearchableSelect options={branchOptions} value={movForm.to_branch_id ? parseInt(movForm.to_branch_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Departamento destino</label>
-                    <SearchableSelect options={deptOptions} value={movForm.to_department_id ? parseInt(movForm.to_department_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_department_id: v ? String(v) : '' })} placeholder="Selecione depto..." />
-                  </div>
-                </>
-              )}
-              {showMovModal === 'assign-employee' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Funcionario *</label>
-                  <SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionario..." />
-                </div>
-              )}
-              {showMovModal === 'assign-team' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Equipe *</label>
-                  <SearchableSelect options={teamOptions} value={movForm.team_id ? parseInt(movForm.team_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, team_id: v ? String(v) : '' })} placeholder="Selecione equipe..." />
-                </div>
-              )}
-              {showMovModal === 'assign-project' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Projeto *</label>
-                  <SearchableSelect options={projectOptions} value={movForm.project_id ? parseInt(movForm.project_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, project_id: v ? String(v) : '' })} placeholder="Selecione projeto..." />
-                </div>
-              )}
-              {showMovModal === 'return' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Condicao</label>
-                    <select value={movForm.condition || 'bom'} onChange={(e) => setMovForm({ ...movForm, condition: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                      {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Filial destino</label>
-                    <SearchableSelect options={branchOptions} value={movForm.to_branch_id ? parseInt(movForm.to_branch_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." />
-                  </div>
-                </>
-              )}
-              {showMovModal === 'assign-kit' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Funcionario *</label>
-                    <SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionario..." />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kit *</label>
-                    <SearchableSelect options={kitOptions} value={movForm.kit_id ? parseInt(movForm.kit_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, kit_id: v ? String(v) : '' })} placeholder="Selecione kit..." />
-                  </div>
-                </>
-              )}
-              {showMovModal !== 'assign-kit' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quantidade</label>
-                  <input type="number" min="1" value={movForm.quantity || '1'} onChange={(e) => setMovForm({ ...movForm, quantity: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Observacoes</label>
-                <textarea rows={2} value={movForm.notes || ''} onChange={(e) => setMovForm({ ...movForm, notes: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => { setShowMovModal(null); setMovForm({}); }} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-              <button onClick={handleMovAction} disabled={movFormLoading} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                {movFormLoading ? 'Processando...' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Kit Modal */}
-      {showKitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowKitModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingKit ? 'Editar Kit' : 'Novo Kit'}</h3>
-              <button onClick={() => setShowKitModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome *</label>
-                <input type="text" value={kitForm.name} onChange={(e) => setKitForm({ ...kitForm, name: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cargo *</label>
-                <input type="text" value={kitForm.cargo} onChange={(e) => setKitForm({ ...kitForm, cargo: e.target.value })} placeholder="Ex: Eletricista, Encanador..." className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descricao</label>
-                <textarea rows={2} value={kitForm.description} onChange={(e) => setKitForm({ ...kitForm, description: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowKitModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-              <button onClick={handleKitSubmit} disabled={kitFormLoading} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                {kitFormLoading ? 'Salvando...' : editingKit ? 'Atualizar' : 'Criar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Kit Item Modal */}
-      {showAddItemModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddItemModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Adicionar Item ao Kit</h3>
-              <button onClick={() => setShowAddItemModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Categoria *</label>
-                <SearchableSelect options={catOptions} value={addItemForm.category_id ? parseInt(addItemForm.category_id, 10) : undefined} onChange={(v) => setAddItemForm({ ...addItemForm, category_id: v ? String(v) : '' })} placeholder="Selecione categoria..." />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quantidade</label>
-                <input type="number" min="1" value={addItemForm.quantity} onChange={(e) => setAddItemForm({ ...addItemForm, quantity: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowAddItemModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-              <button onClick={handleAddKitItem} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Adicionar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Department Modal */}
-      {showDeptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDeptModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingDept ? 'Editar Departamento' : 'Novo Departamento'}</h3>
-              <button onClick={() => setShowDeptModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome *</label>
-                <input type="text" value={deptForm.name} onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descricao</label>
-                <textarea rows={2} value={deptForm.description} onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowDeptModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-              <button onClick={handleDeptSubmit} disabled={deptFormLoading} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                {deptFormLoading ? 'Salvando...' : editingDept ? 'Atualizar' : 'Criar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Category Modal */}
-      {showCatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCatModal(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingCat ? 'Editar Categoria' : 'Nova Categoria'}</h3>
-              <button onClick={() => setShowCatModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome *</label>
-                <input type="text" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descricao</label>
-                <textarea rows={2} value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCatModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
-              <button onClick={handleCatSubmit} disabled={catFormLoading} className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                {catFormLoading ? 'Salvando...' : editingCat ? 'Atualizar' : 'Criar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Modals */}
-      <ConfirmModal
-        isOpen={!!deleteToolConfirm}
-        title="Excluir Ferramenta"
-        message={`Deseja excluir a ferramenta "${deleteToolConfirm?.name}"?`}
-        onConfirm={handleDeleteTool}
-        onCancel={() => setDeleteToolConfirm(null)}
-      />
-      <ConfirmModal
-        isOpen={!!deleteKitConfirm}
-        title="Excluir Kit"
-        message={`Deseja excluir o kit "${deleteKitConfirm?.name}"?`}
-        onConfirm={handleDeleteKit}
-        onCancel={() => setDeleteKitConfirm(null)}
-      />
-      <ConfirmModal
-        isOpen={!!deleteKitItemConfirm}
-        title="Remover Item"
-        message={`Deseja remover "${deleteKitItemConfirm?.category?.name}" do kit?`}
-        onConfirm={handleDeleteKitItem}
-        onCancel={() => setDeleteKitItemConfirm(null)}
-      />
-      <ConfirmModal
-        isOpen={!!deleteDeptConfirm}
-        title="Excluir Departamento"
-        message={`Deseja excluir o departamento "${deleteDeptConfirm?.name}"?`}
-        onConfirm={handleDeleteDept}
-        onCancel={() => setDeleteDeptConfirm(null)}
-      />
-      <ConfirmModal
-        isOpen={!!deleteCatConfirm}
-        title="Excluir Categoria"
-        message={`Deseja excluir a categoria "${deleteCatConfirm?.name}"?`}
-        onConfirm={handleDeleteCat}
-        onCancel={() => setDeleteCatConfirm(null)}
-      />
     </div>
   );
 }

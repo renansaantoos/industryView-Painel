@@ -255,6 +255,10 @@ model users {
   logistics_employee                   employees_logistics[]          @relation("logistics_employee")
   logistics_responsavel                employees_logistics[]          @relation("logistics_responsavel")
   work_schedules                       employee_work_schedule[]
+  tools_assigned                       tools[]                        @relation("tool_assigned_user")
+  tool_movements_performed             tool_movements[]               @relation("tool_movement_performer")
+  tool_terms_delivered                  tool_acceptance_terms[]        @relation("tool_term_deliverer")
+  tool_terms_received                  tool_acceptance_terms[]        @relation("tool_term_receiver")
 
   @@index([company_id], map: "idx_users_company_id")
   @@index([created_at(sort: Desc)], map: "idx_users_created_at")
@@ -315,6 +319,10 @@ model company {
   clients               clients[]
   company_holidays      company_holidays[]
   company_work_calendar company_work_calendar?
+  departments           departments[]
+  tool_categories       tool_categories[]
+  tools                 tools[]
+  tool_kits             tool_kits[]
 
   @@index([created_at(sort: Desc)], map: "idx_company_created_at")
   @@index([status_payment_id], map: "idx_company_status_payment_id")
@@ -350,6 +358,7 @@ model company_branches {
   deleted_at          DateTime? @db.Timestamptz(6)
 
   company             company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tools               tools[]
 
   @@index([company_id])
   @@index([created_at(sort: Desc)])
@@ -549,6 +558,7 @@ model projects {
   schedule_imports             schedule_imports[]
   project_holidays             project_holidays[]
   project_work_calendar        project_work_calendar?
+  tools                        tools[]
 
   @@index([company_id], map: "idx_projects_company_id")
   @@index([client_id], map: "idx_projects_client_id")
@@ -720,6 +730,7 @@ model teams {
   dds_records              dds_records[]
   workforce_daily_logs     workforce_daily_log[]
   daily_report_activities  daily_report_activities[]
+  tools_assigned           tools[]                        @relation("tool_assigned_team")
 
   @@index([created_at(sort: Desc)], map: "idx_teams_created_at")
   @@index([projects_id], map: "idx_teams_projects_id")
@@ -2985,4 +2996,168 @@ model project_work_calendar_override {
   calendar                  project_work_calendar @relation(fields: [project_work_calendar_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([project_work_calendar_id, month, year], map: "uq_project_work_calendar_override")
+}
+
+// =============================================================================
+// TOOLS MODULE - Gestao de Ferramentas (patrimonio + quantidade)
+// =============================================================================
+
+model departments {
+  id          BigInt    @id @default(autoincrement())
+  company_id  BigInt
+  name        String    @db.VarChar(120)
+  description String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+
+  company     company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tools       tools[]
+
+  @@index([company_id], map: "idx_departments_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_departments_created_at")
+}
+
+model tool_categories {
+  id          BigInt    @id @default(autoincrement())
+  company_id  BigInt
+  name        String    @db.VarChar(120)
+  description String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+
+  company     company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tools       tools[]
+  tool_kit_items tool_kit_items[]
+
+  @@index([company_id], map: "idx_tool_categories_company_id")
+  @@index([created_at(sort: Desc)], map: "idx_tool_categories_created_at")
+}
+
+model tools {
+  id                  BigInt    @id @default(autoincrement())
+  company_id          BigInt
+  category_id         BigInt?
+  name                String    @db.VarChar(200)
+  description         String?
+  control_type        String    @db.VarChar(20) // 'patrimonio' | 'quantidade'
+  patrimonio_code     String?   @db.VarChar(50)
+  quantity_total      Int       @default(1)
+  quantity_available  Int       @default(1)
+  brand               String?   @db.VarChar(100)
+  model               String?   @db.VarChar(100)
+  serial_number       String?   @db.VarChar(100)
+  condition           String    @default("novo") @db.VarChar(20) // 'novo','bom','regular','danificado','descartado'
+  branch_id           BigInt?
+  department_id       BigInt?
+  project_id          BigInt?
+  assigned_user_id    BigInt?
+  assigned_team_id    BigInt?
+  notes               String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at          DateTime? @db.Timestamptz(6)
+
+  company             company          @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  category            tool_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  branch              company_branches? @relation(fields: [branch_id], references: [id], onUpdate: NoAction)
+  department          departments?     @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  project             projects?        @relation(fields: [project_id], references: [id], onUpdate: NoAction)
+  assigned_user       users?           @relation("tool_assigned_user", fields: [assigned_user_id], references: [id], onUpdate: NoAction)
+  assigned_team       teams?           @relation("tool_assigned_team", fields: [assigned_team_id], references: [id], onUpdate: NoAction)
+  movements           tool_movements[]
+  acceptance_terms    tool_acceptance_terms[]
+
+  @@unique([company_id, patrimonio_code], map: "uq_tools_patrimonio_code")
+  @@index([company_id], map: "idx_tools_company_id")
+  @@index([category_id], map: "idx_tools_category_id")
+  @@index([branch_id], map: "idx_tools_branch_id")
+  @@index([department_id], map: "idx_tools_department_id")
+  @@index([project_id], map: "idx_tools_project_id")
+  @@index([assigned_user_id], map: "idx_tools_assigned_user_id")
+  @@index([assigned_team_id], map: "idx_tools_assigned_team_id")
+  @@index([control_type], map: "idx_tools_control_type")
+  @@index([created_at(sort: Desc)], map: "idx_tools_created_at")
+}
+
+model tool_movements {
+  id                BigInt    @id @default(autoincrement())
+  tool_id           BigInt
+  movement_type     String    @db.VarChar(30) // 'entrada','saida','transferencia','atribuicao_funcionario','atribuicao_equipe','atribuicao_projeto','devolucao','atribuicao_kit'
+  quantity          Int       @default(1)
+  from_branch_id    BigInt?
+  from_department_id BigInt?
+  from_user_id      BigInt?
+  from_team_id      BigInt?
+  from_project_id   BigInt?
+  to_branch_id      BigInt?
+  to_department_id  BigInt?
+  to_user_id        BigInt?
+  to_team_id        BigInt?
+  to_project_id     BigInt?
+  condition         String?   @db.VarChar(20)
+  notes             String?
+  performed_by_id   BigInt
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+
+  tool              tools     @relation(fields: [tool_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  performed_by      users     @relation("tool_movement_performer", fields: [performed_by_id], references: [id], onUpdate: NoAction)
+
+  @@index([tool_id], map: "idx_tool_movements_tool_id")
+  @@index([movement_type], map: "idx_tool_movements_type")
+  @@index([performed_by_id], map: "idx_tool_movements_performer")
+  @@index([created_at(sort: Desc)], map: "idx_tool_movements_created_at")
+}
+
+model tool_acceptance_terms {
+  id              BigInt    @id @default(autoincrement())
+  tool_id         BigInt
+  delivered_by_id BigInt
+  received_by_id  BigInt
+  delivery_date   DateTime  @default(now()) @db.Timestamptz(6)
+  notes           String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  tool            tools     @relation(fields: [tool_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  delivered_by    users     @relation("tool_term_deliverer", fields: [delivered_by_id], references: [id], onUpdate: NoAction)
+  received_by     users     @relation("tool_term_receiver", fields: [received_by_id], references: [id], onUpdate: NoAction)
+
+  @@index([tool_id], map: "idx_tool_acceptance_terms_tool_id")
+  @@index([delivered_by_id], map: "idx_tool_acceptance_terms_delivered_by")
+  @@index([received_by_id], map: "idx_tool_acceptance_terms_received_by")
+  @@index([created_at(sort: Desc)], map: "idx_tool_acceptance_terms_created_at")
+}
+
+model tool_kits {
+  id          BigInt    @id @default(autoincrement())
+  company_id  BigInt
+  name        String    @db.VarChar(120)
+  cargo       String    @db.VarChar(100) // cargo do funcionario (ex: "Eletricista")
+  description String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+
+  company     company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items       tool_kit_items[]
+
+  @@index([company_id], map: "idx_tool_kits_company_id")
+  @@index([cargo], map: "idx_tool_kits_cargo")
+  @@index([created_at(sort: Desc)], map: "idx_tool_kits_created_at")
+}
+
+model tool_kit_items {
+  id              BigInt    @id @default(autoincrement())
+  kit_id          BigInt
+  category_id     BigInt
+  quantity        Int       @default(1)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  kit             tool_kits       @relation(fields: [kit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  category        tool_categories @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+
+  @@unique([kit_id, category_id], map: "uq_tool_kit_items_kit_category")
+  @@index([kit_id], map: "idx_tool_kit_items_kit_id")
+  @@index([category_id], map: "idx_tool_kit_items_category_id")
 }

@@ -67,6 +67,7 @@ import { scheduleImportRoutes } from './modules/schedule-import';
 import { clientsRoutes } from './modules/clients';
 import { holidaysRoutes } from './modules/holidays';
 import { projectCalendarRoutes } from './modules/project-calendar';
+import { toolsRoutes } from './modules/tools';
 
 // Import scheduled jobs
 import { registerJobs } from './jobs';
@@ -481,6 +482,7 @@ app.use(`${API_PREFIX}/schedule-import`, scheduleImportRoutes);
 app.use(`${API_PREFIX}/clients`, clientsRoutes);
 app.use(`${API_PREFIX}/holidays`, holidaysRoutes);
 app.use(`${API_PREFIX}/project-calendar`, projectCalendarRoutes);
+app.use(`${API_PREFIX}/tools`, toolsRoutes);
 
 // =============================================================================
 // File Upload Endpoint - Upload generico de arquivos
