@@ -569,6 +569,7 @@ export default function HealthTab({ usersId }: HealthTabProps) {
                       type="date"
                       className="input-field"
                       value={form.exam_date}
+                      max={new Date().toISOString().slice(0, 10)}
                       onChange={(e) => handleFormChange('exam_date', e.target.value)}
                       style={
                         touched.exam_date && !form.exam_date ? { borderColor: '#dc2626' } : {}
