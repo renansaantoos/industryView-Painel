@@ -19,7 +19,7 @@ export interface WorkPermit {
   cancelled_at?: string;
   cancellation_reason?: string;
   renewal_reason?: string;
-  projects_backlogs_id?: number;
+  tasks_id?: number;
   requester_name?: string;
   approver_name?: string;
   created_at: string;

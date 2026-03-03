@@ -4,8 +4,9 @@ import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppState } from '../../contexts/AppStateContext';
-import { workPermitsApi, projectsApi } from '../../services';
-import type { WorkPermit, WorkPermitSignature, ProjectInfo, ProjectBacklog } from '../../types';
+import { workPermitsApi, projectsApi, tasksApi } from '../../services';
+import type { WorkPermit, WorkPermitSignature, ProjectInfo } from '../../types';
+import type { Task } from '../../types/task';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import SortableHeader from '../../components/common/SortableHeader';
@@ -181,9 +182,9 @@ export default function WorkPermits() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   const [createProjectId, setCreateProjectId] = useState<number | ''>('');
-  const [createBacklogId, setCreateBacklogId] = useState<number | ''>('');
-  const [projectBacklogs, setProjectBacklogs] = useState<ProjectBacklog[]>([]);
-  const [backlogsLoading, setBacklogsLoading] = useState(false);
+  const [createTaskId, setCreateTaskId] = useState<number | ''>('');
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
 
   // ── Projects list for modal dropdown ────────────────────────────────────────
   const [allProjects, setAllProjects] = useState<ProjectInfo[]>([]);
@@ -267,15 +268,14 @@ export default function WorkPermits() {
     if (projectsInfo?.id) setCreateProjectId(projectsInfo.id);
   }, [projectsInfo]);
 
-  // Load backlogs when project selection changes in create modal
+  // Load task templates once on mount
   useEffect(() => {
-    if (!createProjectId) { setProjectBacklogs([]); setCreateBacklogId(''); return; }
-    setBacklogsLoading(true);
-    projectsApi.getAllProjectBacklogs(Number(createProjectId))
-      .then((data) => setProjectBacklogs(Array.isArray(data) ? data : []))
+    setTasksLoading(true);
+    tasksApi.queryAllTasksNoPagination()
+      .then((data) => setAllTasks(Array.isArray(data) ? data : []))
       .catch(() => {})
-      .finally(() => setBacklogsLoading(false));
-  }, [createProjectId]);
+      .finally(() => setTasksLoading(false));
+  }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -356,7 +356,7 @@ export default function WorkPermits() {
         valid_until: createValidUntil || undefined,
         projects_id: Number(createProjectId),
         company_id: user?.companyId,
-        projects_backlogs_id: createBacklogId ? Number(createBacklogId) : undefined,
+        tasks_id: createTaskId ? Number(createTaskId) : undefined,
       });
       setCreateLocation('');
       setCreateRiskDescription('');
@@ -364,7 +364,7 @@ export default function WorkPermits() {
       setCreateValidFrom('');
       setCreateValidUntil('');
       setCreateType('pt_geral');
-      setCreateBacklogId('');
+      setCreateTaskId('');
       setCreateErrors({});
       setShowCreateModal(false);
       showToast(t('workPermits.createSuccess'), 'success');
@@ -833,7 +833,7 @@ export default function WorkPermits() {
 
       {/* Create Permit Modal */}
       {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); setCreateBacklogId(''); }}>
+        <div className="modal-backdrop" onClick={() => { setShowCreateModal(false); setCreateErrors({}); setCreateTaskId(''); }}>
           <div
             className="modal-content"
             style={{ padding: '24px', width: '540px' }}
@@ -869,10 +869,10 @@ export default function WorkPermits() {
               <div className="input-group">
                 <label>Tarefa vinculada</label>
                 <SearchableSelect
-                  options={projectBacklogs.map((b) => ({ value: b.id, label: b.name || b.description || `#${b.id}` }))}
-                  value={createBacklogId || undefined}
-                  onChange={(val) => setCreateBacklogId(val !== undefined ? Number(val) : '')}
-                  placeholder={backlogsLoading ? 'Carregando tarefas...' : (createProjectId ? 'Selecione uma tarefa (opcional)...' : 'Selecione um projeto primeiro')}
+                  options={allTasks.map((t) => ({ value: t.id, label: t.name }))}
+                  value={createTaskId || undefined}
+                  onChange={(val) => setCreateTaskId(val !== undefined ? Number(val) : '')}
+                  placeholder={tasksLoading ? 'Carregando tarefas...' : 'Selecione uma tarefa (opcional)...'}
                   allowClear
                 />
               </div>
@@ -952,7 +952,7 @@ export default function WorkPermits() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); setCreateBacklogId(''); }}>
+              <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateErrors({}); setCreateTaskId(''); }}>
                 {t('common.cancel')}
               </button>
               <button
