@@ -51,11 +51,7 @@ export default function EmptyState({ message, title, description, icon, action }
         color: 'var(--color-secondary-text)',
         marginBottom: action ? '16px' : '0',
       }}>
-<<<<<<< Updated upstream
-        {description || message || t('common.noData')}
-=======
         {displayMessage}
->>>>>>> Stashed changes
       </p>
       {action}
     </motion.div>
