@@ -12,7 +12,7 @@ export 'api_manager.dart' show ApiCallResponse;
 
 const _kPrivateApiFunctionName = 'privateApiCall';
 final _kPainelBaseUrl =
-    dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1';
+    (dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1').replaceAll(RegExp(r'/$'), '');
 
 /// Start Authentication Group Code
 

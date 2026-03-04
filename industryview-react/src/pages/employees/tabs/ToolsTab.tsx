@@ -6,7 +6,7 @@ import type { Tool, ToolKit } from '../../../types';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 import EmptyState from '../../../components/common/EmptyState';
 import SearchableSelect from '../../../components/common/SearchableSelect';
-import { Wrench, Plus, RotateCcw, Boxes, ClipboardList } from 'lucide-react';
+import { Wrench, Plus, RotateCcw, Boxes } from 'lucide-react';
 
 interface ToolsTabProps {
   usersId: number;

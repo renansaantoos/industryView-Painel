@@ -6,11 +6,13 @@ import { emptyStateVariants } from '../../lib/motion';
 
 interface EmptyStateProps {
   message?: string;
+  title?: string;
+  description?: string;
   icon?: ReactNode;
   action?: ReactNode;
 }
 
-export default function EmptyState({ message, icon, action }: EmptyStateProps) {
+export default function EmptyState({ message, title, description, icon, action }: EmptyStateProps) {
   const { t } = useTranslation();
 
   return (
@@ -33,12 +35,22 @@ export default function EmptyState({ message, icon, action }: EmptyStateProps) {
       }}>
         {icon || <Inbox size={48} />}
       </div>
+      {title && (
+        <p style={{
+          fontSize: '16px',
+          fontWeight: 600,
+          color: 'var(--color-primary-text)',
+          marginBottom: '4px',
+        }}>
+          {title}
+        </p>
+      )}
       <p style={{
         fontSize: '14px',
         color: 'var(--color-secondary-text)',
         marginBottom: action ? '16px' : '0',
       }}>
-        {message || t('common.noData')}
+        {description || message || t('common.noData')}
       </p>
       {action}
     </motion.div>
