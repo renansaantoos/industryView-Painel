@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useAppState } from '../../contexts/AppStateContext';
@@ -176,6 +176,14 @@ export default function ToolsManagement() {
   const [movForm, setMovForm] = useState<Record<string, string>>({});
   const [movFormLoading, setMovFormLoading] = useState(false);
 
+  // ---- Transfer state ----
+  const [transferTools, setTransferTools] = useState<Tool[]>([]);
+  const [transferLoadingTools, setTransferLoadingTools] = useState(false);
+  const [transferSelectedIds, setTransferSelectedIds] = useState<number[]>([]);
+  const [transferSearch, setTransferSearch] = useState('');
+  const [transferProjectId, setTransferProjectId] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
+
   // ---- Kits state ----
   const [kits, setKits] = useState<ToolKit[]>([]);
   const [kitsLoading, setKitsLoading] = useState(true);
@@ -210,6 +218,10 @@ export default function ToolsManagement() {
   const [expandedModels, setExpandedModels] = useState<Set<number>>(new Set());
   const [modelInstances, setModelInstances] = useState<Record<number, Tool[]>>({});
   const [loadingModelInstances, setLoadingModelInstances] = useState<Record<number, boolean>>({});
+
+  // ---- Search state ----
+  const [modelSearch, setModelSearch] = useState('');
+  const modelSearchRef = useRef('');
 
   // ---- Bulk instance creation state ----
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -294,7 +306,9 @@ export default function ToolsManagement() {
   const loadToolModels = useCallback(async (page = 1) => {
     setLoadingModels(true);
     try {
-      const data = await toolsApi.listToolModels({ page, per_page: PER_PAGE });
+      const params: Parameters<typeof toolsApi.listToolModels>[0] = { page, per_page: PER_PAGE };
+      if (modelSearchRef.current.trim()) params.search = modelSearchRef.current.trim();
+      const data = await toolsApi.listToolModels(params);
       setToolModels(data.items ?? []);
       setToolModelsPagination({
         page: Number(data.curPage) || page,
@@ -352,8 +366,33 @@ export default function ToolsManagement() {
   }, [activeTab, loadKits]);
 
   useEffect(() => {
-    if (activeTab === 'modelos') loadToolModels(toolModelsPagination.page);
+    if (activeTab === 'modelos' || activeTab === 'cadastro') loadToolModels(1);
   }, [activeTab, loadToolModels]);
+
+  // Debounce: recarrega modelos 350ms após o usuário parar de digitar
+  useEffect(() => {
+    const timer = setTimeout(() => loadToolModels(1), 350);
+    return () => clearTimeout(timer);
+  }, [modelSearch, loadToolModels]);
+
+  useEffect(() => {
+    if (showMovModal === 'transfer') {
+      setTransferSelectedIds([]);
+      setTransferSearch('');
+      setTransferProjectId('');
+      setTransferNotes('');
+      setTransferLoadingTools(true);
+      toolsApi.listTools({ per_page: 200 })
+        .then(data => setTransferTools(data.items ?? []))
+        .catch(() => setTransferTools([]))
+        .finally(() => setTransferLoadingTools(false));
+    }
+  }, [showMovModal]);
+
+  const handleModelSearchChange = (value: string) => {
+    modelSearchRef.current = value;
+    setModelSearch(value);
+  };
 
   /* =========================================
      Tool CRUD
@@ -529,6 +568,32 @@ export default function ToolsManagement() {
   /* =========================================
      Movement Actions
      ========================================= */
+
+  const handleTransfer = async () => {
+    if (transferSelectedIds.length === 0) {
+      showToast('Selecione ao menos uma ferramenta', 'error');
+      return;
+    }
+    setMovFormLoading(true);
+    try {
+      await toolsApi.transferTool({
+        tool_ids: transferSelectedIds,
+        to_project_id: transferProjectId ? parseInt(transferProjectId, 10) : undefined,
+        notes: transferNotes || undefined,
+      });
+      showToast(`${transferSelectedIds.length} ferramenta(s) transferida(s) com sucesso`, 'success');
+      setShowMovModal(null);
+      loadMovements();
+      const affectedModelIds = new Set(
+        transferTools.filter(t => transferSelectedIds.includes(t.id)).map(t => t.model_id)
+      );
+      affectedModelIds.forEach(mid => refreshModelInstances(mid));
+    } catch {
+      showToast('Erro na transferencia', 'error');
+    } finally {
+      setMovFormLoading(false);
+    }
+  };
 
   const handleMovAction = async () => {
     if (!showMovModal) return;
@@ -890,11 +955,27 @@ export default function ToolsManagement() {
       {/* ============= MODELOS TAB ============= */}
       {activeTab === 'modelos' && (
         <motion.div key="modelos-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '140px', maxWidth: '800px', position: 'relative' }}>
+              <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                value={modelSearch}
+                onChange={(e) => handleModelSearchChange(e.target.value)}
+                placeholder="Buscar por nome, marca ou modelo..."
+                className="input-field"
+                style={{ paddingLeft: '32px', paddingRight: modelSearch ? '32px' : undefined }}
+              />
+              {modelSearch && (
+                <button onClick={() => handleModelSearchChange('')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                  <X size={14} color="var(--color-secondary-text)" />
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', margin: 0 }}>
               {toolModelsPagination.totalItems} {toolModelsPagination.totalItems === 1 ? 'modelo' : 'modelos'}
             </p>
-            <button onClick={() => openModelModal()} className="btn btn-primary">
+            <button onClick={() => openModelModal()} className="btn btn-primary" style={{ whiteSpace: 'nowrap', marginLeft: 'auto' }}>
               <Plus size={16} /> Novo Modelo
             </button>
           </div>
@@ -955,7 +1036,7 @@ export default function ToolsManagement() {
                   totalPages={toolModelsPagination.totalPages}
                   onPageChange={(p) => loadToolModels(p)}
                   totalItems={toolModelsPagination.totalItems}
-                  itemsPerPage={PER_PAGE}
+                  perPage={PER_PAGE}
                 />
               </div>
             </>
@@ -1038,11 +1119,27 @@ export default function ToolsManagement() {
           ) : (
             <>
               {/* Header row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '140px', maxWidth: '800px', position: 'relative' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    value={modelSearch}
+                    onChange={(e) => handleModelSearchChange(e.target.value)}
+                    placeholder="Buscar por nome, marca ou modelo..."
+                    className="input-field"
+                    style={{ paddingLeft: '32px', paddingRight: modelSearch ? '32px' : undefined }}
+                  />
+                  {modelSearch && (
+                    <button onClick={() => handleModelSearchChange('')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                      <X size={14} color="var(--color-secondary-text)" />
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', margin: 0 }}>
                   {toolModelsPagination.totalItems} {toolModelsPagination.totalItems === 1 ? 'modelo' : 'modelos'}
                 </p>
-                <button onClick={() => openToolModal()} className="btn btn-primary">
+                <button onClick={() => openToolModal()} className="btn btn-primary" style={{ whiteSpace: 'nowrap', marginLeft: 'auto' }}>
                   <Plus size={16} /> Nova Instancia
                 </button>
               </div>
@@ -1197,10 +1294,11 @@ export default function ToolsManagement() {
                     totalPages={toolModelsPagination.totalPages}
                     onPageChange={(p) => loadToolModels(p)}
                     totalItems={toolModelsPagination.totalItems}
-                    itemsPerPage={PER_PAGE}
+                    perPage={PER_PAGE}
                   />
                 </div>
               )}
+
             </>
           )}
         </motion.div>
@@ -1261,7 +1359,7 @@ export default function ToolsManagement() {
                 </table>
               </div>
               <div style={{ marginTop: '16px' }}>
-                <Pagination currentPage={movPage} totalPages={movTotalPages} onPageChange={setMovPage} totalItems={movTotalItems} itemsPerPage={PER_PAGE} />
+                <Pagination currentPage={movPage} totalPages={movTotalPages} onPageChange={setMovPage} totalItems={movTotalItems} perPage={PER_PAGE} />
               </div>
             </>
           )}
@@ -1639,11 +1737,10 @@ export default function ToolsManagement() {
       )}
 
       {/* Movement Modal */}
-      {showMovModal && (
+      {showMovModal && showMovModal !== 'transfer' && (
         <div className="modal-backdrop" onClick={() => { setShowMovModal(null); setMovForm({}); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%', padding: '24px' }}>
             <h3>
-              {showMovModal === 'transfer' && 'Transferir Ferramenta'}
               {showMovModal === 'assign-employee' && 'Atribuir a Funcionario'}
               {showMovModal === 'assign-team' && 'Atribuir a Equipe'}
               {showMovModal === 'assign-project' && 'Atribuir a Projeto'}
@@ -1657,10 +1754,6 @@ export default function ToolsManagement() {
                   <SearchableSelect options={toolOptions} value={movForm.tool_id ? parseInt(movForm.tool_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, tool_id: v ? String(v) : '' })} placeholder="Selecione ferramenta..." />
                 </div>
               )}
-              {showMovModal === 'transfer' && (<>
-                <div className="input-group"><label>Filial destino</label><SearchableSelect options={branchOptions} value={movForm.to_branch_id ? parseInt(movForm.to_branch_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." /></div>
-                <div className="input-group"><label>Departamento destino</label><SearchableSelect options={deptOptions} value={movForm.to_department_id ? parseInt(movForm.to_department_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_department_id: v ? String(v) : '' })} placeholder="Selecione depto..." /></div>
-              </>)}
               {showMovModal === 'assign-employee' && (
                 <div className="input-group"><label>Funcionario *</label><SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionario..." /></div>
               )}
@@ -1687,6 +1780,171 @@ export default function ToolsManagement() {
               <button className="btn btn-secondary" onClick={() => { setShowMovModal(null); setMovForm({}); }}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleMovAction} disabled={movFormLoading}>
                 {movFormLoading ? <span className="spinner" /> : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showMovModal === 'transfer' && (
+        <div className="modal-backdrop" onClick={() => setShowMovModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px', width: '95%', padding: '24px', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <h3>Transferencia em Massa</h3>
+              <span style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                {transferSelectedIds.length} selecionada(s)
+              </span>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '16px' }}>
+              Selecione as ferramentas e o projeto/cliente de destino.
+            </p>
+
+            {/* Destination project */}
+            <div className="input-group" style={{ marginBottom: '12px' }}>
+              <label>Projeto / Cliente de destino</label>
+              <SearchableSelect
+                options={projectOptions}
+                value={transferProjectId ? parseInt(transferProjectId, 10) : undefined}
+                onChange={(v) => setTransferProjectId(v ? String(v) : '')}
+                placeholder="Selecione o projeto ou cliente..."
+              />
+            </div>
+
+            {/* Tool search */}
+            <div style={{ position: 'relative', marginBottom: '10px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                value={transferSearch}
+                onChange={(e) => setTransferSearch(e.target.value)}
+                placeholder="Buscar ferramenta..."
+                className="input-field"
+                style={{ paddingLeft: '30px' }}
+              />
+            </div>
+
+            {/* Select all */}
+            {!transferLoadingTools && transferTools.length > 0 && (() => {
+              const filtered = transferTools.filter(t => {
+                if (!transferSearch.trim()) return true;
+                const q = transferSearch.toLowerCase();
+                return (
+                  (t.model?.name || '').toLowerCase().includes(q) ||
+                  (t.patrimonio_code || '').toLowerCase().includes(q) ||
+                  (t.serial_number || '').toLowerCase().includes(q)
+                );
+              });
+              const allSelected = filtered.length > 0 && filtered.every(t => transferSelectedIds.includes(t.id));
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', padding: '6px 10px', background: 'var(--color-tertiary-bg)', borderRadius: '6px' }}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => {
+                      if (allSelected) {
+                        setTransferSelectedIds(prev => prev.filter(id => !filtered.map(t => t.id).includes(id)));
+                      } else {
+                        const toAdd = filtered.map(t => t.id).filter(id => !transferSelectedIds.includes(id));
+                        setTransferSelectedIds(prev => [...prev, ...toAdd]);
+                      }
+                    }}
+                  />
+                  <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                    {allSelected ? 'Desmarcar todos' : `Selecionar todos (${filtered.length})`}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Tools list */}
+            <div style={{ overflowY: 'auto', flex: 1, border: '1px solid var(--color-alternate)', borderRadius: '8px' }}>
+              {transferLoadingTools ? (
+                <div style={{ padding: '32px', display: 'flex', justifyContent: 'center' }}>
+                  <LoadingSpinner />
+                </div>
+              ) : (() => {
+                const filtered = transferTools.filter(t => {
+                  if (!transferSearch.trim()) return true;
+                  const q = transferSearch.toLowerCase();
+                  return (
+                    (t.model?.name || '').toLowerCase().includes(q) ||
+                    (t.patrimonio_code || '').toLowerCase().includes(q) ||
+                    (t.serial_number || '').toLowerCase().includes(q)
+                  );
+                });
+                if (filtered.length === 0) return (
+                  <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                    Nenhuma ferramenta encontrada
+                  </div>
+                );
+                return filtered.map(tool => {
+                  const checked = transferSelectedIds.includes(tool.id);
+                  return (
+                    <label
+                      key={tool.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
+                        cursor: 'pointer', borderBottom: '1px solid var(--color-alternate)',
+                        background: checked ? 'var(--color-tertiary-bg)' : 'transparent',
+                        transition: 'background 0.1s',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setTransferSelectedIds(prev =>
+                            checked ? prev.filter(id => id !== tool.id) : [...prev, tool.id]
+                          );
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, fontSize: '13px' }}>
+                          {tool.model?.name || `Ferramenta #${tool.id}`}
+                          {tool.patrimonio_code && (
+                            <span style={{ marginLeft: '8px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                              PAT: {tool.patrimonio_code}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '2px' }}>
+                          {tool.model?.brand && <span>{tool.model.brand} · </span>}
+                          <span className="badge" style={{ ...CONDITION_STYLES[tool.condition], fontSize: '10px', padding: '1px 6px' }}>
+                            {CONDITION_LABELS[tool.condition] || tool.condition}
+                          </span>
+                          {tool.branch && <span style={{ marginLeft: '6px' }}>{tool.branch.brand_name}</span>}
+                          {tool.project && <span style={{ marginLeft: '6px' }}>Projeto: {tool.project.name}</span>}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Notes */}
+            <div className="input-group" style={{ marginTop: '12px', marginBottom: 0 }}>
+              <label>Observacoes</label>
+              <textarea
+                rows={2}
+                value={transferNotes}
+                onChange={(e) => setTransferNotes(e.target.value)}
+                className="input-field"
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowMovModal(null)}>Cancelar</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleTransfer}
+                disabled={movFormLoading || transferSelectedIds.length === 0}
+              >
+                {movFormLoading
+                  ? <span className="spinner" />
+                  : `Transferir ${transferSelectedIds.length > 0 ? transferSelectedIds.length : ''} ferramenta(s)`
+                }
               </button>
             </div>
           </div>

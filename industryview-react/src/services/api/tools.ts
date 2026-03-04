@@ -175,13 +175,11 @@ export async function listMovements(params?: {
 }
 
 export async function transferTool(data: {
-  tool_id: number;
-  to_branch_id?: number;
-  to_department_id?: number;
+  tool_ids: number[];
+  to_project_id?: number;
   quantity?: number;
-  condition?: string;
   notes?: string;
-}): Promise<Tool> {
+}): Promise<Tool[]> {
   const response = await apiClient.post(`${BASE}/movements/transfer`, data);
   return response.data;
 }

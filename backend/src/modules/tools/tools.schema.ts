@@ -146,11 +146,9 @@ export const listMovementsSchema = z.object({
 });
 
 export const transferSchema = z.object({
-  tool_id: z.coerce.number().int().min(1, 'tool_id e obrigatorio'),
-  to_branch_id: z.coerce.number().int().optional(),
-  to_department_id: z.coerce.number().int().optional(),
+  tool_ids: z.array(z.coerce.number().int().min(1)).min(1, 'Selecione ao menos uma ferramenta'),
+  to_project_id: z.coerce.number().int().optional(),
   quantity: z.coerce.number().int().min(1).optional().default(1),
-  condition: z.enum(['novo', 'bom', 'regular', 'danificado', 'descartado']).optional(),
   notes: z.string().trim().optional(),
 });
 

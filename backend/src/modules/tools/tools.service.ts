@@ -461,47 +461,48 @@ export class ToolsService {
   }
 
   static async transfer(input: TransferInput, performedById: number) {
-    const tool = await db.tools.findFirst({
-      where: { id: BigInt(input.tool_id), deleted_at: null },
-      include: { model: true },
-    });
-    if (!tool) throw new NotFoundError('Ferramenta nao encontrada.');
+    const results = [];
+    for (const toolId of input.tool_ids) {
+      const tool = await db.tools.findFirst({
+        where: { id: BigInt(toolId), deleted_at: null },
+        include: { model: true },
+      });
+      if (!tool) throw new NotFoundError(`Ferramenta ${toolId} nao encontrada.`);
 
-    if (tool.model.control_type === 'quantidade' && input.quantity > tool.quantity_available) {
-      throw new BadRequestError('Quantidade indisponivel para transferencia.');
+      const qty = tool.model.control_type === 'quantidade' ? (input.quantity ?? 1) : 1;
+
+      await db.tool_movements.create({
+        data: {
+          tool_id: BigInt(toolId),
+          movement_type: 'transferencia',
+          quantity: qty,
+          from_branch_id: tool.branch_id,
+          from_department_id: tool.department_id,
+          from_project_id: tool.project_id,
+          to_project_id: input.to_project_id ? BigInt(input.to_project_id) : null,
+          notes: input.notes ?? null,
+          performed_by_id: BigInt(performedById),
+        },
+      });
+
+      const updated = await db.tools.update({
+        where: { id: BigInt(toolId) },
+        data: {
+          project_id: input.to_project_id ? BigInt(input.to_project_id) : null,
+          branch_id: null,
+          department_id: null,
+          updated_at: new Date(),
+        },
+        include: {
+          model: { include: { category: { select: { id: true, name: true } } } },
+          branch: { select: { id: true, brand_name: true } },
+          department: { select: { id: true, name: true } },
+          project: { select: { id: true, name: true } },
+        },
+      });
+      results.push(updated);
     }
-
-    // Registra movement
-    await db.tool_movements.create({
-      data: {
-        tool_id: BigInt(input.tool_id),
-        movement_type: 'transferencia',
-        quantity: input.quantity,
-        from_branch_id: tool.branch_id,
-        from_department_id: tool.department_id,
-        to_branch_id: input.to_branch_id ? BigInt(input.to_branch_id) : null,
-        to_department_id: input.to_department_id ? BigInt(input.to_department_id) : null,
-        condition: input.condition ?? tool.condition,
-        notes: input.notes ?? null,
-        performed_by_id: BigInt(performedById),
-      },
-    });
-
-    // Atualiza localizacao da ferramenta
-    return db.tools.update({
-      where: { id: BigInt(input.tool_id) },
-      data: {
-        branch_id: input.to_branch_id ? BigInt(input.to_branch_id) : tool.branch_id,
-        department_id: input.to_department_id ? BigInt(input.to_department_id) : tool.department_id,
-        condition: input.condition ?? tool.condition,
-        updated_at: new Date(),
-      },
-      include: {
-        model: { include: { category: { select: { id: true, name: true } } } },
-        branch: { select: { id: true, brand_name: true } },
-        department: { select: { id: true, name: true } },
-      },
-    });
+    return results;
   }
 
   static async assignEmployee(input: AssignEmployeeInput, performedById: number) {
