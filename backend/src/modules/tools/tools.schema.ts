@@ -61,7 +61,7 @@ export const listToolModelsSchema = z.object({
   category_id: z.coerce.number().int().optional(),
   search: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
-  per_page: z.coerce.number().int().min(1).max(100).optional().default(20),
+  per_page: z.coerce.number().int().min(1).max(500).optional().default(20),
 });
 
 export const getToolModelByIdSchema = z.object({
@@ -102,7 +102,7 @@ export const listToolsSchema = z.object({
   condition: z.enum(['novo', 'bom', 'regular', 'danificado', 'descartado']).optional(),
   search: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
-  per_page: z.coerce.number().int().min(1).max(100).optional().default(10),
+  per_page: z.coerce.number().int().min(1).max(500).optional().default(10),
 });
 
 export const getToolByIdSchema = z.object({
@@ -185,6 +185,10 @@ export const returnToolSchema = z.object({
 export const assignKitSchema = z.object({
   user_id: z.coerce.number().int().min(1, 'user_id e obrigatorio'),
   kit_id: z.coerce.number().int().min(1, 'kit_id e obrigatorio'),
+  tool_selections: z.array(z.object({
+    model_id: z.coerce.number().int().min(1),
+    tool_id: z.coerce.number().int().min(1),
+  })).optional(),
   notes: z.string().trim().optional(),
 });
 

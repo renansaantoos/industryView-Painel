@@ -704,20 +704,38 @@ export class ToolsService {
       for (const kitItem of kit.items) {
         const toolModel = kitItem.model;
 
-        // Busca instancia disponivel do modelo na empresa do kit
-        const tool = await tx.tools.findFirst({
-          where: {
-            model_id: toolModel.id,
-            company_id: kit.company_id,
-            deleted_at: null,
-            assigned_user_id: null,
-            ...(toolModel.control_type === 'quantidade'
-              ? { quantity_available: { gte: kitItem.quantity } }
-              : {}),
-          },
-        });
+        let tool: any;
 
-        if (!tool) continue; // sem instancia disponivel, pula
+        if (input.tool_selections && input.tool_selections.length > 0) {
+          // Usa a instancia especifica selecionada pelo usuario
+          const selection = input.tool_selections.find(
+            s => s.model_id === Number(toolModel.id)
+          );
+          if (!selection) continue; // modelo nao teve selecao, pula
+
+          tool = await tx.tools.findFirst({
+            where: {
+              id: BigInt(selection.tool_id),
+              model_id: toolModel.id,
+              deleted_at: null,
+            },
+          });
+          if (!tool) throw new BadRequestError(`Ferramenta ID ${selection.tool_id} nao encontrada para o modelo ${toolModel.name}.`);
+        } else {
+          // Comportamento antigo: busca primeira instancia disponivel
+          tool = await tx.tools.findFirst({
+            where: {
+              model_id: toolModel.id,
+              company_id: kit.company_id,
+              deleted_at: null,
+              assigned_user_id: null,
+              ...(toolModel.control_type === 'quantidade'
+                ? { quantity_available: { gte: kitItem.quantity } }
+                : {}),
+            },
+          });
+          if (!tool) continue; // sem instancia disponivel, pula
+        }
 
         const qty = toolModel.control_type === 'quantidade' ? kitItem.quantity : 1;
 

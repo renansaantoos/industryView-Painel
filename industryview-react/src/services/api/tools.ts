@@ -117,6 +117,8 @@ export async function listTools(params?: {
   branch_id?: number;
   department_id?: number;
   project_id?: number;
+  assigned_user_id?: number;
+  assigned_team_id?: number;
   condition?: string;
   search?: string;
   page?: number;
@@ -229,6 +231,7 @@ export async function returnTool(data: {
 export async function assignKit(data: {
   user_id: number;
   kit_id: number;
+  tool_selections?: { model_id: number; tool_id: number }[];
   notes?: string;
 }): Promise<AssignKitResult> {
   const response = await apiClient.post(`${BASE}/movements/assign-kit`, data);

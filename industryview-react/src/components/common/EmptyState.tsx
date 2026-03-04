@@ -14,6 +14,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({ message, title, description, icon, action }: EmptyStateProps) {
   const { t } = useTranslation();
+  const displayMessage = message ?? (title && description ? `${title}. ${description}` : title ?? description) ?? t('common.noData');
 
   return (
     <motion.div
@@ -50,7 +51,11 @@ export default function EmptyState({ message, title, description, icon, action }
         color: 'var(--color-secondary-text)',
         marginBottom: action ? '16px' : '0',
       }}>
+<<<<<<< Updated upstream
         {description || message || t('common.noData')}
+=======
+        {displayMessage}
+>>>>>>> Stashed changes
       </p>
       {action}
     </motion.div>

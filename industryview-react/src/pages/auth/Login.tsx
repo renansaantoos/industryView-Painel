@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AxiosError } from 'axios';
@@ -24,10 +24,11 @@ export default function Login() {
   const [passwordError, setPasswordError] = useState('');
 
   // If already logged in, redirect to dashboard
-  if (isLoggedIn) {
-    navigate('/dashboard', { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const validate = (): boolean => {
     let valid = true;

@@ -72,6 +72,31 @@ import AuditLogs from '../pages/audit/AuditLogs';
 import Clients from '../pages/clients/Clients';
 import AiAssistant from '../pages/chat/AiAssistant';
 
+import React from 'react';
+
+class ToolsErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, margin: '20px auto', maxWidth: 800, background: '#fee', borderRadius: 8, color: '#900', fontFamily: 'monospace' }}>
+          <h2>Erro Crítico na Tela de Ferramentas!</h2>
+          <p>Copie e cole este erro no chat para eu poder consertar o arquivo exato:</p>
+          <pre style={{ whiteSpace: 'pre-wrap', marginTop: 10 }}>{this.state.error?.toString()}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11, marginTop: 10 }}>{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /**
  * Application routes.
  * Uses react-router-dom v6+ with layout routes.
@@ -268,7 +293,11 @@ export const router = createBrowserRouter([
       },
       {
         path: '/ferramentas',
-        element: <ToolsManagement />,
+        element: (
+          <ToolsErrorBoundary>
+            <ToolsManagement />
+          </ToolsErrorBoundary>
+        ),
       },
 
       // Planning

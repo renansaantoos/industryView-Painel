@@ -302,7 +302,7 @@ export default function ToolsTab({ usersId }: ToolsTabProps) {
                             : '#C0392B',
                       }}
                     >
-                      {tool.condition.charAt(0).toUpperCase() + tool.condition.slice(1)}
+                      {tool.condition ? tool.condition.charAt(0).toUpperCase() + tool.condition.slice(1) : 'Não definida'}
                     </span>
                   </td>
                   <td>{new Date(tool.updated_at).toLocaleDateString('pt-BR')}</td>
