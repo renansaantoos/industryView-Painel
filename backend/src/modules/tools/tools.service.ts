@@ -326,10 +326,6 @@ export class ToolsService {
     });
     if (!toolModel) throw new NotFoundError('Modelo de ferramenta nao encontrado.');
 
-    if (toolModel.control_type === 'patrimonio' && !input.patrimonio_code) {
-      throw new BadRequestError('patrimonio_code e obrigatorio para controle tipo patrimonio.');
-    }
-
     const qty = toolModel.control_type === 'quantidade' ? input.quantity_total : 1;
 
     const tool = await db.tools.create({

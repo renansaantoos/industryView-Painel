@@ -44,6 +44,7 @@ interface ToastState {
 
 interface ToolForm {
   model_id: string;
+  control_type: string;
   patrimonio_code: string;
   quantity_total: string;
   serial_number: string;
@@ -51,10 +52,12 @@ interface ToolForm {
   branch_id: string;
   department_id: string;
   notes: string;
+  instance_count: string;
 }
 
 const EMPTY_TOOL_FORM: ToolForm = {
   model_id: '',
+  control_type: '',
   patrimonio_code: '',
   quantity_total: '1',
   serial_number: '',
@@ -62,6 +65,7 @@ const EMPTY_TOOL_FORM: ToolForm = {
   branch_id: '',
   department_id: '',
   notes: '',
+  instance_count: '1',
 };
 
 interface ModelForm {
@@ -201,6 +205,19 @@ export default function ToolsManagement() {
   const [modelForm, setModelForm] = useState<ModelForm>(EMPTY_MODEL_FORM);
   const [modelFormLoading, setModelFormLoading] = useState(false);
   const [deleteModelConfirm, setDeleteModelConfirm] = useState<ToolModel | null>(null);
+
+  // ---- Accordion instance state (cadastro tab) ----
+  const [expandedModels, setExpandedModels] = useState<Set<number>>(new Set());
+  const [modelInstances, setModelInstances] = useState<Record<number, Tool[]>>({});
+  const [loadingModelInstances, setLoadingModelInstances] = useState<Record<number, boolean>>({});
+
+  // ---- Bulk instance creation state ----
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkInstances, setBulkInstances] = useState<{ serial_number: string; patrimonio_code: string; quantity_total: string; condition: string }[]>([]);
+  const [bulkBaseData, setBulkBaseData] = useState<Record<string, unknown> | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkModelId, setBulkModelId] = useState<number>(0);
+  const [bulkIsPatrimonio, setBulkIsPatrimonio] = useState(true);
 
   /* =========================================
      Toast
@@ -342,11 +359,12 @@ export default function ToolsManagement() {
      Tool CRUD
      ========================================= */
 
-  const openToolModal = (tool?: Tool, preselectedModelId?: number) => {
+  const openToolModal = (tool?: Tool, preselectedModel?: ToolModel) => {
     if (tool) {
       setEditingTool(tool);
       setToolForm({
         model_id: tool.model_id ? String(tool.model_id) : '',
+        control_type: tool.model?.control_type || '',
         patrimonio_code: tool.patrimonio_code || '',
         quantity_total: String(tool.quantity_total),
         serial_number: tool.serial_number || '',
@@ -354,12 +372,14 @@ export default function ToolsManagement() {
         branch_id: tool.branch_id ? String(tool.branch_id) : '',
         department_id: tool.department_id ? String(tool.department_id) : '',
         notes: tool.notes || '',
+        instance_count: '1',
       });
     } else {
       setEditingTool(null);
       setToolForm({
         ...EMPTY_TOOL_FORM,
-        model_id: preselectedModelId ? String(preselectedModelId) : '',
+        model_id: preselectedModel?.id ? String(preselectedModel.id) : '',
+        control_type: preselectedModel?.control_type || '',
       });
     }
     setShowToolModal(true);
@@ -372,42 +392,45 @@ export default function ToolsManagement() {
     }
 
     const selectedToolModel = toolModels.find(m => m.id === parseInt(toolForm.model_id, 10));
-    const isPatrimonio = selectedToolModel?.control_type === 'patrimonio';
+    const isPatrimonio = selectedToolModel ? selectedToolModel.control_type === 'patrimonio' : toolForm.control_type === 'patrimonio';
+    const count = Math.max(1, parseInt(toolForm.instance_count || '1', 10));
 
-    if (isPatrimonio && !editingTool && !toolForm.patrimonio_code.trim()) {
-      showToast('Codigo de patrimonio e obrigatorio para modelos do tipo patrimonio', 'error');
+    // Novo cadastro: sempre abre o bulk modal para preencher patrimônio/quantidade por instância
+    if (!editingTool) {
+      const modelId = parseInt(toolForm.model_id, 10);
+      setBulkBaseData({
+        model_id: modelId,
+        branch_id: toolForm.branch_id ? parseInt(toolForm.branch_id, 10) : undefined,
+        department_id: toolForm.department_id ? parseInt(toolForm.department_id, 10) : undefined,
+        notes: toolForm.notes || undefined,
+      });
+      setBulkModelId(modelId);
+      setBulkIsPatrimonio(isPatrimonio);
+      setBulkInstances(Array.from({ length: count }, () => ({ serial_number: '', patrimonio_code: '', quantity_total: '1', condition: 'novo' })));
+      setShowToolModal(false);
+      setShowBulkModal(true);
       return;
     }
 
+    // Edição: atualiza diretamente
     setToolFormLoading(true);
     try {
-      if (editingTool) {
-        await toolsApi.updateTool(editingTool.id, {
-          model_id: parseInt(toolForm.model_id, 10),
-          patrimonio_code: toolForm.patrimonio_code || undefined,
-          quantity_total: !isPatrimonio ? parseInt(toolForm.quantity_total, 10) : undefined,
-          serial_number: toolForm.serial_number || undefined,
-          condition: toolForm.condition,
-          branch_id: toolForm.branch_id ? parseInt(toolForm.branch_id, 10) : null,
-          department_id: toolForm.department_id ? parseInt(toolForm.department_id, 10) : null,
-          notes: toolForm.notes || undefined,
-        });
-        showToast('Ferramenta atualizada com sucesso', 'success');
-      } else {
-        await toolsApi.createTool({
-          model_id: parseInt(toolForm.model_id, 10),
-          patrimonio_code: toolForm.patrimonio_code || undefined,
-          quantity_total: parseInt(toolForm.quantity_total, 10),
-          serial_number: toolForm.serial_number || undefined,
-          condition: toolForm.condition,
-          branch_id: toolForm.branch_id ? parseInt(toolForm.branch_id, 10) : undefined,
-          department_id: toolForm.department_id ? parseInt(toolForm.department_id, 10) : undefined,
-          notes: toolForm.notes || undefined,
-        });
-        showToast('Ferramenta cadastrada com sucesso', 'success');
-      }
+      await toolsApi.updateTool(editingTool.id, {
+        model_id: parseInt(toolForm.model_id, 10),
+        patrimonio_code: toolForm.patrimonio_code || undefined,
+        quantity_total: !isPatrimonio ? parseInt(toolForm.quantity_total, 10) : undefined,
+        serial_number: toolForm.serial_number || undefined,
+        condition: toolForm.condition,
+        branch_id: toolForm.branch_id ? parseInt(toolForm.branch_id, 10) : null,
+        department_id: toolForm.department_id ? parseInt(toolForm.department_id, 10) : null,
+        notes: toolForm.notes || undefined,
+      });
+      showToast('Ferramenta atualizada com sucesso', 'success');
       setShowToolModal(false);
-      loadTools();
+      const modelId = parseInt(toolForm.model_id, 10);
+      if (!isNaN(modelId)) {
+        refreshModelInstances(modelId);
+      }
     } catch {
       showToast('Erro ao salvar ferramenta', 'error');
     } finally {
@@ -417,11 +440,14 @@ export default function ToolsManagement() {
 
   const handleDeleteTool = async () => {
     if (!deleteToolConfirm) return;
+    const modelId = deleteToolConfirm.model_id;
     try {
       await toolsApi.deleteTool(deleteToolConfirm.id);
       showToast('Ferramenta excluida com sucesso', 'success');
       setDeleteToolConfirm(null);
-      loadTools();
+      if (modelId) {
+        refreshModelInstances(modelId);
+      }
     } catch {
       showToast('Erro ao excluir ferramenta', 'error');
     }
@@ -437,6 +463,66 @@ export default function ToolsManagement() {
       setToolMovements([]);
     } finally {
       setToolMovementsLoading(false);
+    }
+  };
+
+  const refreshModelInstances = async (modelId: number) => {
+    try {
+      const data = await toolsApi.listTools({ model_id: modelId, per_page: 100 });
+      setModelInstances(prev => ({ ...prev, [modelId]: data.items ?? [] }));
+    } catch { /* silent */ }
+  };
+
+  const toggleModelExpand = async (modelId: number) => {
+    const next = new Set(expandedModels);
+    if (next.has(modelId)) {
+      next.delete(modelId);
+      setExpandedModels(next);
+      return;
+    }
+    next.add(modelId);
+    setExpandedModels(next);
+    if (!modelInstances[modelId]) {
+      setLoadingModelInstances(prev => ({ ...prev, [modelId]: true }));
+      try {
+        const data = await toolsApi.listTools({ model_id: modelId, per_page: 100 });
+        setModelInstances(prev => ({ ...prev, [modelId]: data.items ?? [] }));
+      } catch {
+        setModelInstances(prev => ({ ...prev, [modelId]: [] }));
+      } finally {
+        setLoadingModelInstances(prev => ({ ...prev, [modelId]: false }));
+      }
+    }
+  };
+
+  const handleBulkCreate = async () => {
+    if (!bulkBaseData) return;
+    setBulkLoading(true);
+    let successCount = 0;
+    let errorCount = 0;
+    for (const inst of bulkInstances) {
+      try {
+        await toolsApi.createTool({
+          ...bulkBaseData,
+          condition: inst.condition || 'novo',
+          serial_number: inst.serial_number.trim() || undefined,
+          patrimonio_code: bulkIsPatrimonio ? (inst.patrimonio_code.trim() || undefined) : undefined,
+          quantity_total: !bulkIsPatrimonio ? (parseInt(inst.quantity_total, 10) || 1) : undefined,
+        } as Parameters<typeof toolsApi.createTool>[0]);
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+    setBulkLoading(false);
+    setShowBulkModal(false);
+    if (errorCount === 0) {
+      showToast(`${successCount} instancias cadastradas com sucesso`, 'success');
+    } else {
+      showToast(`${successCount} criadas, ${errorCount} com erro`, 'error');
+    }
+    if (!isNaN(bulkModelId)) {
+      refreshModelInstances(bulkModelId);
     }
   };
 
@@ -843,7 +929,7 @@ export default function ToolsManagement() {
                         <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             <button
-                              onClick={() => { setActiveTab('cadastro'); openToolModal(undefined, tm.id); }}
+                              onClick={() => { setActiveTab('cadastro'); openToolModal(undefined, tm); }}
                               className="btn btn-secondary"
                               style={{ fontSize: '12px', padding: '4px 10px' }}
                               title="Criar instancia fisica deste modelo"
@@ -951,85 +1037,169 @@ export default function ToolsManagement() {
             </div>
           ) : (
             <>
-              {/* Filters */}
-              <div style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-                <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-                  <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
-                  <input
-                    type="text"
-                    placeholder="Buscar por patrimonio, serial..."
-                    value={filterSearch}
-                    onChange={(e) => { setFilterSearch(e.target.value); setToolPage(1); }}
-                    className="input-field"
-                    style={{ paddingLeft: '36px' }}
-                  />
-                </div>
-                <select value={filterCondition} onChange={(e) => { setFilterCondition(e.target.value); setToolPage(1); }} className="input-field" style={{ width: 'auto' }}>
-                  <option value="">Todas condicoes</option>
-                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
+              {/* Header row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: 0 }}>
+                  {toolModelsPagination.totalItems} {toolModelsPagination.totalItems === 1 ? 'modelo' : 'modelos'}
+                </p>
                 <button onClick={() => openToolModal()} className="btn btn-primary">
                   <Plus size={16} /> Nova Instancia
                 </button>
               </div>
 
-              {/* Table */}
-              {toolsLoading ? <LoadingSpinner /> : tools.length === 0 ? (
-                <EmptyState icon={<Wrench size={48} />} title="Nenhuma ferramenta encontrada" description="Comece cadastrando uma nova ferramenta" />
+              {/* Model accordion list */}
+              {loadingModels ? <LoadingSpinner /> : toolModels.length === 0 ? (
+                <EmptyState icon={<Wrench size={48} />} title="Nenhum modelo cadastrado" description="Cadastre modelos na aba Modelos antes de registrar instancias" />
               ) : (
-                <>
-                  <div className="table-container">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Modelo</th>
-                          <th>Tipo</th>
-                          <th>Patrimonio/Qtd</th>
-                          <th>Condicao</th>
-                          <th>Atribuido</th>
-                          <th style={{ textAlign: 'right' }}>Acoes</th>
-                        </tr>
-                      </thead>
-                      <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-                        {tools.map(tool => (
-                          <motion.tr key={tool.id} variants={tableRowVariants} style={{ cursor: 'pointer' }} onClick={() => loadToolDetail(tool)}>
-                            <td>
-                              <div style={{ fontWeight: 500 }}>{tool.model?.name || `Instancia #${tool.id}`}</div>
-                              {tool.model?.brand && <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{tool.model.brand}</div>}
-                            </td>
-                            <td>
-                              <span className="badge" style={{ background: 'var(--color-tertiary-bg)', color: 'var(--color-primary)' }}>
-                                {tool.model?.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {toolModels.map(tm => {
+                    const isExpanded = expandedModels.has(tm.id);
+                    const instances = modelInstances[tm.id] ?? [];
+                    const isLoadingInstances = loadingModelInstances[tm.id];
+
+                    return (
+                      <div key={tm.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                        {/* Model header row - clickable to expand */}
+                        <div
+                          onClick={() => toggleModelExpand(tm.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '12px',
+                            padding: '14px 16px', cursor: 'pointer',
+                            background: isExpanded ? 'var(--color-tertiary-bg)' : 'transparent',
+                            transition: 'background 0.15s ease',
+                          }}
+                        >
+                          <ChevronDown
+                            size={18}
+                            color="var(--color-secondary-text)"
+                            style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 600, fontSize: '14px' }}>{tm.name}</span>
+                              {tm.brand && <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{tm.brand}</span>}
+                              {tm.model && <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>— {tm.model}</span>}
+                              <span className="badge" style={{ background: 'var(--color-tertiary-bg)', color: 'var(--color-primary)', fontSize: '11px' }}>
+                                {tm.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
                               </span>
-                            </td>
-                            <td>
-                              {tool.model?.control_type === 'patrimonio' ? (tool.patrimonio_code || '-') : `${tool.quantity_available}/${tool.quantity_total}`}
-                            </td>
-                            <td>
-                              <span className="badge" style={CONDITION_STYLES[tool.condition] || { background: 'var(--color-alternate)', color: 'var(--color-secondary-text)' }}>
-                                {CONDITION_LABELS[tool.condition] || tool.condition}
-                              </span>
-                            </td>
-                            <td>{tool.assigned_user?.name || tool.assigned_team?.name || '-'}</td>
-                            <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                <button onClick={() => openToolModal(tool)} className="btn btn-icon">
-                                  <Edit size={16} color="var(--color-secondary-text)" />
-                                </button>
-                                <button onClick={() => setDeleteToolConfirm(tool)} className="btn btn-icon">
-                                  <Trash2 size={16} color="var(--color-error)" />
+                              {tm.category && <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>{tm.category.name}</span>}
+                            </div>
+                          </div>
+                          {/* Instance count badge (shown when collapsed and cached) */}
+                          {!isExpanded && modelInstances[tm.id] !== undefined && (
+                            <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)', flexShrink: 0 }}>
+                              {instances.length} {instances.length === 1 ? 'instancia' : 'instancias'}
+                            </span>
+                          )}
+                          {/* Quick add button */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openToolModal(undefined, tm); }}
+                            className="btn btn-secondary"
+                            style={{ fontSize: '12px', padding: '4px 10px', flexShrink: 0 }}
+                            title="Adicionar instancia deste modelo"
+                          >
+                            <Plus size={13} /> Instancia
+                          </button>
+                        </div>
+
+                        {/* Expanded instances */}
+                        {isExpanded && (
+                          <div style={{ borderTop: '1px solid var(--color-alternate)' }}>
+                            {isLoadingInstances ? (
+                              <div style={{ padding: '20px', display: 'flex', justifyContent: 'center' }}>
+                                <LoadingSpinner />
+                              </div>
+                            ) : instances.length === 0 ? (
+                              <div style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                                Nenhuma instancia cadastrada para este modelo.{' '}
+                                <button
+                                  onClick={() => openToolModal(undefined, tm)}
+                                  style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', textDecoration: 'underline', fontSize: '13px', padding: 0 }}
+                                >
+                                  Cadastrar primeira instancia
                                 </button>
                               </div>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </motion.tbody>
-                    </table>
-                  </div>
-                  <div style={{ marginTop: '16px' }}>
-                    <Pagination currentPage={toolPage} totalPages={toolTotalPages} onPageChange={setToolPage} totalItems={toolTotalItems} itemsPerPage={PER_PAGE} />
-                  </div>
-                </>
+                            ) : (
+                              <div className="table-container" style={{ margin: 0, borderRadius: 0 }}>
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th style={{ paddingLeft: '20px' }}>Patrimonio / Serial</th>
+                                      <th>Condicao</th>
+                                      <th>Qtd Disp.</th>
+                                      <th>Localizacao</th>
+                                      <th>Atribuido a</th>
+                                      <th style={{ textAlign: 'right' }}>Acoes</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {instances.map(tool => (
+                                      <tr
+                                        key={tool.id}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => loadToolDetail(tool)}
+                                      >
+                                        <td style={{ paddingLeft: '20px' }}>
+                                          <div style={{ fontWeight: 500, fontSize: '13px' }}>
+                                            {tool.patrimonio_code || `#${tool.id}`}
+                                          </div>
+                                          {tool.serial_number && (
+                                            <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)' }}>S/N: {tool.serial_number}</div>
+                                          )}
+                                        </td>
+                                        <td>
+                                          <span className="badge" style={CONDITION_STYLES[tool.condition] || { background: 'var(--color-alternate)', color: 'var(--color-secondary-text)' }}>
+                                            {CONDITION_LABELS[tool.condition] || tool.condition}
+                                          </span>
+                                        </td>
+                                        <td style={{ fontSize: '13px' }}>
+                                          {tm.control_type === 'quantidade'
+                                            ? `${tool.quantity_available} / ${tool.quantity_total}`
+                                            : tool.assigned_user_id ? '—' : 'Disponivel'}
+                                        </td>
+                                        <td style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                                          {tool.branch?.brand_name || tool.department?.name || '-'}
+                                        </td>
+                                        <td style={{ fontSize: '12px' }}>
+                                          {tool.assigned_user?.name || tool.assigned_team?.name || (
+                                            <span style={{ color: 'var(--color-secondary-text)' }}>Nao atribuido</span>
+                                          )}
+                                        </td>
+                                        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                            <button onClick={() => openToolModal(tool)} className="btn btn-icon" title="Editar">
+                                              <Edit size={15} color="var(--color-secondary-text)" />
+                                            </button>
+                                            <button onClick={() => setDeleteToolConfirm(tool)} className="btn btn-icon" title="Excluir">
+                                              <Trash2 size={15} color="var(--color-error)" />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pagination for models */}
+              {toolModelsPagination.totalPages > 1 && (
+                <div style={{ marginTop: '16px' }}>
+                  <Pagination
+                    currentPage={toolModelsPagination.page}
+                    totalPages={toolModelsPagination.totalPages}
+                    onPageChange={(p) => loadToolModels(p)}
+                    totalItems={toolModelsPagination.totalItems}
+                    itemsPerPage={PER_PAGE}
+                  />
+                </div>
               )}
             </>
           )}
@@ -1264,30 +1434,50 @@ export default function ToolsManagement() {
                 <SearchableSelect
                   options={toolModelOptions}
                   value={toolForm.model_id ? parseInt(toolForm.model_id, 10) : undefined}
-                  onChange={(v) => setToolForm({ ...toolForm, model_id: v ? String(v) : '' })}
+                  onChange={(v) => {
+                    const selected = v ? toolModels.find(m => m.id === v) : null;
+                    setToolForm({
+                      ...toolForm,
+                      model_id: v ? String(v) : '',
+                      control_type: selected?.control_type || toolForm.control_type
+                    });
+                  }}
                   placeholder="Selecione o modelo..."
                 />
-                {toolForm.model_id && (() => {
-                  const m = toolModels.find(x => x.id === parseInt(toolForm.model_id, 10));
-                  if (!m) return null;
-                  return (
-                    <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--color-secondary-text)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {m.category && <span>{m.category.name}</span>}
-                      <span className="badge" style={{ background: 'var(--color-tertiary-bg)', color: 'var(--color-primary)', fontSize: '11px' }}>
-                        {m.control_type === 'patrimonio' ? 'Patrimonio' : 'Quantidade'}
-                      </span>
-                    </div>
-                  );
-                })()}
               </div>
-              {(() => {
-                const m = toolModels.find(x => x.id === parseInt(toolForm.model_id || '0', 10));
-                const isPatrimonio = m?.control_type === 'patrimonio';
-                return (
-                  <>
-                    {isPatrimonio ? (
+
+              {editingTool && (
+                <>
+                  <div className="input-group">
+                    <label>Tipo de Controle</label>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="instance_control_type"
+                          value="patrimonio"
+                          checked={toolForm.control_type === 'patrimonio'}
+                          onChange={() => setToolForm({ ...toolForm, control_type: 'patrimonio' })}
+                        />
+                        Patrimonio (codigo unico)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="instance_control_type"
+                          value="quantidade"
+                          checked={toolForm.control_type === 'quantidade'}
+                          onChange={() => setToolForm({ ...toolForm, control_type: 'quantidade' })}
+                        />
+                        Quantidade (volume)
+                      </label>
+                    </div>
+                  </div>
+                  {(() => {
+                    const isPatrimonio = toolForm.control_type === 'patrimonio';
+                    return isPatrimonio ? (
                       <div className="input-group">
-                        <label>Codigo Patrimonio *</label>
+                        <label>Codigo Patrimonio</label>
                         <input type="text" value={toolForm.patrimonio_code} onChange={(e) => setToolForm({ ...toolForm, patrimonio_code: e.target.value })} className="input-field" />
                       </div>
                     ) : (
@@ -1295,20 +1485,20 @@ export default function ToolsManagement() {
                         <label>Quantidade Total</label>
                         <input type="number" min="1" value={toolForm.quantity_total} onChange={(e) => setToolForm({ ...toolForm, quantity_total: e.target.value })} className="input-field" />
                       </div>
-                    )}
-                  </>
-                );
-              })()}
-              <div className="input-group">
-                <label>Numero de Serie</label>
-                <input type="text" value={toolForm.serial_number} onChange={(e) => setToolForm({ ...toolForm, serial_number: e.target.value })} className="input-field" />
-              </div>
-              <div className="input-group">
-                <label>Condicao</label>
-                <select value={toolForm.condition} onChange={(e) => setToolForm({ ...toolForm, condition: e.target.value })} className="input-field">
-                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
+                    );
+                  })()}
+                  <div className="input-group">
+                    <label>Numero de Serie</label>
+                    <input type="text" value={toolForm.serial_number} onChange={(e) => setToolForm({ ...toolForm, serial_number: e.target.value })} className="input-field" />
+                  </div>
+                  <div className="input-group">
+                    <label>Condicao</label>
+                    <select value={toolForm.condition} onChange={(e) => setToolForm({ ...toolForm, condition: e.target.value })} className="input-field">
+                      {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>Filial</label>
@@ -1323,11 +1513,125 @@ export default function ToolsManagement() {
                 <label>Observacoes</label>
                 <textarea rows={3} value={toolForm.notes} onChange={(e) => setToolForm({ ...toolForm, notes: e.target.value })} className="input-field" />
               </div>
+              {!editingTool && (
+                <div className="input-group">
+                  <label>Quantidade de Instancias</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={toolForm.instance_count}
+                    onChange={(e) => setToolForm({ ...toolForm, instance_count: e.target.value })}
+                    className="input-field"
+                  />
+                  {parseInt(toolForm.instance_count || '1', 10) > 1 && (
+                    <small style={{ color: 'var(--color-secondary-text)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      Um modal adicional sera aberto para preencher patrimonio e serie de cada instancia.
+                    </small>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setShowToolModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleToolSubmit} disabled={toolFormLoading}>
                 {toolFormLoading ? <span className="spinner" /> : editingTool ? 'Atualizar' : 'Cadastrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Instance Modal */}
+      {showBulkModal && (
+        <div className="modal-backdrop" onClick={() => setShowBulkModal(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '640px', width: '95%', padding: '24px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
+          >
+            <h3>Preencher dados das instancias</h3>
+            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginTop: '8px', marginBottom: '16px' }}>
+              Preencha os campos individuais de cada instancia. Campos nao preenchidos serao cadastrados sem esse dado.
+            </p>
+            <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
+              {bulkInstances.map((inst, idx) => (
+                <div
+                  key={idx}
+                  style={{ padding: '14px 16px', borderRadius: '8px', border: '1px solid var(--color-alternate)', background: 'var(--color-tertiary-bg)' }}
+                >
+                  <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Instancia {idx + 1}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    {bulkIsPatrimonio ? (
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '12px' }}>Codigo Patrimonio</label>
+                        <input
+                          type="text"
+                          value={inst.patrimonio_code}
+                          onChange={(e) => {
+                            const next = [...bulkInstances];
+                            next[idx] = { ...next[idx], patrimonio_code: e.target.value };
+                            setBulkInstances(next);
+                          }}
+                          className="input-field"
+                          style={{ fontSize: '13px' }}
+                          placeholder={`PAT-${String(idx + 1).padStart(3, '0')}`}
+                        />
+                      </div>
+                    ) : (
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '12px' }}>Quantidade Total</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={inst.quantity_total}
+                          onChange={(e) => {
+                            const next = [...bulkInstances];
+                            next[idx] = { ...next[idx], quantity_total: e.target.value };
+                            setBulkInstances(next);
+                          }}
+                          className="input-field"
+                          style={{ fontSize: '13px' }}
+                        />
+                      </div>
+                    )}
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '12px' }}>Numero de Serie</label>
+                      <input
+                        type="text"
+                        value={inst.serial_number}
+                        onChange={(e) => {
+                          const next = [...bulkInstances];
+                          next[idx] = { ...next[idx], serial_number: e.target.value };
+                          setBulkInstances(next);
+                        }}
+                        className="input-field"
+                        style={{ fontSize: '13px' }}
+                        placeholder={`SN-${String(idx + 1).padStart(3, '0')}`}
+                      />
+                    </div>
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '12px' }}>Condicao</label>
+                      <select
+                        value={inst.condition}
+                        onChange={(e) => {
+                          const next = [...bulkInstances];
+                          next[idx] = { ...next[idx], condition: e.target.value };
+                          setBulkInstances(next);
+                        }}
+                        className="input-field"
+                        style={{ fontSize: '13px' }}
+                      >
+                        {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowBulkModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleBulkCreate} disabled={bulkLoading}>
+                {bulkLoading ? <span className="spinner" /> : `Cadastrar ${bulkInstances.length} instancias`}
               </button>
             </div>
           </div>
@@ -1471,19 +1775,6 @@ export default function ToolsManagement() {
               <div className="input-group">
                 <label>Nome *</label>
                 <input type="text" value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} className="input-field" placeholder="Ex: Chave de Fenda, Furadeira..." />
-              </div>
-              <div className="input-group">
-                <label>Tipo de Controle *</label>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-                    <input type="radio" name="model_control_type" value="patrimonio" checked={modelForm.control_type === 'patrimonio'} onChange={() => setModelForm({ ...modelForm, control_type: 'patrimonio' })} />
-                    Patrimonio (codigo unico)
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-                    <input type="radio" name="model_control_type" value="quantidade" checked={modelForm.control_type === 'quantidade'} onChange={() => setModelForm({ ...modelForm, control_type: 'quantidade' })} />
-                    Quantidade (volume)
-                  </label>
-                </div>
               </div>
               <div className="input-group">
                 <label>Categoria</label>
