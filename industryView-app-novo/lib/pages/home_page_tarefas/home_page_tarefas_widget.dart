@@ -2,11 +2,13 @@ import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_requests/api_calls.dart';
 import '/backend/schema/structs/index.dart';
 import '/components/comment_insp_widget.dart';
+import '/components/concluir_batch_modal_widget.dart';
 import '/components/confirmdialog_widget.dart';
 import '/components/empty_widget.dart';
 import '/components/loading_copy_widget.dart';
 import '/components/logout_widget.dart';
 import '/components/modal_info_widget.dart';
+import '/components/sem_sucesso_modal_widget.dart';
 import '/components/modal_sucess_qrcode_widget.dart';
 import '/components/nav_bar_widget.dart';
 import '/components/offline_banner_widget.dart';
@@ -62,6 +64,977 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
       return false;
     }
     return AppState().offlineMaskedTasksIds.contains(taskId);
+  }
+
+  Map<String, dynamic>? _getScheduleStatus(dynamic item) {
+    final scheduledFor = getJsonField(item, r'$.scheduled_for')?.toString();
+    if (scheduledFor == null || scheduledFor.isEmpty) return null;
+    try {
+      final scheduled = DateTime.parse(scheduledFor);
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final scheduledDate = DateTime(scheduled.year, scheduled.month, scheduled.day);
+      if (scheduledDate.compareTo(todayDate) >= 0) {
+        return {'label': 'Em dia', 'color': const Color(0xFF16A34A), 'bgColor': const Color(0x2622C55E)};
+      }
+      return {'label': 'Atrasado', 'color': const Color(0xFFDC2626), 'bgColor': const Color(0x26EF4444)};
+    } catch (_) { return null; }
+  }
+
+  String _getCriticalityLabel(String? criticality) {
+    switch (criticality?.toLowerCase()) {
+      case 'baixa': return 'Baixa';
+      case 'media': return 'Média';
+      case 'alta': return 'Alta';
+      case 'critica': return 'Crítica';
+      default: return '';
+    }
+  }
+
+  Map<String, Color> _getCriticalityColors(String? criticality) {
+    switch (criticality?.toLowerCase()) {
+      case 'baixa': return {'bg': const Color(0x2622C55E), 'text': const Color(0xFF16A34A)};
+      case 'media': return {'bg': const Color(0x26EAB308), 'text': const Color(0xFFCA8A04)};
+      case 'alta': return {'bg': const Color(0x26F97316), 'text': const Color(0xFFEA580C)};
+      case 'critica': return {'bg': const Color(0x26EF4444), 'text': const Color(0xFFDC2626)};
+      default: return {'bg': const Color(0x1A9CA3AF), 'text': const Color(0xFF6B7280)};
+    }
+  }
+
+  /// Modal para concluir tarefa com quantidade executada
+  Future<void> _showQuantityCompleteModal(
+      BuildContext context, dynamic item, VoidCallback onSuccess) async {
+    final taskId = castToType<int>(getJsonField(item, r'$.id')) ?? 0;
+    final qtyAssigned =
+        castToType<double>(getJsonField(item, r'$.quantity_assigned')) ?? 0.0;
+    final taskName = valueOrDefault<String>(
+      (getJsonField(item, r'$.projects_backlogs.tasks_template.description') ??
+              getJsonField(item, r'$.projects_backlogs.description'))
+          ?.toString(),
+      '',
+    );
+
+    final controller = TextEditingController(
+        text: qtyAssigned.truncateToDouble() == qtyAssigned
+            ? qtyAssigned.toInt().toString()
+            : qtyAssigned.toString());
+
+    final result = await showDialog<double?>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: const Color(0x80000000),
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppTheme.of(context).secondaryBackground,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          title: Text(
+            'Concluir Tarefa',
+            style: GoogleFonts.lexend(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.of(context).primaryText,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Divider(color: AppTheme.of(context).alternate),
+              const SizedBox(height: 8.0),
+              if (taskName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Text(
+                    taskName,
+                    style: GoogleFonts.lexend(
+                      color: AppTheme.of(context).secondaryText,
+                      fontSize: 13.0,
+                    ),
+                  ),
+                ),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Quantidade Executada  ',
+                      style: GoogleFonts.lexend(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.of(context).primaryText,
+                        fontSize: 14.0,
+                      ),
+                    ),
+                    TextSpan(
+                      text:
+                          '(Designado: ${qtyAssigned.truncateToDouble() == qtyAssigned ? qtyAssigned.toInt() : qtyAssigned})',
+                      style: GoogleFonts.lexend(
+                        color: AppTheme.of(context).secondaryText,
+                        fontSize: 13.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              TextField(
+                controller: controller,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                autofocus: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide:
+                        BorderSide(color: AppTheme.of(context).alternate),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide:
+                        BorderSide(color: AppTheme.of(context).alternate),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                        color: AppTheme.of(context).primary, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12.0, vertical: 12.0),
+                ),
+                style: GoogleFonts.lexend(
+                  color: AppTheme.of(context).primaryText,
+                  fontSize: 14.0,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, null),
+              child: Text(
+                'Cancelar',
+                style: GoogleFonts.lexend(
+                  color: AppTheme.of(context).secondaryText,
+                ),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                final qty = double.tryParse(controller.text) ?? qtyAssigned;
+                Navigator.pop(dialogContext, qty);
+              },
+              icon: const Icon(Icons.check_circle_outline, size: 18.0),
+              label: const Text('Confirmar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.of(context).primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                textStyle: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == null) return;
+
+    // Chamar API single para concluir com quantidade
+    final apiResult =
+        await SprintsGroup.atualizaStatusSingleTaskCall.call(
+      sprintsTasksId: taskId,
+      sprintsTasksStatusesId: 3,
+      quantityDone: result,
+      token: currentAuthenticationToken,
+    );
+
+    if (apiResult.succeeded) {
+      // Se offline, mascarar a tarefa para desaparecer da lista
+      if (getJsonField(apiResult.jsonBody, r'''$.offline''') == true) {
+        AppState().update(() {
+          final current = AppState().offlineMaskedTasksIds.toList();
+          if (!current.contains(taskId)) {
+            current.add(taskId);
+            AppState().offlineMaskedTasksIds = current;
+          }
+        });
+      }
+      AppState().signalTasksRefresh();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              getJsonField(apiResult.jsonBody, r'''$.offline''') == true
+                  ? 'Tarefa salva localmente. Será sincronizada ao reconectar.'
+                  : 'Tarefa concluída com sucesso!',
+            ),
+            backgroundColor: AppTheme.of(context).success,
+          ),
+        );
+        onSuccess();
+      }
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Erro ao concluir tarefa. Tente novamente.'),
+            backgroundColor: AppTheme.of(context).error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Checkbox branco para o header azul das subtarefas
+  Widget _buildHeaderCheckbox(BuildContext context, dynamic item, int taskId, bool isChecked) {
+    final subtasksId = castToType<int>(getJsonField(item, r'$.subtasks_id')) ?? 0;
+    final isSubtask = subtasksId != 0;
+    TasksListStruct buildStruct() {
+      return TasksListStruct(
+        sprintsTasksId: taskId,
+        sprintsTasksStatusesId: 3,
+        description: isSubtask
+            ? valueOrDefault<String>(getJsonField(item, r'$.subtasks.description')?.toString(), ' - ')
+            : valueOrDefault<String>(
+                (getJsonField(item, r'$.projects_backlogs.description') ??
+                        getJsonField(item, r'$.projects_backlogs.tasks_template.description'))
+                    ?.toString(), ' - '),
+        subtasksId: subtasksId,
+        unity: UnityStruct(
+          id: castToType<int>(getJsonField(item, r'$.subtasks.unity.id') ??
+              getJsonField(item, r'$.projects_backlogs.unity.id')),
+          unity: (getJsonField(item, r'$.subtasks.unity.unity') ??
+                  getJsonField(item, r'$.projects_backlogs.unity.unity'))?.toString() ?? '',
+        ),
+        unityId: castToType<int>(getJsonField(item, r'$.subtasks.unity_id')),
+        quantityDone: castToType<double>(getJsonField(item, r'$.subtasks') != null
+            ? getJsonField(item, r'$.subtasks.quantity') : 0.0) ?? 0.0,
+        inspection: getJsonField(item, r'$.projects_backlogs.is_inspection') == true,
+        quantityAssigned: castToType<double>(getJsonField(item, r'$.quantity_assigned')) ?? 0.0,
+      );
+    }
+
+    return InkWell(
+      splashColor: Colors.transparent,
+      focusColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      onTap: () {
+        if (isChecked) {
+          AppState().removeFromTaskslist(buildStruct());
+        } else {
+          AppState().addToTaskslist(buildStruct());
+        }
+        safeSetState(() {});
+      },
+      child: Container(
+        width: 28.0,
+        height: 28.0,
+        alignment: Alignment.center,
+        child: Container(
+          width: 18.0,
+          height: 18.0,
+          decoration: BoxDecoration(
+            color: isChecked ? Colors.white : Colors.white.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(4.0),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: isChecked
+              ? Icon(Icons.check, size: 14.0, color: const Color(0xFF3B6EC8))
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckbox(BuildContext context, dynamic item, int taskId, TasksListStruct Function() buildStruct) {
+    final isChecked = functions.checkIds(AppState().taskslist.toList(), taskId);
+    return InkWell(
+      splashColor: Colors.transparent,
+      focusColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      onTap: () async {
+        if (isChecked) {
+          AppState().removeFromTaskslist(buildStruct());
+          safeSetState(() {});
+          return;
+        }
+        if ((AppConstants.um ==
+                getJsonField(item, r'$.projects_backlogs.equipaments_types_id')) &&
+            (false == getJsonField(item, r'$.can_conclude'))) {
+          await showDialog(
+            context: context,
+            builder: (dialogContext) {
+              return Dialog(
+                elevation: 0,
+                insetPadding: EdgeInsets.zero,
+                backgroundColor: Colors.transparent,
+                alignment: AlignmentDirectional(0.0, 0.0)
+                    .resolve(Directionality.of(context)),
+                child: GestureDetector(
+                  onTap: () {
+                    FocusScope.of(dialogContext).unfocus();
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
+                  child: ModalInfoWidget(
+                    title: 'Atenção',
+                    description:
+                        'Conclua todas as etapas de cravação de estacas para finalizar esta tarefa.',
+                  ),
+                ),
+              );
+            },
+          );
+          return;
+        }
+        AppState().addToTaskslist(buildStruct());
+        safeSetState(() {});
+      },
+      child: Container(
+        width: 30.0,
+        height: 30.0,
+        alignment: Alignment.center,
+        child: Container(
+          width: 18.0,
+          height: 18.0,
+          decoration: BoxDecoration(
+            color: isChecked ? AppTheme.of(context).primary : AppTheme.of(context).secondaryBackground,
+            borderRadius: BorderRadius.circular(4.0),
+            border: Border.all(
+              color: isChecked ? AppTheme.of(context).primary : AppTheme.of(context).alternate,
+              width: 2.0,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: isChecked
+              ? (_model.allCheck
+                  ? Container(
+                      width: 10.0,
+                      height: 3.0,
+                      decoration: BoxDecoration(
+                        color: AppTheme.of(context).secondaryBackground,
+                      ),
+                    )
+                  : FaIcon(
+                      FontAwesomeIcons.check,
+                      color: AppTheme.of(context).info,
+                      size: 14.0,
+                    ))
+              : null,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildAndamentoCardBody(BuildContext context, dynamic item, {bool isInspection = false}) {
+    final taskId = castToType<int>(getJsonField(item, r'$.id')) ?? 0;
+    final subtasksId = castToType<int>(getJsonField(item, r'$.subtasks_id')) ?? 0;
+    final isSubtask = subtasksId != 0;
+    // Usa mesma condição para evitar nome duplicado
+    final hasBlueHeader = isSubtask;
+
+    final taskName = isSubtask
+        ? valueOrDefault<String>(
+            getJsonField(item, r'$.subtasks.description')?.toString(), '-')
+        : valueOrDefault<String>(
+            (getJsonField(item, r'$.projects_backlogs.description') ??
+                    getJsonField(item, r'$.projects_backlogs.tasks_template.description'))
+                ?.toString(),
+            '-');
+
+    final discipline = valueOrDefault<String>(
+        getJsonField(item, r'$.projects_backlogs.discipline.discipline')?.toString(), '-');
+
+    final unityName = isSubtask
+        ? valueOrDefault<String>(
+            getJsonField(item, r'$.subtasks.unity.unity')?.toString(), '')
+        : valueOrDefault<String>(
+            getJsonField(item, r'$.projects_backlogs.unity.unity')?.toString(), '');
+
+    final quantityAssigned =
+        castToType<double>(getJsonField(item, r'$.quantity_assigned')) ?? 0.0;
+    final quantityDone =
+        castToType<double>(getJsonField(item, r'$.quantity_done')) ?? 0.0;
+    final progressPct =
+        quantityAssigned > 0 ? (quantityDone / quantityAssigned).clamp(0.0, 1.0) : 0.0;
+
+    final scheduleStatus = _getScheduleStatus(item);
+
+    final teamName = getJsonField(item, r'$.teams.name')?.toString();
+    final criticality = getJsonField(item, r'$.criticality')?.toString();
+    final critLabel = _getCriticalityLabel(criticality);
+    final critColors = _getCriticalityColors(criticality);
+
+    final scheduledFor = getJsonField(item, r'$.scheduled_for')?.toString();
+    String? formattedDate;
+    if (scheduledFor != null && scheduledFor.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(scheduledFor);
+        formattedDate =
+            '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      } catch (_) {}
+    }
+
+    TasksListStruct _buildTaskStruct() {
+      return TasksListStruct(
+        sprintsTasksId: taskId,
+        sprintsTasksStatusesId: 3,
+        description: isSubtask
+            ? valueOrDefault<String>(
+                getJsonField(item, r'$.subtasks.description')?.toString(), ' - ')
+            : valueOrDefault<String>(
+                (getJsonField(item, r'$.projects_backlogs.description') ??
+                        getJsonField(item, r'$.projects_backlogs.tasks_template.description'))
+                    ?.toString(),
+                ' - '),
+        subtasksId: subtasksId,
+        unity: UnityStruct(
+          id: castToType<int>(getJsonField(item, r'$.subtasks.unity.id') ??
+              getJsonField(item, r'$.projects_backlogs.unity.id')),
+          unity: (getJsonField(item, r'$.subtasks.unity.unity') ??
+                  getJsonField(item, r'$.projects_backlogs.unity.unity'))
+              ?.toString() ?? '',
+        ),
+        unityId: castToType<int>(getJsonField(item, r'$.subtasks.unity_id')),
+        quantityDone: castToType<double>(getJsonField(item, r'$.subtasks') != null
+            ? getJsonField(item, r'$.subtasks.quantity')
+            : 0.0) ?? 0.0,
+        inspection: getJsonField(item, r'$.projects_backlogs.is_inspection') == true,
+        quantityAssigned: castToType<double>(getJsonField(item, r'$.quantity_assigned')) ?? 0.0,
+      );
+    }
+
+    return [
+      // Task name + Checkbox alinhados na mesma row
+      // Nome + checkbox (somente se NÃO tem header azul)
+      if (!hasBlueHeader)
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(12.0, 8.0, 4.0, 0.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4.0, top: 2.0),
+                  child: Text(
+                    taskName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.lexend(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          fontSize: 13.0,
+                          letterSpacing: 0.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ),
+              _buildCheckbox(context, item, taskId, _buildTaskStruct),
+            ],
+          ),
+        ),
+
+      if (!hasBlueHeader)
+        const SizedBox(height: 6.0),
+
+      // Status badge (Em dia / Atrasado)
+      if (scheduleStatus != null)
+        Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(12.0, hasBlueHeader ? 10.0 : 0.0, 12.0, 0.0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+            decoration: BoxDecoration(
+              color: scheduleStatus['bgColor'] as Color,
+              borderRadius: BorderRadius.circular(6.0),
+            ),
+            child: Text(
+              scheduleStatus['label'] as String,
+              style: AppTheme.of(context).bodySmall.override(
+                    font: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+                    color: scheduleStatus['color'] as Color,
+                    fontSize: 11.0,
+                    letterSpacing: 0.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ),
+
+      const SizedBox(height: 4.0),
+
+      // Discipline · Unity
+      Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
+        child: Text(
+          unityName.isNotEmpty ? '$discipline · $unityName' : discipline,
+          style: AppTheme.of(context).bodySmall.override(
+                font: GoogleFonts.lexend(),
+                color: AppTheme.of(context).secondaryText,
+                fontSize: 11.0,
+                letterSpacing: 0.0,
+              ),
+        ),
+      ),
+
+      // Progress bar
+      if (quantityAssigned > 0) ...[
+        const SizedBox(height: 8.0),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${quantityDone.toStringAsFixed(quantityDone.truncateToDouble() == quantityDone ? 0 : 1)} / ${quantityAssigned.toStringAsFixed(quantityAssigned.truncateToDouble() == quantityAssigned ? 0 : 1)} $unityName',
+                    style: AppTheme.of(context).bodySmall.override(
+                          font: GoogleFonts.lexend(),
+                          fontSize: 11.0,
+                          letterSpacing: 0.0,
+                        ),
+                  ),
+                  Text(
+                    '${(progressPct * 100).toStringAsFixed(0)}%',
+                    style: AppTheme.of(context).bodySmall.override(
+                          font: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+                          fontSize: 11.0,
+                          letterSpacing: 0.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4.0),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4.0),
+                child: LinearProgressIndicator(
+                  value: progressPct,
+                  backgroundColor: const Color(0xFFE5E7EB),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progressPct >= 1.0
+                        ? const Color(0xFF16A34A)
+                        : AppTheme.of(context).primary,
+                  ),
+                  minHeight: 4.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+
+      // Team + Criticality badges
+      if ((teamName != null && teamName.isNotEmpty) || critLabel.isNotEmpty) ...[
+        const SizedBox(height: 8.0),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
+          child: Wrap(
+            spacing: 6.0,
+            runSpacing: 4.0,
+            children: [
+              if (teamName != null && teamName.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0x1A7C3AED),
+                    borderRadius: BorderRadius.circular(6.0),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.groups_outlined, size: 13.0, color: const Color(0xFF7C3AED)),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        teamName,
+                        style: AppTheme.of(context).bodySmall.override(
+                              font: GoogleFonts.lexend(fontWeight: FontWeight.w500),
+                              color: const Color(0xFF7C3AED),
+                              fontSize: 11.0,
+                              letterSpacing: 0.0,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (critLabel.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                  decoration: BoxDecoration(
+                    color: critColors['bg'],
+                    borderRadius: BorderRadius.circular(6.0),
+                  ),
+                  child: Text(
+                    critLabel,
+                    style: AppTheme.of(context).bodySmall.override(
+                          font: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+                          color: critColors['text'],
+                          fontSize: 11.0,
+                          letterSpacing: 0.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+
+      // Scheduled date
+      if (formattedDate != null) ...[
+        const SizedBox(height: 6.0),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_today_outlined,
+                  size: 13.0, color: AppTheme.of(context).secondaryText),
+              const SizedBox(width: 4.0),
+              Text(
+                'Agendada: $formattedDate',
+                style: AppTheme.of(context).bodySmall.override(
+                      font: GoogleFonts.lexend(),
+                      color: AppTheme.of(context).secondaryText,
+                      fontSize: 11.0,
+                      letterSpacing: 0.0,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+
+      const SizedBox(height: 10.0),
+
+      // Action buttons row
+      Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
+        child: Row(
+          children: [
+            // Detalhes button
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8.0),
+                onTap: () {
+                  context.goNamedAuth(
+                    DetalhesDaTarefaWidget.routeName,
+                    context.mounted,
+                    extra: <String, dynamic>{
+                      'item': item,
+                      kTransitionInfoKey: TransitionInfo(
+                        hasTransition: true,
+                        transitionType: PageTransitionType.fade,
+                        duration: const Duration(milliseconds: 250),
+                      ),
+                    },
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F4FF),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.visibility_outlined,
+                          size: 14.0, color: AppTheme.of(context).primary),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        'Detalhes',
+                        style: AppTheme.of(context).bodySmall.override(
+                              font: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+                              color: AppTheme.of(context).primary,
+                              fontSize: 11.0,
+                              letterSpacing: 0.0,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6.0),
+            // Concluir / Aprovado button
+            Expanded(
+              child: Builder(
+                builder: (context) => InkWell(
+                  borderRadius: BorderRadius.circular(8.0),
+                  onTap: () async {
+                    if (isInspection) {
+                      // Aprovado — modal de confirmação + updateInspectionCall com qualityStatusId: 2
+                      final confirmed = await showDialog<bool>(
+                        barrierColor: const Color(0x80000000),
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                          title: Text('Aprovar Inspeção', style: GoogleFonts.lexend(fontWeight: FontWeight.w600, fontSize: 18.0)),
+                          content: Text('Deseja aprovar esta tarefa de inspeção?', style: GoogleFonts.lexend(fontSize: 14.0)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: Text('Cancelar', style: GoogleFonts.lexend(color: AppTheme.of(context).secondaryText)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF16A34A),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                              ),
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              child: Text('Aprovar', style: GoogleFonts.lexend(color: Colors.white, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed != true) return;
+                      final result = await SprintsGroup.updateInspectionCall.call(
+                        sprintsTasksId: taskId,
+                        qualityStatusId: 2,
+                        token: currentAuthenticationToken,
+                      );
+                      if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
+                        AppState().update(() {
+                          final current = AppState().offlineMaskedTasksIds.toList();
+                          if (!current.contains(taskId)) {
+                            current.add(taskId);
+                            AppState().offlineMaskedTasksIds = current;
+                          }
+                        });
+                      }
+                      safeSetState(() {
+                        _model.clearHomePageCache();
+                        _model.apiRequestCompleted = false;
+                      });
+                      await _model.waitForApiRequestCompleted();
+                      return;
+                    }
+                    if ((AppConstants.um ==
+                            getJsonField(item, r'$.projects_backlogs.equipaments_types_id')) &&
+                        (false == getJsonField(item, r'$.can_conclude'))) {
+                      await showDialog(
+                        context: context,
+                        builder: (dialogContext) {
+                          return Dialog(
+                            elevation: 0,
+                            insetPadding: EdgeInsets.zero,
+                            backgroundColor: Colors.transparent,
+                            alignment: AlignmentDirectional(0.0, 0.0)
+                                .resolve(Directionality.of(context)),
+                            child: GestureDetector(
+                              onTap: () {
+                                FocusScope.of(dialogContext).unfocus();
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
+                              child: ModalInfoWidget(
+                                title: 'Atenção',
+                                description:
+                                    'Conclua todas as etapas de cravação de estacas para finalizar esta tarefa.',
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                      return;
+                    }
+                    if (quantityAssigned > 0) {
+                      // Tarefa com quantidade — abrir modal para informar quantidade executada
+                      await _showQuantityCompleteModal(context, item, () {
+                        safeSetState(() {
+                          _model.clearHomePageCache();
+                          _model.apiRequestCompleted = false;
+                        });
+                        _model.waitForApiRequestCompleted();
+                      });
+                    } else {
+                      // Tarefa sem quantidade — concluir direto
+                      AppState().tasksfinish = [];
+                      AppState().tasksfinish = [_buildTaskStruct()];
+                      safeSetState(() {});
+                      await showDialog(
+                        barrierColor: const Color(0x80000000),
+                        context: context,
+                        builder: (dialogContext) {
+                          return Dialog(
+                            elevation: 0,
+                            insetPadding: EdgeInsets.zero,
+                            backgroundColor: Colors.transparent,
+                            alignment: AlignmentDirectional(0.0, 0.0)
+                                .resolve(Directionality.of(context)),
+                            child: GestureDetector(
+                              onTap: () {
+                                FocusScope.of(dialogContext).unfocus();
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
+                              child: ConfirmdialogWidget(
+                                action: () async {
+                                  safeSetState(() {
+                                    _model.clearHomePageCache();
+                                    _model.apiRequestCompleted = false;
+                                  });
+                                  await _model.waitForApiRequestCompleted();
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1622C55E),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_outline,
+                            size: 14.0, color: Color(0xFF16A34A)),
+                        const SizedBox(width: 4.0),
+                        Text(
+                          isInspection ? 'Aprovado' : 'Concluir',
+                          style: AppTheme.of(context).bodySmall.override(
+                                font: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+                                color: const Color(0xFF16A34A),
+                                fontSize: 11.0,
+                                letterSpacing: 0.0,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6.0),
+            // Sem Sucesso / Reprovado button
+            Expanded(
+              child: Builder(
+                builder: (context) => InkWell(
+                borderRadius: BorderRadius.circular(8.0),
+                onTap: () async {
+                  if (isInspection) {
+                    // Reprovado — modal de confirmação + updateInspectionCall com qualityStatusId: 3
+                    final confirmed = await showDialog<bool>(
+                      barrierColor: const Color(0x80000000),
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                        title: Text('Reprovar Inspeção', style: GoogleFonts.lexend(fontWeight: FontWeight.w600, fontSize: 18.0)),
+                        content: Text('Deseja reprovar esta tarefa de inspeção?', style: GoogleFonts.lexend(fontSize: 14.0)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            child: Text('Cancelar', style: GoogleFonts.lexend(color: AppTheme.of(context).secondaryText)),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                            ),
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            child: Text('Reprovar', style: GoogleFonts.lexend(color: Colors.white, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                    final result = await SprintsGroup.updateInspectionCall.call(
+                      sprintsTasksId: taskId,
+                      qualityStatusId: 3,
+                      token: currentAuthenticationToken,
+                    );
+                    if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
+                      AppState().update(() {
+                        final current = AppState().offlineMaskedTasksIds.toList();
+                        if (!current.contains(taskId)) {
+                          current.add(taskId);
+                          AppState().offlineMaskedTasksIds = current;
+                        }
+                      });
+                    }
+                    safeSetState(() {
+                      _model.clearHomePageCache();
+                      _model.apiRequestCompleted = false;
+                    });
+                    await _model.waitForApiRequestCompleted();
+                    return;
+                  }
+                  await showDialog(
+                    barrierColor: Color(0x80000000),
+                    context: context,
+                    builder: (dialogContext) {
+                      return Dialog(
+                        elevation: 0,
+                        insetPadding: EdgeInsets.zero,
+                        backgroundColor: Colors.transparent,
+                        alignment: AlignmentDirectional(0.0, 0.0)
+                            .resolve(Directionality.of(context)),
+                        child: GestureDetector(
+                          onTap: () {
+                            FocusScope.of(dialogContext).unfocus();
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                          child: SemSucessoModalWidget(
+                            items: [item],
+                            action: () async {
+                              safeSetState(() {
+                                _model.clearHomePageCache();
+                                _model.apiRequestCompleted = false;
+                              });
+                              await _model.waitForApiRequestCompleted();
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0x16EF4444),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.cancel_outlined,
+                          size: 14.0, color: Color(0xFFDC2626)),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        isInspection ? 'Reprovado' : 'S. Suc.',
+                        style: AppTheme.of(context).bodySmall.override(
+                              font: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+                              color: const Color(0xFFDC2626),
+                              fontSize: 11.0,
+                              letterSpacing: 0.0,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )),
+          ],
+        ),
+      ),
+    ];
   }
 
   int _lastConnectionRestoredTrigger = 0;
@@ -388,96 +1361,18 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                       color: Colors.white,
                                       size: 18.0,
                                     ),
-                                    onPressed: () async {
-                                      var _shouldSetState = false;
-                                      _model.returnQrcode =
-                                          await FlutterBarcodeScanner.scanBarcode(
-                                        '#C62828', // scanning line color
-                                        AppLocalizations.of(context).getText(
-                                          'jwhugfqw' /* Cancelar */,
-                                        ), // cancel button text
-                                        true, // whether to show the flash icon
-                                        ScanMode.QR,
+                                    onPressed: () {
+                                      context.goNamedAuth(
+                                        PageCheckQrcodeWidget.routeName,
+                                        context.mounted,
+                                        extra: <String, dynamic>{
+                                          kTransitionInfoKey: TransitionInfo(
+                                            hasTransition: true,
+                                            transitionType: PageTransitionType.fade,
+                                            duration: const Duration(milliseconds: 250),
+                                          ),
+                                        },
                                       );
-
-                                      _shouldSetState = true;
-                                      if (_model.returnQrcode == '-1') {
-                                        if (_shouldSetState) safeSetState(() {});
-                                        return;
-                                      }
-                                      _model.apiQrcode = await ReportsGroup
-                                          .qrcodeReaderCall
-                                          .call(
-                                        qrcode: _model.returnQrcode!,
-                                        token: currentAuthenticationToken,
-                                      );
-
-                                      _shouldSetState = true;
-                                      final qrUserId = ReportsGroup.qrcodeReaderCall
-                                          .userId((_model.apiQrcode?.jsonBody ?? ''));
-                                      if (qrUserId != null) {
-                                        await showDialog(
-                                          context: context,
-                                          builder: (dialogContext) {
-                                            return Dialog(
-                                              elevation: 0,
-                                              insetPadding: EdgeInsets.zero,
-                                              backgroundColor: Colors.transparent,
-                                              alignment: AlignmentDirectional(
-                                                      0.0, 0.0)
-                                                  .resolve(
-                                                      Directionality.of(context)),
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  FocusScope.of(dialogContext)
-                                                      .unfocus();
-                                                  FocusManager
-                                                      .instance.primaryFocus
-                                                      ?.unfocus();
-                                                },
-                                                child: ModalSucessQrcodeWidget(
-                                                  text:
-                                                      'QR Code do funcionário lido com sucesso.',
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      } else {
-                                        await showDialog(
-                                          context: context,
-                                          builder: (dialogContext) {
-                                            return Dialog(
-                                              elevation: 0,
-                                              insetPadding: EdgeInsets.zero,
-                                              backgroundColor: Colors.transparent,
-                                              alignment: AlignmentDirectional(
-                                                      0.0, 0.0)
-                                                  .resolve(
-                                                      Directionality.of(context)),
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  FocusScope.of(dialogContext)
-                                                      .unfocus();
-                                                  FocusManager
-                                                      .instance.primaryFocus
-                                                      ?.unfocus();
-                                                },
-                                                child: ModalInfoWidget(
-                                                  title: 'Erro',
-                                                  description:
-                                                      'Esse usuário não tem acesso ou não está cadastrado.',
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        );
-
-                                        if (_shouldSetState) safeSetState(() {});
-                                        return;
-                                      }
-
-                                      if (_shouldSetState) safeSetState(() {});
                                     },
                                   ),
                                 ),
@@ -579,7 +1474,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                           Expanded(
                             child: Padding(
                               padding: EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 0.0, 0.0, 50.0),
+                                  0.0, 0.0, 0.0, 64.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.start,
@@ -678,215 +1573,266 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                       ],
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.all(14.0),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: const Color(0xFF105DFB).withOpacity(0.12),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Header row: ícone + título + botão refresh
-                                      Row(
-                                        mainAxisSize: MainAxisSize.max,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            children: [
-                                              Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: AppTheme.of(context).primary.withOpacity(0.1),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Icon(
-                                                  Icons.rocket_launch_rounded,
-                                                  color: AppTheme.of(context).primary,
-                                                  size: 16.0,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Text(
-                                                AppLocalizations.of(context)
-                                                    .getText(
-                                                  '5tht4dc1' /* Tarefas da sprint */,
-                                                ),
-                                                style: GoogleFonts.lexend(
-                                                  fontSize: 14.0,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppTheme.of(context).primaryText,
-                                                  letterSpacing: 0.1,
-                                                ),
+                                  Builder(
+                                    builder: (context) {
+                                      final _resp = homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody;
+                                      final _api = SprintsGroup.queryAllSprintsTasksRecordCall;
+                                      final _pendCount = _api.pendentes(_resp)?.length ?? 0;
+                                      final _andCount = _api.nOandamento(_resp)?.length ?? 0;
+                                      final _concCount = _api.nOconcluidas(_resp)?.length ?? 0;
+                                      final _semSucCount = _api.nOsemSucesso(_resp)?.length ?? 0;
+                                      final _inspCount = _api.yESandamento(_resp)?.length ?? 0;
+                                      final totalTasks = _pendCount + _andCount + _concCount + _semSucCount + _inspCount;
+                                      final doneTasks = _concCount + _inspCount + _semSucCount;
+                                      return GestureDetector(
+                                        onTap: () {
+                                          _model.sprintExpanded = !_model.sprintExpanded;
+                                          safeSetState(() {});
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: const Color(0xFF105DFB).withOpacity(0.12),
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 2),
                                               ),
                                             ],
                                           ),
-                                          AppIconButton(
-                                            borderColor:
-                                                AppTheme.of(context)
-                                                    .alternate,
-                                            borderRadius: 8.0,
-                                            buttonSize: 30.0,
-                                            fillColor:
-                                                const Color(0xFFF5F7FA),
-                                            icon: Icon(
-                                              Icons.refresh_rounded,
-                                              color:
-                                                  AppTheme.of(context)
-                                                      .primary,
-                                              size: 15.0,
-                                            ),
-                                            onPressed: () async {
-                                              safeSetState(() {
-                                                _model.clearHomePageCache();
-                                                _model.apiRequestCompleted =
-                                                    false;
-                                              });
-                                              await _model
-                                                  .waitForApiRequestCompleted();
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      // Título da sprint
-                                      Text(
-                                        valueOrDefault<String>(
-                                          AppState().user.sprint.title,
-                                          ' - ',
-                                        ),
-                                        style: GoogleFonts.lexend(
-                                          fontSize: 15.0,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.of(context).primaryText,
-                                          letterSpacing: 0.0,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      // Datas com ícone
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.calendar_today_rounded,
-                                            size: 13,
-                                            color: AppTheme.of(context).primary,
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            '${valueOrDefault<String>(
-                                              dateTimeFormat(
-                                                "d/M/y",
-                                                DateTime.fromMillisecondsSinceEpoch(
-                                                    AppState().user.sprint.startDate),
-                                                locale: AppLocalizations.of(context).languageCode,
-                                              ),
-                                              '0',
-                                            )}${AppLocalizations.of(context).getVariableText(
-                                              ptText: ' até ',
-                                              esText: ' hasta ',
-                                              enText: ' until ',
-                                            )}${valueOrDefault<String>(
-                                              dateTimeFormat(
-                                                "d/M/y",
-                                                DateTime.fromMillisecondsSinceEpoch(
-                                                    AppState().user.sprint.endDate),
-                                                locale: AppLocalizations.of(context).languageCode,
-                                              ),
-                                              '0',
-                                            )}',
-                                            style: GoogleFonts.lexend(
-                                              fontSize: 12.0,
-                                              fontWeight: FontWeight.w500,
-                                              color: AppTheme.of(context).primary,
-                                              letterSpacing: 0.0,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      // Barra de progresso visual
-                                      Builder(
-                                        builder: (context) {
-                                          final totalTasks = (SprintsGroup
-                                                  .queryAllSprintsTasksRecordCall
-                                                  .nOandamento(
-                                                    homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
-                                                  )?.length ?? 0) +
-                                              (SprintsGroup
-                                                  .queryAllSprintsTasksRecordCall
-                                                  .nOconcluidas(
-                                                    homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
-                                                  )?.length ?? 0);
-                                          final doneTasks = SprintsGroup
-                                                  .queryAllSprintsTasksRecordCall
-                                                  .nOconcluidas(
-                                                    homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
-                                                  )?.length ?? 0;
-                                          final progress = totalTasks > 0 ? doneTasks / totalTasks : 0.0;
-                                          return Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
+                                              // Header compacto: sempre visível
                                               Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 children: [
-                                                  Text(
-                                                    AppLocalizations.of(context).getVariableText(
-                                                      ptText: 'Progresso',
-                                                      esText: 'Progreso',
-                                                      enText: 'Progress',
+                                                  Container(
+                                                    width: 28,
+                                                    height: 28,
+                                                    decoration: BoxDecoration(
+                                                      color: AppTheme.of(context).primary.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(7),
                                                     ),
-                                                    style: GoogleFonts.lexend(
-                                                      fontSize: 11.0,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: AppTheme.of(context).secondaryText,
+                                                    child: Icon(
+                                                      Icons.rocket_launch_rounded,
+                                                      color: AppTheme.of(context).primary,
+                                                      size: 14.0,
                                                     ),
                                                   ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      valueOrDefault<String>(
+                                                        AppState().user.sprint.title,
+                                                        ' - ',
+                                                      ),
+                                                      style: GoogleFonts.lexend(
+                                                        fontSize: 13.0,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: AppTheme.of(context).primaryText,
+                                                        letterSpacing: 0.0,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
                                                   Text(
-                                                    '$doneTasks / $totalTasks',
+                                                    '$doneTasks/$totalTasks',
                                                     style: GoogleFonts.lexend(
-                                                      fontSize: 11.0,
+                                                      fontSize: 12.0,
                                                       fontWeight: FontWeight.w600,
                                                       color: AppTheme.of(context).primary,
                                                     ),
                                                   ),
+                                                  const SizedBox(width: 4),
+                                                  AppIconButton(
+                                                    borderColor:
+                                                        AppTheme.of(context)
+                                                            .alternate,
+                                                    borderRadius: 8.0,
+                                                    buttonSize: 28.0,
+                                                    fillColor:
+                                                        const Color(0xFFF5F7FA),
+                                                    icon: Icon(
+                                                      Icons.refresh_rounded,
+                                                      color:
+                                                          AppTheme.of(context)
+                                                              .primary,
+                                                      size: 14.0,
+                                                    ),
+                                                    onPressed: () async {
+                                                      safeSetState(() {
+                                                        _model.clearHomePageCache();
+                                                        _model.apiRequestCompleted =
+                                                            false;
+                                                      });
+                                                      await _model
+                                                          .waitForApiRequestCompleted();
+                                                    },
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  AnimatedRotation(
+                                                    turns: _model.sprintExpanded ? 0.5 : 0.0,
+                                                    duration: const Duration(milliseconds: 200),
+                                                    child: Icon(
+                                                      Icons.keyboard_arrow_down_rounded,
+                                                      color: AppTheme.of(context).secondaryText,
+                                                      size: 20.0,
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
-                                              const SizedBox(height: 6),
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(6),
-                                                child: LinearProgressIndicator(
-                                                  value: progress,
-                                                  backgroundColor: AppTheme.of(context).alternate.withOpacity(0.4),
-                                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                                    AppTheme.of(context).primary,
-                                                  ),
-                                                  minHeight: 6,
-                                                ),
+                                              // Conteúdo expandido
+                                              AnimatedSize(
+                                                duration: const Duration(milliseconds: 250),
+                                                curve: Curves.easeInOut,
+                                                child: !_model.sprintExpanded
+                                                    ? const SizedBox.shrink()
+                                                    : Padding(
+                                                        padding: const EdgeInsets.only(top: 10.0),
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            // Datas com ícone
+                                                            Row(
+                                                              mainAxisSize: MainAxisSize.min,
+                                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                                              children: [
+                                                                Icon(
+                                                                  Icons.calendar_today_rounded,
+                                                                  size: 13,
+                                                                  color: AppTheme.of(context).primary,
+                                                                ),
+                                                                const SizedBox(width: 5),
+                                                                Text(
+                                                                  '${valueOrDefault<String>(
+                                                                    dateTimeFormat(
+                                                                      "d/M/y",
+                                                                      DateTime.fromMillisecondsSinceEpoch(
+                                                                          AppState().user.sprint.startDate),
+                                                                      locale: AppLocalizations.of(context).languageCode,
+                                                                    ),
+                                                                    '0',
+                                                                  )}${AppLocalizations.of(context).getVariableText(
+                                                                    ptText: ' até ',
+                                                                    esText: ' hasta ',
+                                                                    enText: ' until ',
+                                                                  )}${valueOrDefault<String>(
+                                                                    dateTimeFormat(
+                                                                      "d/M/y",
+                                                                      DateTime.fromMillisecondsSinceEpoch(
+                                                                          AppState().user.sprint.endDate),
+                                                                      locale: AppLocalizations.of(context).languageCode,
+                                                                    ),
+                                                                    '0',
+                                                                  )}',
+                                                                  style: GoogleFonts.lexend(
+                                                                    fontSize: 12.0,
+                                                                    fontWeight: FontWeight.w500,
+                                                                    color: AppTheme.of(context).primary,
+                                                                    letterSpacing: 0.0,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            const SizedBox(height: 10),
+                                                            // Barra de progresso estilo painel
+                                                            Builder(
+                                                              builder: (context) {
+                                                                final emAndamentoCount = SprintsGroup
+                                                                    .queryAllSprintsTasksRecordCall
+                                                                    .nOandamento(homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody)?.length ?? 0;
+                                                                final concluidasCount = SprintsGroup
+                                                                    .queryAllSprintsTasksRecordCall
+                                                                    .nOconcluidas(homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody)?.length ?? 0;
+                                                                final semSucessoCount = SprintsGroup
+                                                                    .queryAllSprintsTasksRecordCall
+                                                                    .nOsemSucesso(homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody)?.length ?? 0;
+                                                                final inspecaoCount = SprintsGroup
+                                                                    .queryAllSprintsTasksRecordCall
+                                                                    .yESandamento(homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody)?.length ?? 0;
+                                                                final pct = totalTasks > 0 ? ((doneTasks / totalTasks) * 100).round() : 0;
+                                                                return Column(
+                                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                                  children: [
+                                                                    Row(
+                                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                                      children: [
+                                                                        Text(
+                                                                          AppLocalizations.of(context).getVariableText(
+                                                                            ptText: 'Progresso',
+                                                                            esText: 'Progreso',
+                                                                            enText: 'Progress',
+                                                                          ),
+                                                                          style: GoogleFonts.lexend(
+                                                                            fontSize: 13.0,
+                                                                            fontWeight: FontWeight.w500,
+                                                                            color: AppTheme.of(context).primaryText,
+                                                                          ),
+                                                                        ),
+                                                                        Text(
+                                                                          '$pct%',
+                                                                          style: GoogleFonts.lexend(
+                                                                            fontSize: 13.0,
+                                                                            fontWeight: FontWeight.w600,
+                                                                            color: AppTheme.of(context).primary,
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                    const SizedBox(height: 8),
+                                                                    ClipRRect(
+                                                                      borderRadius: BorderRadius.circular(4),
+                                                                      child: LinearProgressIndicator(
+                                                                        value: totalTasks > 0 ? doneTasks / totalTasks : 0.0,
+                                                                        backgroundColor: AppTheme.of(context).alternate,
+                                                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                                                          AppTheme.of(context).primary,
+                                                                        ),
+                                                                        minHeight: 8,
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(height: 10),
+                                                                    Wrap(
+                                                                      spacing: 16,
+                                                                      runSpacing: 4,
+                                                                      children: [
+                                                                        Text(
+                                                                          'Em Andamento: $emAndamentoCount',
+                                                                          style: GoogleFonts.lexend(fontSize: 11, color: AppTheme.of(context).primary),
+                                                                        ),
+                                                                        Text(
+                                                                          'Inspeção: $inspecaoCount',
+                                                                          style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFFCA8A04)),
+                                                                        ),
+                                                                        Text(
+                                                                          'Concluída: $concluidasCount',
+                                                                          style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFF16A34A)),
+                                                                        ),
+                                                                        Text(
+                                                                          'Sem Sucesso: $semSucessoCount',
+                                                                          style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFFDC2626)),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ],
+                                                                );
+                                                              },
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
                                               ),
                                             ],
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                   Padding(
                                     padding: EdgeInsetsDirectional.fromSTEB(
@@ -1227,628 +2173,153 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                         child: Column(
                                           mainAxisSize: MainAxisSize.max,
                                           children: [
-                                            if (_model.tabBarCurrentIndex == 0)
-                                              Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        0.0, 8.0, 0.0, 8.0),
-                                                child: Container(
-                                                  height: 40.0,
-                                                  decoration: BoxDecoration(
-                                                    color: AppTheme.of(
-                                                            context)
-                                                        .secondaryBackground,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12.0),
-                                                    border: Border.all(
-                                                      color:
-                                                          AppTheme.of(
-                                                                  context)
-                                                              .alternate,
+                                            // Batch select row integrada
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    AppState().taskslist.isNotEmpty
+                                                        ? 'Desmarcar todas'
+                                                        : 'Selecionar todas',
+                                                    style: GoogleFonts.lexend(
+                                                      fontSize: 12.0,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: AppTheme.of(context).secondaryText,
                                                     ),
                                                   ),
-                                                  child: Padding(
-                                                    padding:
-                                                        EdgeInsetsDirectional
-                                                            .fromSTEB(12.0, 0.0,
-                                                                12.0, 0.0),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.max,
-                                                      children: [
-                                                        Expanded(
-                                                          child: Text(
-                                                            AppLocalizations.of(
-                                                                    context)
-                                                                .getText(
-                                                              '1zi762pp' /* Selecionar todas as tarefas fi... */,
+                                                  const SizedBox(width: 6.0),
+                                                  if (AppState().taskslist.isNotEmpty)
+                                                    Padding(
+                                                      padding: const EdgeInsets.only(right: 4.0),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                                                        decoration: BoxDecoration(
+                                                          color: AppTheme.of(context).primary.withOpacity(0.1),
+                                                          borderRadius: BorderRadius.circular(10),
+                                                        ),
+                                                        child: Text(
+                                                          '${AppState().taskslist.length}',
+                                                          style: GoogleFonts.lexend(
+                                                            fontSize: 11.0,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: AppTheme.of(context).primary,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  // Checkbox de seleção em lote
+                                                  if (!(AppState().taskslist.isNotEmpty))
+                                                    InkWell(
+                                                      splashColor: Colors.transparent,
+                                                      focusColor: Colors.transparent,
+                                                      hoverColor: Colors.transparent,
+                                                      highlightColor: Colors.transparent,
+                                                      onTap: () async {
+                                                        if (_model.tabBarCurrentIndex == 0) {
+                                                          if (!_model.semSucesso) {
+                                                            _model.allCheck = true;
+                                                            safeSetState(() {});
+                                                            _model.retornoAciton = await actions.setIdsEquipamento(
+                                                              SprintsGroup.queryAllSprintsTasksRecordCall.nOandamento(
+                                                                homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
+                                                              )!.toList(),
+                                                            );
+                                                            AppState().taskslist = _model.retornoAciton!.toList().cast<TasksListStruct>();
+                                                          } else {
+                                                            _model.allCheck = true;
+                                                            safeSetState(() {});
+                                                            _model.retornoAcitonSemSucesso = await actions.setIdsEquipamento(
+                                                              SprintsGroup.queryAllSprintsTasksRecordCall.nOsemSucesso(
+                                                                homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
+                                                              )!.toList(),
+                                                            );
+                                                            AppState().taskslist = _model.retornoAcitonSemSucesso!.toList().cast<TasksListStruct>();
+                                                          }
+                                                        } else {
+                                                          _model.allCheck = true;
+                                                          safeSetState(() {});
+                                                          _model.yesandamento = await actions.addIdsDataType(
+                                                            SprintsGroup.queryAllSprintsTasksRecordCall.yESandamento(
+                                                              homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
+                                                            )!.toList(),
+                                                          );
+                                                          AppState().taskslist = _model.yesandamento!.toList().cast<TasksListStruct>();
+                                                        }
+                                                        safeSetState(() {});
+                                                      },
+                                                      child: Container(
+                                                        width: 30.0,
+                                                        height: 30.0,
+                                                        alignment: AlignmentDirectional(0.0, 0.0),
+                                                        child: Container(
+                                                          width: 18.0,
+                                                          height: 18.0,
+                                                          decoration: BoxDecoration(
+                                                            color: AppTheme.of(context).secondaryBackground,
+                                                            borderRadius: BorderRadius.circular(4.0),
+                                                            border: Border.all(
+                                                              color: AppTheme.of(context).alternate,
+                                                              width: 2.0,
                                                             ),
-                                                            style: AppTheme
-                                                                    .of(context)
-                                                                .labelSmall
-                                                                .override(
-                                                                  font: GoogleFonts
-                                                                      .lexend(
-                                                                    fontWeight: AppTheme.of(
-                                                                            context)
-                                                                        .labelSmall
-                                                                        .fontWeight,
-                                                                    fontStyle: AppTheme.of(
-                                                                            context)
-                                                                        .labelSmall
-                                                                        .fontStyle,
-                                                                  ),
-                                                                  color: AppTheme.of(
-                                                                          context)
-                                                                      .secondaryText,
-                                                                  letterSpacing:
-                                                                      0.0,
-                                                                  fontWeight: AppTheme.of(
-                                                                          context)
-                                                                      .labelSmall
-                                                                      .fontWeight,
-                                                                  fontStyle: AppTheme.of(
-                                                                          context)
-                                                                      .labelSmall
-                                                                      .fontStyle,
-                                                                ),
                                                           ),
                                                         ),
-                                                        Text(
-                                                          valueOrDefault<
-                                                              String>(
-                                                            AppState()
-                                                                .taskslist
-                                                                .length
-                                                                .toString(),
-                                                            '0',
-                                                          ),
-                                                          style: AppTheme
-                                                                  .of(context)
-                                                              .labelLarge
-                                                              .override(
-                                                                font:
-                                                                    GoogleFonts
-                                                                        .lexend(
-                                                                  fontWeight: AppTheme.of(
-                                                                          context)
-                                                                      .labelLarge
-                                                                      .fontWeight,
-                                                                  fontStyle: AppTheme.of(
-                                                                          context)
-                                                                      .labelLarge
-                                                                      .fontStyle,
-                                                                ),
-                                                                color: AppTheme.of(
-                                                                        context)
-                                                                    .primary,
-                                                                letterSpacing:
-                                                                    0.0,
-                                                                fontWeight: AppTheme.of(
-                                                                        context)
-                                                                    .labelLarge
-                                                                    .fontWeight,
-                                                                fontStyle: AppTheme.of(
-                                                                        context)
-                                                                    .labelLarge
-                                                                    .fontStyle,
-                                                              ),
-                                                        ),
-                                                        Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.max,
-                                                          children: [
-                                                            if (!(AppState()
-                                                                .taskslist
-                                                                .isNotEmpty))
-                                                              InkWell(
-                                                                splashColor: Colors
-                                                                    .transparent,
-                                                                focusColor: Colors
-                                                                    .transparent,
-                                                                hoverColor: Colors
-                                                                    .transparent,
-                                                                highlightColor:
-                                                                    Colors
-                                                                        .transparent,
-                                                                onTap:
-                                                                    () async {
-                                                                  if (!_model
-                                                                      .semSucesso) {
-                                                                    _model.allCheck =
-                                                                        true;
-                                                                    safeSetState(
-                                                                        () {});
-                                                                    _model.retornoAciton =
-                                                                        await actions
-                                                                            .setIdsEquipamento(
-                                                                      SprintsGroup
-                                                                          .queryAllSprintsTasksRecordCall
-                                                                          .nOandamento(
-                                                                            homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
-                                                                          )!
-                                                                          .toList(),
-                                                                    );
-                                                                    AppState().taskslist = _model
-                                                                        .retornoAciton!
-                                                                        .toList()
-                                                                        .cast<
-                                                                            TasksListStruct>();
-                                                                    safeSetState(
-                                                                        () {});
-                                                                  } else {
-                                                                    _model.allCheck =
-                                                                        true;
-                                                                    safeSetState(
-                                                                        () {});
-                                                                    _model.retornoAcitonSemSucesso =
-                                                                        await actions
-                                                                            .setIdsEquipamento(
-                                                                      SprintsGroup
-                                                                          .queryAllSprintsTasksRecordCall
-                                                                          .nOsemSucesso(
-                                                                            homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
-                                                                          )!
-                                                                          .toList(),
-                                                                    );
-                                                                    AppState().taskslist = _model
-                                                                        .retornoAcitonSemSucesso!
-                                                                        .toList()
-                                                                        .cast<
-                                                                            TasksListStruct>();
-                                                                    safeSetState(
-                                                                        () {});
-                                                                  }
-
-                                                                  safeSetState(
-                                                                      () {});
-                                                                },
-                                                                child:
-                                                                    Container(
-                                                                  width: 30.0,
-                                                                  height: 30.0,
-                                                                  decoration:
-                                                                      BoxDecoration(),
-                                                                  alignment:
-                                                                      AlignmentDirectional(
-                                                                          0.0,
-                                                                          0.0),
-                                                                  child: Column(
-                                                                    mainAxisSize:
-                                                                        MainAxisSize
-                                                                            .max,
-                                                                    mainAxisAlignment:
-                                                                        MainAxisAlignment
-                                                                            .center,
-                                                                    children: [
-                                                                      Container(
-                                                                        width:
-                                                                            18.0,
-                                                                        height:
-                                                                            18.0,
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color:
-                                                                              AppTheme.of(context).secondaryBackground,
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(4.0),
-                                                                          border:
-                                                                              Border.all(
-                                                                            color:
-                                                                                AppTheme.of(context).alternate,
-                                                                            width:
-                                                                                2.0,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            if (AppState()
-                                                                .taskslist
-                                                                .isNotEmpty)
-                                                              InkWell(
-                                                                splashColor: Colors
-                                                                    .transparent,
-                                                                focusColor: Colors
-                                                                    .transparent,
-                                                                hoverColor: Colors
-                                                                    .transparent,
-                                                                highlightColor:
-                                                                    Colors
-                                                                        .transparent,
-                                                                onTap:
-                                                                    () async {
-                                                                  _model.allCheck =
-                                                                      false;
-                                                                  safeSetState(
-                                                                      () {});
-                                                                  AppState()
-                                                                      .taskslist = [];
-                                                                  safeSetState(
-                                                                      () {});
-                                                                },
-                                                                child:
-                                                                    Container(
-                                                                  width: 30.0,
-                                                                  height: 30.0,
-                                                                  decoration:
-                                                                      BoxDecoration(),
-                                                                  alignment:
-                                                                      AlignmentDirectional(
-                                                                          0.0,
-                                                                          0.0),
-                                                                  child: Column(
-                                                                    mainAxisSize:
-                                                                        MainAxisSize
-                                                                            .max,
-                                                                    mainAxisAlignment:
-                                                                        MainAxisAlignment
-                                                                            .center,
-                                                                    children: [
-                                                                      Container(
-                                                                        width:
-                                                                            18.0,
-                                                                        height:
-                                                                            18.0,
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color:
-                                                                              AppTheme.of(context).primary,
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(4.0),
-                                                                          border:
-                                                                              Border.all(
-                                                                            color:
-                                                                                AppTheme.of(context).primary,
-                                                                            width:
-                                                                                2.0,
-                                                                          ),
-                                                                        ),
-                                                                        alignment: AlignmentDirectional(
-                                                                            0.0,
-                                                                            0.0),
-                                                                        child:
-                                                                            Align(
-                                                                          alignment: AlignmentDirectional(
-                                                                              0.0,
-                                                                              0.0),
-                                                                          child:
-                                                                              Stack(
-                                                                            alignment:
-                                                                                AlignmentDirectional(0.0, 0.0),
-                                                                            children: [
-                                                                              if (!_model.allCheck)
-                                                                                FaIcon(
-                                                                                  FontAwesomeIcons.check,
-                                                                                  color: AppTheme.of(context).info,
-                                                                                  size: 14.0,
-                                                                                ),
-                                                                              if (_model.allCheck)
-                                                                                Container(
-                                                                                  width: 100.0,
-                                                                                  height: 3.0,
-                                                                                  decoration: BoxDecoration(
-                                                                                    color: AppTheme.of(context).secondaryBackground,
-                                                                                  ),
-                                                                                ),
-                                                                            ],
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                          ],
-                                                        ),
-                                                      ].divide(
-                                                          SizedBox(width: 4.0)),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ),
-                                              ),
-                                            if (_model.tabBarCurrentIndex == 1)
-                                              Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        0.0, 8.0, 0.0, 8.0),
-                                                child: Container(
-                                                  height: 40.0,
-                                                  decoration: BoxDecoration(
-                                                    color: AppTheme.of(
-                                                            context)
-                                                        .secondaryBackground,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12.0),
-                                                    border: Border.all(
-                                                      color:
-                                                          AppTheme.of(
-                                                                  context)
-                                                              .alternate,
-                                                    ),
-                                                  ),
-                                                  child: Padding(
-                                                    padding:
-                                                        EdgeInsetsDirectional
-                                                            .fromSTEB(12.0, 0.0,
-                                                                12.0, 0.0),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.max,
-                                                      children: [
-                                                        Expanded(
-                                                          child: Text(
-                                                            AppLocalizations.of(
-                                                                    context)
-                                                                .getText(
-                                                              'fv19kacg' /* Selecionar todas as tarefas fi... */,
+                                                  if (AppState().taskslist.isNotEmpty)
+                                                    InkWell(
+                                                      splashColor: Colors.transparent,
+                                                      focusColor: Colors.transparent,
+                                                      hoverColor: Colors.transparent,
+                                                      highlightColor: Colors.transparent,
+                                                      onTap: () async {
+                                                        _model.allCheck = false;
+                                                        safeSetState(() {});
+                                                        AppState().taskslist = [];
+                                                        safeSetState(() {});
+                                                      },
+                                                      child: Container(
+                                                        width: 30.0,
+                                                        height: 30.0,
+                                                        alignment: AlignmentDirectional(0.0, 0.0),
+                                                        child: Container(
+                                                          width: 18.0,
+                                                          height: 18.0,
+                                                          decoration: BoxDecoration(
+                                                            color: AppTheme.of(context).primary,
+                                                            borderRadius: BorderRadius.circular(4.0),
+                                                            border: Border.all(
+                                                              color: AppTheme.of(context).primary,
+                                                              width: 2.0,
                                                             ),
-                                                            style: AppTheme
-                                                                    .of(context)
-                                                                .labelSmall
-                                                                .override(
-                                                                  font: GoogleFonts
-                                                                      .lexend(
-                                                                    fontWeight: AppTheme.of(
-                                                                            context)
-                                                                        .labelSmall
-                                                                        .fontWeight,
-                                                                    fontStyle: AppTheme.of(
-                                                                            context)
-                                                                        .labelSmall
-                                                                        .fontStyle,
-                                                                  ),
-                                                                  color: AppTheme.of(
-                                                                          context)
-                                                                      .secondaryText,
-                                                                  letterSpacing:
-                                                                      0.0,
-                                                                  fontWeight: AppTheme.of(
-                                                                          context)
-                                                                      .labelSmall
-                                                                      .fontWeight,
-                                                                  fontStyle: AppTheme.of(
-                                                                          context)
-                                                                      .labelSmall
-                                                                      .fontStyle,
+                                                          ),
+                                                          alignment: AlignmentDirectional(0.0, 0.0),
+                                                          child: Stack(
+                                                            alignment: AlignmentDirectional(0.0, 0.0),
+                                                            children: [
+                                                              if (!_model.allCheck)
+                                                                FaIcon(
+                                                                  FontAwesomeIcons.check,
+                                                                  color: AppTheme.of(context).info,
+                                                                  size: 14.0,
                                                                 ),
+                                                              if (_model.allCheck)
+                                                                Container(
+                                                                  width: 100.0,
+                                                                  height: 3.0,
+                                                                  decoration: BoxDecoration(
+                                                                    color: AppTheme.of(context).secondaryBackground,
+                                                                  ),
+                                                                ),
+                                                            ],
                                                           ),
                                                         ),
-                                                        Text(
-                                                          valueOrDefault<
-                                                              String>(
-                                                            AppState()
-                                                                .taskslist
-                                                                .length
-                                                                .toString(),
-                                                            '0',
-                                                          ),
-                                                          style: AppTheme
-                                                                  .of(context)
-                                                              .labelLarge
-                                                              .override(
-                                                                font:
-                                                                    GoogleFonts
-                                                                        .lexend(
-                                                                  fontWeight: AppTheme.of(
-                                                                          context)
-                                                                      .labelLarge
-                                                                      .fontWeight,
-                                                                  fontStyle: AppTheme.of(
-                                                                          context)
-                                                                      .labelLarge
-                                                                      .fontStyle,
-                                                                ),
-                                                                color: AppTheme.of(
-                                                                        context)
-                                                                    .primary,
-                                                                letterSpacing:
-                                                                    0.0,
-                                                                fontWeight: AppTheme.of(
-                                                                        context)
-                                                                    .labelLarge
-                                                                    .fontWeight,
-                                                                fontStyle: AppTheme.of(
-                                                                        context)
-                                                                    .labelLarge
-                                                                    .fontStyle,
-                                                              ),
-                                                        ),
-                                                        Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.max,
-                                                          children: [
-                                                            if (!(AppState()
-                                                                .taskslist
-                                                                .isNotEmpty))
-                                                              InkWell(
-                                                                splashColor: Colors
-                                                                    .transparent,
-                                                                focusColor: Colors
-                                                                    .transparent,
-                                                                hoverColor: Colors
-                                                                    .transparent,
-                                                                highlightColor:
-                                                                    Colors
-                                                                        .transparent,
-                                                                onTap:
-                                                                    () async {
-                                                                  _model.allCheck =
-                                                                      true;
-                                                                  safeSetState(
-                                                                      () {});
-                                                                  _model.yesandamento =
-                                                                      await actions
-                                                                          .addIdsDataType(
-                                                                    SprintsGroup
-                                                                        .queryAllSprintsTasksRecordCall
-                                                                        .yESandamento(
-                                                                          homePageTarefasQueryAllSprintsTasksRecordResponse
-                                                                              .jsonBody,
-                                                                        )!
-                                                                        .toList(),
-                                                                  );
-                                                                  AppState().taskslist = _model
-                                                                      .yesandamento!
-                                                                      .toList()
-                                                                      .cast<
-                                                                          TasksListStruct>();
-                                                                  safeSetState(
-                                                                      () {});
-
-                                                                  safeSetState(
-                                                                      () {});
-                                                                },
-                                                                child:
-                                                                    Container(
-                                                                  width: 30.0,
-                                                                  height: 30.0,
-                                                                  decoration:
-                                                                      BoxDecoration(),
-                                                                  alignment:
-                                                                      AlignmentDirectional(
-                                                                          0.0,
-                                                                          0.0),
-                                                                  child: Column(
-                                                                    mainAxisSize:
-                                                                        MainAxisSize
-                                                                            .max,
-                                                                    mainAxisAlignment:
-                                                                        MainAxisAlignment
-                                                                            .center,
-                                                                    children: [
-                                                                      Container(
-                                                                        width:
-                                                                            18.0,
-                                                                        height:
-                                                                            18.0,
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color:
-                                                                              AppTheme.of(context).secondaryBackground,
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(4.0),
-                                                                          border:
-                                                                              Border.all(
-                                                                            color:
-                                                                                AppTheme.of(context).alternate,
-                                                                            width:
-                                                                                2.0,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            if (AppState()
-                                                                .taskslist
-                                                                .isNotEmpty)
-                                                              InkWell(
-                                                                splashColor: Colors
-                                                                    .transparent,
-                                                                focusColor: Colors
-                                                                    .transparent,
-                                                                hoverColor: Colors
-                                                                    .transparent,
-                                                                highlightColor:
-                                                                    Colors
-                                                                        .transparent,
-                                                                onTap:
-                                                                    () async {
-                                                                  _model.allCheck =
-                                                                      false;
-                                                                  safeSetState(
-                                                                      () {});
-                                                                  AppState()
-                                                                      .taskslist = [];
-                                                                  safeSetState(
-                                                                      () {});
-                                                                },
-                                                                child:
-                                                                    Container(
-                                                                  width: 30.0,
-                                                                  height: 30.0,
-                                                                  decoration:
-                                                                      BoxDecoration(),
-                                                                  alignment:
-                                                                      AlignmentDirectional(
-                                                                          0.0,
-                                                                          0.0),
-                                                                  child: Column(
-                                                                    mainAxisSize:
-                                                                        MainAxisSize
-                                                                            .max,
-                                                                    mainAxisAlignment:
-                                                                        MainAxisAlignment
-                                                                            .center,
-                                                                    children: [
-                                                                      Container(
-                                                                        width:
-                                                                            18.0,
-                                                                        height:
-                                                                            18.0,
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color:
-                                                                              AppTheme.of(context).primary,
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(4.0),
-                                                                          border:
-                                                                              Border.all(
-                                                                            color:
-                                                                                AppTheme.of(context).primary,
-                                                                            width:
-                                                                                2.0,
-                                                                          ),
-                                                                        ),
-                                                                        alignment: AlignmentDirectional(
-                                                                            0.0,
-                                                                            0.0),
-                                                                        child:
-                                                                            Align(
-                                                                          alignment: AlignmentDirectional(
-                                                                              0.0,
-                                                                              0.0),
-                                                                          child:
-                                                                              Stack(
-                                                                            alignment:
-                                                                                AlignmentDirectional(0.0, 0.0),
-                                                                            children: [
-                                                                              if (!_model.allCheck)
-                                                                                FaIcon(
-                                                                                  FontAwesomeIcons.check,
-                                                                                  color: AppTheme.of(context).info,
-                                                                                  size: 14.0,
-                                                                                ),
-                                                                              if (_model.allCheck)
-                                                                                Container(
-                                                                                  width: 100.0,
-                                                                                  height: 3.0,
-                                                                                  decoration: BoxDecoration(
-                                                                                    color: AppTheme.of(context).secondaryBackground,
-                                                                                  ),
-                                                                                ),
-                                                                            ],
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                          ],
-                                                        ),
-                                                      ].divide(
-                                                          SizedBox(width: 4.0)),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ),
+                                                ],
                                               ),
+                                            ),
                                             Expanded(
                                               child: Column(
                                                 children: [
@@ -2007,6 +2478,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                               (context, listaSemSucessoIndex) {
                                                                             final listaSemSucessoItem =
                                                                                 listaSemSucesso[listaSemSucessoIndex];
+                                                                            if (_isOfflineMaskedTask(listaSemSucessoItem)) {
+                                                                              return const SizedBox.shrink();
+                                                                            }
                                                                             return Padding(
                                                                               padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
                                                                               child: Column(
@@ -2021,13 +2495,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                     child: Container(
                                                                                       width: MediaQuery.sizeOf(context).width * 1.0,
                                                                                       decoration: BoxDecoration(
-                                                                                        color: AppConstants.tres ==
-                                                                                                getJsonField(
-                                                                                                  listaSemSucessoItem,
-                                                                                                  r'''$.projects_backlogs.rows_stakes.stakes_statuses_id''',
-                                                                                                )
-                                                                                            ? const Color(0xFFFFF3F3)
-                                                                                            : Colors.white,
+                                                                                        color: Colors.white,
                                                                                         borderRadius: BorderRadius.circular(14.0),
                                                                                         boxShadow: [
                                                                                           BoxShadow(
@@ -2037,17 +2505,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                           ),
                                                                                         ],
                                                                                         border: Border.all(
-                                                                                          color: AppConstants.tres ==
-                                                                                                  getJsonField(
-                                                                                                    listaSemSucessoItem,
-                                                                                                    r'''$.projects_backlogs.rows_stakes.stakes_statuses_id''',
-                                                                                                  )
-                                                                                              ? const Color(0xFFFFCDD2)
-                                                                                              : const Color(0xFFE8EAED),
+                                                                                          color: const Color(0xFFE8EAED),
                                                                                         ),
                                                                                       ),
                                                                                       child: Padding(
-                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 0.0),
+                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
                                                                                         child: Column(
                                                                                           mainAxisSize: MainAxisSize.min,
                                                                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2056,11 +2518,15 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                 getJsonField(
                                                                                                   listaSemSucessoItem,
                                                                                                   r'''$.subtasks_id''',
-                                                                                                ))
+                                                                                                ) && getJsonField(listaSemSucessoItem, r'''$.subtasks_id''') != null)
                                                                                               Container(
                                                                                                 width: double.infinity,
                                                                                                 decoration: BoxDecoration(
-                                                                                                  color: Color(0xFF487EDA),
+                                                                                                  gradient: const LinearGradient(
+                                                                                                    begin: Alignment.topLeft,
+                                                                                                    end: Alignment.bottomRight,
+                                                                                                    colors: [Color(0xFF3B6EC8), Color(0xFF487EDA)],
+                                                                                                  ),
                                                                                                   borderRadius: BorderRadius.only(
                                                                                                     bottomLeft: Radius.circular(0.0),
                                                                                                     bottomRight: Radius.circular(0.0),
@@ -2069,8 +2535,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                                 child: Padding(
-                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(12.0, 8.0, 12.0, 4.0),
-                                                                                                  child: Text(
+                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
+                                                                                                  child: Row(
+                                                                                                    children: [
+                                                                                                      Expanded(
+                                                                                                        child: Text(
                                                                                                     valueOrDefault<String>(
                                                                                                       'Tarefa: ${valueOrDefault<String>(
                                                                                                         getJsonField(
@@ -2101,581 +2570,18 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                           fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
                                                                                                         ),
                                                                                                   ),
-                                                                                                ),
-                                                                                              ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 12.0, 12.0, 12.0),
-                                                                                              child: Row(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                mainAxisAlignment: MainAxisAlignment.end,
-                                                                                                children: [
-                                                                                                  Row(
-                                                                                                    mainAxisSize: MainAxisSize.max,
-                                                                                                    children: [
-                                                                                                      if (!functions.checkIds(
-                                                                                                          AppState().taskslist.toList(),
-                                                                                                          getJsonField(
-                                                                                                            listaSemSucessoItem,
-                                                                                                            r'''$.id''',
-                                                                                                          )))
-                                                                                                        InkWell(
-                                                                                                          splashColor: Colors.transparent,
-                                                                                                          focusColor: Colors.transparent,
-                                                                                                          hoverColor: Colors.transparent,
-                                                                                                          highlightColor: Colors.transparent,
-                                                                                                          onTap: () async {
-                                                                                                            AppState().addToTaskslist(TasksListStruct(
-                                                                                                              sprintsTasksId: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              ),
-                                                                                                              sprintsTasksStatusesId: 3,
-                                                                                                              description: AppConstants.zero ==
-                                                                                                                      getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.subtasks_id''',
-                                                                                                                      )
-                                                                                                                  ? valueOrDefault<String>(
-                                                                                                                      (getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.projects_backlogs.description''',
-                                                                                                                      ) ?? getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                      ))?.toString(),
-                                                                                                                      ' - ',
-                                                                                                                    )
-                                                                                                                  : valueOrDefault<String>(
-                                                                                                                      getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.subtasks.description''',
-                                                                                                                      )?.toString(),
-                                                                                                                      ' - ',
-                                                                                                                    ),
-                                                                                                              subtasksId: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.subtasks_id''',
-                                                                                                              ),
-                                                                                                              unity: UnityStruct(
-                                                                                                                id: getJsonField(
-                                                                                                                  listaSemSucessoItem,
-                                                                                                                  r'''$.subtasks.unity.id''',
-                                                                                                                ),
-                                                                                                                unity: getJsonField(
-                                                                                                                  listaSemSucessoItem,
-                                                                                                                  r'''$.subtasks.unity.unity''',
-                                                                                                                ).toString(),
-                                                                                                              ),
-                                                                                                              unityId: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.subtasks.unity_id''',
-                                                                                                              ),
-                                                                                                              quantityDone: getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.subtasks''',
-                                                                                                                      ) !=
-                                                                                                                      null
-                                                                                                                  ? getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks.quantity''',
-                                                                                                                    )
-                                                                                                                  : 0.0,
-                                                                                                              inspection: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.projects_backlogs.is_inspection''',
-                                                                                                              ),
-                                                                                                            ));
-                                                                                                            safeSetState(() {});
-                                                                                                          },
-                                                                                                          child: Container(
-                                                                                                            width: 30.0,
-                                                                                                            height: 30.0,
-                                                                                                            decoration: BoxDecoration(),
-                                                                                                            alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                            child: Column(
-                                                                                                              mainAxisSize: MainAxisSize.max,
-                                                                                                              mainAxisAlignment: MainAxisAlignment.center,
-                                                                                                              children: [
-                                                                                                                Container(
-                                                                                                                  width: 18.0,
-                                                                                                                  height: 18.0,
-                                                                                                                  decoration: BoxDecoration(
-                                                                                                                    color: AppTheme.of(context).secondaryBackground,
-                                                                                                                    borderRadius: BorderRadius.circular(4.0),
-                                                                                                                    border: Border.all(
-                                                                                                                      color: AppTheme.of(context).alternate,
-                                                                                                                      width: 2.0,
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                                ),
-                                                                                                              ],
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                      if (functions.checkIds(
-                                                                                                          AppState().taskslist.toList(),
-                                                                                                          getJsonField(
-                                                                                                            listaSemSucessoItem,
-                                                                                                            r'''$.id''',
-                                                                                                          )))
-                                                                                                        InkWell(
-                                                                                                          splashColor: Colors.transparent,
-                                                                                                          focusColor: Colors.transparent,
-                                                                                                          hoverColor: Colors.transparent,
-                                                                                                          highlightColor: Colors.transparent,
-                                                                                                          onTap: () async {
-                                                                                                            AppState().removeFromTaskslist(TasksListStruct(
-                                                                                                              sprintsTasksId: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              ),
-                                                                                                              sprintsTasksStatusesId: 3,
-                                                                                                              description: AppConstants.zero ==
-                                                                                                                      getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.subtasks_id''',
-                                                                                                                      )
-                                                                                                                  ? valueOrDefault<String>(
-                                                                                                                      (getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.projects_backlogs.description''',
-                                                                                                                      ) ?? getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                      ))?.toString(),
-                                                                                                                      ' - ',
-                                                                                                                    )
-                                                                                                                  : valueOrDefault<String>(
-                                                                                                                      getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.subtasks.description''',
-                                                                                                                      )?.toString(),
-                                                                                                                      ' - ',
-                                                                                                                    ),
-                                                                                                              subtasksId: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.subtasks_id''',
-                                                                                                              ),
-                                                                                                              unity: UnityStruct(
-                                                                                                                id: getJsonField(
-                                                                                                                  listaSemSucessoItem,
-                                                                                                                  r'''$.subtasks.unity.id''',
-                                                                                                                ),
-                                                                                                                unity: getJsonField(
-                                                                                                                  listaSemSucessoItem,
-                                                                                                                  r'''$.subtasks.unity.unity''',
-                                                                                                                ).toString(),
-                                                                                                              ),
-                                                                                                              unityId: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.subtasks.unity_id''',
-                                                                                                              ),
-                                                                                                              quantityDone: getJsonField(
-                                                                                                                        listaSemSucessoItem,
-                                                                                                                        r'''$.subtasks''',
-                                                                                                                      ) !=
-                                                                                                                      null
-                                                                                                                  ? getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks.quantity''',
-                                                                                                                    )
-                                                                                                                  : 0.0,
-                                                                                                              inspection: getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.projects_backlogs.is_inspection''',
-                                                                                                              ),
-                                                                                                            ));
-                                                                                                            safeSetState(() {});
-                                                                                                          },
-                                                                                                          child: Container(
-                                                                                                            width: 30.0,
-                                                                                                            height: 30.0,
-                                                                                                            decoration: BoxDecoration(),
-                                                                                                            child: Column(
-                                                                                                              mainAxisSize: MainAxisSize.max,
-                                                                                                              mainAxisAlignment: MainAxisAlignment.center,
-                                                                                                              children: [
-                                                                                                                Container(
-                                                                                                                  width: 18.0,
-                                                                                                                  height: 18.0,
-                                                                                                                  decoration: BoxDecoration(
-                                                                                                                    color: AppTheme.of(context).primary,
-                                                                                                                    borderRadius: BorderRadius.circular(4.0),
-                                                                                                                    border: Border.all(
-                                                                                                                      color: AppTheme.of(context).primary,
-                                                                                                                      width: 2.0,
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                                  alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                  child: Align(
-                                                                                                                    alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                    child: Stack(
-                                                                                                                      alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                      children: [
-                                                                                                                        if (!_model.allCheck)
-                                                                                                                          FaIcon(
-                                                                                                                            FontAwesomeIcons.check,
-                                                                                                                            color: AppTheme.of(context).info,
-                                                                                                                            size: 14.0,
-                                                                                                                          ),
-                                                                                                                        if (_model.allCheck)
-                                                                                                                          Container(
-                                                                                                                            width: 100.0,
-                                                                                                                            height: 3.0,
-                                                                                                                            decoration: BoxDecoration(
-                                                                                                                              color: AppTheme.of(context).secondaryBackground,
-                                                                                                                            ),
-                                                                                                                          ),
-                                                                                                                      ],
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                                ),
-                                                                                                              ],
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                        ),
+                                                                                                      ),
+                                                                                                      // Checkbox no header azul
+                                                                                                      Builder(builder: (ctx) {
+                                                                                                        final _tid = castToType<int>(getJsonField(listaSemSucessoItem, r'''$.id''')) ?? 0;
+                                                                                                        final _checked = functions.checkIds(AppState().taskslist.toList(), _tid);
+                                                                                                        return _buildHeaderCheckbox(ctx, listaSemSucessoItem, _tid, _checked);
+                                                                                                      }),
                                                                                                     ],
                                                                                                   ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
-                                                                                            Row(
-                                                                                              mainAxisSize: MainAxisSize.max,
-                                                                                              children: [
-                                                                                                Expanded(
-                                                                                                  child: Padding(
-                                                                                                    padding: EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
-                                                                                                    child: RichText(
-                                                                                                      textScaler: MediaQuery.of(context).textScaler,
-                                                                                                      text: TextSpan(
-                                                                                                        children: [
-                                                                                                          TextSpan(
-                                                                                                            text: 'COD: ${valueOrDefault<String>(
-                                                                                                              getJsonField(
-                                                                                                                listaSemSucessoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              )?.toString(),
-                                                                                                              ' - ',
-                                                                                                            )}',
-                                                                                                            style: AppTheme.of(context).labelSmall.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              'oecbnf5u' /*   */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )
-                                                                                                                ? valueOrDefault<String>(
-                                                                                                                    (getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.projects_backlogs.description''',
-                                                                                                                    ) ?? getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                    ))?.toString(),
-                                                                                                                    ' - ',
-                                                                                                                  )
-                                                                                                                : valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks.description''',
-                                                                                                                    )?.toString(),
-                                                                                                                    ' - ',
-                                                                                                                  ),
-                                                                                                            style: AppTheme.of(context).labelLarge.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).labelLarge.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).labelLarge.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primaryText,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).labelLarge.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).labelLarge.fontStyle,
-                                                                                                                ),
-                                                                                                          )
-                                                                                                        ],
-                                                                                                        style: AppTheme.of(context).labelSmall.override(
-                                                                                                              font: GoogleFonts.lexend(
-                                                                                                                fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                              ),
-                                                                                                              color: AppTheme.of(context).primaryText,
-                                                                                                              letterSpacing: 0.0,
-                                                                                                              fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                              fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                            ),
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                  ),
                                                                                                 ),
-                                                                                              ],
-                                                                                            ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
-                                                                                              child: Column(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                                children: [
-                                                                                                  Row(
-                                                                                                    mainAxisSize: MainAxisSize.max,
-                                                                                                    children: [
-                                                                                                      RichText(
-                                                                                                        textScaler: MediaQuery.of(context).textScaler,
-                                                                                                        text: TextSpan(
-                                                                                                          children: [
-                                                                                                            TextSpan(
-                                                                                                              text: AppLocalizations.of(context).getText(
-                                                                                                                'rhzner57' /* Disciplina:  */,
-                                                                                                              ),
-                                                                                                              style: TextStyle(
-                                                                                                                color: AppTheme.of(context).primaryText,
-                                                                                                              ),
-                                                                                                            ),
-                                                                                                            TextSpan(
-                                                                                                              text: valueOrDefault<String>(
-                                                                                                                getJsonField(
-                                                                                                                  listaSemSucessoItem,
-                                                                                                                  r'''$.projects_backlogs.discipline.discipline''',
-                                                                                                                )?.toString(),
-                                                                                                                '-',
-                                                                                                              ),
-                                                                                                              style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                    font: GoogleFonts.lexend(
-                                                                                                                      fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                      fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                    ),
-                                                                                                                    color: AppTheme.of(context).primary,
-                                                                                                                    letterSpacing: 0.0,
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                            )
-                                                                                                          ],
-                                                                                                          style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                font: GoogleFonts.lexend(
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                                color: AppTheme.of(context).primary,
-                                                                                                                letterSpacing: 0.0,
-                                                                                                                fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                              ),
-                                                                                                        ),
-                                                                                                      ),
-                                                                                                    ],
-                                                                                                  ),
-                                                                                                  if ((getJsonField(
-                                                                                                            listaSemSucessoItem,
-                                                                                                            r'''$.subtasks.quantity''',
-                                                                                                          ) !=
-                                                                                                          null) ||
-                                                                                                      (getJsonField(
-                                                                                                            listaSemSucessoItem,
-                                                                                                            r'''$.projects_backlogs.unity.unity''',
-                                                                                                          ) !=
-                                                                                                          null))
-                                                                                                    Row(
-                                                                                                      mainAxisSize: MainAxisSize.max,
-                                                                                                      children: [
-                                                                                                        RichText(
-                                                                                                          textScaler: MediaQuery.of(context).textScaler,
-                                                                                                          text: TextSpan(
-                                                                                                            children: [
-                                                                                                              TextSpan(
-                                                                                                                text: AppLocalizations.of(context).getText(
-                                                                                                                  'm0eam955' /* Qtd da tarefa:  */,
-                                                                                                                ),
-                                                                                                                style: TextStyle(
-                                                                                                                  color: AppTheme.of(context).primaryText,
-                                                                                                                ),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaSemSucessoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaSemSucessoItem,
-                                                                                                                          r'''$.projects_backlogs.quantity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '0',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaSemSucessoItem,
-                                                                                                                          r'''$.subtasks.quantity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '0',
-                                                                                                                      ),
-                                                                                                                style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                      font: GoogleFonts.lexend(
-                                                                                                                        fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                        fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                      ),
-                                                                                                                      color: AppTheme.of(context).primary,
-                                                                                                                      letterSpacing: 0.0,
-                                                                                                                      fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                      fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                    ),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppLocalizations.of(context).getText(
-                                                                                                                  'n8zrgq28' /*   */,
-                                                                                                                ),
-                                                                                                                style: TextStyle(),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaSemSucessoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaSemSucessoItem,
-                                                                                                                          r'''$.projects_backlogs.unity.unity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '-',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaSemSucessoItem,
-                                                                                                                          r'''$.subtasks.unity.unity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '-',
-                                                                                                                      ),
-                                                                                                                style: TextStyle(),
-                                                                                                              )
-                                                                                                            ],
-                                                                                                            style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                      ],
-                                                                                                    ),
-                                                                                                  if ((getJsonField(
-                                                                                                            listaSemSucessoItem,
-                                                                                                            r'''$.subtasks.quantity''',
-                                                                                                          ) !=
-                                                                                                          null) ||
-                                                                                                      (getJsonField(
-                                                                                                            listaSemSucessoItem,
-                                                                                                            r'''$.projects_backlogs.unity.unity''',
-                                                                                                          ) !=
-                                                                                                          null))
-                                                                                                    RichText(
-                                                                                                      textScaler: MediaQuery.of(context).textScaler,
-                                                                                                      text: TextSpan(
-                                                                                                        children: [
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              'woff5s4d' /* Qtd executada:  */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(
-                                                                                                              color: AppTheme.of(context).primaryText,
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )
-                                                                                                                ? valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.projects_backlogs.quantity_done''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '0',
-                                                                                                                  )
-                                                                                                                : valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks.quantity_done''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '0',
-                                                                                                                  ),
-                                                                                                            style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              'fw9edepr' /*   */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )
-                                                                                                                ? valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.projects_backlogs.unity.unity''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '-',
-                                                                                                                  )
-                                                                                                                : valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaSemSucessoItem,
-                                                                                                                      r'''$.subtasks.unity.unity''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '-',
-                                                                                                                  ),
-                                                                                                            style: TextStyle(),
-                                                                                                          )
-                                                                                                        ],
-                                                                                                        style: AppTheme.of(context).bodyMedium.override(
-                                                                                                              font: GoogleFonts.lexend(
-                                                                                                                fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                              ),
-                                                                                                              color: AppTheme.of(context).primary,
-                                                                                                              letterSpacing: 0.0,
-                                                                                                              fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                              fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                            ),
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                ],
                                                                                               ),
-                                                                                            ),
+                                                                                            ..._buildAndamentoCardBody(context, listaSemSucessoItem),
                                                                                           ],
                                                                                         ),
                                                                                       ),
@@ -2774,20 +2680,16 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                         ),
                                                                                       ),
                                                                                       child: Padding(
-                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
+                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
                                                                                         child: Column(
                                                                                           mainAxisSize: MainAxisSize.min,
                                                                                           crossAxisAlignment: CrossAxisAlignment.start,
                                                                                           children: [
-                                                                                            if (AppConstants.zero !=
-                                                                                                getJsonField(
-                                                                                                  listaAndamentoItem,
-                                                                                                  r'''$.subtasks_id''',
-                                                                                                ))
+                                                                                            if (getJsonField(listaAndamentoItem, r'''$.subtasks_id''') != null &&
+                                                                                                AppConstants.zero != getJsonField(listaAndamentoItem, r'''$.subtasks_id'''))
                                                                                               Container(
                                                                                                 width: double.infinity,
                                                                                                 decoration: BoxDecoration(
-                                                                                                  // Subtarefa: header azul mais sofisticado
                                                                                                   gradient: const LinearGradient(
                                                                                                     begin: Alignment.topLeft,
                                                                                                     end: Alignment.bottomRight,
@@ -2801,8 +2703,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                                 child: Padding(
-                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(14.0, 10.0, 14.0, 6.0),
-                                                                                                  child: Text(
+                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
+                                                                                                  child: Row(
+                                                                                                    children: [
+                                                                                                      Expanded(
+                                                                                                        child: Text(
                                                                                                     valueOrDefault<String>(
                                                                                                       'Tarefa: ${valueOrDefault<String>(
                                                                                                         getJsonField(
@@ -2833,571 +2738,18 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                           fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
                                                                                                         ),
                                                                                                   ),
+                                                                                                      ),
+                                                                                                      // Checkbox no header azul
+                                                                                                      Builder(builder: (ctx) {
+                                                                                                        final _tid = castToType<int>(getJsonField(listaAndamentoItem, r'''$.id''')) ?? 0;
+                                                                                                        final _checked = functions.checkIds(AppState().taskslist.toList(), _tid);
+                                                                                                        return _buildHeaderCheckbox(ctx, listaAndamentoItem, _tid, _checked);
+                                                                                                      }),
+                                                                                                    ],
+                                                                                                  ),
                                                                                                 ),
                                                                                               ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsets.all(12.0),
-                                                                                              child: Row(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                mainAxisAlignment: MainAxisAlignment.end,
-                                                                                                children: [
-                                                                                                  Row(
-                                                                                                    mainAxisSize: MainAxisSize.max,
-                                                                                                    children: [
-                                                                                                      if (!functions.checkIds(
-                                                                                                          AppState().taskslist.toList(),
-                                                                                                          getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.id''',
-                                                                                                          )))
-                                                                                                        Builder(
-                                                                                                          builder: (context) => InkWell(
-                                                                                                            splashColor: Colors.transparent,
-                                                                                                            focusColor: Colors.transparent,
-                                                                                                            hoverColor: Colors.transparent,
-                                                                                                            highlightColor: Colors.transparent,
-                                                                                                            onTap: () async {
-                                                                                                              if ((AppConstants.um ==
-                                                                                                                      getJsonField(
-                                                                                                                        listaAndamentoItem,
-                                                                                                                        r'''$.projects_backlogs.equipaments_types_id''',
-                                                                                                                      )) &&
-                                                                                                                  (false ==
-                                                                                                                      getJsonField(
-                                                                                                                        listaAndamentoItem,
-                                                                                                                        r'''$.can_conclude''',
-                                                                                                                      ))) {
-                                                                                                                await showDialog(
-                                                                                                                  context: context,
-                                                                                                                  builder: (dialogContext) {
-                                                                                                                    return Dialog(
-                                                                                                                      elevation: 0,
-                                                                                                                      insetPadding: EdgeInsets.zero,
-                                                                                                                      backgroundColor: Colors.transparent,
-                                                                                                                      alignment: AlignmentDirectional(0.0, 0.0).resolve(Directionality.of(context)),
-                                                                                                                      child: GestureDetector(
-                                                                                                                        onTap: () {
-                                                                                                                          FocusScope.of(dialogContext).unfocus();
-                                                                                                                          FocusManager.instance.primaryFocus?.unfocus();
-                                                                                                                        },
-                                                                                                                        child: ModalInfoWidget(
-                                                                                                                          title: 'Atenção',
-                                                                                                                          description: 'Conclua todas as etapas de cravação de estacas para finalizar esta tarefa.',
-                                                                                                                        ),
-                                                                                                                      ),
-                                                                                                                    );
-                                                                                                                  },
-                                                                                                                );
-
-                                                                                                                return;
-                                                                                                              }
-                                                                                                              AppState().addToTaskslist(TasksListStruct(
-                                                                                                                sprintsTasksId: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.id''',
-                                                                                                                ),
-                                                                                                                sprintsTasksStatusesId: 3,
-                                                                                                                description: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        (getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.description''',
-                                                                                                                        ) ?? getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                        ))?.toString(),
-                                                                                                                        ' - ',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.description''',
-                                                                                                                        )?.toString(),
-                                                                                                                        ' - ',
-                                                                                                                      ),
-                                                                                                                subtasksId: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.subtasks_id''',
-                                                                                                                ),
-                                                                                                                unity: UnityStruct(
-                                                                                                                  id: getJsonField(
-                                                                                                                            listaAndamentoItem,
-                                                                                                                            r'''$.subtasks.unity.id''',
-                                                                                                                          ) !=
-                                                                                                                          null
-                                                                                                                      ? getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.unity.id''',
-                                                                                                                        )
-                                                                                                                      : getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.unity.id''',
-                                                                                                                        ),
-                                                                                                                  unity: (getJsonField(
-                                                                                                                                listaAndamentoItem,
-                                                                                                                                r'''$.subtasks.unity.unity''',
-                                                                                                                              ) !=
-                                                                                                                              null
-                                                                                                                          ? getJsonField(
-                                                                                                                              listaAndamentoItem,
-                                                                                                                              r'''$.subtasks.unity.unity''',
-                                                                                                                            )
-                                                                                                                          : getJsonField(
-                                                                                                                              listaAndamentoItem,
-                                                                                                                              r'''$.projects_backlogs.unity.unity''',
-                                                                                                                            ))
-                                                                                                                      .toString(),
-                                                                                                                ),
-                                                                                                                unityId: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.subtasks.unity_id''',
-                                                                                                                ),
-                                                                                                                quantityDone: getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks''',
-                                                                                                                        ) !=
-                                                                                                                        null
-                                                                                                                    ? getJsonField(
-                                                                                                                        listaAndamentoItem,
-                                                                                                                        r'''$.subtasks.quantity''',
-                                                                                                                      )
-                                                                                                                    : 0.0,
-                                                                                                                inspection: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.projects_backlogs.is_inspection''',
-                                                                                                                ),
-                                                                                                              ));
-                                                                                                              safeSetState(() {});
-                                                                                                            },
-                                                                                                            child: Container(
-                                                                                                              width: 30.0,
-                                                                                                              height: 30.0,
-                                                                                                              decoration: BoxDecoration(),
-                                                                                                              alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                              child: Column(
-                                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                                                                                children: [
-                                                                                                                  Container(
-                                                                                                                    width: 18.0,
-                                                                                                                    height: 18.0,
-                                                                                                                    decoration: BoxDecoration(
-                                                                                                                      color: AppTheme.of(context).secondaryBackground,
-                                                                                                                      borderRadius: BorderRadius.circular(4.0),
-                                                                                                                      border: Border.all(
-                                                                                                                        color: AppTheme.of(context).alternate,
-                                                                                                                        width: 2.0,
-                                                                                                                      ),
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                                ],
-                                                                                                              ),
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                      if (functions.checkIds(
-                                                                                                          AppState().taskslist.toList(),
-                                                                                                          getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.id''',
-                                                                                                          )))
-                                                                                                        Align(
-                                                                                                          alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                          child: InkWell(
-                                                                                                            splashColor: Colors.transparent,
-                                                                                                            focusColor: Colors.transparent,
-                                                                                                            hoverColor: Colors.transparent,
-                                                                                                            highlightColor: Colors.transparent,
-                                                                                                            onTap: () async {
-                                                                                                              AppState().removeFromTaskslist(TasksListStruct(
-                                                                                                                sprintsTasksId: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.id''',
-                                                                                                                ),
-                                                                                                                sprintsTasksStatusesId: 3,
-                                                                                                                description: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        (getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.description''',
-                                                                                                                        ) ?? getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                        ))?.toString(),
-                                                                                                                        ' - ',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.description''',
-                                                                                                                        )?.toString(),
-                                                                                                                        ' - ',
-                                                                                                                      ),
-                                                                                                                subtasksId: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.subtasks_id''',
-                                                                                                                ),
-                                                                                                                unity: UnityStruct(
-                                                                                                                  id: getJsonField(
-                                                                                                                            listaAndamentoItem,
-                                                                                                                            r'''$.subtasks.unity.id''',
-                                                                                                                          ) !=
-                                                                                                                          null
-                                                                                                                      ? getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.unity.id''',
-                                                                                                                        )
-                                                                                                                      : getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.unity.id''',
-                                                                                                                        ),
-                                                                                                                  unity: (getJsonField(
-                                                                                                                                listaAndamentoItem,
-                                                                                                                                r'''$.subtasks.unity.unity''',
-                                                                                                                              ) !=
-                                                                                                                              null
-                                                                                                                          ? getJsonField(
-                                                                                                                              listaAndamentoItem,
-                                                                                                                              r'''$.subtasks.unity.unity''',
-                                                                                                                            )
-                                                                                                                          : getJsonField(
-                                                                                                                              listaAndamentoItem,
-                                                                                                                              r'''$.projects_backlogs.unity.unity''',
-                                                                                                                            ))
-                                                                                                                      .toString(),
-                                                                                                                ),
-                                                                                                                unityId: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.subtasks.unity_id''',
-                                                                                                                ),
-                                                                                                                quantityDone: getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks''',
-                                                                                                                        ) !=
-                                                                                                                        null
-                                                                                                                    ? getJsonField(
-                                                                                                                        listaAndamentoItem,
-                                                                                                                        r'''$.subtasks.quantity''',
-                                                                                                                      )
-                                                                                                                    : 0.0,
-                                                                                                                inspection: getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.projects_backlogs.is_inspection''',
-                                                                                                                ),
-                                                                                                              ));
-                                                                                                              safeSetState(() {});
-                                                                                                            },
-                                                                                                            child: Container(
-                                                                                                              width: 30.0,
-                                                                                                              height: 30.0,
-                                                                                                              decoration: BoxDecoration(),
-                                                                                                              child: Column(
-                                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                                                                                children: [
-                                                                                                                  if (functions.checkIds(
-                                                                                                                      AppState().taskslist.toList(),
-                                                                                                                      getJsonField(
-                                                                                                                        listaAndamentoItem,
-                                                                                                                        r'''$.id''',
-                                                                                                                      )))
-                                                                                                                    Container(
-                                                                                                                      width: 18.0,
-                                                                                                                      height: 18.0,
-                                                                                                                      decoration: BoxDecoration(
-                                                                                                                        color: AppTheme.of(context).primary,
-                                                                                                                        borderRadius: BorderRadius.circular(4.0),
-                                                                                                                        border: Border.all(
-                                                                                                                          color: AppTheme.of(context).primary,
-                                                                                                                          width: 2.0,
-                                                                                                                        ),
-                                                                                                                      ),
-                                                                                                                      alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                      child: Align(
-                                                                                                                        alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                        child: Stack(
-                                                                                                                          alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                          children: [
-                                                                                                                            if (!_model.allCheck)
-                                                                                                                              FaIcon(
-                                                                                                                                FontAwesomeIcons.check,
-                                                                                                                                color: AppTheme.of(context).info,
-                                                                                                                                size: 14.0,
-                                                                                                                              ),
-                                                                                                                            if (_model.allCheck)
-                                                                                                                              Container(
-                                                                                                                                width: 100.0,
-                                                                                                                                height: 3.0,
-                                                                                                                                decoration: BoxDecoration(
-                                                                                                                                  color: AppTheme.of(context).secondaryBackground,
-                                                                                                                                ),
-                                                                                                                              ),
-                                                                                                                          ],
-                                                                                                                        ),
-                                                                                                                      ),
-                                                                                                                    ),
-                                                                                                                ],
-                                                                                                              ),
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                    ],
-                                                                                                  ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
-                                                                                              child: Row(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                children: [
-                                                                                                  Expanded(
-                                                                                                    child: RichText(
-                                                                                                      textScaler: MediaQuery.of(context).textScaler,
-                                                                                                      text: TextSpan(
-                                                                                                        children: [
-                                                                                                          TextSpan(
-                                                                                                            text: 'COD: ${valueOrDefault<String>(
-                                                                                                              getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              )?.toString(),
-                                                                                                              ' - ',
-                                                                                                            )}',
-                                                                                                            style: AppTheme.of(context).labelSmall.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              'u0nakc5r' /*   -  */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )
-                                                                                                                ? valueOrDefault<String>(
-                                                                                                                    (getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.description''',
-                                                                                                                    ) ?? getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                    ))?.toString(),
-                                                                                                                    ' - ',
-                                                                                                                  )
-                                                                                                                : valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks.description''',
-                                                                                                                    )?.toString(),
-                                                                                                                    ' - ',
-                                                                                                                  ),
-                                                                                                            style: AppTheme.of(context).labelLarge.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).labelLarge.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).labelLarge.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primaryText,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).labelLarge.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).labelLarge.fontStyle,
-                                                                                                                ),
-                                                                                                          )
-                                                                                                        ],
-                                                                                                        style: AppTheme.of(context).labelSmall.override(
-                                                                                                              font: GoogleFonts.lexend(
-                                                                                                                fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                              ),
-                                                                                                              color: AppTheme.of(context).primaryText,
-                                                                                                              letterSpacing: 0.0,
-                                                                                                              fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                              fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                            ),
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                  ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
-                                                                                              child: Column(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                                children: [
-                                                                                                  Row(
-                                                                                                    mainAxisSize: MainAxisSize.max,
-                                                                                                    children: [
-                                                                                                      RichText(
-                                                                                                        textScaler: MediaQuery.of(context).textScaler,
-                                                                                                        text: TextSpan(
-                                                                                                          children: [
-                                                                                                            TextSpan(
-                                                                                                              text: AppLocalizations.of(context).getText(
-                                                                                                                'howjsi0z' /* Disciplina:  */,
-                                                                                                              ),
-                                                                                                              style: TextStyle(
-                                                                                                                color: AppTheme.of(context).primaryText,
-                                                                                                              ),
-                                                                                                            ),
-                                                                                                            TextSpan(
-                                                                                                              text: valueOrDefault<String>(
-                                                                                                                getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.projects_backlogs.discipline.discipline''',
-                                                                                                                )?.toString(),
-                                                                                                                '-',
-                                                                                                              ),
-                                                                                                              style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                    font: GoogleFonts.lexend(
-                                                                                                                      fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                      fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                    ),
-                                                                                                                    color: AppTheme.of(context).primary,
-                                                                                                                    letterSpacing: 0.0,
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                            )
-                                                                                                          ],
-                                                                                                          style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                font: GoogleFonts.lexend(
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                                color: AppTheme.of(context).primary,
-                                                                                                                letterSpacing: 0.0,
-                                                                                                                fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                              ),
-                                                                                                        ),
-                                                                                                      ),
-                                                                                                    ],
-                                                                                                  ),
-                                                                                                  if ((getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.subtasks.quantity''',
-                                                                                                          ) !=
-                                                                                                          null) ||
-                                                                                                      (getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.projects_backlogs.unity
-''',
-                                                                                                          ) !=
-                                                                                                          null))
-                                                                                                    Row(
-                                                                                                      mainAxisSize: MainAxisSize.max,
-                                                                                                      children: [
-                                                                                                        RichText(
-                                                                                                          textScaler: MediaQuery.of(context).textScaler,
-                                                                                                          text: TextSpan(
-                                                                                                            children: [
-                                                                                                              TextSpan(
-                                                                                                                text: AppLocalizations.of(context).getText(
-                                                                                                                  '37890zra' /* Qtd da tarefa:  */,
-                                                                                                                ),
-                                                                                                                style: TextStyle(
-                                                                                                                  color: AppTheme.of(context).primaryText,
-                                                                                                                ),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.quantity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '0',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.quantity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '0',
-                                                                                                                      ),
-                                                                                                                style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                      font: GoogleFonts.lexend(
-                                                                                                                        fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                        fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                      ),
-                                                                                                                      color: AppTheme.of(context).primary,
-                                                                                                                      letterSpacing: 0.0,
-                                                                                                                      fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                      fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                    ),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppLocalizations.of(context).getText(
-                                                                                                                  '7fez8gdm' /*   */,
-                                                                                                                ),
-                                                                                                                style: TextStyle(),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.unity.unity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '-',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.unity.unity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '-',
-                                                                                                                      ),
-                                                                                                                style: TextStyle(),
-                                                                                                              )
-                                                                                                            ],
-                                                                                                            style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                      ],
-                                                                                                    ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
+                                                                                            ..._buildAndamentoCardBody(context, listaAndamentoItem),
                                                                                           ],
                                                                                         ),
                                                                                       ),
@@ -3599,16 +2951,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                         ),
                                                                                       ),
                                                                                       child: Padding(
-                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
+                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
                                                                                         child: Column(
                                                                                           mainAxisSize: MainAxisSize.min,
                                                                                           crossAxisAlignment: CrossAxisAlignment.start,
                                                                                           children: [
-                                                                                            if (AppConstants.zero !=
-                                                                                                getJsonField(
-                                                                                                  listaAndamentoItem,
-                                                                                                  r'''$.subtasks_id''',
-                                                                                                ))
+                                                                                            // Header azul com checkbox (mesmo padrão da aba Tarefas)
+                                                                                            if (getJsonField(listaAndamentoItem, r'''$.subtasks_id''') != null &&
+                                                                                                AppConstants.zero != getJsonField(listaAndamentoItem, r'''$.subtasks_id'''))
                                                                                               Container(
                                                                                                 width: double.infinity,
                                                                                                 decoration: BoxDecoration(
@@ -3625,8 +2975,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                                 child: Padding(
-                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(14.0, 10.0, 14.0, 6.0),
-                                                                                                  child: Text(
+                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
+                                                                                                  child: Row(
+                                                                                                    children: [
+                                                                                                      Expanded(
+                                                                                                        child: Text(
                                                                                                     valueOrDefault<String>(
                                                                                                       'Tarefa: ${valueOrDefault<String>(
                                                                                                         getJsonField(
@@ -3654,512 +3007,18 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                           fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
                                                                                                         ),
                                                                                                   ),
+                                                                                                      ),
+                                                                                                      Builder(builder: (ctx) {
+                                                                                                        final _tid = castToType<int>(getJsonField(listaAndamentoItem, r'''$.id''')) ?? 0;
+                                                                                                        final _checked = functions.checkIds(AppState().taskslist.toList(), _tid);
+                                                                                                        return _buildHeaderCheckbox(ctx, listaAndamentoItem, _tid, _checked);
+                                                                                                      }),
+                                                                                                    ],
+                                                                                                  ),
                                                                                                 ),
                                                                                               ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsets.all(12.0),
-                                                                                              child: Row(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                mainAxisAlignment: MainAxisAlignment.end,
-                                                                                                children: [
-                                                                                                  Row(
-                                                                                                    mainAxisSize: MainAxisSize.max,
-                                                                                                    children: [
-                                                                                                      if (!functions.checkIds(
-                                                                                                          AppState().taskslist.toList(),
-                                                                                                          getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.id''',
-                                                                                                          )))
-                                                                                                        InkWell(
-                                                                                                          splashColor: Colors.transparent,
-                                                                                                          focusColor: Colors.transparent,
-                                                                                                          hoverColor: Colors.transparent,
-                                                                                                          highlightColor: Colors.transparent,
-                                                                                                          onTap: () async {
-                                                                                                            AppState().addToTaskslist(TasksListStruct(
-                                                                                                              sprintsTasksId: getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              ),
-                                                                                                              description: (getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.projects_backlogs.description''',
-                                                                                                              ) ?? getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                              ) ?? '').toString(),
-                                                                                                            ));
-                                                                                                            safeSetState(() {});
-                                                                                                          },
-                                                                                                          child: Container(
-                                                                                                            width: 30.0,
-                                                                                                            height: 30.0,
-                                                                                                            decoration: BoxDecoration(),
-                                                                                                            alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                            child: Column(
-                                                                                                              mainAxisSize: MainAxisSize.max,
-                                                                                                              mainAxisAlignment: MainAxisAlignment.center,
-                                                                                                              children: [
-                                                                                                                if (!functions.checkIds(
-                                                                                                                    AppState().taskslist.toList(),
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.id''',
-                                                                                                                    )))
-                                                                                                                  Container(
-                                                                                                                    width: 18.0,
-                                                                                                                    height: 18.0,
-                                                                                                                    decoration: BoxDecoration(
-                                                                                                                      color: AppTheme.of(context).secondaryBackground,
-                                                                                                                      borderRadius: BorderRadius.circular(4.0),
-                                                                                                                      border: Border.all(
-                                                                                                                        color: AppTheme.of(context).alternate,
-                                                                                                                        width: 2.0,
-                                                                                                                      ),
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                              ],
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                      if (functions.checkIds(
-                                                                                                          AppState().taskslist.toList(),
-                                                                                                          getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.id''',
-                                                                                                          )))
-                                                                                                        InkWell(
-                                                                                                          splashColor: Colors.transparent,
-                                                                                                          focusColor: Colors.transparent,
-                                                                                                          hoverColor: Colors.transparent,
-                                                                                                          highlightColor: Colors.transparent,
-                                                                                                          onTap: () async {
-                                                                                                            AppState().removeFromTaskslist(TasksListStruct(
-                                                                                                              sprintsTasksId: getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              ),
-                                                                                                              description: (getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.projects_backlogs.description''',
-                                                                                                              ) ?? getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                              ) ?? '').toString(),
-                                                                                                            ));
-                                                                                                            safeSetState(() {});
-                                                                                                          },
-                                                                                                          child: Container(
-                                                                                                            width: 30.0,
-                                                                                                            height: 30.0,
-                                                                                                            decoration: BoxDecoration(),
-                                                                                                            alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                            child: Column(
-                                                                                                              mainAxisSize: MainAxisSize.max,
-                                                                                                              mainAxisAlignment: MainAxisAlignment.center,
-                                                                                                              children: [
-                                                                                                                Container(
-                                                                                                                  width: 18.0,
-                                                                                                                  height: 18.0,
-                                                                                                                  decoration: BoxDecoration(
-                                                                                                                    color: AppTheme.of(context).primary,
-                                                                                                                    borderRadius: BorderRadius.circular(4.0),
-                                                                                                                    border: Border.all(
-                                                                                                                      color: AppTheme.of(context).primary,
-                                                                                                                      width: 2.0,
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                                  alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                  child: Align(
-                                                                                                                    alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                    child: Stack(
-                                                                                                                      alignment: AlignmentDirectional(0.0, 0.0),
-                                                                                                                      children: [
-                                                                                                                        if (!_model.allCheck)
-                                                                                                                          FaIcon(
-                                                                                                                            FontAwesomeIcons.check,
-                                                                                                                            color: AppTheme.of(context).info,
-                                                                                                                            size: 14.0,
-                                                                                                                          ),
-                                                                                                                        if (_model.allCheck)
-                                                                                                                          Container(
-                                                                                                                            width: 100.0,
-                                                                                                                            height: 3.0,
-                                                                                                                            decoration: BoxDecoration(
-                                                                                                                              color: AppTheme.of(context).secondaryBackground,
-                                                                                                                            ),
-                                                                                                                          ),
-                                                                                                                      ],
-                                                                                                                    ),
-                                                                                                                  ),
-                                                                                                                ),
-                                                                                                              ],
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                    ],
-                                                                                                  ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 12.0, 0.0),
-                                                                                              child: Row(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                children: [
-                                                                                                  Expanded(
-                                                                                                    child: RichText(
-                                                                                                      textScaler: MediaQuery.of(context).textScaler,
-                                                                                                      text: TextSpan(
-                                                                                                        children: [
-                                                                                                          TextSpan(
-                                                                                                            text: 'COD: ${valueOrDefault<String>(
-                                                                                                              getJsonField(
-                                                                                                                listaAndamentoItem,
-                                                                                                                r'''$.id''',
-                                                                                                              )?.toString(),
-                                                                                                              ' - ',
-                                                                                                            )}',
-                                                                                                            style: AppTheme.of(context).labelSmall.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              'ccsg2rxk' /*  -  */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )
-                                                                                                                ? valueOrDefault<String>(
-                                                                                                                    (getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.description''',
-                                                                                                                    ) ?? getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.tasks_template.description''',
-                                                                                                                    ))?.toString(),
-                                                                                                                    ' - ',
-                                                                                                                  )
-                                                                                                                : valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks.description''',
-                                                                                                                    )?.toString(),
-                                                                                                                    ' - ',
-                                                                                                                  ),
-                                                                                                            style: AppTheme.of(context).labelLarge.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).labelLarge.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).labelLarge.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primaryText,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).labelLarge.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).labelLarge.fontStyle,
-                                                                                                                ),
-                                                                                                          )
-                                                                                                        ],
-                                                                                                        style: AppTheme.of(context).labelSmall.override(
-                                                                                                              font: GoogleFonts.lexend(
-                                                                                                                fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                              ),
-                                                                                                              color: AppTheme.of(context).primaryText,
-                                                                                                              letterSpacing: 0.0,
-                                                                                                              fontWeight: AppTheme.of(context).labelSmall.fontWeight,
-                                                                                                              fontStyle: AppTheme.of(context).labelSmall.fontStyle,
-                                                                                                            ),
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                  ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
-                                                                                            Padding(
-                                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
-                                                                                              child: Column(
-                                                                                                mainAxisSize: MainAxisSize.max,
-                                                                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                                children: [
-                                                                                                  Row(
-                                                                                                    mainAxisSize: MainAxisSize.max,
-                                                                                                    children: [
-                                                                                                      RichText(
-                                                                                                        textScaler: MediaQuery.of(context).textScaler,
-                                                                                                        text: TextSpan(
-                                                                                                          children: [
-                                                                                                            TextSpan(
-                                                                                                              text: AppLocalizations.of(context).getText(
-                                                                                                                '50jptsec' /* Disciplina:  */,
-                                                                                                              ),
-                                                                                                              style: TextStyle(
-                                                                                                                color: AppTheme.of(context).primaryText,
-                                                                                                              ),
-                                                                                                            ),
-                                                                                                            TextSpan(
-                                                                                                              text: valueOrDefault<String>(
-                                                                                                                getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.projects_backlogs.discipline.discipline''',
-                                                                                                                )?.toString(),
-                                                                                                                '-',
-                                                                                                              ),
-                                                                                                              style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                    font: GoogleFonts.lexend(
-                                                                                                                      fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                      fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                    ),
-                                                                                                                    color: AppTheme.of(context).primary,
-                                                                                                                    letterSpacing: 0.0,
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                            )
-                                                                                                          ],
-                                                                                                          style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                font: GoogleFonts.lexend(
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                                color: AppTheme.of(context).primary,
-                                                                                                                letterSpacing: 0.0,
-                                                                                                                fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                              ),
-                                                                                                        ),
-                                                                                                      ),
-                                                                                                    ],
-                                                                                                  ),
-                                                                                                  if ((getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.subtasks.quantity''',
-                                                                                                          ) !=
-                                                                                                          null) ||
-                                                                                                      (getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.projects_backlogs.projects_backlogs_original.unity
-''',
-                                                                                                          ) !=
-                                                                                                          null))
-                                                                                                    Row(
-                                                                                                      mainAxisSize: MainAxisSize.max,
-                                                                                                      children: [
-                                                                                                        RichText(
-                                                                                                          textScaler: MediaQuery.of(context).textScaler,
-                                                                                                          text: TextSpan(
-                                                                                                            children: [
-                                                                                                              TextSpan(
-                                                                                                                text: AppLocalizations.of(context).getText(
-                                                                                                                  'molmv2zx' /* Qtd da tarefa:  */,
-                                                                                                                ),
-                                                                                                                style: TextStyle(
-                                                                                                                  color: AppTheme.of(context).primaryText,
-                                                                                                                ),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.projects_backlogs_original.quantity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '0',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.quantity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '0',
-                                                                                                                      ),
-                                                                                                                style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                      font: GoogleFonts.lexend(
-                                                                                                                        fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                        fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                      ),
-                                                                                                                      color: AppTheme.of(context).primary,
-                                                                                                                      letterSpacing: 0.0,
-                                                                                                                      fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                      fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                    ),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppLocalizations.of(context).getText(
-                                                                                                                  'dhmhzrhr' /*   */,
-                                                                                                                ),
-                                                                                                                style: TextStyle(),
-                                                                                                              ),
-                                                                                                              TextSpan(
-                                                                                                                text: AppConstants.zero ==
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks_id''',
-                                                                                                                        )
-                                                                                                                    ? valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.projects_backlogs.projects_backlogs_original.unity.unity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '-',
-                                                                                                                      )
-                                                                                                                    : valueOrDefault<String>(
-                                                                                                                        getJsonField(
-                                                                                                                          listaAndamentoItem,
-                                                                                                                          r'''$.subtasks.unity.unity''',
-                                                                                                                        )?.toString(),
-                                                                                                                        '-',
-                                                                                                                      ),
-                                                                                                                style: TextStyle(),
-                                                                                                              )
-                                                                                                            ],
-                                                                                                            style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                        ),
-                                                                                                      ],
-                                                                                                    ),
-                                                                                                  if ((getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.subtasks.quantity''',
-                                                                                                          ) !=
-                                                                                                          null) ||
-                                                                                                      (getJsonField(
-                                                                                                            listaAndamentoItem,
-                                                                                                            r'''$.projects_backlogs.projects_backlogs_original.unity
-''',
-                                                                                                          ) !=
-                                                                                                          null))
-                                                                                                    RichText(
-                                                                                                      textScaler: MediaQuery.of(context).textScaler,
-                                                                                                      text: TextSpan(
-                                                                                                        children: [
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              'ra4xc42o' /* Qtd executada:  */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(
-                                                                                                              color: AppTheme.of(context).primaryText,
-                                                                                                            ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: valueOrDefault<String>(
-                                                                                                              () {
-                                                                                                                if (getJsonField(
-                                                                                                                  listaAndamentoItem,
-                                                                                                                  r'''$.projects_backlogs.is_inspection''',
-                                                                                                                )) {
-                                                                                                                  return valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.projects_backlogs_original.quantity_done''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '0',
-                                                                                                                  );
-                                                                                                                } else if (AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )) {
-                                                                                                                  return valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.projects_backlogs_original.quantity''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '0',
-                                                                                                                  );
-                                                                                                                } else {
-                                                                                                                  return valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks.quantity''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '0',
-                                                                                                                  );
-                                                                                                                }
-                                                                                                              }(),
-                                                                                                              '0',
-                                                                                                            ),
-                                                                                                            style: AppTheme.of(context).bodyMedium.override(
-                                                                                                                  font: GoogleFonts.lexend(
-                                                                                                                    fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                    fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                  ),
-                                                                                                                  color: AppTheme.of(context).primary,
-                                                                                                                  letterSpacing: 0.0,
-                                                                                                                  fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                  fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                                ),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppLocalizations.of(context).getText(
-                                                                                                              '0a6bjk1z' /*   */,
-                                                                                                            ),
-                                                                                                            style: TextStyle(),
-                                                                                                          ),
-                                                                                                          TextSpan(
-                                                                                                            text: AppConstants.zero ==
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks_id''',
-                                                                                                                    )
-                                                                                                                ? valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.projects_backlogs.projects_backlogs_original.unity.unity''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '-',
-                                                                                                                  )
-                                                                                                                : valueOrDefault<String>(
-                                                                                                                    getJsonField(
-                                                                                                                      listaAndamentoItem,
-                                                                                                                      r'''$.subtasks.unity.unity''',
-                                                                                                                    )?.toString(),
-                                                                                                                    '-',
-                                                                                                                  ),
-                                                                                                            style: TextStyle(),
-                                                                                                          )
-                                                                                                        ],
-                                                                                                        style: AppTheme.of(context).bodyMedium.override(
-                                                                                                              font: GoogleFonts.lexend(
-                                                                                                                fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                                fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                              ),
-                                                                                                              color: AppTheme.of(context).primary,
-                                                                                                              letterSpacing: 0.0,
-                                                                                                              fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
-                                                                                                              fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                                                                                                            ),
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                ],
-                                                                                              ),
-                                                                                            ),
+                                                                                            // Reutilizar body padronizado com botões de inspeção
+                                                                                            ..._buildAndamentoCardBody(context, listaAndamentoItem, isInspection: true),
                                                                                           ],
                                                                                         ),
                                                                                       ),
@@ -4277,196 +3136,85 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                   ),
                                   if (_model.tabBarCurrentIndex == 0)
                                     Builder(
-                                      builder: (context) => AppButton(
-                                        onPressed: !(AppState()
-                                                .taskslist
-                                                .isNotEmpty)
-                                            ? null
-                                            : () async {
-                                                AppState().tasksfinish = [];
-                                                safeSetState(() {});
-                                                AppState().tasksfinish =
-                                                    AppState()
-                                                        .taskslist
-                                                        .toList()
-                                                        .cast<
-                                                            TasksListStruct>();
-                                                safeSetState(() {});
-                                                await showDialog(
-                                                  barrierColor:
-                                                      Color(0x80000000),
-                                                  context: context,
-                                                  builder: (dialogContext) {
-                                                    return Dialog(
-                                                      elevation: 0,
-                                                      insetPadding:
-                                                          EdgeInsets.zero,
-                                                      backgroundColor:
-                                                          Colors.transparent,
-                                                      alignment:
-                                                          AlignmentDirectional(
-                                                                  0.0, 0.0)
-                                                              .resolve(
-                                                                  Directionality.of(
-                                                                      context)),
-                                                      child: GestureDetector(
-                                                        onTap: () {
-                                                          FocusScope.of(
-                                                                  dialogContext)
-                                                              .unfocus();
-                                                          FocusManager.instance
-                                                              .primaryFocus
-                                                              ?.unfocus();
+                                      builder: (context) => Row(
+                                        children: [
+                                          // Botao Concluir selecionadas
+                                          Expanded(
+                                            child: AppButton(
+                                              onPressed: !(AppState()
+                                                      .taskslist
+                                                      .isNotEmpty)
+                                                  ? null
+                                                  : () async {
+                                                      AppState().tasksfinish = [];
+                                                      safeSetState(() {});
+                                                      AppState().tasksfinish =
+                                                          AppState()
+                                                              .taskslist
+                                                              .toList()
+                                                              .cast<
+                                                                  TasksListStruct>();
+                                                      safeSetState(() {});
+                                                      await showDialog(
+                                                        barrierColor:
+                                                            Color(0x80000000),
+                                                        barrierDismissible: false,
+                                                        context: context,
+                                                        builder: (dialogContext) {
+                                                          return Dialog(
+                                                            elevation: 0,
+                                                            insetPadding:
+                                                                EdgeInsets.zero,
+                                                            backgroundColor:
+                                                                Colors.transparent,
+                                                            alignment:
+                                                                AlignmentDirectional(
+                                                                        0.0, 0.0)
+                                                                    .resolve(
+                                                                        Directionality.of(
+                                                                            context)),
+                                                            child: GestureDetector(
+                                                              onTap: () {
+                                                                FocusScope.of(
+                                                                        dialogContext)
+                                                                    .unfocus();
+                                                                FocusManager.instance
+                                                                    .primaryFocus
+                                                                    ?.unfocus();
+                                                              },
+                                                              child:
+                                                                  ConcluirBatchModalWidget(
+                                                                onConfirmed: () async {
+                                                                  safeSetState(() {
+                                                                    _model
+                                                                        .clearHomePageCache();
+                                                                    _model.apiRequestCompleted =
+                                                                        false;
+                                                                  });
+                                                                  await _model
+                                                                      .waitForApiRequestCompleted();
+                                                                },
+                                                              ),
+                                                            ),
+                                                          );
                                                         },
-                                                        child:
-                                                            ConfirmdialogWidget(
-                                                          action: () async {
-                                                            safeSetState(() {
-                                                              _model
-                                                                  .clearHomePageCache();
-                                                              _model.apiRequestCompleted =
-                                                                  false;
-                                                            });
-                                                            await _model
-                                                                .waitForApiRequestCompleted();
-                                                          },
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                                );
-                                              },
-                                        text:
-                                            AppLocalizations.of(context).getText(
-                                          'vdzgy00m' /* Concluir tarefas selecionadas */,
-                                        ),
-                                        options: AppButtonOptions(
-                                          width:
-                                              MediaQuery.sizeOf(context).width *
-                                                  1.0,
-                                          height: 48.0,
-                                          padding:
-                                              EdgeInsetsDirectional.fromSTEB(
-                                                  16.0, 0.0, 16.0, 0.0),
-                                          iconPadding:
-                                              EdgeInsetsDirectional.fromSTEB(
-                                                  0.0, 0.0, 0.0, 0.0),
-                                          color: AppTheme.of(context)
-                                              .primary,
-                                          textStyle: AppTheme.of(
-                                                  context)
-                                              .titleSmall
-                                              .override(
-                                                font: GoogleFonts.lexend(
-                                                  fontWeight:
-                                                      AppTheme.of(
-                                                              context)
-                                                          .titleSmall
-                                                          .fontWeight,
-                                                  fontStyle:
-                                                      AppTheme.of(
-                                                              context)
-                                                          .titleSmall
-                                                          .fontStyle,
-                                                ),
-                                                color: Colors.white,
-                                                letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .titleSmall
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .titleSmall
-                                                        .fontStyle,
-                                              ),
-                                          elevation: 0.0,
-                                          borderRadius:
-                                              BorderRadius.circular(14.0),
-                                          disabledColor:
-                                              AppTheme.of(context)
-                                                  .alternate,
-                                          disabledTextColor:
-                                              AppTheme.of(context)
-                                                  .secondaryText,
-                                        ),
-                                      ),
-                                    ),
-                                  if (_model.tabBarCurrentIndex == 1)
-                                    Builder(
-                                      builder: (context) => Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            0.0, 8.0, 0.0, 0.0),
-                                        child: AppButton(
-                                          onPressed: !(AppState()
-                                                  .taskslist
-                                                  .isNotEmpty)
-                                              ? null
-                                              : () async {
-                                                  AppState().tasksfinish = [];
-                                                  AppState().update(() {});
-                                                  await showDialog(
-                                                    context: context,
-                                                    builder: (dialogContext) {
-                                                      return Dialog(
-                                                        elevation: 0,
-                                                        insetPadding:
-                                                            EdgeInsets.zero,
-                                                        backgroundColor:
-                                                            Colors.transparent,
-                                                        alignment:
-                                                            AlignmentDirectional(
-                                                                    0.0, 0.0)
-                                                                .resolve(
-                                                                    Directionality.of(
-                                                                        context)),
-                                                        child: GestureDetector(
-                                                          onTap: () {
-                                                            FocusScope.of(
-                                                                    dialogContext)
-                                                                .unfocus();
-                                                            FocusManager
-                                                                .instance
-                                                                .primaryFocus
-                                                                ?.unfocus();
-                                                          },
-                                                          child:
-                                                              CommentInspWidget(
-                                                            refresh: () async {
-                                                              safeSetState(() {
-                                                                _model
-                                                                    .clearHomePageCache();
-                                                                _model.apiRequestCompleted =
-                                                                    false;
-                                                              });
-                                                              await _model
-                                                                  .waitForApiRequestCompleted();
-                                                            },
-                                                          ),
-                                                        ),
                                                       );
                                                     },
-                                                  );
-                                                },
-                                          text: AppLocalizations.of(context)
-                                              .getText(
-                                            'sqrjnpce' /* Finalizar Inspeções */,
-                                          ),
-                                          options: AppButtonOptions(
-                                            width: MediaQuery.sizeOf(context)
-                                                    .width *
-                                                1.0,
-                                            height: 48.0,
-                                            padding:
-                                                EdgeInsetsDirectional.fromSTEB(
-                                                    16.0, 0.0, 16.0, 0.0),
-                                            iconPadding:
-                                                EdgeInsetsDirectional.fromSTEB(
-                                                    0.0, 0.0, 0.0, 0.0),
-                                            color: AppTheme.of(context)
-                                                .primary,
-                                            textStyle:
-                                                AppTheme.of(context)
+                                              text: 'Concluir',
+                                              icon: Icon(Icons.check_circle_outline, size: 18.0, color: Colors.white),
+                                              options: AppButtonOptions(
+                                                width: double.infinity,
+                                                height: 48.0,
+                                                padding:
+                                                    EdgeInsetsDirectional.fromSTEB(
+                                                        8.0, 0.0, 8.0, 0.0),
+                                                iconPadding:
+                                                    EdgeInsetsDirectional.fromSTEB(
+                                                        0.0, 0.0, 4.0, 0.0),
+                                                color: AppTheme.of(context)
+                                                    .primary,
+                                                textStyle: AppTheme.of(
+                                                        context)
                                                     .titleSmall
                                                     .override(
                                                       font: GoogleFonts.lexend(
@@ -4482,28 +3230,379 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                 .fontStyle,
                                                       ),
                                                       color: Colors.white,
+                                                      fontSize: 13.0,
                                                       letterSpacing: 0.0,
                                                       fontWeight:
-                                                          AppTheme.of(
-                                                                  context)
+                                                          AppTheme.of(context)
                                                               .titleSmall
                                                               .fontWeight,
                                                       fontStyle:
-                                                          AppTheme.of(
-                                                                  context)
+                                                          AppTheme.of(context)
                                                               .titleSmall
                                                               .fontStyle,
                                                     ),
-                                            elevation: 0.0,
-                                            borderRadius:
-                                                BorderRadius.circular(14.0),
-                                            disabledColor:
-                                                AppTheme.of(context)
-                                                    .alternate,
-                                            disabledTextColor:
-                                                AppTheme.of(context)
-                                                    .secondaryText,
+                                                elevation: 0.0,
+                                                borderRadius:
+                                                    BorderRadius.circular(14.0),
+                                                disabledColor:
+                                                    AppTheme.of(context)
+                                                        .alternate,
+                                                disabledTextColor:
+                                                    AppTheme.of(context)
+                                                        .secondaryText,
+                                              ),
+                                            ),
                                           ),
+                                          SizedBox(width: 8.0),
+                                          // Botao Sem Sucesso selecionadas
+                                          Expanded(
+                                            child: AppButton(
+                                              onPressed: !(AppState()
+                                                      .taskslist
+                                                      .isNotEmpty)
+                                                  ? null
+                                                  : () async {
+                                                      // Coletar os items JSON originais das tarefas selecionadas
+                                                      final allItems = SprintsGroup
+                                                              .queryAllSprintsTasksRecordCall
+                                                              .nOandamento(
+                                                                homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
+                                                              )
+                                                              ?.toList() ??
+                                                          [];
+                                                      final selectedTaskIds = AppState()
+                                                          .taskslist
+                                                          .map((t) => t.sprintsTasksId)
+                                                          .toSet();
+                                                      final selectedItems = allItems
+                                                          .where((item) =>
+                                                              selectedTaskIds.contains(
+                                                                  getJsonField(item, r'$.id')))
+                                                          .toList();
+                                                      if (selectedItems.isEmpty) return;
+                                                      await showDialog(
+                                                        barrierColor:
+                                                            Color(0x80000000),
+                                                        context: context,
+                                                        builder: (dialogContext) {
+                                                          return Dialog(
+                                                            elevation: 0,
+                                                            insetPadding:
+                                                                EdgeInsets.zero,
+                                                            backgroundColor:
+                                                                Colors.transparent,
+                                                            alignment:
+                                                                AlignmentDirectional(
+                                                                        0.0, 0.0)
+                                                                    .resolve(
+                                                                        Directionality.of(
+                                                                            context)),
+                                                            child: GestureDetector(
+                                                              onTap: () {
+                                                                FocusScope.of(
+                                                                        dialogContext)
+                                                                    .unfocus();
+                                                                FocusManager.instance
+                                                                    .primaryFocus
+                                                                    ?.unfocus();
+                                                              },
+                                                              child:
+                                                                  SemSucessoModalWidget(
+                                                                items: selectedItems,
+                                                                action: () async {
+                                                                  safeSetState(() {
+                                                                    _model
+                                                                        .clearHomePageCache();
+                                                                    _model.apiRequestCompleted =
+                                                                        false;
+                                                                  });
+                                                                  await _model
+                                                                      .waitForApiRequestCompleted();
+                                                                },
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                      );
+                                                    },
+                                              text: 'Sem Sucesso',
+                                              icon: Icon(Icons.cancel_outlined, size: 18.0, color: Colors.white),
+                                              options: AppButtonOptions(
+                                                width: double.infinity,
+                                                height: 48.0,
+                                                padding:
+                                                    EdgeInsetsDirectional.fromSTEB(
+                                                        8.0, 0.0, 8.0, 0.0),
+                                                iconPadding:
+                                                    EdgeInsetsDirectional.fromSTEB(
+                                                        0.0, 0.0, 4.0, 0.0),
+                                                color: const Color(0xFFDC2626),
+                                                textStyle: AppTheme.of(
+                                                        context)
+                                                    .titleSmall
+                                                    .override(
+                                                      font: GoogleFonts.lexend(
+                                                        fontWeight: FontWeight.w600,
+                                                        fontStyle:
+                                                            AppTheme.of(
+                                                                    context)
+                                                                .titleSmall
+                                                                .fontStyle,
+                                                      ),
+                                                      color: Colors.white,
+                                                      fontSize: 13.0,
+                                                      letterSpacing: 0.0,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontStyle:
+                                                          AppTheme.of(context)
+                                                              .titleSmall
+                                                              .fontStyle,
+                                                    ),
+                                                elevation: 0.0,
+                                                borderRadius:
+                                                    BorderRadius.circular(14.0),
+                                                disabledColor:
+                                                    AppTheme.of(context)
+                                                        .alternate,
+                                                disabledTextColor:
+                                                    AppTheme.of(context)
+                                                        .secondaryText,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (_model.tabBarCurrentIndex == 1)
+                                    Builder(
+                                      builder: (context) => Padding(
+                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                            0.0, 8.0, 0.0, 0.0),
+                                        child: Row(
+                                          children: [
+                                            // Botão Aprovado
+                                            Expanded(
+                                              child: AppButton(
+                                                onPressed: !(AppState()
+                                                        .taskslist
+                                                        .isNotEmpty)
+                                                    ? null
+                                                    : () async {
+                                                        AppState().tasksfinish = [];
+                                                        AppState().update(() {});
+                                                        await showDialog(
+                                                          context: context,
+                                                          builder: (dialogContext) {
+                                                            return Dialog(
+                                                              elevation: 0,
+                                                              insetPadding:
+                                                                  EdgeInsets.zero,
+                                                              backgroundColor:
+                                                                  Colors.transparent,
+                                                              alignment:
+                                                                  AlignmentDirectional(
+                                                                          0.0, 0.0)
+                                                                      .resolve(
+                                                                          Directionality.of(
+                                                                              context)),
+                                                              child: GestureDetector(
+                                                                onTap: () {
+                                                                  FocusScope.of(
+                                                                          dialogContext)
+                                                                      .unfocus();
+                                                                  FocusManager
+                                                                      .instance
+                                                                      .primaryFocus
+                                                                      ?.unfocus();
+                                                                },
+                                                                child:
+                                                                    CommentInspWidget(
+                                                                  refresh: () async {
+                                                                    safeSetState(() {
+                                                                      _model
+                                                                          .clearHomePageCache();
+                                                                      _model.apiRequestCompleted =
+                                                                          false;
+                                                                    });
+                                                                    await _model
+                                                                        .waitForApiRequestCompleted();
+                                                                  },
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        );
+                                                      },
+                                                text: 'Aprovado',
+                                                icon: Icon(Icons.check_circle_outline, size: 18.0, color: Colors.white),
+                                                options: AppButtonOptions(
+                                                  width: double.infinity,
+                                                  height: 48.0,
+                                                  padding:
+                                                      EdgeInsetsDirectional.fromSTEB(
+                                                          8.0, 0.0, 8.0, 0.0),
+                                                  iconPadding:
+                                                      EdgeInsetsDirectional.fromSTEB(
+                                                          0.0, 0.0, 4.0, 0.0),
+                                                  color: AppTheme.of(context)
+                                                      .primary,
+                                                  textStyle: AppTheme.of(
+                                                          context)
+                                                      .titleSmall
+                                                      .override(
+                                                        font: GoogleFonts.lexend(
+                                                          fontWeight:
+                                                              AppTheme.of(
+                                                                      context)
+                                                                  .titleSmall
+                                                                  .fontWeight,
+                                                          fontStyle:
+                                                              AppTheme.of(
+                                                                      context)
+                                                                  .titleSmall
+                                                                  .fontStyle,
+                                                        ),
+                                                        color: Colors.white,
+                                                        fontSize: 13.0,
+                                                        letterSpacing: 0.0,
+                                                        fontWeight:
+                                                            AppTheme.of(context)
+                                                                .titleSmall
+                                                                .fontWeight,
+                                                        fontStyle:
+                                                            AppTheme.of(context)
+                                                                .titleSmall
+                                                                .fontStyle,
+                                                      ),
+                                                  elevation: 0.0,
+                                                  borderRadius:
+                                                      BorderRadius.circular(14.0),
+                                                  disabledColor:
+                                                      AppTheme.of(context)
+                                                          .alternate,
+                                                  disabledTextColor:
+                                                      AppTheme.of(context)
+                                                          .secondaryText,
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 8.0),
+                                            // Botão Reprovado (inspeção)
+                                            Expanded(
+                                              child: AppButton(
+                                                onPressed: !(AppState()
+                                                        .taskslist
+                                                        .isNotEmpty)
+                                                    ? null
+                                                    : () async {
+                                                        final allItems = SprintsGroup
+                                                                .queryAllSprintsTasksRecordCall
+                                                                .yESandamento(
+                                                                  homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
+                                                                )
+                                                                ?.toList() ??
+                                                            [];
+                                                        final selectedTaskIds = AppState()
+                                                            .taskslist
+                                                            .map((t) => t.sprintsTasksId)
+                                                            .toSet();
+                                                        final selectedItems = allItems
+                                                            .where((item) =>
+                                                                selectedTaskIds.contains(
+                                                                    getJsonField(item, r'$.id')))
+                                                            .toList();
+                                                        if (selectedItems.isEmpty) return;
+                                                        await showDialog(
+                                                          barrierColor:
+                                                              Color(0x80000000),
+                                                          context: context,
+                                                          builder: (dialogContext) {
+                                                            return Dialog(
+                                                              elevation: 0,
+                                                              insetPadding:
+                                                                  EdgeInsets.zero,
+                                                              backgroundColor:
+                                                                  Colors.transparent,
+                                                              alignment:
+                                                                  AlignmentDirectional(
+                                                                          0.0, 0.0)
+                                                                      .resolve(
+                                                                          Directionality.of(
+                                                                              context)),
+                                                              child: GestureDetector(
+                                                                onTap: () {
+                                                                  FocusScope.of(
+                                                                          dialogContext)
+                                                                      .unfocus();
+                                                                  FocusManager.instance
+                                                                      .primaryFocus
+                                                                      ?.unfocus();
+                                                                },
+                                                                child:
+                                                                    SemSucessoModalWidget(
+                                                                  items: selectedItems,
+                                                                  action: () async {
+                                                                    safeSetState(() {
+                                                                      _model
+                                                                          .clearHomePageCache();
+                                                                      _model.apiRequestCompleted =
+                                                                          false;
+                                                                    });
+                                                                    await _model
+                                                                        .waitForApiRequestCompleted();
+                                                                  },
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        );
+                                                      },
+                                                text: 'Reprovado',
+                                                icon: Icon(Icons.cancel_outlined, size: 18.0, color: Colors.white),
+                                                options: AppButtonOptions(
+                                                  width: double.infinity,
+                                                  height: 48.0,
+                                                  padding:
+                                                      EdgeInsetsDirectional.fromSTEB(
+                                                          8.0, 0.0, 8.0, 0.0),
+                                                  iconPadding:
+                                                      EdgeInsetsDirectional.fromSTEB(
+                                                          0.0, 0.0, 4.0, 0.0),
+                                                  color: const Color(0xFFDC2626),
+                                                  textStyle: AppTheme.of(
+                                                          context)
+                                                      .titleSmall
+                                                      .override(
+                                                        font: GoogleFonts.lexend(
+                                                          fontWeight: FontWeight.w600,
+                                                          fontStyle:
+                                                              AppTheme.of(
+                                                                      context)
+                                                                  .titleSmall
+                                                                  .fontStyle,
+                                                        ),
+                                                        color: Colors.white,
+                                                        fontSize: 13.0,
+                                                        letterSpacing: 0.0,
+                                                        fontWeight: FontWeight.w600,
+                                                        fontStyle:
+                                                            AppTheme.of(context)
+                                                                .titleSmall
+                                                                .fontStyle,
+                                                      ),
+                                                  elevation: 0.0,
+                                                  borderRadius:
+                                                      BorderRadius.circular(14.0),
+                                                  disabledColor:
+                                                      AppTheme.of(context)
+                                                          .alternate,
+                                                  disabledTextColor:
+                                                      AppTheme.of(context)
+                                                          .secondaryText,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),

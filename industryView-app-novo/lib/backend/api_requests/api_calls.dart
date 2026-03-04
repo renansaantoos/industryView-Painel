@@ -1851,6 +1851,11 @@ class SprintsGroup {
       EditProgressSprintCall();
   static GetSprintsLoginCall getSprintsLoginCall = GetSprintsLoginCall();
   static UpdateInspectionCall updateInspectionCall = UpdateInspectionCall();
+  static GetNonExecutionReasonsCall getNonExecutionReasonsCall =
+      GetNonExecutionReasonsCall();
+  static AtualizaStatusSingleTaskCall atualizaStatusSingleTaskCall =
+      AtualizaStatusSingleTaskCall();
+  static EditSprintTaskCall editSprintTaskCall = EditSprintTaskCall();
 }
 
 class QueryAllSprintsTasksRecordCall {
@@ -2047,8 +2052,7 @@ class AtualizaStatusDaSprintTaskCall {
     final tasksList = _serializeJson(tasksListJson, true);
     final apiRequestBody = '''
 {
-  "schedule_id": ${scheduleId},
-  "tasks_list": ${tasksList}
+  "tasks": ${tasksList}
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Atualiza status da sprint task',
@@ -2063,6 +2067,108 @@ class AtualizaStatusDaSprintTaskCall {
       params: {},
       body: apiRequestBody,
       bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+class AtualizaStatusSingleTaskCall {
+  Future<ApiCallResponse> call({
+    int? sprintsTasksId,
+    int? sprintsTasksStatusesId,
+    double? quantityDone,
+    String? token = '',
+  }) async {
+    final baseUrl = SprintsGroup.getBaseUrl(token: token);
+
+    final Map<String, dynamic> bodyMap = {
+      'sprints_tasks_id': sprintsTasksId,
+      'sprints_tasks_statuses_id': sprintsTasksStatusesId,
+    };
+    if (quantityDone != null) {
+      bodyMap['quantity_done'] = quantityDone;
+    }
+
+    final apiRequestBody = _serializeJson(bodyMap, false);
+    return ApiManager.instance.makeApiCall(
+      callName: 'Atualiza status single sprint task',
+      apiUrl: '${baseUrl}/sprints/tasks/status',
+      callType: ApiCallType.PUT,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      body: apiRequestBody,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+class EditSprintTaskCall {
+  Future<ApiCallResponse> call({
+    required int taskId,
+    int? nonExecutionReasonId,
+    String? nonExecutionObservations,
+    String? token = '',
+  }) async {
+    final baseUrl = SprintsGroup.getBaseUrl(token: token);
+
+    final Map<String, dynamic> bodyMap = {};
+    if (nonExecutionReasonId != null) {
+      bodyMap['non_execution_reason_id'] = nonExecutionReasonId;
+    }
+    if (nonExecutionObservations != null) {
+      bodyMap['non_execution_observations'] = nonExecutionObservations;
+    }
+
+    final apiRequestBody = _serializeJson(bodyMap, false);
+    return ApiManager.instance.makeApiCall(
+      callName: 'Edit sprint task',
+      apiUrl: '${baseUrl}/sprints/tasks/${taskId}',
+      callType: ApiCallType.PATCH,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      body: apiRequestBody,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+class GetNonExecutionReasonsCall {
+  Future<ApiCallResponse> call({
+    String? token = '',
+  }) async {
+    final baseUrl = SprintsGroup.getBaseUrl(
+      token: token,
+    );
+
+    return ApiManager.instance.makeApiCall(
+      callName: 'Get non execution reasons',
+      apiUrl: '${baseUrl}/sprints/non-execution-reasons',
+      callType: ApiCallType.GET,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
       returnBody: true,
       encodeBodyUtf8: false,
       decodeUtf8: false,

@@ -5,6 +5,7 @@ import '/core/utils/app_utils.dart';
 enum LoginStatus {
   success,
   noAccess,
+  notLeader,
   noSprint,
   invalidCredentials,
   apiError,
@@ -93,6 +94,19 @@ class LoginService {
       if (!hasAccess) {
         return LoginResult(
           status: LoginStatus.noAccess,
+          tokenResponse: tokenResponse,
+          loginResponse: loginResponse,
+        );
+      }
+
+      // Verificar se o usuário é líder de pelo menos uma equipe
+      final meCall = AuthenticationGroup
+          .getTheRecordBelongingToTheAuthenticationTokenCall;
+      final leaders = meCall.teamsLeader(tokenResponse.jsonBody ?? '');
+      final isLeader = leaders != null && leaders.isNotEmpty;
+      if (!isLeader) {
+        return LoginResult(
+          status: LoginStatus.notLeader,
           tokenResponse: tokenResponse,
           loginResponse: loginResponse,
         );

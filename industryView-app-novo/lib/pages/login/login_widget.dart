@@ -245,6 +245,20 @@ class _LoginWidgetState extends State<LoginWidget> {
             ),
           );
           return;
+        case LoginStatus.notLeader:
+          await _showModalInfo(
+            title: AppLocalizations.of(context).getVariableText(
+              ptText: 'Acesso restrito',
+              esText: 'Acceso restringido',
+              enText: 'Restricted access',
+            ),
+            description: AppLocalizations.of(context).getVariableText(
+              ptText: 'Apenas líderes de equipe podem acessar o aplicativo.',
+              esText: 'Solo los líderes de equipo pueden acceder a la aplicación.',
+              enText: 'Only team leaders can access the application.',
+            ),
+          );
+          return;
         case LoginStatus.apiError:
           await _showModalInfo(
             title: AppLocalizations.of(context).getVariableText(

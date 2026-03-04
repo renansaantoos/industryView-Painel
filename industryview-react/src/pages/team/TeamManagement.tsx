@@ -153,6 +153,7 @@ interface AddUserModalProps {
   saving: boolean;
   teamId?: number;
   targetTeamName?: string;
+  projectsId?: number;
 }
 
 interface SearchUserItem {
@@ -171,7 +172,7 @@ interface SelectedUser {
   name: string;
 }
 
-function AddUserModal({ title, onClose, onSave, saving, teamId, targetTeamName }: AddUserModalProps) {
+function AddUserModal({ title, onClose, onSave, saving, teamId, targetTeamName, projectsId }: AddUserModalProps) {
   const { t } = useTranslation();
 
   const [userSearch, setUserSearch] = useState('');
@@ -214,6 +215,7 @@ function AddUserModal({ title, onClose, onSave, saving, teamId, targetTeamName }
         page,
         per_page: 15,
         teams_id: teamId || undefined,
+        projects_id: projectsId || undefined,
       });
       const items = (data.items || []) as SearchUserItem[];
       setSearchResults(prev => append ? [...prev, ...items] : items);
@@ -226,7 +228,7 @@ function AddUserModal({ title, onClose, onSave, saving, teamId, targetTeamName }
     } finally {
       setSearchLoading(false);
     }
-  }, []);
+  }, [projectsId]);
 
   // Load initial results on mount
   useEffect(() => {
@@ -1935,6 +1937,7 @@ export default function TeamManagement() {
           saving={modalLoading}
           teamId={teamId}
           targetTeamName={selectedTeamName}
+          projectsId={projectsInfo?.id ? Number(projectsInfo.id) : undefined}
         />
       )}
 
@@ -1947,6 +1950,7 @@ export default function TeamManagement() {
           saving={modalLoading}
           teamId={teamId}
           targetTeamName={selectedTeamName}
+          projectsId={projectsInfo?.id ? Number(projectsInfo.id) : undefined}
         />
       )}
 

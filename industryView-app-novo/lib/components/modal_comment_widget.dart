@@ -274,6 +274,13 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                               token: currentAuthenticationToken,
                             );
 
+                            // 3. Salvar observação no campo estruturado da tarefa
+                            await SprintsGroup.editSprintTaskCall.call(
+                              taskId: widget.sprintTaskId,
+                              nonExecutionObservations: comment,
+                              token: currentAuthenticationToken,
+                            );
+
                             safeSetState(() => _model.isLoading = false);
 
                             if (_model.updateStatusResult?.succeeded ??

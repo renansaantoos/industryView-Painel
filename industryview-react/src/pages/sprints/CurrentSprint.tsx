@@ -594,6 +594,8 @@ export default function CurrentSprint() {
       });
       await sprintsApi.editSprintTask(failureTask.id, {
         sprints_tasks_statuses_id: STATUS_FAILED,
+        non_execution_reason_id: failureReasonId,
+        non_execution_observations: failureObservation || null,
       });
       setFailureTask(null);
       await loadSprintData();

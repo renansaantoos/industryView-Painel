@@ -129,6 +129,8 @@ export async function editSprintTask(taskId: number, data: Partial<{
   quantity_done: number;
   quantity_assigned: number;
   end_date: string;
+  non_execution_reason_id: number | null;
+  non_execution_observations: string | null;
 }>): Promise<SprintTask> {
   const response = await apiClient.patch(`${SPRINTS_BASE}/tasks/${taskId}`, data);
   return response.data;

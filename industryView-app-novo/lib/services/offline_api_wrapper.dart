@@ -265,6 +265,16 @@ class OfflineApiWrapper {
           return response;
         }
 
+        // Interceptar chamada individual de atualização de status (ex: concluir com quantidade)
+        if (callName.contains('Atualiza status single')) {
+          final response = await _handleOfflineUpdateSingleTask(
+            body: body,
+            params: params,
+          );
+          _notifySavedOffline();
+          return response;
+        }
+
         if (callName.contains('Update inspection')) {
           final response = await _handleOfflineUpdateInspection(
             callName: callName,
@@ -913,6 +923,93 @@ class OfflineApiWrapper {
         'tasks_list': tasksListMaps,
       },
     );
+
+    return ApiCallResponse(
+      {'success': true, 'offline': true},
+      {},
+      200,
+    );
+  }
+
+  /// Handler para atualização individual de tarefa (ex: concluir com quantidade).
+  /// Converte o body simples {sprints_tasks_id, sprints_tasks_statuses_id, quantity_done}
+  /// em um formato compatível com o batch handler, salva localmente e enfileira.
+  Future<ApiCallResponse> _handleOfflineUpdateSingleTask({
+    required String? body,
+    required Map<String, dynamic> params,
+  }) async {
+    final bodyData = _decodeBodyData(body, params);
+    final taskId = _asInt(bodyData['sprints_tasks_id']);
+    final statusId = _asInt(bodyData['sprints_tasks_statuses_id']);
+    final quantityDone = _asDouble(bodyData['quantity_done']);
+
+    if (kDebugMode) {
+      print('OfflineApiWrapper: _handleOfflineUpdateSingleTask - taskId: $taskId, statusId: $statusId, quantityDone: $quantityDone');
+    }
+
+    if (taskId == null) {
+      return ApiCallResponse(
+        {'success': false, 'error': 'taskId is null'},
+        {},
+        400,
+      );
+    }
+
+    // Determinar checkField e sucesso com base no statusId
+    int? checkField = 1; // Qualquer atualização de status tira da lista "em andamento"
+    int? sucesso;
+    if (statusId == 0) {
+      sucesso = 0; // Sem sucesso
+    } else if (statusId == 3) {
+      sucesso = 1; // Concluído com sucesso
+    }
+
+    // Atualizar banco local
+    await _sprintTaskDao.updateStatusBatch([
+      {
+        'sprints_tasks_id': taskId,
+        'sprints_tasks_statuses_id': statusId,
+        'quantity_done': quantityDone,
+        'check_field': checkField,
+        'sucesso': sucesso,
+      },
+    ]);
+
+    // Criar override para mascarar a tarefa na UI
+    final task = await _sprintTaskDao.findById(taskId);
+    final inspection = (task?.inspection ?? false) ? 1 : 0;
+    final statusGroup = (sucesso != null && sucesso == 0) ? 'sem_sucesso' : 'concluida';
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    await _taskStateOverrideDao.upsert(TaskStateOverrideModel(
+      sprintsTasksId: taskId,
+      statusGroup: statusGroup,
+      inspection: inspection,
+      sucesso: sucesso,
+      checkField: checkField,
+      updatedAt: now,
+    ));
+
+    // Enfileirar para sincronizar quando online
+    await _enqueueWithDedupe(
+      operationType: SyncOperationType.update,
+      entityType: 'sprints_tasks',
+      entityId: taskId,
+      data: {
+        'schedule_id': null,
+        'tasks_list': [
+          {
+            'sprints_tasks_id': taskId,
+            'sprints_tasks_statuses_id': statusId,
+            'quantity_done': quantityDone,
+          },
+        ],
+      },
+    );
+
+    if (kDebugMode) {
+      print('OfflineApiWrapper: Single task $taskId salva offline e enfileirada');
+    }
 
     return ApiCallResponse(
       {'success': true, 'offline': true},

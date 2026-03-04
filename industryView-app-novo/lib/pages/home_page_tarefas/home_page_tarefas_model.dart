@@ -49,6 +49,8 @@ class HomePageTarefasModel extends PageModel<HomePageTarefasWidget> {
 
   int drop = 0;
 
+  bool sprintExpanded = false;
+
   ///  State fields for stateful widgets in this page.
 
   // Stores action output result for [Backend Call - API (Get the record belonging to the authentication token)] action in HomePage-Tarefas widget.

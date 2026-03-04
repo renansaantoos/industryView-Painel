@@ -486,6 +486,8 @@ export class SprintsService {
           unity: true,
         },
       },
+      sprints_tasks_statuses: { select: { id: true, status: true } },
+      non_execution_reason: { select: { id: true, name: true, category: true } },
     };
 
     // Status 1 = Pendente
@@ -742,6 +744,8 @@ export class SprintsService {
     }
     if (input.quantity_assigned !== undefined) updateData.quantity_assigned = input.quantity_assigned;
     if (input.quantity_done !== undefined) updateData.quantity_done = input.quantity_done;
+    if (input.non_execution_reason_id !== undefined) updateData.non_execution_reason_id = input.non_execution_reason_id;
+    if (input.non_execution_observations !== undefined) updateData.non_execution_observations = input.non_execution_observations;
 
     return db.sprints_tasks.update({
       where: { id: taskId },

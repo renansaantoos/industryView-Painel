@@ -886,14 +886,25 @@ export class UsersService {
     const total = await db.users.count({ where: whereConditions });
 
     // Busca IDs de usuarios que ja sao membros ou lideres de times ativos
+    // Se projects_id foi informado, filtra apenas equipes vinculadas a esse projeto
+    const teamFilter: any = { deleted_at: null };
+    if (input.projects_id) {
+      teamFilter.teams = {
+        deleted_at: null,
+        OR: [
+          { projects_id: input.projects_id },
+          { teams_projects: { some: { projects_id: input.projects_id, deleted_at: null } } },
+        ],
+      };
+    }
     const [memberRows, leaderRows] = await Promise.all([
       db.teams_members.findMany({
-        where: { deleted_at: null },
+        where: teamFilter,
         select: { users_id: true, teams: { select: { id: true, name: true } } },
         distinct: ['users_id'],
       }),
       db.teams_leaders.findMany({
-        where: { deleted_at: null },
+        where: teamFilter,
         select: { users_id: true, teams: { select: { id: true, name: true } } },
         distinct: ['users_id'],
       }),

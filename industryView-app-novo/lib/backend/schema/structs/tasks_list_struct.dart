@@ -20,6 +20,7 @@ class TasksListStruct extends BaseStruct {
     String? comment,
     bool? firstComment,
     bool? checkTasks,
+    double? quantityAssigned,
   })  : _sprintsTasksId = sprintsTasksId,
         _description = description,
         _sprintsTasksStatusesId = sprintsTasksStatusesId,
@@ -32,7 +33,8 @@ class TasksListStruct extends BaseStruct {
         _inspection = inspection,
         _comment = comment,
         _firstComment = firstComment,
-        _checkTasks = checkTasks;
+        _checkTasks = checkTasks,
+        _quantityAssigned = quantityAssigned;
 
   // "sprints_tasks_id" field.
   int? _sprintsTasksId;
@@ -142,6 +144,13 @@ class TasksListStruct extends BaseStruct {
 
   bool hasCheckTasks() => _checkTasks != null;
 
+  // "quantity_assigned" field.
+  double? _quantityAssigned;
+  double get quantityAssigned => _quantityAssigned ?? 0.0;
+  set quantityAssigned(double? val) => _quantityAssigned = val;
+
+  bool hasQuantityAssigned() => _quantityAssigned != null;
+
   static TasksListStruct fromMap(Map<String, dynamic> data) => TasksListStruct(
         sprintsTasksId: castToType<int>(data['sprints_tasks_id']),
         description: data['description'] as String?,
@@ -159,6 +168,7 @@ class TasksListStruct extends BaseStruct {
         comment: data['comment'] as String?,
         firstComment: data['first_comment'] as bool?,
         checkTasks: data['checkTasks'] as bool?,
+        quantityAssigned: castToType<double>(data['quantity_assigned']),
       );
 
   static TasksListStruct? maybeFromMap(dynamic data) => data is Map
@@ -179,6 +189,7 @@ class TasksListStruct extends BaseStruct {
         'comment': _comment,
         'first_comment': _firstComment,
         'checkTasks': _checkTasks,
+        'quantity_assigned': _quantityAssigned,
       }.withoutNulls;
 
   @override
@@ -234,6 +245,10 @@ class TasksListStruct extends BaseStruct {
         'checkTasks': serializeParam(
           _checkTasks,
           ParamType.bool,
+        ),
+        'quantity_assigned': serializeParam(
+          _quantityAssigned,
+          ParamType.double,
         ),
       }.withoutNulls;
 
@@ -305,6 +320,11 @@ class TasksListStruct extends BaseStruct {
           ParamType.bool,
           false,
         ),
+        quantityAssigned: deserializeParam(
+          data['quantity_assigned'],
+          ParamType.double,
+          false,
+        ),
       );
 
   @override
@@ -325,7 +345,8 @@ class TasksListStruct extends BaseStruct {
         inspection == other.inspection &&
         comment == other.comment &&
         firstComment == other.firstComment &&
-        checkTasks == other.checkTasks;
+        checkTasks == other.checkTasks &&
+        quantityAssigned == other.quantityAssigned;
   }
 
   @override
@@ -342,7 +363,8 @@ class TasksListStruct extends BaseStruct {
         inspection,
         comment,
         firstComment,
-        checkTasks
+        checkTasks,
+        quantityAssigned
       ]);
 }
 
@@ -360,6 +382,7 @@ TasksListStruct createTasksListStruct({
   String? comment,
   bool? firstComment,
   bool? checkTasks,
+  double? quantityAssigned,
 }) =>
     TasksListStruct(
       sprintsTasksId: sprintsTasksId,
@@ -375,4 +398,5 @@ TasksListStruct createTasksListStruct({
       comment: comment,
       firstComment: firstComment,
       checkTasks: checkTasks,
+      quantityAssigned: quantityAssigned,
     );

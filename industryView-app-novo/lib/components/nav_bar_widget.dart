@@ -80,13 +80,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                 children: [
                   AppIconButton(
                     borderRadius: 50.0,
-                    buttonSize: 50.0,
+                    buttonSize: 44.0,
                     icon: Icon(
                       Icons.task,
                       color: widget!.page == 1
                           ? AppTheme.of(context).primary
                           : AppTheme.of(context).secondaryText,
-                      size: widget!.page == 1 ? 28.0 : 24.0,
+                      size: widget!.page == 1 ? 24.0 : 22.0,
                     ),
                     onPressed: () async {
                       if (widget!.page == 1) {
@@ -118,7 +118,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                     duration: const Duration(milliseconds: 200),
                     width: widget!.page == 1 ? 20 : 0,
                     height: 3,
-                    margin: const EdgeInsets.only(top: 4),
+                    margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
                       color: AppTheme.of(context).primary,
                       borderRadius: BorderRadius.circular(2),
@@ -131,13 +131,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                 children: [
                   AppIconButton(
                     borderRadius: 50.0,
-                    buttonSize: 50.0,
+                    buttonSize: 44.0,
                     icon: Icon(
                       Icons.read_more,
                       color: widget!.page == 2
                           ? AppTheme.of(context).primary
                           : AppTheme.of(context).secondaryText,
-                      size: widget!.page == 2 ? 28.0 : 24.0,
+                      size: widget!.page == 2 ? 24.0 : 22.0,
                     ),
                     onPressed: () async {
                       if (widget!.page == 2) {
@@ -169,7 +169,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                     duration: const Duration(milliseconds: 200),
                     width: widget!.page == 2 ? 20 : 0,
                     height: 3,
-                    margin: const EdgeInsets.only(top: 4),
+                    margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
                       color: AppTheme.of(context).primary,
                       borderRadius: BorderRadius.circular(2),
@@ -182,13 +182,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                 children: [
                   AppIconButton(
                     borderRadius: 50.0,
-                    buttonSize: 50.0,
+                    buttonSize: 44.0,
                     icon: Icon(
                       Icons.group,
                       color: widget!.page == 3
                           ? AppTheme.of(context).primary
                           : AppTheme.of(context).secondaryText,
-                      size: widget!.page == 3 ? 28.0 : 24.0,
+                      size: widget!.page == 3 ? 24.0 : 22.0,
                     ),
                     onPressed: () async {
                       if (widget!.page == 3) {
@@ -220,7 +220,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                     duration: const Duration(milliseconds: 200),
                     width: widget!.page == 3 ? 20 : 0,
                     height: 3,
-                    margin: const EdgeInsets.only(top: 4),
+                    margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
                       color: AppTheme.of(context).primary,
                       borderRadius: BorderRadius.circular(2),
