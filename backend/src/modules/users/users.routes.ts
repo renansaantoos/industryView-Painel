@@ -15,6 +15,7 @@ import {
   getUserParamsSchema,
   updateUserSchema,
   changePasswordSchema,
+  adminResetPasswordSchema,
   listRolesQuerySchema,
   listUsersForTeamsSchema,
   searchUsersForTeamSchema,
@@ -435,6 +436,17 @@ router.get(
  *       404:
  *         description: Usuario nao encontrado
  */
+/**
+ * PATCH /users/:users_id/reset-password
+ * Redefine a senha de um usuario (admin)
+ */
+router.patch(
+  '/:users_id/reset-password',
+  authenticate,
+  validateBody(adminResetPasswordSchema),
+  UsersController.adminResetPassword
+);
+
 router.patch(
   '/:users_id',
   authenticate,

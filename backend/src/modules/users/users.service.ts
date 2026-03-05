@@ -493,6 +493,32 @@ export class UsersService {
   }
 
   /**
+   * Redefine a senha de um usuario (uso administrativo)
+   */
+  static async adminResetPassword(targetUserId: number, newPassword: string) {
+    const user = await db.users.findFirst({
+      where: { id: targetUserId, deleted_at: null },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario nao encontrado');
+    }
+
+    const hashedPassword = await AuthService.hashPassword(newPassword);
+
+    await db.users.update({
+      where: { id: targetUserId },
+      data: {
+        password_hash: hashedPassword,
+        updated_at: new Date(),
+      },
+    });
+
+    return { message: 'Senha redefinida com sucesso' };
+  }
+
+  /**
    * Lista todos os roles
    * Equivalente a: query users_roles verb=GET do Xano (endpoint 447)
    */

@@ -23,6 +23,7 @@ import {
   HeartPulse,
   IdCard,
   Wrench,
+  KeyRound,
 } from 'lucide-react';
 
 // Tab components
@@ -38,6 +39,7 @@ import BenefitsTab from './tabs/BenefitsTab';
 import IncidentsTab from './tabs/IncidentsTab';
 import HealthTab from './tabs/HealthTab';
 import ToolsTab from './tabs/ToolsTab';
+import ResetPasswordTab from './tabs/ResetPasswordTab';
 
 type TabKey =
   | 'dados'
@@ -51,7 +53,8 @@ type TabKey =
   | 'beneficios'
   | 'incidentes'
   | 'saude'
-  | 'ferramentas';
+  | 'ferramentas'
+  | 'senha';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'dados', label: 'Dados Pessoais', icon: <User size={16} /> },
@@ -66,6 +69,7 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'beneficios', label: 'Beneficios', icon: <Gift size={16} /> },
   { key: 'saude', label: 'Saude', icon: <HeartPulse size={16} /> },
   { key: 'incidentes', label: 'Incidentes', icon: <AlertTriangle size={16} /> },
+  { key: 'senha', label: 'Redefinir Senha', icon: <KeyRound size={16} /> },
 ];
 
 interface SummaryData {
@@ -391,6 +395,7 @@ export default function EmployeeProfile() {
         {activeTab === 'saude' && <HealthTab usersId={usersId} />}
         {activeTab === 'incidentes' && <IncidentsTab usersId={usersId} />}
         {activeTab === 'ferramentas' && <ToolsTab usersId={usersId} />}
+        {activeTab === 'senha' && <ResetPasswordTab usersId={usersId} email={user?.email} />}
       </motion.div>
     </motion.div>
   );

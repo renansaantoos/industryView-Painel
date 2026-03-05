@@ -324,6 +324,7 @@ export default function Employees() {
           onCancel={() => setReactivateConfirm(null)}
         />
       )}
+
     </div>
   );
 }

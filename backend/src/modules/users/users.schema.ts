@@ -108,6 +108,23 @@ export const changePasswordSchema = z.object({
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 /**
+ * Schema para redefinicao de senha por admin
+ */
+export const adminResetPasswordSchema = z.object({
+  new_password: z
+    .string()
+    .min(8, 'Nova senha deve ter no minimo 8 caracteres')
+    .regex(/[A-Z]/, 'Nova senha deve conter pelo menos uma letra maiuscula')
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Nova senha deve conter pelo menos um simbolo'),
+  confirm_password: z.string(),
+}).refine(data => data.new_password === data.confirm_password, {
+  message: 'Senhas nao conferem',
+  path: ['confirm_password'],
+});
+
+export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;
+
+/**
  * Schema para listagem de roles
  * Equivalente a: query users_roles verb=GET do Xano (endpoint 447)
  */

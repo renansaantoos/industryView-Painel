@@ -249,3 +249,12 @@ export async function getCompany(companyId: number) {
   const response = await apiClient.get(`${USERS_BASE}/company/${companyId}`);
   return response.data;
 }
+
+/** Admin reset password for a user */
+export async function adminResetPassword(userId: number, newPassword: string): Promise<{ message: string }> {
+  const response = await apiClient.patch(`${USERS_BASE}/${userId}/reset-password`, {
+    new_password: newPassword,
+    confirm_password: newPassword,
+  });
+  return response.data;
+}

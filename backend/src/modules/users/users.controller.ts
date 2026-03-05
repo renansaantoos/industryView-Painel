@@ -147,6 +147,27 @@ export class UsersController {
   }
 
   /**
+   * PATCH /users/:users_id/reset-password
+   * Redefine a senha de um usuario (admin)
+   */
+  static async adminResetPassword(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = parseInt(req.params.users_id, 10);
+      const result = await UsersService.adminResetPassword(userId, req.body.new_password);
+
+      logger.info({ adminId: req.auth!.id, targetUserId: userId }, 'Admin reset user password');
+
+      res.status(200).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * GET /users/roles
    * Lista todos os roles
    * Equivalente a: query users_roles verb=GET do Xano (endpoint 447)
