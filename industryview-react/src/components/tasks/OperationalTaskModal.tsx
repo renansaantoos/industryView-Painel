@@ -222,7 +222,8 @@ export default function OperationalTaskModal({
                       value={form.weight}
                       onChange={handleChange('weight')}
                       min={0}
-                      step="any"
+                      max={1}
+                      step="0.01"
                       placeholder="1"
                     />
                   </Field>

@@ -52,7 +52,7 @@ export type GetTaskInput = z.infer<typeof getTaskSchema>;
  */
 export const createTaskSchema = z.object({
   description: z.string().trim().min(1, 'Descricao e obrigatoria'),
-  weight: z.number().min(0, 'Peso nao pode ser negativo').optional().default(1),
+  weight: z.number().min(0, 'Peso nao pode ser negativo').max(1, 'Peso nao pode ser maior que 1').optional().default(1),
   amount: z.number().optional(),
   unity_id: z.number().int().optional().nullable(),
   company_id: z.number().int().optional().nullable(),
@@ -73,7 +73,7 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export const updateTaskSchema = z.object({
   description: z.string().trim().optional(),
   equipaments_types_id: z.number().int().optional().nullable(),
-  weight: z.number().min(0, 'Peso nao pode ser negativo').optional(),
+  weight: z.number().min(0, 'Peso nao pode ser negativo').max(1, 'Peso nao pode ser maior que 1').optional(),
   fixed: z.boolean().optional(),
   is_inspection: z.boolean().optional(),
   installation_method: z.string().trim().optional().nullable(),

@@ -343,7 +343,7 @@ export const updateProjectBacklogSchema = z.object({
   quantity: z.number().optional().nullable(),
   unity_id: z.number().int().optional().nullable(),
   checked: z.boolean().optional(),
-  weight: z.number().optional().nullable(),
+  weight: z.number().min(0).max(1, 'Peso nao pode ser maior que 1').optional().nullable(),
   planned_start_date: z.string().optional().nullable(),
   planned_end_date: z.string().optional().nullable(),
   actual_start_date: z.string().optional().nullable(),
@@ -385,7 +385,7 @@ export type CreateBulkBacklogsInput = z.infer<typeof createBulkBacklogsSchema>;
 export const createManualBacklogSchema = z.object({
   projects_id: z.number().int(),
   description: z.string().trim().optional().nullable(),
-  weight: z.number().optional().nullable(),
+  weight: z.number().min(0).max(1, 'Peso nao pode ser maior que 1').optional().nullable(),
   unity_id: z.number().int().optional().nullable(),
   quantity: z.number().optional().nullable(),
   task_quantity: z.number().int().min(1).default(1),
@@ -430,7 +430,7 @@ export type ListSubtasksQuery = z.infer<typeof listSubtasksQuerySchema>;
 export const createSubtaskSchema = z.object({
   description: z.string().trim().optional().nullable(),
   projects_backlogs_id: z.number().int(),
-  weight: z.number().optional().nullable(),
+  weight: z.number().min(0).max(1, 'Peso nao pode ser maior que 1').optional().nullable(),
   fixed: z.boolean().optional().nullable(),
   projects_id: z.number().int().optional().nullable(),
   quantity: z.number().optional().nullable(),
@@ -456,7 +456,7 @@ export type SubtaskParams = z.infer<typeof subtaskParamsSchema>;
  */
 export const updateSubtaskSchema = z.object({
   description: z.string().trim().optional().nullable(),
-  weight: z.number().optional().nullable(),
+  weight: z.number().min(0).max(1, 'Peso nao pode ser maior que 1').optional().nullable(),
   fixed: z.boolean().optional().nullable(),
   quantity: z.number().optional().nullable(),
   unity_id: z.number().int().optional().nullable(),

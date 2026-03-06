@@ -618,9 +618,10 @@ export default function TaskList() {
                 type="number"
                 className="input-field"
                 min={0}
+                max={1}
                 step={0.01}
                 value={form.weight}
-                onChange={(e) => onChange({ weight: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => onChange({ weight: Math.min(1, parseFloat(e.target.value) || 0) })}
               />
             </div>
           </div>
