@@ -1189,6 +1189,7 @@ export class QualityService {
    * Cria vinculo entre tasks_template e golden rule
    */
   static async createTaskGoldenRule(input: CreateTaskGoldenRuleInput) {
+    // Check for active (non-deleted) link
     const existing = await db.task_golden_rules.findFirst({
       where: {
         tasks_template_id: BigInt(input.tasks_id),
@@ -1199,6 +1200,25 @@ export class QualityService {
 
     if (existing) {
       throw new BadRequestError('Esta regra de ouro ja esta vinculada a esta tarefa.');
+    }
+
+    // Check for soft-deleted link and restore it (upsert pattern)
+    const softDeleted = await db.task_golden_rules.findFirst({
+      where: {
+        tasks_template_id: BigInt(input.tasks_id),
+        golden_rules_id: BigInt(input.golden_rules_id),
+        deleted_at: { not: null },
+      },
+    });
+
+    if (softDeleted) {
+      return db.task_golden_rules.update({
+        where: { id: softDeleted.id },
+        data: { deleted_at: null },
+        include: {
+          golden_rule: { select: { id: true, title: true, description: true } },
+        },
+      });
     }
 
     return db.task_golden_rules.create({

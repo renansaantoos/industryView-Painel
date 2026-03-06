@@ -279,12 +279,17 @@ export default function TaskList() {
     if (!editingTask || !selectedGoldenRuleId) return;
     setGoldenRulesLoading(true);
     try {
-      await qualityApi.createTaskGoldenRule({
+      const newLink = await qualityApi.createTaskGoldenRule({
         tasks_id: editingTask.id,
         golden_rules_id: selectedGoldenRuleId,
       });
       setSelectedGoldenRuleId(undefined);
-      await loadLinkedGoldenRules(editingTask.id);
+      // Optimistic update: add immediately to the list
+      if (newLink && newLink.id) {
+        setLinkedGoldenRules((prev) => [...prev, newLink as TaskGoldenRule]);
+      }
+      // Also refresh from server in background
+      loadLinkedGoldenRules(editingTask.id).catch(console.error);
       showToast('Regra de ouro vinculada com sucesso.');
     } catch (err) {
       console.error('Failed to add golden rule:', err);
@@ -364,6 +369,23 @@ export default function TaskList() {
         items,
       });
       setChecklists((prev) => [...prev, created]);
+      // Auto-link the new checklist to the task (same behavior as golden rules)
+      if (editingTask && created.id) {
+        const newLink = await qualityApi.createTaskChecklist({
+          tasks_template_id: editingTask.id,
+          checklist_templates_id: created.id,
+        }).catch(() => null);
+        if (newLink) {
+          setLinkedChecklists((prev) => [...prev, { ...newLink, checklist_template: created } as TaskChecklist]);
+        }
+        loadLinkedChecklists(editingTask.id).catch(console.error);
+      } else if (created.id) {
+        // Create mode: add to selected list
+        setCreateForm((prev) => ({
+          ...prev,
+          selectedChecklistIds: [...prev.selectedChecklistIds, created.id],
+        }));
+      }
       setNewChecklistName('');
       setNewChecklistDescription('');
       setNewChecklistItems(['']);
@@ -396,12 +418,17 @@ export default function TaskList() {
     if (!editingTask || !selectedChecklistId) return;
     setChecklistsLoading(true);
     try {
-      await qualityApi.createTaskChecklist({
+      const newLink = await qualityApi.createTaskChecklist({
         tasks_template_id: editingTask.id,
         checklist_templates_id: selectedChecklistId,
       });
       setSelectedChecklistId(undefined);
-      await loadLinkedChecklists(editingTask.id);
+      // Optimistic update: add immediately to the list
+      if (newLink && newLink.id) {
+        setLinkedChecklists((prev) => [...prev, newLink as TaskChecklist]);
+      }
+      // Also refresh from server in background
+      loadLinkedChecklists(editingTask.id).catch(console.error);
       showToast('Checklist vinculado com sucesso.');
     } catch (err) {
       console.error('Failed to add checklist:', err);
