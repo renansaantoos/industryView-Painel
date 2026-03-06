@@ -253,7 +253,7 @@ export async function deleteGoldenRule(id: number): Promise<void> {
 
 /** List golden rules linked to a task template */
 export async function listTaskGoldenRules(params?: {
-  task_templates_id?: number;
+  tasks_id?: number;
 }): Promise<TaskGoldenRule[]> {
   const response = await apiClient.get(`${QUALITY_BASE}/task-golden-rules`, { params });
   return response.data;
@@ -274,7 +274,7 @@ export async function deleteTaskGoldenRule(id: number): Promise<void> {
 
 /** List checklists linked to a task template */
 export async function listTaskChecklists(params?: {
-  tasks_template_id?: number;
+  tasks_id?: number;
 }): Promise<TaskChecklist[]> {
   const response = await apiClient.get(`${QUALITY_BASE}/task-checklists`, { params });
   return response.data;
