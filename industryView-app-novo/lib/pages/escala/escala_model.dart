@@ -1,24 +1,9 @@
-import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_requests/api_calls.dart';
-import '/components/loading_copy_widget.dart';
-import '/components/modal_info_widget.dart';
 import '/components/nav_bar_widget.dart';
-import '/core/widgets/app_animations.dart';
-import '/core/theme/app_theme.dart';
 import '/core/utils/app_utils.dart';
-import '/core/widgets/app_button.dart';
-import 'dart:math';
-import 'dart:ui';
-import '/index.dart';
-import 'dart:async';
+import '/core/widgets/form_field_controller.dart';
 import 'escala_widget.dart' show EscalaWidget;
-import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 class EscalaModel extends PageModel<EscalaWidget> {
   ///  Local state fields for this page.
@@ -53,8 +38,11 @@ class EscalaModel extends PageModel<EscalaWidget> {
   String? Function(BuildContext, String?)? textControllerValidator;
   bool apiRequestCompleted = false;
   String? apiRequestLastUniqueKey;
-  // Stores action output result for [Backend Call - API (Edita escala dos colaboradores)] action in Button widget.
   ApiCallResponse? editaEscala;
+
+  // Language dropdown
+  String? dropDownValue2;
+  FormFieldController<String>? dropDownValueController2;
 
   @override
   void initState(BuildContext context) {

@@ -2430,6 +2430,184 @@ class AddCommentCall {
 
 /// End Tasks Group Code
 
+/// Start DailyReports Group Code
+
+class DailyReportsGroup {
+  static String getBaseUrl({String? token = ''}) => _kPainelBaseUrl;
+  static Map<String, String> headers = {};
+  static CreateDailyReportCall createDailyReportCall = CreateDailyReportCall();
+  static FinalizeDailyReportCall finalizeDailyReportCall = FinalizeDailyReportCall();
+  static AddDailyReportWorkforceCall addDailyReportWorkforceCall = AddDailyReportWorkforceCall();
+  static AddDailyReportActivityCall addDailyReportActivityCall = AddDailyReportActivityCall();
+}
+
+class CreateDailyReportCall {
+  Future<ApiCallResponse> call({
+    int? projectsId,
+    String? rdoDate = '',
+    String? shift = '',
+    String? weatherMorning = '',
+    String? weatherAfternoon = '',
+    String? weatherNight = '',
+    double? temperatureMin,
+    double? temperatureMax,
+    String? safetyTopic = '',
+    String? generalObservations = '',
+    List<int>? scheduleId,
+    String? token = '',
+  }) async {
+    final baseUrl = DailyReportsGroup.getBaseUrl(token: token);
+    final scheduleIdList = scheduleId ?? [];
+
+    final apiRequestBody = '''
+{
+  "projects_id": ${projectsId},
+  "rdo_date": "${escapeStringForJson(rdoDate)}",
+  "shift": "${escapeStringForJson(shift)}",
+  "weather_morning": "${escapeStringForJson(weatherMorning)}",
+  "weather_afternoon": "${escapeStringForJson(weatherAfternoon)}",
+  "weather_night": "${escapeStringForJson(weatherNight)}",
+  "temperature_min": ${temperatureMin ?? 0},
+  "temperature_max": ${temperatureMax ?? 0},
+  "safety_topic": "${escapeStringForJson(safetyTopic)}",
+  "general_observations": "${escapeStringForJson(generalObservations)}",
+  "schedule_id": ${_serializeList(scheduleIdList)}
+}''';
+    return ApiManager.instance.makeApiCall(
+      callName: 'Create Daily Report',
+      apiUrl: '${baseUrl}/daily-reports',
+      callType: ApiCallType.POST,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      body: apiRequestBody,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+
+  int? id(dynamic response) => castToType<int>(getJsonField(
+        response,
+        r'''$.id''',
+      ));
+}
+
+class FinalizeDailyReportCall {
+  Future<ApiCallResponse> call({
+    int? id,
+    String? token = '',
+  }) async {
+    final baseUrl = DailyReportsGroup.getBaseUrl(token: token);
+
+    return ApiManager.instance.makeApiCall(
+      callName: 'Finalize Daily Report',
+      apiUrl: '${baseUrl}/daily-reports/${id}/finalize',
+      callType: ApiCallType.POST,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      bodyType: BodyType.NONE,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+class AddDailyReportWorkforceCall {
+  Future<ApiCallResponse> call({
+    int? id,
+    String? roleCategory = '',
+    int? quantityPlanned,
+    int? quantityPresent,
+    int? quantityAbsent,
+    String? absenceReason = '',
+    String? token = '',
+  }) async {
+    final baseUrl = DailyReportsGroup.getBaseUrl(token: token);
+
+    final apiRequestBody = '''
+{
+  "role_category": "${escapeStringForJson(roleCategory)}",
+  "quantity_planned": ${quantityPlanned ?? 0},
+  "quantity_present": ${quantityPresent ?? 0},
+  "quantity_absent": ${quantityAbsent ?? 0},
+  "absence_reason": "${escapeStringForJson(absenceReason)}"
+}''';
+    return ApiManager.instance.makeApiCall(
+      callName: 'Add Daily Report Workforce',
+      apiUrl: '${baseUrl}/daily-reports/${id}/workforce',
+      callType: ApiCallType.POST,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      body: apiRequestBody,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+class AddDailyReportActivityCall {
+  Future<ApiCallResponse> call({
+    int? id,
+    String? description = '',
+    int? projectsBacklogsId,
+    double? quantityDone,
+    int? unityId,
+    int? teamsId,
+    String? locationDescription = '',
+    String? token = '',
+  }) async {
+    final baseUrl = DailyReportsGroup.getBaseUrl(token: token);
+
+    final apiRequestBody = '''
+{
+  "description": "${escapeStringForJson(description)}",
+  "projects_backlogs_id": ${projectsBacklogsId ?? 0},
+  "quantity_done": ${quantityDone ?? 0},
+  "unity_id": ${unityId ?? 0},
+  "teams_id": ${teamsId ?? 0},
+  "location_description": "${escapeStringForJson(locationDescription)}"
+}''';
+    return ApiManager.instance.makeApiCall(
+      callName: 'Add Daily Report Activity',
+      apiUrl: '${baseUrl}/daily-reports/${id}/activities',
+      callType: ApiCallType.POST,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      body: apiRequestBody,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+/// End DailyReports Group Code
+
 class ApiPagingParams {
   int nextPageNumber = 0;
   int numItems = 0;

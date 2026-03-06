@@ -535,6 +535,7 @@ export class TeamsService {
                 nivel: true,
                 cargo: true,
                 matricula: true,
+                cpf: true,
               }
             },
             users_permissions: {
@@ -556,8 +557,29 @@ export class TeamsService {
       take: perPage,
     });
 
+    /** Mascara CPF mostrando apenas os 2 ultimos digitos: ***.***.**-XX */
+    const maskCpf = (cpf: string | null | undefined): string | null => {
+      if (!cpf) return null;
+      const digits = cpf.replace(/\D/g, '');
+      if (digits.length < 2) return null;
+      const last2 = digits.slice(-2);
+      return `***.***.**${digits.length >= 11 ? '-' : ''}${last2}`;
+    };
+
+    const mappedMembers = members.map((m: any) => ({
+      ...m,
+      users: m.users ? {
+        ...m.users,
+        hr_data: m.users.hr_data ? {
+          ...m.users.hr_data,
+          cpf: undefined,
+          cpf_masked: maskCpf(m.users.hr_data.cpf),
+        } : m.users.hr_data,
+      } : m.users,
+    }));
+
     return {
-      items: members,
+      items: mappedMembers,
       curPage: page,
       perPage,
       itemsReceived: members.length,

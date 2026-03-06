@@ -14,7 +14,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import {
-  FolderKanban, CheckCircle, Clock, Users, TrendingUp, Package,
+  FolderKanban, CheckCircle, Clock, Users, TrendingUp,
   ShieldAlert, FileWarning, Boxes, UserCheck,
   FileText, Wrench, Activity,
 } from 'lucide-react';
@@ -299,7 +299,6 @@ export default function Dashboard() {
     { key: 'completedTasks', label: t('dashboard.completedTasks'), value: stats.completedTasks, icon: <CheckCircle size={24} />, color: C.success },
     { key: 'pendingTasks', label: t('dashboard.pendingTasks'), value: stats.pendingTasks, icon: <Clock size={24} />, color: C.warning },
     { key: 'teamMembers', label: t('dashboard.teamMembers'), value: stats.teamMembers, icon: <Users size={24} />, color: C.tertiary },
-    { key: 'trackersInstalled', label: t('dashboard.trackersInstalled', 'Trackers Instalados'), value: `${stats.trackersInstalled}/${stats.trackersTotal}`, icon: <Package size={24} />, color: C.primary },
   ];
 
   const installationData = [

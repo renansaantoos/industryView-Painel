@@ -4,7 +4,6 @@ import '/backend/schema/structs/index.dart';
 import '/components/comment_insp_widget.dart';
 import '/components/confirmdialog_widget.dart';
 import '/components/empty_widget.dart';
-import '/components/loading_copy_widget.dart';
 import '/components/logout_widget.dart';
 import '/components/modal_info_widget.dart';
 import '/components/modal_sucess_qrcode_widget.dart';

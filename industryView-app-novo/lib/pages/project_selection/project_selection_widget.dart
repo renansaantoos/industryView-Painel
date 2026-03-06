@@ -7,17 +7,16 @@ import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 
 class ProjectSelectionWidget extends StatefulWidget {
   const ProjectSelectionWidget({
     super.key,
-    required this.tokenResponse,
-    required this.loginResponse,
+    this.tokenResponse,
+    this.loginResponse,
   });
 
-  final ApiCallResponse tokenResponse;
-  final ApiCallResponse loginResponse;
+  final ApiCallResponse? tokenResponse;
+  final ApiCallResponse? loginResponse;
 
   static String routeName = 'ProjectSelection';
   static String routePath = '/projectSelection';
@@ -40,8 +39,8 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
   Future<void> _loadProjects() async {
     final meCall = AuthenticationGroup
         .getTheRecordBelongingToTheAuthenticationTokenCall;
-    final tokenJson = widget.tokenResponse.jsonBody ?? '';
-    final loginJson = widget.loginResponse.jsonBody ?? '';
+    final tokenJson = widget.tokenResponse?.jsonBody ?? '';
+    final loginJson = widget.loginResponse?.jsonBody ?? '';
 
     final companyId = meCall.companyID(tokenJson);
     final authToken = AuthenticationGroup
@@ -100,8 +99,8 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
     try {
       final meCall = AuthenticationGroup
           .getTheRecordBelongingToTheAuthenticationTokenCall;
-      final tokenJson = widget.tokenResponse.jsonBody ?? '';
-      final loginJson = widget.loginResponse.jsonBody ?? '';
+      final tokenJson = widget.tokenResponse?.jsonBody ?? '';
+      final loginJson = widget.loginResponse?.jsonBody ?? '';
 
       final authToken = AuthenticationGroup
           .loginAndRetrieveAnAuthenticationTokenCall
@@ -241,14 +240,8 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
         body: SafeArea(
           top: true,
           child: _isLoading
-              ? Center(
-                  child: Lottie.asset(
-                    'assets/jsons/Solar_Panel.json',
-                    width: 150,
-                    height: 150,
-                    fit: BoxFit.contain,
-                    animate: true,
-                  ),
+              ? const Center(
+                  child: CircularProgressIndicator(),
                 )
               : SingleChildScrollView(
                   child: Align(

@@ -5,7 +5,6 @@ import '/components/comment_insp_widget.dart';
 import '/components/concluir_batch_modal_widget.dart';
 import '/components/confirmdialog_widget.dart';
 import '/components/empty_widget.dart';
-import '/components/loading_copy_widget.dart';
 import '/components/logout_widget.dart';
 import '/components/modal_info_widget.dart';
 import '/components/sem_sucesso_modal_widget.dart';
@@ -1178,7 +1177,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
         if (!snapshot.hasData) {
           return Scaffold(
             backgroundColor: AppTheme.of(context).secondaryBackground,
-            body: LoadingCopyWidget(),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
         final homePageTarefasQueryAllSprintsTasksRecordResponse =

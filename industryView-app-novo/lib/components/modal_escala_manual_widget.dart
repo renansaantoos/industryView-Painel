@@ -7,6 +7,7 @@ import '/core/utils/app_utils.dart';
 import '/core/widgets/app_button.dart';
 import 'dart:ui';
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -116,9 +117,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                   ),
                   Expanded(
                     child: Text(
-                      AppLocalizations.of(context).getText(
-                        'nql6xby5' /* Escala do dia */,
-                      ),
+                      '${AppLocalizations.of(context).getText('nql6xby5' /* Escala do dia */)} - ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
                       style: AppTheme.of(context).titleLarge.override(
                             font: GoogleFonts.lexend(
                               fontWeight: FontWeight.w600,
@@ -579,6 +578,24 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                                 ),
                                                       ),
                                                     ),
+                                                    if ((getJsonField(listItem, r'''$.users.hr_data.cpf_masked''')?.toString() ?? '').isNotEmpty)
+                                                      Padding(
+                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
+                                                        child: Text(
+                                                          'CPF: ${getJsonField(listItem, r'''$.users.hr_data.cpf_masked''')?.toString() ?? ''}',
+                                                          style: AppTheme.of(context).bodySmall.override(
+                                                            font: GoogleFonts.lexend(
+                                                              fontWeight: AppTheme.of(context).bodySmall.fontWeight,
+                                                              fontStyle: AppTheme.of(context).bodySmall.fontStyle,
+                                                            ),
+                                                            color: AppTheme.of(context).secondaryText.withValues(alpha: 0.7),
+                                                            fontSize: 11,
+                                                            letterSpacing: 0.0,
+                                                            fontWeight: AppTheme.of(context).bodySmall.fontWeight,
+                                                            fontStyle: AppTheme.of(context).bodySmall.fontStyle,
+                                                          ),
+                                                        ),
+                                                      ),
                                                     if (isAlreadyReleased)
                                                       Padding(
                                                         padding: EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
@@ -714,9 +731,11 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                       var _shouldSetState = false;
                       _shouldSetState = true;
                       if (_model.id != null) {
-                        AppState().addToLiberaManual(_model.id!);
-                        AppState().addToAllIds(_model.id!);
-                        AppState().addEscalaEntryTime(_model.id!, DateTime.now().toUtc().toIso8601String());
+                        AppState().update(() {
+                          AppState().addToLiberaManual(_model.id!);
+                          AppState().addToAllIds(_model.id!);
+                          AppState().addEscalaEntryTime(_model.id!, DateTime.now().toUtc().toIso8601String());
+                        });
                         safeSetState(() {});
                         // Registrar check-in no controle de mão de obra
                         try {

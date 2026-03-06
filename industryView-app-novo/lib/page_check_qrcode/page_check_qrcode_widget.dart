@@ -1,7 +1,6 @@
 import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_requests/api_calls.dart';
 import '/backend/schema/structs/index.dart';
-import '/components/loading_widget.dart';
 import '/components/modal_escala_manual_widget.dart';
 import '/components/modal_info_widget.dart';
 import '/components/modal_sucess_qrcode_widget.dart';
@@ -148,9 +147,18 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
       );
 
       if ((_model.validToken?.succeeded ?? true)) {
+        // Verificar se é primeiro login do dia (novo dia de trabalho)
+        final isFirstLogin = AuthenticationGroup
+            .getTheRecordBelongingToTheAuthenticationTokenCall
+            .firstLogin(
+          (_model.validToken?.jsonBody ?? ''),
+        ) ?? true;
+
         // Se já tem projeto/equipe definidos (sessão restaurada),
         // verificar se já existe escala para hoje e ir direto para Home
-        if (AppState().user.projectId > 0 &&
+        // MAS só se NÃO for primeiro login (novo dia = nova escala)
+        if (!isFirstLogin &&
+            AppState().user.projectId > 0 &&
             AppState().user.teamsId > 0) {
           final existingSchedule = await ProjectsGroup
               .listaColaboradoresDaEscalaDoDiaCall
@@ -435,52 +443,66 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           );
         }
 
+        // Se é primeiro login do dia, limpar escala anterior
+        if (isFirstLogin) {
+          AppState().update(() {
+            AppState().escalaServerIds = [];
+            AppState().escalaLocalIds = [];
+            AppState().escalaRemovedIds = [];
+            AppState().escalaEntryTimes = {};
+            AppState().allIds = [];
+          });
+        }
+
         // Pré-carregar seleção da escala no QRCode (antes de abrir a página)
-        Future.microtask(() async {
-          try {
-            final escalaDia = await ProjectsGroup
-                .listaColaboradoresDaEscalaDoDiaCall
-                .call(
-              projectsId: AppState().user.projectId,
-              teamsId: AppState().user.teamsId,
-              token: currentAuthenticationToken,
-            );
-            if (escalaDia.succeeded) {
-              final ids = ProjectsGroup
-                      .listaColaboradoresDaEscalaDoDiaCall
-                      .ids(escalaDia.jsonBody)
-                      ?.toList()
-                      .cast<int>() ??
-                  <int>[];
-              // Extrair horários de entrada de cada schedule_user
-              final entryTimes = <int, String>{};
-              final rawBody = escalaDia.jsonBody;
-              if (rawBody is List) {
-                for (final item in rawBody) {
-                  final userId = castToType<int>(getJsonField(item, r'''$.users_id'''));
-                  final createdAt = getJsonField(item, r'''$.created_at''')?.toString();
-                  if (userId != null && createdAt != null) {
-                    entryTimes[userId] = createdAt;
+        // Só carregar escala existente se NÃO for primeiro login (novo dia = escala limpa)
+        if (!isFirstLogin) {
+          Future.microtask(() async {
+            try {
+              final escalaDia = await ProjectsGroup
+                  .listaColaboradoresDaEscalaDoDiaCall
+                  .call(
+                projectsId: AppState().user.projectId,
+                teamsId: AppState().user.teamsId,
+                token: currentAuthenticationToken,
+              );
+              if (escalaDia.succeeded) {
+                final ids = ProjectsGroup
+                        .listaColaboradoresDaEscalaDoDiaCall
+                        .ids(escalaDia.jsonBody)
+                        ?.toList()
+                        .cast<int>() ??
+                    <int>[];
+                // Extrair horários de entrada de cada schedule_user
+                final entryTimes = <int, String>{};
+                final rawBody = escalaDia.jsonBody;
+                if (rawBody is List) {
+                  for (final item in rawBody) {
+                    final userId = castToType<int>(getJsonField(item, r'''$.users_id'''));
+                    final createdAt = getJsonField(item, r'''$.created_at''')?.toString();
+                    if (userId != null && createdAt != null) {
+                      entryTimes[userId] = createdAt;
+                    }
                   }
                 }
+                AppState().update(() {
+                  AppState().escalaServerIds = ids;
+                  AppState().escalaLocalIds = [];
+                  AppState().escalaRemovedIds = [];
+                  AppState().escalaEntryTimes = entryTimes;
+                  // Marcar funcionários já registrados no servidor como presentes
+                  for (final id in ids) {
+                    if (!AppState().allIds.contains(id)) {
+                      AppState().addToAllIds(id);
+                    }
+                  }
+                });
               }
-              AppState().update(() {
-                AppState().escalaServerIds = ids;
-                AppState().escalaLocalIds = [];
-                AppState().escalaRemovedIds = [];
-                AppState().escalaEntryTimes = entryTimes;
-                // Marcar funcionários já registrados no servidor como presentes
-                for (final id in ids) {
-                  if (!AppState().allIds.contains(id)) {
-                    AppState().addToAllIds(id);
-                  }
-                }
-              });
+            } catch (_) {
+              // Ignorar erro de preload
             }
-          } catch (_) {
-            // Ignorar erro de preload
-          }
-        });
+          });
+        }
 
         // Pré-carregar lista de membros para uso offline na Escala
         Future.microtask(() async {
@@ -534,11 +556,6 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           }
         });
 
-        final isFirstLogin = AuthenticationGroup
-            .getTheRecordBelongingToTheAuthenticationTokenCall
-            .firstLogin(
-          (_model.validToken?.jsonBody ?? ''),
-        )!;
         if (isFirstLogin) {
           _model.listaFuncionarios =
               await ProjectsGroup.listaMembrosDeUmaEquipeCall.call(
@@ -1227,10 +1244,12 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                       if (_shouldSetState) safeSetState(() {});
                                       return;
                                     }
-                                    AppState().addToQrCodeIDs(qrUserId);
-                                    AppState().addToAllIds(qrUserId);
-                                    // Armazenar horário de entrada local
-                                    AppState().addEscalaEntryTime(qrUserId, DateTime.now().toUtc().toIso8601String());
+                                    AppState().update(() {
+                                      AppState().addToQrCodeIDs(qrUserId!);
+                                      AppState().addToAllIds(qrUserId!);
+                                      // Armazenar horário de entrada local
+                                      AppState().addEscalaEntryTime(qrUserId!, DateTime.now().toUtc().toIso8601String());
+                                    });
                                     safeSetState(() {});
                                     // Registrar check-in no controle de mão de obra
                                     try {
@@ -1619,11 +1638,6 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                   ),
                   ),
                     ],
-                  ),
-                  wrapWithModel(
-                    model: _model.loadingModel,
-                    updateCallback: () => safeSetState(() {}),
-                    child: LoadingWidget(),
                   ),
                 ],
               ),

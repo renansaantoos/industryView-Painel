@@ -1,7 +1,6 @@
 import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_requests/api_calls.dart';
 import '/backend/schema/structs/index.dart';
-import '/components/loading_widget.dart';
 import '/components/modal_escala_manual_widget.dart';
 import '/components/modal_info_widget.dart';
 import '/components/modal_sucess_qrcode_widget.dart';
@@ -50,16 +49,9 @@ class PageCheckQrcodeModel extends PageModel<PageCheckQrcodeWidget> {
   ApiCallResponse? creatSchedule;
   // Stores action output result for [Backend Call - API (daily login)] action in Button widget.
   ApiCallResponse? firstLogin;
-  // Model for loading component.
-  late LoadingModel loadingModel;
+  @override
+  void initState(BuildContext context) {}
 
   @override
-  void initState(BuildContext context) {
-    loadingModel = createModel(context, () => LoadingModel());
-  }
-
-  @override
-  void dispose() {
-    loadingModel.dispose();
-  }
+  void dispose() {}
 }

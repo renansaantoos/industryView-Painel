@@ -177,8 +177,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) {
             final extra = params.state.extraMap;
             return ProjectSelectionWidget(
-              tokenResponse: extra['tokenResponse'] as ApiCallResponse,
-              loginResponse: extra['loginResponse'] as ApiCallResponse,
+              tokenResponse: extra['tokenResponse'] as ApiCallResponse?,
+              loginResponse: extra['loginResponse'] as ApiCallResponse?,
             );
           },
         ),
