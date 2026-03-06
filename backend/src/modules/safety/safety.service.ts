@@ -1423,6 +1423,35 @@ export class SafetyService {
   }
 
   /**
+   * Remove participante de um DDS
+   * Route: DELETE /api/v1/safety/dds/:id/participants/:userId
+   */
+  static async removeDdsParticipant(dds_id: number, user_id: number) {
+    const participant = await db.$queryRaw<DdsParticipantRow[]>`
+      SELECT id FROM dds_participants
+      WHERE dds_records_id = ${BigInt(dds_id)} AND users_id = ${BigInt(user_id)}
+    `;
+
+    if (!participant || participant.length === 0) {
+      throw new NotFoundError('Participante nao encontrado neste DDS.');
+    }
+
+    await db.$executeRaw`
+      DELETE FROM dds_participants
+      WHERE dds_records_id = ${BigInt(dds_id)} AND users_id = ${BigInt(user_id)}
+    `;
+
+    await db.$executeRaw`
+      UPDATE dds_records
+      SET participant_count = (
+        SELECT COUNT(*) FROM dds_participants WHERE dds_records_id = ${BigInt(dds_id)}
+      ),
+      updated_at = NOW()
+      WHERE id = ${BigInt(dds_id)}
+    `;
+  }
+
+  /**
    * Registra assinatura de participacao em DDS
    * Define signed_at para o timestamp atual
    */

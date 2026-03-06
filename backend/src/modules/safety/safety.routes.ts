@@ -981,6 +981,7 @@ router.patch('/dds/:id', authenticate, SafetyController.updateDdsRecord);
  *         description: DDS nao encontrado
  */
 router.post('/dds/:id/participants', authenticate, SafetyController.addDdsParticipant);
+router.delete('/dds/:id/participants/:userId', authenticate, SafetyController.removeDdsParticipant);
 
 /**
  * @swagger

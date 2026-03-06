@@ -284,6 +284,11 @@ export async function addDdsParticipant(
   await apiClient.post(`${SAFETY_BASE}/dds/${ddsId}/participants`, data);
 }
 
+/** Remove a participant from a DDS record */
+export async function removeDdsParticipant(ddsId: number, userId: number): Promise<void> {
+  await apiClient.delete(`${SAFETY_BASE}/dds/${ddsId}/participants/${userId}`);
+}
+
 /** Record a participant's signature on a DDS record */
 export async function signDdsParticipation(
   ddsId: number,

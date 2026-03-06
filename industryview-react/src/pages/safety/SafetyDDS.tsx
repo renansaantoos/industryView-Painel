@@ -22,6 +22,7 @@ import {
   UserPlus,
   PenLine,
   Pencil,
+  X,
 } from 'lucide-react';
 
 interface ToastState {
@@ -262,11 +263,30 @@ export default function SafetyDDS() {
       setParticipantUserId(undefined);
       setAddParticipantDdsId(null);
       showToast(t('dds.participantAdded'), 'success');
+      loadStats();
     } catch (err) {
       console.error('Failed to add participant:', err);
       showToast(t('common.errorSaving'), 'error');
     } finally {
       setParticipantLoading(false);
+    }
+  };
+
+  const handleRemoveParticipant = async (ddsId: number, userId: number) => {
+    try {
+      await safetyApi.removeDdsParticipant(ddsId, userId);
+      setRecords((prev) =>
+        prev.map((r) => {
+          if (r.id !== ddsId) return r;
+          const updated = (r.participants || []).filter((p: any) => Number(p.users_id) !== userId);
+          return { ...r, participants: updated, participants_count: updated.length };
+        }),
+      );
+      loadStats();
+      showToast(t('dds.participantRemoved', 'Participante removido com sucesso.'), 'success');
+    } catch (err) {
+      console.error('Failed to remove participant:', err);
+      showToast(t('common.errorSaving'), 'error');
     }
   };
 
@@ -545,7 +565,7 @@ export default function SafetyDDS() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '6px',
-                                    padding: '4px 10px',
+                                    padding: '4px 6px 4px 10px',
                                     borderRadius: '20px',
                                     backgroundColor: participant.signed
                                       ? 'var(--color-status-04)'
@@ -574,6 +594,26 @@ export default function SafetyDDS() {
                                       {t('dds.signed')}
                                     </span>
                                   )}
+                                  <button
+                                    onClick={() => handleRemoveParticipant(record.id, Number(participant.users_id))}
+                                    title={t('common.remove', 'Remover')}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      padding: '0 2px',
+                                      opacity: 0.6,
+                                      color: 'inherit',
+                                      lineHeight: 1,
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+                                  >
+                                    <X size={12} />
+                                  </button>
                                 </div>
                               ))}
                             </div>

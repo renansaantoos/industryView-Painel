@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { SafetyService } from './safety.service';
 import { AuthenticatedRequest } from '../../types';
 import { serializeBigInt } from '../../utils/bigint';
@@ -512,6 +513,21 @@ export class SafetyController {
       const { user_id } = createDdsParticipantSchema.parse(req.body);
       const result = await SafetyService.addDdsParticipant(id, user_id);
       res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Remove participante de um DDS
+   * Route: DELETE /api/v1/safety/dds/:id/participants/:userId
+   */
+  static async removeDdsParticipant(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = getDdsByIdSchema.parse(req.params);
+      const userId = z.coerce.number().int().min(1).parse(req.params.userId);
+      await SafetyService.removeDdsParticipant(id, userId);
+      res.status(204).send();
     } catch (error) {
       next(error);
     }
