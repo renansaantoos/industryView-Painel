@@ -242,6 +242,7 @@ export class ProjectsService {
           resulting_work_area: input.resulting_work_area?.toString() || null,
           company_id: input.company_id ? BigInt(input.company_id) : null,
           client_id: input.client_id ?? null,
+          client_unit_id: input.client_unit_id ?? null,
           cno_file: fileUrl || null,
         },
       });
@@ -362,6 +363,7 @@ export class ProjectsService {
     if (input.project_work_type !== undefined) updateData.project_work_type = input.project_work_type;
     if (input.resulting_work_area !== undefined) updateData.resulting_work_area = input.resulting_work_area != null ? String(input.resulting_work_area) : null;
     if (input.client_id !== undefined) updateData.client_id = input.client_id ?? null;
+    if (input.client_unit_id !== undefined) updateData.client_unit_id = input.client_unit_id ?? null;
     if (fileUrl !== undefined) updateData.cno_file = fileUrl;
 
     const project = await db.projects.update({

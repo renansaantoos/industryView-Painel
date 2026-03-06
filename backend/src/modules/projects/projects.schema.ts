@@ -89,6 +89,10 @@ export const createProjectSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
     z.number().int().nullable().optional()
   ),
+  client_unit_id: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
+    z.number().int().nullable().optional()
+  ),
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
@@ -162,6 +166,10 @@ export const updateProjectSchema = z.object({
     z.number().optional().nullable()
   ),
   client_id: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
+    z.number().int().nullable().optional()
+  ),
+  client_unit_id: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
     z.number().int().nullable().optional()
   ),

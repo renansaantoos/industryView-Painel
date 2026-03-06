@@ -527,6 +527,7 @@ model projects {
   projects_works_situations_id BigInt?
   company_id                   BigInt?
   client_id                    BigInt?
+  client_unit_id               BigInt?
   created_at                   DateTime                   @default(now()) @db.Timestamptz(6)
   updated_at                   DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at                   DateTime?                  @db.Timestamptz(6)
@@ -536,6 +537,7 @@ model projects {
   product_inventory            product_inventory[]
   company                      company?                   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   client                       clients?                   @relation(fields: [client_id], references: [id], onUpdate: NoAction)
+  client_unit                  client_units?              @relation(fields: [client_unit_id], references: [id], onUpdate: NoAction)
   projects_statuses            projects_statuses?         @relation(fields: [projects_statuses_id], references: [id], onUpdate: NoAction)
   projects_works_situations    projects_works_situations? @relation(fields: [projects_works_situations_id], references: [id], onUpdate: NoAction)
   projects_backlogs            projects_backlogs[]
@@ -564,6 +566,7 @@ model projects {
 
   @@index([company_id], map: "idx_projects_company_id")
   @@index([client_id], map: "idx_projects_client_id")
+  @@index([client_unit_id], map: "idx_projects_client_unit_id")
   @@index([created_at(sort: Desc)], map: "idx_projects_created_at")
   @@index([name_normalized], map: "idx_projects_name_normalized")
   @@index([projects_statuses_id], map: "idx_projects_projects_statuses_id")
@@ -2826,7 +2829,8 @@ model client_units {
   created_at   DateTime  @default(now()) @db.Timestamptz(6)
   updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
-  client       clients   @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  client       clients    @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  projects     projects[]
 
   @@index([client_id], map: "idx_client_units_client_id")
 }
