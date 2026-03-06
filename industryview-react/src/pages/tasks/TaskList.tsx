@@ -632,7 +632,11 @@ export default function TaskList() {
                 max={1}
                 step={0.01}
                 value={form.weight}
-                onChange={(e) => onChange({ weight: Math.min(1, parseFloat(e.target.value) || 0) })}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val) && val > 1) return;
+                  onChange({ weight: isNaN(val) ? 0 : Math.max(0, val) });
+                }}
               />
             </div>
           </div>
