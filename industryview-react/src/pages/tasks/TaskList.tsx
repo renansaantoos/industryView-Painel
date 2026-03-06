@@ -277,40 +277,31 @@ export default function TaskList() {
 
   const handleAddGoldenRule = async () => {
     if (!editingTask || !selectedGoldenRuleId) return;
-    setGoldenRulesLoading(true);
     try {
       const newLink = await qualityApi.createTaskGoldenRule({
         tasks_id: editingTask.id,
         golden_rules_id: selectedGoldenRuleId,
       });
       setSelectedGoldenRuleId(undefined);
-      // Optimistic update: add immediately to the list
       if (newLink && newLink.id) {
         setLinkedGoldenRules((prev) => [...prev, newLink as TaskGoldenRule]);
       }
-      // Also refresh from server in background
-      loadLinkedGoldenRules(editingTask.id).catch(console.error);
       showToast('Regra de ouro vinculada com sucesso.');
     } catch (err) {
       console.error('Failed to add golden rule:', err);
       showToast('Erro ao vincular regra de ouro.', 'error');
-    } finally {
-      setGoldenRulesLoading(false);
     }
   };
 
   const handleRemoveGoldenRule = async (linkId: number) => {
     if (!editingTask) return;
-    setGoldenRulesLoading(true);
     try {
       await qualityApi.deleteTaskGoldenRule(linkId);
-      await loadLinkedGoldenRules(editingTask.id);
+      setLinkedGoldenRules((prev) => prev.filter((lgr) => lgr.id !== linkId));
       showToast('Regra de ouro removida com sucesso.');
     } catch (err) {
       console.error('Failed to remove golden rule:', err);
       showToast('Erro ao remover regra de ouro.', 'error');
-    } finally {
-      setGoldenRulesLoading(false);
     }
   };
 
@@ -328,11 +319,13 @@ export default function TaskList() {
       setAllGoldenRules((prev) => [...prev, created]);
       // If editing a task, auto-link immediately
       if (editingTask && created.id) {
-        await qualityApi.createTaskGoldenRule({
+        const newLink = await qualityApi.createTaskGoldenRule({
           tasks_id: editingTask.id,
           golden_rules_id: created.id,
         });
-        await loadLinkedGoldenRules(editingTask.id);
+        if (newLink && newLink.id) {
+          setLinkedGoldenRules((prev) => [...prev, newLink as TaskGoldenRule]);
+        }
       } else if (created.id) {
         // Create mode: store the ID so it gets linked after the task is saved
         setCreateForm((prev) => ({
@@ -374,11 +367,10 @@ export default function TaskList() {
         const newLink = await qualityApi.createTaskChecklist({
           tasks_template_id: editingTask.id,
           checklist_templates_id: created.id,
-        }).catch(() => null);
-        if (newLink) {
+        });
+        if (newLink && newLink.id) {
           setLinkedChecklists((prev) => [...prev, { ...newLink, checklist_template: created } as TaskChecklist]);
         }
-        loadLinkedChecklists(editingTask.id).catch(console.error);
       } else if (created.id) {
         // Create mode: add to selected list
         setCreateForm((prev) => ({
@@ -416,40 +408,31 @@ export default function TaskList() {
 
   const handleAddChecklist = async () => {
     if (!editingTask || !selectedChecklistId) return;
-    setChecklistsLoading(true);
     try {
       const newLink = await qualityApi.createTaskChecklist({
         tasks_template_id: editingTask.id,
         checklist_templates_id: selectedChecklistId,
       });
       setSelectedChecklistId(undefined);
-      // Optimistic update: add immediately to the list
       if (newLink && newLink.id) {
         setLinkedChecklists((prev) => [...prev, newLink as TaskChecklist]);
       }
-      // Also refresh from server in background
-      loadLinkedChecklists(editingTask.id).catch(console.error);
       showToast('Checklist vinculado com sucesso.');
     } catch (err) {
       console.error('Failed to add checklist:', err);
       showToast('Erro ao vincular checklist.', 'error');
-    } finally {
-      setChecklistsLoading(false);
     }
   };
 
   const handleRemoveChecklist = async (linkId: number) => {
     if (!editingTask) return;
-    setChecklistsLoading(true);
     try {
       await qualityApi.deleteTaskChecklist(linkId);
-      await loadLinkedChecklists(editingTask.id);
+      setLinkedChecklists((prev) => prev.filter((lcl) => lcl.id !== linkId));
       showToast('Checklist desvinculado com sucesso.');
     } catch (err) {
       console.error('Failed to remove checklist:', err);
       showToast('Erro ao desvincular checklist.', 'error');
-    } finally {
-      setChecklistsLoading(false);
     }
   };
 
@@ -537,6 +520,7 @@ export default function TaskList() {
     });
     setEditErrors({});
     setLinkedGoldenRules([]);
+    setLinkedChecklists([]);
     setSelectedGoldenRuleId(undefined);
     loadLinkedGoldenRules(task.id);
     loadLinkedChecklists(task.id);
