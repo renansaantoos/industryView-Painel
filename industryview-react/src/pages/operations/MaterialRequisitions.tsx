@@ -75,7 +75,7 @@ function formatCurrencyInput(raw: string): string {
   return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function parseCurrencyInput(formatted: string): string {
+function _parseCurrencyInput(formatted: string): string {
   const digits = formatted.replace(/\D/g, '');
   if (!digits) return '';
   return (parseInt(digits, 10) / 100).toString();
@@ -127,7 +127,7 @@ export default function MaterialRequisitions() {
   // ------------------------------------------------------------------
   const [approvingRequisition, setApprovingRequisition] = useState<MaterialRequisition | null>(null);
   const [approveItems, setApproveItems] = useState<{ id: number; product_description: string; quantity_requested: number; quantity_approved: string }[]>([]);
-  const [approveLoading, setApproveLoading] = useState(false);
+  const [_approveLoading, setApproveLoading] = useState(false);
 
   // ------------------------------------------------------------------
   // Reject modal
@@ -435,7 +435,7 @@ export default function MaterialRequisitions() {
                         </span>
                       </div>
                     </td>
-                    <td>{req.projects?.name || req.project_name || '-'}</td>
+                    <td>{req.projects?.name || '-'}</td>
                     <td>{req.description || '-'}</td>
                     <td>
                       {req.priority ? (

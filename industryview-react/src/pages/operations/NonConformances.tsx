@@ -16,7 +16,6 @@ import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
-import ConfirmModal from '../../components/common/ConfirmModal';
 import StatusBadge from '../../components/common/StatusBadge';
 import {
   Plus,

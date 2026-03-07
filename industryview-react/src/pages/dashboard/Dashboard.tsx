@@ -88,6 +88,11 @@ function recordToChartData(record: Record<string, number> | undefined): { name: 
   return Object.entries(record).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
 }
 
+function arrayStatsToChartData(arr: { [key: string]: string | number }[] | undefined, labelKey: string): { name: string; value: number }[] {
+  if (!arr) return [];
+  return arr.filter(item => (item.count as number) > 0).map(item => ({ name: item[labelKey] as string, value: item.count as number }));
+}
+
 function MiniStat({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div className="card" style={{ padding: '16px', textAlign: 'center', minWidth: 0 }}>
@@ -313,9 +318,9 @@ export default function Dashboard() {
 
   const safetySeverityData = recordToChartData(safetyStats?.by_severity);
   const safetyStatusData = recordToChartData(safetyStats?.by_status);
-  const ncStatusData = recordToChartData(ncStats?.by_status);
-  const ncSeverityData = recordToChartData(ncStats?.by_severity);
-  const ncCategoryData = recordToChartData(ncStats?.by_category);
+  const ncStatusData = arrayStatsToChartData(ncStats?.by_status, 'status');
+  const ncSeverityData = arrayStatsToChartData(ncStats?.by_severity, 'severity');
+  const ncCategoryData = arrayStatsToChartData(ncStats?.by_category, 'category');
 
   const scheduleStatusData = scheduleHealth ? [
     { name: 'No prazo', value: scheduleHealth.on_time, color: C.success },
@@ -456,8 +461,8 @@ export default function Dashboard() {
       <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px', marginBottom: '24px' }}>
           <MiniStat label="Total NCs" value={ncStats.total ?? 0} color={C.error} />
-          {Object.entries(ncStats.by_status || {}).map(([status, count]) => (
-            <MiniStat key={status} label={`NC ${status}`} value={count} color={C.warning} />
+          {(ncStats.by_status || []).map((item) => (
+            <MiniStat key={item.status} label={`NC ${item.status}`} value={item.count} color={C.warning} />
           ))}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
