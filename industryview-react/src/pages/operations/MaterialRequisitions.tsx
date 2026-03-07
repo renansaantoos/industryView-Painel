@@ -75,11 +75,6 @@ function formatCurrencyInput(raw: string): string {
   return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function _parseCurrencyInput(formatted: string): string {
-  const digits = formatted.replace(/\D/g, '');
-  if (!digits) return '';
-  return (parseInt(digits, 10) / 100).toString();
-}
 
 // ---------------------------------------------------------------------------
 // Component

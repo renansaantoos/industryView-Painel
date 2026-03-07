@@ -32,12 +32,6 @@ const PUNCH_PRIORITY_COLORS: Record<string, { bg: string; color: string; label: 
   C: { bg: 'var(--color-alternate)', color: 'var(--color-secondary-text)', label: 'Baixa (C)' },
 };
 
-const _PUNCH_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  pendente:     { bg: '#fee2e2', color: '#dc2626', label: 'Pendente' },
-  em_andamento: { bg: '#dbeafe', color: '#1d4ed8', label: 'Em Andamento' },
-  concluido:    { bg: '#dcfce7', color: '#16a34a', label: 'Concluido' },
-  reprovado:    { bg: '#fef9c3', color: '#a16207', label: 'Reprovado' },
-};
 
 const CERT_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   pendente: { bg: 'var(--color-alternate)', color: 'var(--color-secondary-text)', label: 'Pendente' },
