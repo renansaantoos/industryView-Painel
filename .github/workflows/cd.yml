@@ -12,7 +12,7 @@ jobs:
   deploy:
     name: Deploy to VM
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Deploy via SSH
@@ -21,7 +21,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-          command_timeout: 12m
+          command_timeout: 20m
           script: |
             set -e
             echo "=== Starting deploy at $(date) ==="
