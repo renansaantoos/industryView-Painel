@@ -319,7 +319,7 @@ router.post('/non-conformances/:id/attachments', authenticate, QualityController
  *         name: status
  *         schema:
  *           type: string
- *           enum: [rascunho, em_revisao, aprovado, obsoleto]
+ *           enum: [em_elaboracao, em_revisao, aprovado, obsoleto]
  *       - in: query
  *         name: search
  *         schema:

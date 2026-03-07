@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { qualityApi } from '../../services';
+import { useAuth } from '../../hooks/useAuth';
+import { qualityApi, projectsApi } from '../../services';
 import type {
   NonConformance,
   NonConformanceStatistics,
@@ -46,19 +47,36 @@ const NC_STATUS_MAP: Record<string, { bg: string; color: string; label: string }
 };
 
 const NC_SEVERITY_MAP: Record<string, { bg: string; color: string; label: string }> = {
-  baixa:   { bg: 'var(--color-alternate)',   color: 'var(--color-secondary-text)', label: 'Baixa' },
-  media:   { bg: 'var(--color-status-02)',   color: 'var(--color-warning)',         label: 'Média' },
-  alta:    { bg: '#fff3e0',                  color: '#e65100',                      label: 'Alta' },
-  critica: { bg: 'var(--color-status-01)',   color: 'var(--color-error)',           label: 'Crítica' },
+  menor:   { bg: 'var(--color-status-02)', color: 'var(--color-warning)',         label: 'Menor' },
+  maior:   { bg: '#fff3e0',               color: '#e65100',                      label: 'Maior' },
+  critica: { bg: 'var(--color-status-01)', color: 'var(--color-error)',           label: 'Crítica' },
 };
 
-const SEVERITY_OPTIONS = ['baixa', 'media', 'alta', 'critica'] as const;
+const SEVERITY_OPTIONS = ['menor', 'maior', 'critica'] as const;
 const STATUS_OPTIONS   = ['aberta', 'em_analise', 'em_tratamento', 'verificacao', 'encerrada'] as const;
 const ORIGIN_OPTIONS   = ['auditoria', 'inspecao', 'cliente', 'fornecedor', 'interno', 'outro'] as const;
+const CATEGORY_OPTIONS = ['processo', 'material', 'mao_de_obra', 'equipamento', 'meio_ambiente', 'metodo', 'outro'] as const;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  processo: 'Processo',
+  material: 'Material',
+  mao_de_obra: 'Mão de Obra',
+  equipamento: 'Equipamento',
+  meio_ambiente: 'Meio Ambiente',
+  metodo: 'Método',
+  outro: 'Outro',
+};
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const errorBorder: React.CSSProperties = { border: '1.5px solid var(--color-error)' };
+const errorText: React.CSSProperties = { color: 'var(--color-error)', fontSize: '11px', marginTop: '2px' };
+const labelStyle: React.CSSProperties = { fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CreateNcForm {
+  projects_id: string;
   title: string;
   description: string;
   origin: string;
@@ -67,31 +85,46 @@ interface CreateNcForm {
 }
 
 interface TreatNcForm {
-  root_cause: string;
-  corrective_action: string;
+  root_cause_analysis: string;
+  corrective_action_plan: string;
   preventive_action: string;
   deadline: string;
 }
 
-interface AttachmentForm {
-  file_url: string;
-  file_name: string;
+interface CloseNcForm {
+  root_cause_analysis: string;
+  corrective_action_plan: string;
+  preventive_action: string;
 }
 
 const EMPTY_CREATE_FORM: CreateNcForm = {
+  projects_id: '',
   title: '',
   description: '',
   origin: '',
-  severity: 'media',
+  severity: '',
   category: '',
 };
 
 const EMPTY_TREAT_FORM: TreatNcForm = {
-  root_cause: '',
-  corrective_action: '',
+  root_cause_analysis: '',
+  corrective_action_plan: '',
   preventive_action: '',
   deadline: '',
 };
+
+const EMPTY_CLOSE_FORM: CloseNcForm = {
+  root_cause_analysis: '',
+  corrective_action_plan: '',
+  preventive_action: '',
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getStatCount(arr: { status?: string; severity?: string; count: number }[], key: string, field: 'status' | 'severity'): number {
+  const found = arr.find((item) => (item as any)[field] === key);
+  return found ? found.count : 0;
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -109,13 +142,15 @@ function AttachmentsRow({
   attachments,
   onAttached,
   showToast,
+  userId,
 }: {
   ncId: number;
   attachments: NonConformanceAttachment[];
   onAttached: () => void;
   showToast: (message: string, type?: 'success' | 'error') => void;
+  userId: number;
 }) {
-  const [form, setForm] = useState<AttachmentForm>({ file_url: '', file_name: '' });
+  const [form, setForm] = useState({ file_url: '', description: '' });
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
@@ -124,9 +159,10 @@ function AttachmentsRow({
     try {
       await qualityApi.addNcAttachment(ncId, {
         file_url: form.file_url.trim(),
-        file_name: form.file_name.trim() || undefined,
+        description: form.description.trim() || undefined,
+        uploaded_by_user_id: userId,
       });
-      setForm({ file_url: '', file_name: '' });
+      setForm({ file_url: '', description: '' });
       onAttached();
       showToast('Anexo adicionado com sucesso.');
     } catch (err) {
@@ -138,7 +174,7 @@ function AttachmentsRow({
   };
 
   return (
-    <td colSpan={7} style={{ padding: '12px 20px', background: 'var(--color-alternate)', borderTop: 'none' }}>
+    <td colSpan={8} style={{ padding: '12px 20px', background: 'var(--color-alternate)', borderTop: 'none' }}>
       <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px', color: 'var(--color-secondary-text)' }}>
         Anexos ({attachments.length})
       </p>
@@ -164,7 +200,7 @@ function AttachmentsRow({
               }}
             >
               <Paperclip size={12} />
-              {att.file_name || att.file_url}
+              {att.description || att.file_url}
             </a>
           ))}
         </div>
@@ -179,9 +215,9 @@ function AttachmentsRow({
         />
         <input
           className="input-field"
-          placeholder="Nome do arquivo (opcional)"
-          value={form.file_name}
-          onChange={(e) => setForm((f) => ({ ...f, file_name: e.target.value }))}
+          placeholder="Descrição (opcional)"
+          value={form.description}
+          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           style={{ flex: 2, fontSize: '12px', padding: '6px 10px' }}
         />
         <button
@@ -202,6 +238,10 @@ function AttachmentsRow({
 export default function NonConformances() {
   const { t: _t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
+  const { user } = useAuth();
+
+  // Projects list (for create dropdown)
+  const [projectsList, setProjectsList] = useState<{ id: number; name: string }[]>([]);
 
   // List state
   const [items, setItems]           = useState<NonConformance[]>([]);
@@ -224,17 +264,19 @@ export default function NonConformances() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm]           = useState<CreateNcForm>(EMPTY_CREATE_FORM);
   const [createLoading, setCreateLoading]     = useState(false);
-  const [createError, setCreateError]         = useState('');
+  const [createErrors, setCreateErrors]       = useState<Record<string, string>>({});
 
   // Treat NC modal
   const [treatNc, setTreatNc]             = useState<NonConformance | null>(null);
   const [treatForm, setTreatForm]         = useState<TreatNcForm>(EMPTY_TREAT_FORM);
   const [treatLoading, setTreatLoading]   = useState(false);
-  const [treatError, setTreatError]       = useState('');
+  const [treatErrors, setTreatErrors]     = useState<Record<string, string>>({});
 
-  // Close NC confirm
-  const [closeNcId, setCloseNcId] = useState<number | null>(null);
+  // Close NC modal
+  const [closeNc, setCloseNc]           = useState<NonConformance | null>(null);
+  const [closeForm, setCloseForm]       = useState<CloseNcForm>(EMPTY_CLOSE_FORM);
   const [closeLoading, setCloseLoading] = useState(false);
+  const [closeErrors, setCloseErrors]   = useState<Record<string, string>>({});
 
   // Toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -249,6 +291,27 @@ export default function NonConformances() {
   useEffect(() => {
     setNavBarSelection(23);
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await projectsApi.queryAllProjects({ per_page: 100 });
+        const list = (data.items || []).map((p: any) => ({ id: Number(p.id), name: p.name }));
+        setProjectsList(list);
+      } catch (err) {
+        console.error('Failed to load projects:', err);
+      }
+    })();
+  }, []);
+
+  const clearFieldError = (setter: React.Dispatch<React.SetStateAction<Record<string, string>>>, field: string) => {
+    setter((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
@@ -270,7 +333,6 @@ export default function NonConformances() {
       if (projectsInfo)    params.projects_id = projectsInfo.id;
       if (filterStatus)    params.status       = filterStatus;
       if (filterSeverity)  params.severity     = filterSeverity;
-      if (filterCategory)  params.category     = filterCategory || undefined;
 
       const data = await qualityApi.listNonConformances(params);
       setItems(data.items || []);
@@ -281,7 +343,7 @@ export default function NonConformances() {
     } finally {
       setLoading(false);
     }
-  }, [projectsInfo, page, perPage, filterStatus, filterSeverity, filterCategory]);
+  }, [projectsInfo, page, perPage, filterStatus, filterSeverity]);
 
   useEffect(() => {
     loadItems();
@@ -291,7 +353,6 @@ export default function NonConformances() {
     loadStats();
   }, [loadStats]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
   }, [filterStatus, filterSeverity, filterCategory]);
@@ -299,23 +360,30 @@ export default function NonConformances() {
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleCreate = async () => {
-    if (!createForm.title.trim()) {
-      setCreateError('O título é obrigatório.');
+    if (!user?.id) return;
+    const errs: Record<string, string> = {};
+    if (!createForm.projects_id) errs.projects_id = 'Projeto é obrigatório';
+    if (!createForm.title.trim()) errs.title = 'Título é obrigatório';
+    if (!createForm.description.trim()) errs.description = 'Descrição é obrigatória';
+    if (!createForm.origin) errs.origin = 'Origem é obrigatória';
+    if (!createForm.severity) errs.severity = 'Severidade é obrigatória';
+    if (!createForm.category) errs.category = 'Categoria é obrigatória';
+    if (Object.keys(errs).length > 0) {
+      setCreateErrors(errs);
       return;
     }
     setCreateLoading(true);
-    setCreateError('');
+    setCreateErrors({});
     try {
-      const payload: Record<string, unknown> = {
-        title:       createForm.title.trim(),
-        description: createForm.description.trim(),
-        severity:    createForm.severity,
-      };
-      if (projectsInfo)             payload.projects_id = projectsInfo.id;
-      if (createForm.origin)        payload.origin       = createForm.origin;
-      if (createForm.category)      payload.category     = createForm.category.trim();
-
-      await qualityApi.createNonConformance(payload);
+      await qualityApi.createNonConformance({
+        title:              createForm.title.trim(),
+        description:        createForm.description.trim(),
+        origin:             createForm.origin,
+        severity:           createForm.severity,
+        category:           createForm.category,
+        projects_id:        Number(createForm.projects_id),
+        opened_by_user_id:  user.id,
+      });
       setCreateForm(EMPTY_CREATE_FORM);
       setShowCreateModal(false);
       loadItems();
@@ -323,7 +391,6 @@ export default function NonConformances() {
       showToast('Não conformidade registrada com sucesso.');
     } catch (err) {
       console.error('Failed to create NC:', err);
-      setCreateError('Erro ao criar não conformidade. Tente novamente.');
       showToast('Erro ao registrar não conformidade.', 'error');
     } finally {
       setCreateLoading(false);
@@ -333,30 +400,33 @@ export default function NonConformances() {
   const handleOpenTreat = (nc: NonConformance) => {
     setTreatNc(nc);
     setTreatForm({
-      root_cause:         nc.root_cause         || '',
-      corrective_action:  nc.corrective_action  || '',
-      preventive_action:  nc.preventive_action  || '',
-      deadline:           nc.deadline           || '',
+      root_cause_analysis:    nc.root_cause_analysis    || '',
+      corrective_action_plan: nc.corrective_action_plan || '',
+      preventive_action:      nc.preventive_action      || '',
+      deadline:               nc.deadline               || '',
     });
-    setTreatError('');
+    setTreatErrors({});
   };
 
   const handleTreat = async () => {
     if (!treatNc) return;
-    if (!treatForm.root_cause.trim() || !treatForm.corrective_action.trim()) {
-      setTreatError('Causa raiz e ação corretiva são obrigatórias.');
+    const errs: Record<string, string> = {};
+    if (!treatForm.root_cause_analysis.trim()) errs.root_cause_analysis = 'Causa raiz é obrigatória';
+    if (!treatForm.corrective_action_plan.trim()) errs.corrective_action_plan = 'Ação corretiva é obrigatória';
+    if (Object.keys(errs).length > 0) {
+      setTreatErrors(errs);
       return;
     }
     setTreatLoading(true);
-    setTreatError('');
+    setTreatErrors({});
     try {
       const payload: Record<string, unknown> = {
-        root_cause:        treatForm.root_cause.trim(),
-        corrective_action: treatForm.corrective_action.trim(),
-        status:            'em_tratamento',
+        root_cause_analysis:    treatForm.root_cause_analysis.trim(),
+        corrective_action_plan: treatForm.corrective_action_plan.trim(),
+        status:                 'em_tratamento',
       };
       if (treatForm.preventive_action.trim()) payload.preventive_action = treatForm.preventive_action.trim();
-      if (treatForm.deadline)                 payload.deadline          = treatForm.deadline;
+      if (treatForm.deadline) payload.deadline = treatForm.deadline;
 
       await qualityApi.updateNonConformance(treatNc.id, payload);
       setTreatNc(null);
@@ -364,19 +434,41 @@ export default function NonConformances() {
       showToast('Tratamento salvo com sucesso.');
     } catch (err) {
       console.error('Failed to update NC:', err);
-      setTreatError('Erro ao salvar tratamento. Tente novamente.');
       showToast('Erro ao salvar tratamento.', 'error');
     } finally {
       setTreatLoading(false);
     }
   };
 
+  const handleOpenClose = (nc: NonConformance) => {
+    setCloseNc(nc);
+    setCloseForm({
+      root_cause_analysis:    nc.root_cause_analysis    || '',
+      corrective_action_plan: nc.corrective_action_plan || '',
+      preventive_action:      nc.preventive_action      || '',
+    });
+    setCloseErrors({});
+  };
+
   const handleClose = async () => {
-    if (closeNcId === null) return;
+    if (!closeNc) return;
+    const errs: Record<string, string> = {};
+    if (!closeForm.root_cause_analysis.trim()) errs.root_cause_analysis = 'Causa raiz é obrigatória para encerramento';
+    if (!closeForm.corrective_action_plan.trim()) errs.corrective_action_plan = 'Ação corretiva é obrigatória para encerramento';
+    if (Object.keys(errs).length > 0) {
+      setCloseErrors(errs);
+      return;
+    }
     setCloseLoading(true);
+    setCloseErrors({});
     try {
-      await qualityApi.closeNonConformance(closeNcId, { status: 'encerrada' });
-      setCloseNcId(null);
+      await qualityApi.closeNonConformance(closeNc.id, {
+        root_cause_analysis:    closeForm.root_cause_analysis.trim(),
+        corrective_action_plan: closeForm.corrective_action_plan.trim(),
+        preventive_action:      closeForm.preventive_action.trim() || undefined,
+        closed_by_user_id:      user?.id,
+      });
+      setCloseNc(null);
       loadItems();
       loadStats();
       showToast('Não conformidade encerrada com sucesso.');
@@ -403,13 +495,13 @@ export default function NonConformances() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div>
       <PageHeader
         title="Não Conformidades"
         subtitle="Gerencie e acompanhe não conformidades identificadas no projeto."
         breadcrumb="Operações"
         actions={
-          <button className="btn btn-primary" onClick={() => { setCreateForm(EMPTY_CREATE_FORM); setCreateError(''); setShowCreateModal(true); }}>
+          <button className="btn btn-primary" onClick={() => { setCreateForm({ ...EMPTY_CREATE_FORM, projects_id: projectsInfo ? String(projectsInfo.id) : '' }); setCreateErrors({}); setShowCreateModal(true); }}>
             <Plus size={16} />
             Nova NC
           </button>
@@ -421,11 +513,11 @@ export default function NonConformances() {
       {stats && (
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' }}>
           <StatCard label="Total" value={stats.total} />
-          <StatCard label="Críticas" value={stats.by_severity?.critica  || 0} color="var(--color-error)" />
-          <StatCard label="Altas"    value={stats.by_severity?.alta     || 0} color="#e65100" />
-          <StatCard label="Médias"   value={stats.by_severity?.media    || 0} color="var(--color-warning)" />
-          <StatCard label="Abertas"  value={stats.by_status?.aberta     || 0} color="var(--color-error)" />
-          <StatCard label="Encerradas" value={stats.by_status?.encerrada || 0} color="var(--color-success)" />
+          <StatCard label="Críticas" value={getStatCount(stats.by_severity, 'critica', 'severity')} color="var(--color-error)" />
+          <StatCard label="Maiores" value={getStatCount(stats.by_severity, 'maior', 'severity')} color="#e65100" />
+          <StatCard label="Menores" value={getStatCount(stats.by_severity, 'menor', 'severity')} color="var(--color-warning)" />
+          <StatCard label="Abertas" value={getStatCount(stats.by_status, 'aberta', 'status')} color="var(--color-error)" />
+          <StatCard label="Encerradas" value={getStatCount(stats.by_status, 'encerrada', 'status')} color="var(--color-success)" />
         </div>
       )}
 
@@ -456,15 +548,6 @@ export default function NonConformances() {
               placeholder="Todas as severidades"
               allowClear
               style={{ minWidth: '120px' }}
-            />
-          </div>
-
-          <div className="input-group" style={{ flex: '1 1 180px', minWidth: '160px' }}>
-            <input
-              className="input-field"
-              placeholder="Filtrar por categoria"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
             />
           </div>
 
@@ -502,7 +585,7 @@ export default function NonConformances() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    {['Título', 'Origem', 'Severidade', 'Categoria', 'Status', 'Responsável', 'Ações'].map((col) => (
+                    {['Título', 'Projeto', 'Origem', 'Severidade', 'Categoria', 'Status', 'Responsável', 'Ações'].map((col) => (
                       <th
                         key={col}
                         style={{
@@ -543,6 +626,11 @@ export default function NonConformances() {
                           )}
                         </td>
 
+                        {/* Project */}
+                        <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                          {nc.projects?.name || '—'}
+                        </td>
+
                         {/* Origin */}
                         <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
                           {nc.origin || '—'}
@@ -565,7 +653,7 @@ export default function NonConformances() {
 
                         {/* Responsible */}
                         <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-                          {nc.responsible_name || '—'}
+                          {nc.responsible_user?.name || '—'}
                         </td>
 
                         {/* Actions */}
@@ -595,7 +683,7 @@ export default function NonConformances() {
                               <button
                                 className="btn btn-icon"
                                 title="Encerrar NC"
-                                onClick={() => setCloseNcId(nc.id)}
+                                onClick={() => handleOpenClose(nc)}
                                 style={{ color: 'var(--color-success)' }}
                               >
                                 <CheckCircle size={16} />
@@ -613,6 +701,7 @@ export default function NonConformances() {
                             attachments={nc.attachments || []}
                             onAttached={loadItems}
                             showToast={showToast}
+                            userId={user?.id || 0}
                           />
                         </tr>
                       )}
@@ -642,93 +731,100 @@ export default function NonConformances() {
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ padding: '28px', width: '520px', maxWidth: '96vw' }}
+            style={{ padding: '24px', width: '600px', maxWidth: '96vw' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Nova Não Conformidade</h2>
+              <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Nova Não Conformidade</h3>
               <button className="btn btn-icon" onClick={() => setShowCreateModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Título *
-                </label>
+                <label style={labelStyle}>Projeto *</label>
+                <SearchableSelect
+                  options={projectsList.map((p) => ({ value: String(p.id), label: p.name }))}
+                  value={createForm.projects_id || undefined}
+                  onChange={(val) => { setCreateForm((f) => ({ ...f, projects_id: String(val ?? '') })); clearFieldError(setCreateErrors, 'projects_id'); }}
+                  placeholder="Selecionar projeto"
+                  style={createErrors.projects_id ? errorBorder : undefined}
+                />
+                {createErrors.projects_id && <p style={errorText}>{createErrors.projects_id}</p>}
+              </div>
+
+              <div className="input-group">
+                <label style={labelStyle}>Título *</label>
                 <input
                   className="input-field"
                   placeholder="Título da não conformidade"
                   value={createForm.title}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) => { setCreateForm((f) => ({ ...f, title: e.target.value })); clearFieldError(setCreateErrors, 'title'); }}
+                  style={createErrors.title ? errorBorder : undefined}
                 />
+                {createErrors.title && <p style={errorText}>{createErrors.title}</p>}
               </div>
 
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Descrição
-                </label>
+                <label style={labelStyle}>Descrição *</label>
                 <textarea
                   className="input-field"
                   placeholder="Descreva a não conformidade em detalhes"
                   rows={3}
                   value={createForm.description}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
-                  style={{ resize: 'vertical', minHeight: '72px' }}
+                  onChange={(e) => { setCreateForm((f) => ({ ...f, description: e.target.value })); clearFieldError(setCreateErrors, 'description'); }}
+                  style={{ resize: 'vertical', minHeight: '72px', ...(createErrors.description ? errorBorder : {}) }}
                 />
+                {createErrors.description && <p style={errorText}>{createErrors.description}</p>}
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div className="input-group" style={{ flex: 1 }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                    Origem
-                  </label>
+                  <label style={labelStyle}>Origem *</label>
                   <SearchableSelect
                     options={ORIGIN_OPTIONS.map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) }))}
                     value={createForm.origin || undefined}
-                    onChange={(val) => setCreateForm((f) => ({ ...f, origin: String(val ?? '') }))}
+                    onChange={(val) => { setCreateForm((f) => ({ ...f, origin: String(val ?? '') })); clearFieldError(setCreateErrors, 'origin'); }}
                     placeholder="Selecionar origem"
-                    allowClear
+                    style={createErrors.origin ? errorBorder : undefined}
                   />
+                  {createErrors.origin && <p style={errorText}>{createErrors.origin}</p>}
                 </div>
 
                 <div className="input-group" style={{ flex: 1 }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                    Severidade *
-                  </label>
+                  <label style={labelStyle}>Severidade *</label>
                   <SearchableSelect
                     options={SEVERITY_OPTIONS.map((s) => ({ value: s, label: NC_SEVERITY_MAP[s]?.label || s }))}
-                    value={createForm.severity}
-                    onChange={(val) => setCreateForm((f) => ({ ...f, severity: String(val ?? '') }))}
+                    value={createForm.severity || undefined}
+                    onChange={(val) => { setCreateForm((f) => ({ ...f, severity: String(val ?? '') })); clearFieldError(setCreateErrors, 'severity'); }}
+                    placeholder="Selecionar severidade"
+                    style={createErrors.severity ? errorBorder : undefined}
                   />
+                  {createErrors.severity && <p style={errorText}>{createErrors.severity}</p>}
                 </div>
               </div>
 
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Categoria
-                </label>
-                <input
-                  className="input-field"
-                  placeholder="Ex: Processo, Material, Mão de obra..."
-                  value={createForm.category}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value }))}
+                <label style={labelStyle}>Categoria *</label>
+                <SearchableSelect
+                  options={CATEGORY_OPTIONS.map((c) => ({ value: c, label: CATEGORY_LABELS[c] || c }))}
+                  value={createForm.category || undefined}
+                  onChange={(val) => { setCreateForm((f) => ({ ...f, category: String(val ?? '') })); clearFieldError(setCreateErrors, 'category'); }}
+                  placeholder="Selecionar categoria"
+                  style={createErrors.category ? errorBorder : undefined}
                 />
+                {createErrors.category && <p style={errorText}>{createErrors.category}</p>}
               </div>
             </div>
 
-            {createError && (
-              <p style={{ color: 'var(--color-error)', fontSize: '13px', marginTop: '12px' }}>{createError}</p>
-            )}
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
                 Cancelar
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreate}
-                disabled={createLoading || !createForm.title.trim()}
+                disabled={createLoading}
               >
                 {createLoading ? 'Registrando...' : 'Registrar NC'}
               </button>
@@ -743,51 +839,47 @@ export default function NonConformances() {
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ padding: '28px', width: '560px', maxWidth: '96vw' }}
+            style={{ padding: '24px', width: '600px', maxWidth: '96vw' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '2px' }}>Tratar Não Conformidade</h2>
-                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)' }}>{treatNc.title}</p>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Tratar Não Conformidade</h3>
+                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>{treatNc.title}</p>
               </div>
               <button className="btn btn-icon" onClick={() => setTreatNc(null)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Causa Raiz *
-                </label>
+                <label style={labelStyle}>Causa Raiz *</label>
                 <textarea
                   className="input-field"
                   placeholder="Descreva a causa raiz identificada"
                   rows={3}
-                  value={treatForm.root_cause}
-                  onChange={(e) => setTreatForm((f) => ({ ...f, root_cause: e.target.value }))}
-                  style={{ resize: 'vertical', minHeight: '72px' }}
+                  value={treatForm.root_cause_analysis}
+                  onChange={(e) => { setTreatForm((f) => ({ ...f, root_cause_analysis: e.target.value })); clearFieldError(setTreatErrors, 'root_cause_analysis'); }}
+                  style={{ resize: 'vertical', minHeight: '72px', ...(treatErrors.root_cause_analysis ? errorBorder : {}) }}
                 />
+                {treatErrors.root_cause_analysis && <p style={errorText}>{treatErrors.root_cause_analysis}</p>}
               </div>
 
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Ação Corretiva *
-                </label>
+                <label style={labelStyle}>Ação Corretiva *</label>
                 <textarea
                   className="input-field"
                   placeholder="Descreva a ação corretiva a ser implementada"
                   rows={3}
-                  value={treatForm.corrective_action}
-                  onChange={(e) => setTreatForm((f) => ({ ...f, corrective_action: e.target.value }))}
-                  style={{ resize: 'vertical', minHeight: '72px' }}
+                  value={treatForm.corrective_action_plan}
+                  onChange={(e) => { setTreatForm((f) => ({ ...f, corrective_action_plan: e.target.value })); clearFieldError(setTreatErrors, 'corrective_action_plan'); }}
+                  style={{ resize: 'vertical', minHeight: '72px', ...(treatErrors.corrective_action_plan ? errorBorder : {}) }}
                 />
+                {treatErrors.corrective_action_plan && <p style={errorText}>{treatErrors.corrective_action_plan}</p>}
               </div>
 
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Ação Preventiva
-                </label>
+                <label style={labelStyle}>Ação Preventiva</label>
                 <textarea
                   className="input-field"
                   placeholder="Descreva ações para evitar reincidência (opcional)"
@@ -799,9 +891,7 @@ export default function NonConformances() {
               </div>
 
               <div className="input-group">
-                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Prazo
-                </label>
+                <label style={labelStyle}>Prazo</label>
                 <input
                   className="input-field"
                   type="date"
@@ -811,18 +901,14 @@ export default function NonConformances() {
               </div>
             </div>
 
-            {treatError && (
-              <p style={{ color: 'var(--color-error)', fontSize: '13px', marginTop: '12px' }}>{treatError}</p>
-            )}
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button className="btn btn-secondary" onClick={() => setTreatNc(null)}>
                 Cancelar
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleTreat}
-                disabled={treatLoading || !treatForm.root_cause.trim() || !treatForm.corrective_action.trim()}
+                disabled={treatLoading}
               >
                 {treatLoading ? 'Salvando...' : 'Salvar Tratamento'}
               </button>
@@ -831,16 +917,84 @@ export default function NonConformances() {
         </div>
       )}
 
-      {/* ── Close NC Confirm ────────────────────────────────────────────────── */}
-      <ConfirmModal
-        isOpen={closeNcId !== null}
-        title="Encerrar Não Conformidade"
-        message="Tem certeza que deseja encerrar esta não conformidade? Esta ação não pode ser desfeita."
-        confirmLabel={closeLoading ? 'Encerrando...' : 'Encerrar'}
-        variant="primary"
-        onConfirm={handleClose}
-        onCancel={() => setCloseNcId(null)}
-      />
+      {/* ── Close NC Modal ──────────────────────────────────────────────────── */}
+      {closeNc && (
+        <div className="modal-backdrop" onClick={() => setCloseNc(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ padding: '24px', width: '600px', maxWidth: '96vw' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Encerrar Não Conformidade</h3>
+                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>{closeNc.title}</p>
+              </div>
+              <button className="btn btn-icon" onClick={() => setCloseNc(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '16px' }}>
+              Para encerrar a NC, preencha a causa raiz e a ação corretiva. Esta ação não pode ser desfeita.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="input-group">
+                <label style={labelStyle}>Causa Raiz *</label>
+                <textarea
+                  className="input-field"
+                  placeholder="Análise de causa raiz"
+                  rows={3}
+                  value={closeForm.root_cause_analysis}
+                  onChange={(e) => { setCloseForm((f) => ({ ...f, root_cause_analysis: e.target.value })); clearFieldError(setCloseErrors, 'root_cause_analysis'); }}
+                  style={{ resize: 'vertical', minHeight: '72px', ...(closeErrors.root_cause_analysis ? errorBorder : {}) }}
+                />
+                {closeErrors.root_cause_analysis && <p style={errorText}>{closeErrors.root_cause_analysis}</p>}
+              </div>
+
+              <div className="input-group">
+                <label style={labelStyle}>Ação Corretiva *</label>
+                <textarea
+                  className="input-field"
+                  placeholder="Plano de ação corretiva"
+                  rows={3}
+                  value={closeForm.corrective_action_plan}
+                  onChange={(e) => { setCloseForm((f) => ({ ...f, corrective_action_plan: e.target.value })); clearFieldError(setCloseErrors, 'corrective_action_plan'); }}
+                  style={{ resize: 'vertical', minHeight: '72px', ...(closeErrors.corrective_action_plan ? errorBorder : {}) }}
+                />
+                {closeErrors.corrective_action_plan && <p style={errorText}>{closeErrors.corrective_action_plan}</p>}
+              </div>
+
+              <div className="input-group">
+                <label style={labelStyle}>Ação Preventiva</label>
+                <textarea
+                  className="input-field"
+                  placeholder="Ação preventiva (opcional)"
+                  rows={2}
+                  value={closeForm.preventive_action}
+                  onChange={(e) => setCloseForm((f) => ({ ...f, preventive_action: e.target.value }))}
+                  style={{ resize: 'vertical', minHeight: '56px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setCloseNc(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleClose}
+                disabled={closeLoading}
+                style={{ background: 'var(--color-success)' }}
+              >
+                {closeLoading ? 'Encerrando...' : 'Encerrar NC'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       <AnimatePresence>

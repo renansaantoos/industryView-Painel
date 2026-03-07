@@ -20,9 +20,11 @@ export async function getRequisition(id: number): Promise<MaterialRequisition> {
 
 export async function createRequisition(data: {
   projects_id: number;
-  description?: string;
+  title: string;
   priority?: string;
-  items?: { description: string; unit?: string; quantity: number; estimated_cost?: number }[];
+  required_by_date?: string;
+  notes?: string;
+  items: { description: string; unit?: string; quantity_requested: number; unit_price_estimate?: number; notes?: string }[];
 }): Promise<MaterialRequisition> {
   const response = await apiClient.post(BASE, data);
   return response.data;
@@ -38,12 +40,15 @@ export async function submitRequisition(id: number): Promise<MaterialRequisition
   return response.data;
 }
 
-export async function approveRequisition(id: number): Promise<MaterialRequisition> {
-  const response = await apiClient.post(`${BASE}/${id}/approve`);
+export async function approveRequisition(id: number, data?: {
+  notes?: string;
+  items?: { id: number; quantity_approved: number }[];
+}): Promise<MaterialRequisition> {
+  const response = await apiClient.post(`${BASE}/${id}/approve`, data);
   return response.data;
 }
 
-export async function rejectRequisition(id: number, data?: { rejection_reason?: string }): Promise<MaterialRequisition> {
+export async function rejectRequisition(id: number, data?: { reason?: string }): Promise<MaterialRequisition> {
   const response = await apiClient.post(`${BASE}/${id}/reject`, data);
   return response.data;
 }

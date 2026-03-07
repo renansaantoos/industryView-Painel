@@ -58,9 +58,13 @@ export const updatePunchListItemSchema = z.object({
   id: z.coerce.number().int().min(1),
   description: z.string().trim().optional(),
   priority: z.enum(['baixa', 'media', 'alta', 'critica']).optional(),
-  status: z.string().trim().optional(),
+  status: z.enum(['pendente', 'em_andamento', 'concluido', 'reprovado']).optional(),
   responsible_name: z.string().trim().optional(),
   due_date: z.string().optional(),
+});
+
+export const deletePunchListItemSchema = z.object({
+  id: z.coerce.number().int().min(1),
 });
 
 // =============================================================================
@@ -89,6 +93,10 @@ export const updateCertificateSchema = z.object({
   file_url: z.string().trim().optional(),
 });
 
+export const deleteCertificateSchema = z.object({
+  id: z.coerce.number().int().min(1),
+});
+
 // =============================================================================
 // Type Exports
 // =============================================================================
@@ -103,3 +111,5 @@ export type UpdatePunchListItemInput = z.infer<typeof updatePunchListItemSchema>
 export type GetCertificatesInput = z.infer<typeof getCertificatesSchema>;
 export type CreateCertificateInput = z.infer<typeof createCertificateSchema>;
 export type UpdateCertificateInput = z.infer<typeof updateCertificateSchema>;
+export type DeletePunchListItemInput = z.infer<typeof deletePunchListItemSchema>;
+export type DeleteCertificateInput = z.infer<typeof deleteCertificateSchema>;

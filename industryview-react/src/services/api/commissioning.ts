@@ -22,8 +22,9 @@ export async function getSystem(id: number): Promise<CommissioningSystem> {
 export async function createSystem(data: {
   projects_id: number;
   name: string;
+  system_code?: string;
   description?: string;
-  system_type?: string;
+  planned_completion_date?: string;
 }): Promise<CommissioningSystem> {
   const response = await apiClient.post(`${BASE}/systems`, data);
   return response.data;
@@ -46,9 +47,8 @@ export async function getPunchList(systemId: number): Promise<PunchListItem[]> {
 
 export async function createPunchListItem(systemId: number, data: {
   description: string;
-  category?: string;
   priority?: string;
-  responsible_id?: number;
+  responsible_name?: string;
   due_date?: string;
 }): Promise<PunchListItem> {
   const response = await apiClient.post(`${BASE}/systems/${systemId}/punch-list`, data);
@@ -60,6 +60,10 @@ export async function updatePunchListItem(id: number, data: Record<string, unkno
   return response.data;
 }
 
+export async function deletePunchListItem(id: number): Promise<void> {
+  await apiClient.delete(`${BASE}/punch-list/${id}`);
+}
+
 // Certificates
 export async function getCertificates(systemId: number): Promise<CommissioningCertificate[]> {
   const response = await apiClient.get(`${BASE}/systems/${systemId}/certificates`);
@@ -68,7 +72,8 @@ export async function getCertificates(systemId: number): Promise<CommissioningCe
 
 export async function createCertificate(systemId: number, data: {
   certificate_type: string;
-  description?: string;
+  certificate_number?: string;
+  issued_at?: string;
   file_url?: string;
 }): Promise<CommissioningCertificate> {
   const response = await apiClient.post(`${BASE}/systems/${systemId}/certificates`, data);
@@ -78,4 +83,8 @@ export async function createCertificate(systemId: number, data: {
 export async function updateCertificate(id: number, data: Record<string, unknown>): Promise<CommissioningCertificate> {
   const response = await apiClient.patch(`${BASE}/certificates/${id}`, data);
   return response.data;
+}
+
+export async function deleteCertificate(id: number): Promise<void> {
+  await apiClient.delete(`${BASE}/certificates/${id}`);
 }

@@ -1,68 +1,67 @@
-/** Contract Measurement */
+/** Contract Measurement - alinhado com Prisma contract_measurements */
 export interface ContractMeasurement {
   id: number;
   projects_id: number;
-  company_id: number;
-  measurement_number: string;
-  reference_period: string;
-  description?: string;
+  measurement_number: number;
+  measurement_period_start?: string;
+  measurement_period_end?: string;
   total_value?: number;
+  observations?: string;
   status: 'rascunho' | 'submetida' | 'aprovada' | 'rejeitada';
-  submitted_by?: number;
-  submitted_at?: string;
-  approved_by?: number;
+  created_by_user_id?: number;
   approved_at?: string;
-  rejected_by?: number;
-  rejected_at?: string;
-  rejection_reason?: string;
-  created_by: number;
-  creator_name?: string;
-  project_name?: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
+  projects?: { id: number; name: string };
+  created_by?: { id: number; name: string };
   items?: MeasurementItem[];
 }
 
-/** Measurement Item */
+/** Measurement Item - alinhado com Prisma measurement_items */
 export interface MeasurementItem {
   id: number;
   contract_measurements_id: number;
   description: string;
-  unit?: string;
-  quantity: number;
+  unity?: string;
+  quantity_measured: number;
   unit_price: number;
   total_price: number;
+  created_at: string;
+  updated_at: string;
 }
 
-/** Contract Claim */
+/** Contract Claim - alinhado com Prisma contract_claims */
 export interface ContractClaim {
   id: number;
   projects_id: number;
-  company_id: number;
+  claim_number: string;
   title: string;
   description: string;
   claim_type?: string;
-  estimated_value?: number;
+  claimed_value?: number;
+  approved_value?: number;
   status: 'aberta' | 'em_analise' | 'aceita' | 'rejeitada' | 'encerrada';
-  closed_by?: number;
+  submitted_at?: string;
   closed_at?: string;
-  created_by: number;
-  creator_name?: string;
-  project_name?: string;
+  created_by_user_id?: number;
+  closed_by_user_id?: number;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
+  projects?: { id: number; name: string };
+  created_by?: { id: number; name: string };
+  closed_by?: { id: number; name: string };
   evidences?: ClaimEvidence[];
 }
 
-/** Claim Evidence */
+/** Claim Evidence - alinhado com Prisma claim_evidences */
 export interface ClaimEvidence {
   id: number;
   contract_claims_id: number;
   file_url: string;
-  file_name?: string;
-  file_type?: string;
   description?: string;
-  uploaded_by: number;
-  uploader_name?: string;
+  evidence_type?: string;
   created_at: string;
+  updated_at: string;
 }

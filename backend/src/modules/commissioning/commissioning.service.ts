@@ -59,6 +59,11 @@ export class CommissioningService {
         where: whereClause,
         include: {
           projects: { select: { id: true, name: true } },
+          _count: { select: { punch_list: true, certificates: true } },
+          punch_list: {
+            where: { status: 'concluido' as any },
+            select: { id: true },
+          },
         },
         orderBy: { created_at: 'desc' },
         skip,
@@ -67,7 +72,18 @@ export class CommissioningService {
       db.commissioning_systems.count({ where: whereClause }),
     ]);
 
-    return buildPaginationResponse(items, total, page, per_page);
+    // Calcula completion_percent e remove punch_list filtrada da resposta
+    const itemsWithPercent = items.map((system) => {
+      const totalPunch = system._count.punch_list;
+      const concluidos = system.punch_list.length;
+      const completion_percent = totalPunch > 0
+        ? Math.round((concluidos / totalPunch) * 100)
+        : 0;
+      const { punch_list: _filtered, ...rest } = system;
+      return { ...rest, completion_percent };
+    });
+
+    return buildPaginationResponse(itemsWithPercent, total, page, per_page);
   }
 
   /**
@@ -91,7 +107,13 @@ export class CommissioningService {
       throw new NotFoundError('Sistema de comissionamento nao encontrado.');
     }
 
-    return system;
+    const totalPunch = system.punch_list.length;
+    const concluidos = system.punch_list.filter((p: any) => p.status === 'concluido').length;
+    const completion_percent = totalPunch > 0
+      ? Math.round((concluidos / totalPunch) * 100)
+      : 0;
+
+    return { ...system, completion_percent };
   }
 
   /**
@@ -322,6 +344,23 @@ export class CommissioningService {
   }
 
   /**
+   * Remove item da punch list (hard delete - tabela sem deleted_at)
+   */
+  static async deletePunchListItem(id: number) {
+    const item = await db.commissioning_punch_list.findFirst({
+      where: { id: BigInt(id) },
+    });
+
+    if (!item) {
+      throw new NotFoundError('Item da punch list nao encontrado.');
+    }
+
+    await db.commissioning_punch_list.delete({
+      where: { id: BigInt(id) },
+    });
+  }
+
+  /**
    * Atualiza certificado
    */
   static async updateCertificate(id: number, input: UpdateCertificateInput) {
@@ -343,6 +382,22 @@ export class CommissioningService {
         file_url: input.file_url,
         updated_at: new Date(),
       },
+    });
+  }
+  /**
+   * Remove certificado (hard delete - tabela sem deleted_at)
+   */
+  static async deleteCertificate(id: number) {
+    const certificate = await db.commissioning_certificates.findFirst({
+      where: { id: BigInt(id) },
+    });
+
+    if (!certificate) {
+      throw new NotFoundError('Certificado nao encontrado.');
+    }
+
+    await db.commissioning_certificates.delete({
+      where: { id: BigInt(id) },
     });
   }
 }

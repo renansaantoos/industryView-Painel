@@ -1,49 +1,46 @@
-/** Commissioning System */
+/** Commissioning System - aligned with backend Prisma model */
 export interface CommissioningSystem {
   id: number;
   projects_id: number;
-  company_id: number;
-  name: string;
+  system_name: string;
+  system_code: string;
   description?: string;
-  system_type?: string;
-  status: 'pendente' | 'em_andamento' | 'concluido';
-  completion_percent?: number;
-  created_by: number;
-  creator_name?: string;
+  status: 'pendente' | 'em_andamento' | 'concluido' | 'reprovado';
+  planned_date?: string;
+  actual_date?: string;
   created_at: string;
   updated_at: string;
-  punch_list_count?: number;
-  certificates_count?: number;
+  deleted_at?: string;
+  projects?: { id: number; name: string };
+  _count?: { punch_list: number; certificates: number };
+  punch_list?: PunchListItem[];
+  certificates?: CommissioningCertificate[];
 }
 
-/** Punch List Item */
+/** Punch List Item - aligned with backend Prisma model */
 export interface PunchListItem {
   id: number;
   commissioning_systems_id: number;
+  item_number: number;
   description: string;
-  category?: string;
-  priority?: 'baixa' | 'media' | 'alta' | 'critica';
-  status: 'aberto' | 'em_andamento' | 'concluido';
-  responsible_id?: number;
-  responsible_name?: string;
+  priority: 'A' | 'B' | 'C';
+  responsible?: string;
+  status: 'pendente' | 'em_andamento' | 'concluido' | 'reprovado';
   due_date?: string;
   completed_at?: string;
-  observation?: string;
   created_at: string;
   updated_at: string;
 }
 
-/** Commissioning Certificate */
+/** Commissioning Certificate - aligned with backend Prisma model */
 export interface CommissioningCertificate {
   id: number;
   commissioning_systems_id: number;
   certificate_type: string;
-  description?: string;
+  certificate_number?: string;
+  issued_date?: string;
   file_url?: string;
-  issued_at?: string;
-  issued_by?: number;
-  issuer_name?: string;
-  status: 'pendente' | 'emitido' | 'aprovado';
+  status: string;
   created_at: string;
   updated_at: string;
 }

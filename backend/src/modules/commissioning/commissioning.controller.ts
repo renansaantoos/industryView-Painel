@@ -16,6 +16,8 @@ import {
   getCertificatesSchema,
   createCertificateSchema,
   updateCertificateSchema,
+  deletePunchListItemSchema,
+  deleteCertificateSchema,
 } from './commissioning.schema';
 import { AuthenticatedRequest } from '../../types';
 
@@ -112,6 +114,16 @@ export class CommissioningController {
     }
   }
 
+  static async deletePunchListItem(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = deletePunchListItemSchema.parse(req.params);
+      await CommissioningService.deletePunchListItem(id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Certificates
   static async getCertificates(req: Request, res: Response, next: NextFunction) {
     try {
@@ -140,6 +152,15 @@ export class CommissioningController {
       const input = updateCertificateSchema.parse({ ...req.body, id });
       const result = await CommissioningService.updateCertificate(id, input);
       res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+  static async deleteCertificate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = deleteCertificateSchema.parse(req.params);
+      await CommissioningService.deleteCertificate(id);
+      res.status(204).send();
     } catch (error) {
       next(error);
     }

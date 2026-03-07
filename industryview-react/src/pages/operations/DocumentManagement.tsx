@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { qualityApi } from '../../services';
-import type { Document, DocumentAcknowledgment } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { qualityApi, projectsApi } from '../../services';
+import type { Document, PendingDocument } from '../../types';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
@@ -36,54 +37,85 @@ interface ToastState {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DOC_STATUS_MAP: Record<string, { bg: string; color: string; label: string }> = {
-  rascunho:   { bg: 'var(--color-alternate)',   color: 'var(--color-secondary-text)', label: 'Rascunho' },
-  em_revisao: { bg: 'var(--color-status-02)',   color: 'var(--color-warning)',         label: 'Em Revisão' },
-  aprovado:   { bg: 'var(--color-status-04)',   color: 'var(--color-success)',         label: 'Aprovado' },
-  obsoleto:   { bg: 'var(--color-status-01)',   color: 'var(--color-error)',           label: 'Obsoleto' },
+  em_elaboracao: { bg: 'var(--color-alternate)',   color: 'var(--color-secondary-text)', label: 'Em Elaboracao' },
+  em_revisao:    { bg: 'var(--color-status-02)',   color: 'var(--color-warning)',         label: 'Em Revisao' },
+  aprovado:      { bg: 'var(--color-status-04)',   color: 'var(--color-success)',         label: 'Aprovado' },
+  obsoleto:      { bg: 'var(--color-status-01)',   color: 'var(--color-error)',           label: 'Obsoleto' },
 };
 
 const DOC_TYPE_OPTIONS = [
-  'Procedimento',
-  'Instrução de Trabalho',
-  'Formulário',
-  'Manual',
-  'Especificação',
-  'Norma',
-  'Relatório',
-  'Outro',
+  { value: 'procedimento',        label: 'Procedimento' },
+  { value: 'instrucao_trabalho',  label: 'Instrucao de Trabalho' },
+  { value: 'projeto',             label: 'Projeto' },
+  { value: 'certificado',         label: 'Certificado' },
+  { value: 'licenca',             label: 'Licenca' },
+  { value: 'laudo',               label: 'Laudo' },
+  { value: 'contrato',            label: 'Contrato' },
+  { value: 'ata',                 label: 'Ata' },
+  { value: 'relatorio',           label: 'Relatorio' },
 ] as const;
 
-const DOC_STATUS_OPTIONS = ['rascunho', 'em_revisao', 'aprovado', 'obsoleto'] as const;
+const DOC_TYPE_LABEL_MAP: Record<string, string> = Object.fromEntries(
+  DOC_TYPE_OPTIONS.map((t) => [t.value, t.label]),
+);
+
+const DOC_STATUS_OPTIONS = ['em_elaboracao', 'em_revisao', 'aprovado', 'obsoleto'] as const;
+
+const CATEGORY_OPTIONS = [
+  'Seguranca',
+  'Qualidade',
+  'Meio Ambiente',
+  'Saude',
+  'Engenharia',
+  'Operacional',
+  'Administrativo',
+  'Outro',
+] as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DocumentForm {
+  projects_id: string;
   document_number: string;
   title: string;
   document_type: string;
   category: string;
+  description: string;
   revision: string;
   file_url: string;
+  requires_acknowledgment: boolean;
+  valid_until: string;
 }
 
 const EMPTY_FORM: DocumentForm = {
+  projects_id: '',
   document_number: '',
   title: '',
   document_type: '',
   category: '',
-  revision: 'A',
+  description: '',
+  revision: 'Rev 00',
   file_url: '',
+  requires_acknowledgment: false,
+  valid_until: '',
 };
 
 type ActiveTab = 'documents' | 'acknowledgments';
+
+const errorBorder: React.CSSProperties = { border: '1px solid #dc2626' };
+const errorText: React.CSSProperties = { color: '#dc2626', fontSize: '12px', marginTop: '2px' };
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DocumentManagement() {
   const { t: _t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('documents');
+
+  // Projects list (for create dropdown)
+  const [projectsList, setProjectsList] = useState<{ id: number; name: string }[]>([]);
 
   // Documents list state
   const [documents, setDocuments]       = useState<Document[]>([]);
@@ -94,9 +126,9 @@ export default function DocumentManagement() {
   const [totalItems, setTotalItems]     = useState(0);
 
   // Pending acknowledgments state
-  const [pendingAcks, setPendingAcks]   = useState<DocumentAcknowledgment[]>([]);
+  const [pendingDocs, setPendingDocs]   = useState<PendingDocument[]>([]);
   const [acksLoading, setAcksLoading]   = useState(false);
-  const [ackId, setAckId]               = useState<number | null>(null);
+  const [ackDocId, setAckDocId]         = useState<number | null>(null);
   const [ackLoading, setAckLoading]     = useState(false);
 
   // Filters
@@ -111,6 +143,7 @@ export default function DocumentManagement() {
   const [form, setForm]                 = useState<DocumentForm>(EMPTY_FORM);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError]     = useState('');
+  const [fieldErrors, setFieldErrors]   = useState<Record<string, string>>({});
 
   // Approve confirm
   const [approveDocId, setApproveDocId]   = useState<number | null>(null);
@@ -130,16 +163,27 @@ export default function DocumentManagement() {
     setNavBarSelection(24);
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await projectsApi.queryAllProjects({ per_page: 100 });
+        const list = (data.items || []).map((p: any) => ({ id: Number(p.id), name: p.name }));
+        setProjectsList(list);
+      } catch (err) {
+        console.error('Failed to load projects:', err);
+      }
+    })();
+  }, []);
+
   // ── Data fetching ────────────────────────────────────────────────────────────
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
     try {
       const params: Record<string, unknown> = { page, per_page: perPage };
-      if (projectsInfo)   params.projects_id   = projectsInfo.id;
-      if (filterType)     params.document_type = filterType;
-      if (filterStatus)   params.status        = filterStatus;
-      if (filterSearch)   params.search        = filterSearch;
+      if (filterType)   params.document_type = filterType;
+      if (filterStatus) params.status        = filterStatus;
+      if (filterSearch) params.search        = filterSearch;
 
       const data = await qualityApi.listDocuments(params);
       setDocuments(data.items || []);
@@ -150,19 +194,20 @@ export default function DocumentManagement() {
     } finally {
       setLoading(false);
     }
-  }, [projectsInfo, page, perPage, filterType, filterStatus, filterSearch]);
+  }, [page, perPage, filterType, filterStatus, filterSearch]);
 
   const loadPendingAcknowledgments = useCallback(async () => {
+    if (!user?.id) return;
     setAcksLoading(true);
     try {
-      const data = await qualityApi.getPendingAcknowledgments();
-      setPendingAcks(Array.isArray(data) ? data : []);
+      const data = await qualityApi.getPendingAcknowledgments({ users_id: user.id });
+      setPendingDocs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load pending acknowledgments:', err);
     } finally {
       setAcksLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadDocuments();
@@ -183,9 +228,10 @@ export default function DocumentManagement() {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, projects_id: projectsInfo ? String(projectsInfo.id) : '' });
     setEditDoc(null);
     setModalError('');
+    setFieldErrors({});
     setShowModal(true);
   };
 
@@ -193,38 +239,75 @@ export default function DocumentManagement() {
     setModalMode('edit');
     setEditDoc(doc);
     setForm({
-      document_number: doc.document_number,
-      title:           doc.title,
-      document_type:   doc.document_type  || '',
-      category:        doc.category       || '',
-      revision:        doc.revision       || '',
-      file_url:        doc.file_url       || '',
+      projects_id:            doc.projects_id ? String(doc.projects_id) : '',
+      document_number:        doc.document_number,
+      title:                  doc.title,
+      document_type:          doc.document_type  || '',
+      category:               doc.category       || '',
+      description:            doc.description    || '',
+      revision:               doc.revision       || '',
+      file_url:               doc.file_url       || '',
+      requires_acknowledgment: doc.requires_acknowledgment ?? false,
+      valid_until:            doc.valid_until ? doc.valid_until.split('T')[0] : '',
     });
     setModalError('');
+    setFieldErrors({});
     setShowModal(true);
   };
 
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  };
+
   const handleSubmit = async () => {
-    if (!form.document_number.trim() || !form.title.trim()) {
-      setModalError('Número e título do documento são obrigatórios.');
+    if (!user?.id) {
+      setModalError('Usuario nao autenticado. Faca login novamente.');
       return;
     }
+
+    // Validacao campo a campo
+    const errors: Record<string, string> = {};
+    if (!form.document_number.trim()) errors.document_number = 'Numero do documento e obrigatorio';
+    if (!form.title.trim())           errors.title           = 'Titulo e obrigatorio';
+    if (!form.document_type)          errors.document_type   = 'Tipo de documento e obrigatorio';
+    if (!form.category)               errors.category        = 'Categoria e obrigatoria';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     setModalLoading(true);
     setModalError('');
     try {
-      const payload: Record<string, unknown> = {
-        document_number: form.document_number.trim(),
-        title:           form.title.trim(),
-      };
-      if (projectsInfo)              payload.projects_id   = projectsInfo.id;
-      if (form.document_type.trim()) payload.document_type = form.document_type.trim();
-      if (form.category.trim())      payload.category      = form.category.trim();
-      if (form.revision.trim())      payload.revision      = form.revision.trim();
-      if (form.file_url.trim())      payload.file_url      = form.file_url.trim();
-
       if (modalMode === 'create') {
+        const payload: Record<string, unknown> = {
+          document_number:        form.document_number.trim(),
+          title:                  form.title.trim(),
+          document_type:          form.document_type.trim(),
+          category:               form.category.trim(),
+          created_by_user_id:     user?.id,
+        };
+        if (form.projects_id)         payload.projects_id            = Number(form.projects_id);
+        if (form.description.trim())  payload.description            = form.description.trim();
+        if (form.revision.trim())     payload.revision               = form.revision.trim();
+        if (form.file_url.trim())     payload.file_url               = form.file_url.trim();
+        if (form.valid_until)         payload.valid_until            = form.valid_until;
+        payload.requires_acknowledgment = form.requires_acknowledgment;
+
         await qualityApi.createDocument(payload);
       } else if (editDoc) {
+        const payload: Record<string, unknown> = {
+          title:           form.title.trim(),
+          document_type:   form.document_type.trim(),
+          category:        form.category.trim(),
+        };
+        if (form.description.trim())  payload.description            = form.description.trim();
+        if (form.file_url.trim())     payload.file_url               = form.file_url.trim();
+        if (form.valid_until)         payload.valid_until            = form.valid_until;
+        payload.requires_acknowledgment = form.requires_acknowledgment;
+
         await qualityApi.updateDocument(editDoc.id, payload);
       }
 
@@ -241,10 +324,10 @@ export default function DocumentManagement() {
   };
 
   const handleApprove = async () => {
-    if (approveDocId === null) return;
+    if (approveDocId === null || !user?.id) return;
     setApproveLoading(true);
     try {
-      await qualityApi.approveDocument(approveDocId);
+      await qualityApi.approveDocument(approveDocId, { approved_by_user_id: user.id });
       setApproveDocId(null);
       loadDocuments();
       showToast('Documento aprovado com sucesso.');
@@ -257,16 +340,16 @@ export default function DocumentManagement() {
   };
 
   const handleAcknowledge = async () => {
-    if (ackId === null) return;
+    if (ackDocId === null || !user?.id) return;
     setAckLoading(true);
     try {
-      await qualityApi.acknowledgeDocument(ackId);
-      setAckId(null);
+      await qualityApi.acknowledgeDocument(ackDocId, { users_id: user.id });
+      setAckDocId(null);
       loadPendingAcknowledgments();
-      showToast('Ciência confirmada com sucesso.');
+      showToast('Ciencia confirmada com sucesso.');
     } catch (err) {
       console.error('Failed to acknowledge document:', err);
-      showToast('Erro ao confirmar ciência.', 'error');
+      showToast('Erro ao confirmar ciencia.', 'error');
     } finally {
       setAckLoading(false);
     }
@@ -283,11 +366,11 @@ export default function DocumentManagement() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div>
       <PageHeader
-        title="Gestão de Documentos"
-        subtitle="Controle o ciclo de vida de documentos, revisões e aprovações."
-        breadcrumb="Operações"
+        title="Gestao de Documentos"
+        subtitle="Controle o ciclo de vida de documentos, revisoes e aprovacoes."
+        breadcrumb="Operacoes"
         actions={
           <button className="btn btn-primary" onClick={openCreateModal}>
             <Plus size={16} />
@@ -302,7 +385,7 @@ export default function DocumentManagement() {
         {(
           [
             { key: 'documents',        label: 'Documentos',               icon: <FileText size={14} /> },
-            { key: 'acknowledgments',  label: `Pendentes de Ciência${pendingAcks.length > 0 ? ` (${pendingAcks.length})` : ''}`, icon: <Bell size={14} /> },
+            { key: 'acknowledgments',  label: `Pendentes de Ciencia${pendingDocs.length > 0 ? ` (${pendingDocs.length})` : ''}`, icon: <Bell size={14} /> },
           ] as { key: ActiveTab; label: string; icon: React.ReactNode }[]
         ).map((tab) => (
           <button
@@ -312,7 +395,7 @@ export default function DocumentManagement() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 16px',
+              padding: '10px 20px',
               fontSize: '13px',
               fontWeight: activeTab === tab.key ? 600 : 400,
               background: 'none',
@@ -347,7 +430,7 @@ export default function DocumentManagement() {
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-secondary-text)', pointerEvents: 'none' }} />
                 <input
                   className="input-field"
-                  placeholder="Buscar por título ou número"
+                  placeholder="Buscar por titulo ou numero"
                   value={filterSearch}
                   onChange={(e) => setFilterSearch(e.target.value)}
                   style={{ paddingLeft: '32px' }}
@@ -356,7 +439,7 @@ export default function DocumentManagement() {
 
               <div className="input-group" style={{ flex: '1 1 180px', minWidth: '160px' }}>
                 <SearchableSelect
-                  options={DOC_TYPE_OPTIONS.map((t) => ({ value: t, label: t }))}
+                  options={DOC_TYPE_OPTIONS.map((t) => ({ value: t.value, label: t.label }))}
                   value={filterType || undefined}
                   onChange={(val) => setFilterType(String(val ?? ''))}
                   placeholder="Todos os tipos"
@@ -411,13 +494,13 @@ export default function DocumentManagement() {
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                         {[
-                          'Nº Documento',
-                          'Título',
+                          'N. Documento',
+                          'Titulo',
                           'Tipo',
                           'Categoria',
-                          'Revisão',
+                          'Revisao',
                           'Status',
-                          'Ações',
+                          'Acoes',
                         ].map((col) => (
                           <th
                             key={col}
@@ -465,21 +548,21 @@ export default function DocumentManagement() {
                                 </a>
                               )}
                             </div>
-                            {doc.creator_name && (
+                            {doc.created_by?.name && (
                               <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '2px' }}>
-                                por {doc.creator_name}
+                                por {doc.created_by.name}
                               </div>
                             )}
                           </td>
 
                           {/* Type */}
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-                            {doc.document_type || '—'}
+                            {DOC_TYPE_LABEL_MAP[doc.document_type || ''] || doc.document_type || '\u2014'}
                           </td>
 
                           {/* Category */}
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-                            {doc.category || '—'}
+                            {doc.category || '\u2014'}
                           </td>
 
                           {/* Revision */}
@@ -495,7 +578,7 @@ export default function DocumentManagement() {
                                 fontSize: '12px',
                               }}
                             >
-                              {doc.revision || '—'}
+                              {doc.revision || '\u2014'}
                             </span>
                           </td>
 
@@ -507,15 +590,17 @@ export default function DocumentManagement() {
                           {/* Actions */}
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              <button
-                                className="btn btn-icon"
-                                title="Editar"
-                                onClick={() => openEditModal(doc)}
-                              >
-                                <Edit2 size={15} />
-                              </button>
+                              {doc.status !== 'aprovado' && (
+                                <button
+                                  className="btn btn-icon"
+                                  title="Editar"
+                                  onClick={() => openEditModal(doc)}
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                              )}
 
-                              {doc.status === 'em_revisao' && (
+                              {(doc.status === 'em_revisao' || doc.status === 'em_elaboracao') && (
                                 <button
                                   className="btn btn-secondary"
                                   style={{ fontSize: '12px', padding: '4px 10px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -554,17 +639,17 @@ export default function DocumentManagement() {
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {acksLoading ? (
             <LoadingSpinner />
-          ) : pendingAcks.length === 0 ? (
+          ) : pendingDocs.length === 0 ? (
             <EmptyState
               icon={<ThumbsUp size={48} />}
-              message="Nenhum documento pendente de ciência. Tudo em dia!"
+              message="Nenhum documento pendente de ciencia. Tudo em dia!"
             />
           ) : (
             <div className="table-container">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    {['Documento', 'Usuário', 'Ação'].map((col) => (
+                    {['N. Documento', 'Titulo', 'Tipo', 'Criado por', 'Acao'].map((col) => (
                       <th
                         key={col}
                         style={{
@@ -581,22 +666,41 @@ export default function DocumentManagement() {
                   </tr>
                 </thead>
                 <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-                  {pendingAcks.map((ack) => (
-                    <motion.tr key={ack.id} variants={tableRowVariants} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  {pendingDocs.map((doc) => (
+                    <motion.tr key={doc.id} variants={tableRowVariants} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 600, fontFamily: 'monospace', color: 'var(--color-primary)' }}>
+                        {doc.document_number}
+                      </td>
                       <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 500 }}>
-                        {ack.document_title || `Documento #${ack.documents_id}`}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {doc.title}
+                          {doc.file_url && (
+                            <a
+                              href={doc.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: 'var(--color-secondary-text)', flexShrink: 0 }}
+                              title="Abrir arquivo"
+                            >
+                              <ExternalLink size={13} />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
-                        {ack.user_name || `Usuário #${ack.users_id}`}
+                        {DOC_TYPE_LABEL_MAP[doc.document_type || ''] || doc.document_type || '\u2014'}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-secondary-text)' }}>
+                        {doc.created_by?.name || '\u2014'}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <button
                           className="btn btn-primary"
                           style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          onClick={() => setAckId(ack.documents_id)}
+                          onClick={() => setAckDocId(doc.id)}
                         >
                           <CheckCircle size={14} />
-                          Confirmar Ciência
+                          Confirmar Ciencia
                         </button>
                       </td>
                     </motion.tr>
@@ -614,81 +718,121 @@ export default function DocumentManagement() {
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
-            style={{ padding: '28px', width: '540px', maxWidth: '96vw' }}
+            style={{ padding: '24px', width: '600px', maxWidth: '96vw', maxHeight: '90vh', overflowY: 'auto' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
                 {modalMode === 'create' ? 'Novo Documento' : 'Editar Documento'}
-              </h2>
+              </h3>
               <button className="btn btn-icon" onClick={() => setShowModal(false)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {modalMode === 'create' && (
+                <div className="input-group">
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
+                    Projeto
+                  </label>
+                  <SearchableSelect
+                    options={projectsList.map((p) => ({ value: String(p.id), label: p.name }))}
+                    value={form.projects_id || undefined}
+                    onChange={(val) => { setForm((f) => ({ ...f, projects_id: String(val ?? '') })); clearFieldError('projects_id'); }}
+                    placeholder="Selecionar projeto (opcional)"
+                    allowClear
+                  />
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div className="input-group" style={{ flex: 1 }}>
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                    Nº do Documento *
+                    N. do Documento *
                   </label>
                   <input
                     className="input-field"
+                    style={fieldErrors.document_number ? errorBorder : undefined}
                     placeholder="Ex: PRO-001"
                     value={form.document_number}
-                    onChange={(e) => setForm((f) => ({ ...f, document_number: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, document_number: e.target.value })); clearFieldError('document_number'); }}
+                    disabled={modalMode === 'edit'}
                   />
+                  {fieldErrors.document_number && <span style={errorText}>{fieldErrors.document_number}</span>}
                 </div>
 
-                <div className="input-group" style={{ flex: '0 0 100px' }}>
+                <div className="input-group" style={{ flex: '0 0 120px' }}>
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                    Revisão
+                    Revisao
                   </label>
                   <input
                     className="input-field"
-                    placeholder="A"
+                    placeholder="Rev 00"
                     value={form.revision}
                     onChange={(e) => setForm((f) => ({ ...f, revision: e.target.value }))}
+                    disabled={modalMode === 'edit'}
                   />
                 </div>
               </div>
 
               <div className="input-group">
                 <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Título *
+                  Titulo *
                 </label>
                 <input
                   className="input-field"
-                  placeholder="Título completo do documento"
+                  style={fieldErrors.title ? errorBorder : undefined}
+                  placeholder="Titulo completo do documento"
                   value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, title: e.target.value })); clearFieldError('title'); }}
                 />
+                {fieldErrors.title && <span style={errorText}>{fieldErrors.title}</span>}
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div className="input-group" style={{ flex: 1 }}>
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                    Tipo de Documento
+                    Tipo de Documento *
                   </label>
                   <SearchableSelect
-                    options={DOC_TYPE_OPTIONS.map((t) => ({ value: t, label: t }))}
+                    options={DOC_TYPE_OPTIONS.map((t) => ({ value: t.value, label: t.label }))}
                     value={form.document_type || undefined}
-                    onChange={(val) => setForm((f) => ({ ...f, document_type: String(val ?? '') }))}
+                    onChange={(val) => { setForm((f) => ({ ...f, document_type: String(val ?? '') })); clearFieldError('document_type'); }}
                     placeholder="Selecionar tipo"
                     allowClear
+                    style={fieldErrors.document_type ? errorBorder : undefined}
                   />
+                  {fieldErrors.document_type && <span style={errorText}>{fieldErrors.document_type}</span>}
                 </div>
 
                 <div className="input-group" style={{ flex: 1 }}>
                   <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                    Categoria
+                    Categoria *
                   </label>
-                  <input
-                    className="input-field"
-                    placeholder="Ex: Segurança, Qualidade..."
-                    value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  <SearchableSelect
+                    options={CATEGORY_OPTIONS.map((c) => ({ value: c, label: c }))}
+                    value={form.category || undefined}
+                    onChange={(val) => { setForm((f) => ({ ...f, category: String(val ?? '') })); clearFieldError('category'); }}
+                    placeholder="Selecionar categoria"
+                    allowClear
+                    style={fieldErrors.category ? errorBorder : undefined}
                   />
+                  {fieldErrors.category && <span style={errorText}>{fieldErrors.category}</span>}
                 </div>
+              </div>
+
+              <div className="input-group">
+                <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
+                  Descricao
+                </label>
+                <textarea
+                  className="input-field"
+                  placeholder="Descricao do documento..."
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={3}
+                  style={{ resize: 'vertical' }}
+                />
               </div>
 
               <div className="input-group">
@@ -702,26 +846,52 @@ export default function DocumentManagement() {
                   onChange={(e) => setForm((f) => ({ ...f, file_url: e.target.value }))}
                 />
               </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
+                    Validade
+                  </label>
+                  <input
+                    className="input-field"
+                    type="date"
+                    value={form.valid_until}
+                    onChange={(e) => setForm((f) => ({ ...f, valid_until: e.target.value }))}
+                  />
+                </div>
+
+                <div className="input-group" style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 0' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.requires_acknowledgment}
+                      onChange={(e) => setForm((f) => ({ ...f, requires_acknowledgment: e.target.checked }))}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                    Requer ciencia
+                  </label>
+                </div>
+              </div>
             </div>
 
             {modalError && (
               <p style={{ color: 'var(--color-error)', fontSize: '13px', marginTop: '12px' }}>{modalError}</p>
             )}
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
                 Cancelar
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleSubmit}
-                disabled={modalLoading || !form.document_number.trim() || !form.title.trim()}
+                disabled={modalLoading}
               >
                 {modalLoading
                   ? 'Salvando...'
                   : modalMode === 'create'
                     ? 'Criar Documento'
-                    : 'Salvar Alterações'}
+                    : 'Salvar Alteracoes'}
               </button>
             </div>
           </div>
@@ -732,7 +902,7 @@ export default function DocumentManagement() {
       <ConfirmModal
         isOpen={approveDocId !== null}
         title="Aprovar Documento"
-        message="Tem certeza que deseja aprovar este documento? O status será alterado para Aprovado."
+        message="Tem certeza que deseja aprovar este documento? O status sera alterado para Aprovado."
         confirmLabel={approveLoading ? 'Aprovando...' : 'Aprovar'}
         variant="primary"
         onConfirm={handleApprove}
@@ -741,13 +911,13 @@ export default function DocumentManagement() {
 
       {/* ── Acknowledge Confirm ──────────────────────────────────────────────── */}
       <ConfirmModal
-        isOpen={ackId !== null}
-        title="Confirmar Ciência"
+        isOpen={ackDocId !== null}
+        title="Confirmar Ciencia"
         message="Confirma que leu e compreendeu este documento?"
-        confirmLabel={ackLoading ? 'Confirmando...' : 'Confirmar Ciência'}
+        confirmLabel={ackLoading ? 'Confirmando...' : 'Confirmar Ciencia'}
         variant="primary"
         onConfirm={handleAcknowledge}
-        onCancel={() => setAckId(null)}
+        onCancel={() => setAckDocId(null)}
       />
 
       {/* Toast */}

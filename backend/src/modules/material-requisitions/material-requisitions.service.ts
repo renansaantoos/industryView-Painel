@@ -128,6 +128,7 @@ export class MaterialRequisitionsService {
             material_requisitions_id: requisition.id,
             product_description: item.description,
             quantity_requested: item.quantity_requested,
+            unit_price_estimate: item.unit_price_estimate ?? null,
             unity: item.unit ?? null,
             observations: item.notes ?? null,
           },
@@ -173,6 +174,7 @@ export class MaterialRequisitionsService {
               material_requisitions_id: BigInt(id),
               product_description: item.description,
               quantity_requested: item.quantity_requested,
+              unit_price_estimate: item.unit_price_estimate ?? null,
               unity: item.unit ?? null,
               observations: item.notes ?? null,
             },
@@ -223,7 +225,7 @@ export class MaterialRequisitionsService {
   /**
    * Aprova requisicao (submetida -> aprovada)
    */
-  static async approveRequisition(id: number, _input: ApproveRequisitionInput, approved_by_user_id?: number) {
+  static async approveRequisition(id: number, input: ApproveRequisitionInput, approved_by_user_id?: number) {
     const requisition = await db.material_requisitions.findFirst({
       where: { id: BigInt(id), deleted_at: null },
     });
@@ -238,21 +240,34 @@ export class MaterialRequisitionsService {
       );
     }
 
-    return db.material_requisitions.update({
-      where: { id: BigInt(id) },
-      data: {
-        status: 'aprovada',
-        approved_by_user_id: approved_by_user_id ? BigInt(approved_by_user_id) : null,
-        approved_at: new Date(),
-        updated_at: new Date(),
-      },
+    return db.$transaction(async (tx) => {
+      // Atualiza quantity_approved nos itens se fornecido
+      if (input.items && input.items.length > 0) {
+        for (const item of input.items) {
+          await tx.material_requisition_items.update({
+            where: { id: BigInt(item.id) },
+            data: { quantity_approved: item.quantity_approved },
+          });
+        }
+      }
+
+      return tx.material_requisitions.update({
+        where: { id: BigInt(id) },
+        data: {
+          status: 'aprovada',
+          approved_by_user_id: approved_by_user_id ? BigInt(approved_by_user_id) : null,
+          approved_at: new Date(),
+          updated_at: new Date(),
+        },
+        include: { items: true },
+      });
     });
   }
 
   /**
    * Rejeita requisicao (submetida -> rejeitada)
    */
-  static async rejectRequisition(id: number, _input: RejectRequisitionInput) {
+  static async rejectRequisition(id: number, input: RejectRequisitionInput) {
     const requisition = await db.material_requisitions.findFirst({
       where: { id: BigInt(id), deleted_at: null },
     });
@@ -271,6 +286,8 @@ export class MaterialRequisitionsService {
       where: { id: BigInt(id) },
       data: {
         status: 'rejeitada',
+        rejection_reason: input.reason,
+        rejected_at: new Date(),
         updated_at: new Date(),
       },
     });

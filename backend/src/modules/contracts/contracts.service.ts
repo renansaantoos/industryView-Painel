@@ -38,8 +38,11 @@ export class ContractsService {
 
     const whereClause: any = {
       deleted_at: null,
-      projects_id: BigInt(projects_id),
     };
+
+    if (projects_id) {
+      whereClause.projects_id = BigInt(projects_id);
+    }
 
     // Isolamento multi-tenant: garante que o projeto pertence a empresa do usuario
     if (company_id) {
@@ -308,8 +311,11 @@ export class ContractsService {
 
     const whereClause: any = {
       deleted_at: null,
-      projects_id: BigInt(projects_id),
     };
+
+    if (projects_id) {
+      whereClause.projects_id = BigInt(projects_id);
+    }
 
     // Isolamento multi-tenant: garante que o projeto pertence a empresa do usuario
     if (company_id) {

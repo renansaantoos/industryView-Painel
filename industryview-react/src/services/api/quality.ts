@@ -3,7 +3,7 @@ import type {
   NonConformance,
   NonConformanceStatistics,
   Document,
-  DocumentAcknowledgment,
+  PendingDocument,
   TaskDocument,
   ChecklistTemplate,
   ChecklistResponse,
@@ -77,7 +77,7 @@ export async function closeNonConformance(
 /** Add an attachment to a non-conformance */
 export async function addNcAttachment(
   ncId: number,
-  data: { file_url: string; file_name?: string; file_type?: string },
+  data: { file_url: string; description?: string; uploaded_by_user_id: number },
 ): Promise<void> {
   await apiClient.post(`${QUALITY_BASE}/non-conformances/${ncId}/attachments`, data);
 }
@@ -99,9 +99,9 @@ export async function listDocuments(params?: {
 }
 
 /** Get documents pending acknowledgment for a user */
-export async function getPendingAcknowledgments(params?: {
-  users_id?: number;
-}): Promise<DocumentAcknowledgment[]> {
+export async function getPendingAcknowledgments(params: {
+  users_id: number;
+}): Promise<PendingDocument[]> {
   const response = await apiClient.get(`${QUALITY_BASE}/documents/pending-acknowledgments`, {
     params,
   });
@@ -130,14 +130,20 @@ export async function updateDocument(
 }
 
 /** Approve a document */
-export async function approveDocument(id: number): Promise<Document> {
-  const response = await apiClient.post(`${QUALITY_BASE}/documents/${id}/approve`, {});
+export async function approveDocument(
+  id: number,
+  data: { approved_by_user_id: number },
+): Promise<Document> {
+  const response = await apiClient.post(`${QUALITY_BASE}/documents/${id}/approve`, data);
   return response.data;
 }
 
 /** Acknowledge a document (current user confirms they have read it) */
-export async function acknowledgeDocument(id: number): Promise<void> {
-  await apiClient.post(`${QUALITY_BASE}/documents/${id}/acknowledge`, {});
+export async function acknowledgeDocument(
+  id: number,
+  data: { users_id: number },
+): Promise<void> {
+  await apiClient.post(`${QUALITY_BASE}/documents/${id}/acknowledge`, data);
 }
 
 // ── Task Documents ─────────────────────────────────────────────────────────────

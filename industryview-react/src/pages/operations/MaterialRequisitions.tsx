@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { materialRequisitionsApi } from '../../services';
-import type { MaterialRequisition, MaterialRequisitionItem } from '../../types';
+import { materialRequisitionsApi, projectsApi } from '../../services';
+import type { MaterialRequisition, MaterialRequisitionItem, ProjectInfo } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -28,8 +28,7 @@ const REQUISITION_STATUS_COLORS: Record<string, { bg: string; color: string; lab
 
 const REQUISITION_PRIORITY_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   baixa:   { bg: 'var(--color-alternate)', color: 'var(--color-secondary-text)', label: 'Baixa' },
-  media:   { bg: '#fef9c3', color: '#a16207', label: 'Média' },
-  alta:    { bg: '#ffedd5', color: '#c2410c', label: 'Alta' },
+  normal:  { bg: '#fef9c3', color: '#a16207', label: 'Normal' },
   urgente: { bg: '#fee2e2', color: '#dc2626', label: 'Urgente' },
 };
 
@@ -69,6 +68,19 @@ function formatCurrency(value?: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+function formatCurrencyInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const cents = parseInt(digits, 10);
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseCurrencyInput(formatted: string): string {
+  const digits = formatted.replace(/\D/g, '');
+  if (!digits) return '';
+  return (parseInt(digits, 10) / 100).toString();
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -104,8 +116,18 @@ export default function MaterialRequisitions() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createDescription, setCreateDescription] = useState('');
   const [createPriority, setCreatePriority] = useState('');
+  const [createProjectId, setCreateProjectId] = useState<number | null>(null);
+  const [modalProjects, setModalProjects] = useState<ProjectInfo[]>([]);
   const [itemDrafts, setItemDrafts] = useState<ItemDraft[]>([{ ...EMPTY_ITEM_DRAFT }]);
   const [createModalLoading, setCreateModalLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // ------------------------------------------------------------------
+  // Approve modal
+  // ------------------------------------------------------------------
+  const [approvingRequisition, setApprovingRequisition] = useState<MaterialRequisition | null>(null);
+  const [approveItems, setApproveItems] = useState<{ id: number; product_description: string; quantity_requested: number; quantity_approved: string }[]>([]);
+  const [approveLoading, setApproveLoading] = useState(false);
 
   // ------------------------------------------------------------------
   // Reject modal
@@ -134,11 +156,10 @@ export default function MaterialRequisitions() {
   // Load requisitions
   // ------------------------------------------------------------------
   const loadRequisitions = useCallback(async () => {
-    if (!projectsInfo) return;
     setLoading(true);
     try {
       const data = await materialRequisitionsApi.listRequisitions({
-        projects_id: projectsInfo.id,
+        ...(projectsInfo ? { projects_id: projectsInfo.id } : {}),
         page,
         per_page: perPage,
       });
@@ -195,34 +216,49 @@ export default function MaterialRequisitions() {
   const openCreateModal = () => {
     setCreateDescription('');
     setCreatePriority('');
+    setCreateProjectId(projectsInfo?.id ?? null);
+    setValidationErrors({});
     setItemDrafts([{ ...EMPTY_ITEM_DRAFT }]);
     setShowCreateModal(true);
+    projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
+      setModalProjects(data.items ?? []);
+    }).catch(() => {});
   };
 
   // ------------------------------------------------------------------
   // Create requisition
   // ------------------------------------------------------------------
   const handleCreateRequisition = async () => {
-    if (!projectsInfo) return;
+    const errors: Record<string, string> = {};
+    if (!createProjectId) errors.project = 'Selecione um projeto.';
+    if (!createDescription.trim()) errors.description = 'Informe o título.';
+    if (!createPriority) errors.priority = 'Selecione a prioridade.';
+    const hasValidItem = itemDrafts.some((d) => d.description.trim());
+    if (!hasValidItem) errors.items = 'Adicione pelo menos um item com descrição.';
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+    setValidationErrors({});
     setCreateModalLoading(true);
     try {
       const validItems = itemDrafts
-        .filter((d) => d.description.trim() && d.quantity)
+        .filter((d) => d.description.trim())
         .map((d) => ({
           description: d.description.trim(),
           unit: d.unit.trim() || undefined,
-          quantity: parseFloat(d.quantity) || 1,
-          estimated_cost: d.estimated_cost ? parseFloat(d.estimated_cost) : undefined,
+          quantity_requested: parseFloat(d.quantity) || 1,
+          unit_price_estimate: d.estimated_cost ? parseInt(d.estimated_cost, 10) / 100 : undefined,
         }));
 
       await materialRequisitionsApi.createRequisition({
-        projects_id: projectsInfo.id,
-        description: createDescription.trim() || undefined,
+        projects_id: createProjectId!,
+        title: createDescription.trim(),
         priority: createPriority || undefined,
-        items: validItems.length > 0 ? validItems : undefined,
+        items: validItems,
       });
       setShowCreateModal(false);
-      loadRequisitions();
+      await loadRequisitions();
       showToast('Requisição criada com sucesso.');
     } catch (err) {
       console.error('Failed to create requisition:', err);
@@ -239,7 +275,9 @@ export default function MaterialRequisitions() {
     setActionLoading(true);
     try {
       await materialRequisitionsApi.submitRequisition(id);
-      loadRequisitions();
+      setExpandedId(null);
+      setExpandedRequisition(null);
+      await loadRequisitions();
       showToast('Requisição submetida com sucesso.');
     } catch (err) {
       console.error('Failed to submit requisition:', err);
@@ -249,11 +287,41 @@ export default function MaterialRequisitions() {
     }
   };
 
-  const handleApprove = async (id: number) => {
+  const openApproveModal = async (req: MaterialRequisition) => {
+    setApproveLoading(true);
+    try {
+      const detail = await materialRequisitionsApi.getRequisition(req.id);
+      setApprovingRequisition(detail);
+      setApproveItems(
+        (detail.items || []).map((item) => ({
+          id: item.id,
+          product_description: item.product_description,
+          quantity_requested: Number(item.quantity_requested),
+          quantity_approved: String(Number(item.quantity_requested)),
+        }))
+      );
+    } catch (err) {
+      console.error('Failed to load requisition for approval:', err);
+      showToast('Erro ao carregar requisição.', 'error');
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!approvingRequisition) return;
     setActionLoading(true);
     try {
-      await materialRequisitionsApi.approveRequisition(id);
-      loadRequisitions();
+      await materialRequisitionsApi.approveRequisition(approvingRequisition.id, {
+        items: approveItems.map((i) => ({
+          id: i.id,
+          quantity_approved: parseFloat(i.quantity_approved) || 0,
+        })),
+      });
+      setApprovingRequisition(null);
+      setExpandedId(null);
+      setExpandedRequisition(null);
+      await loadRequisitions();
       showToast('Requisição aprovada com sucesso.');
     } catch (err) {
       console.error('Failed to approve requisition:', err);
@@ -268,11 +336,13 @@ export default function MaterialRequisitions() {
     setActionLoading(true);
     try {
       await materialRequisitionsApi.rejectRequisition(rejectingId, {
-        rejection_reason: rejectionReason.trim() || undefined,
+        reason: rejectionReason.trim() || undefined,
       });
       setRejectingId(null);
       setRejectionReason('');
-      loadRequisitions();
+      setExpandedId(null);
+      setExpandedRequisition(null);
+      await loadRequisitions();
       showToast('Requisição rejeitada.');
     } catch (err) {
       console.error('Failed to reject requisition:', err);
@@ -291,19 +361,19 @@ export default function MaterialRequisitions() {
         <tr style={{ backgroundColor: 'var(--color-alternate)' }}>
           <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descrição</th>
           <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Unidade</th>
-          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Quantidade</th>
-          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Custo Estimado</th>
-          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Observação</th>
+          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Qtd. Solicitada</th>
+          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Custo Unit.</th>
+          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Qtd. Aprovada</th>
         </tr>
       </thead>
       <tbody>
         {items.map((item) => (
           <tr key={item.id} style={{ borderBottom: '1px solid var(--color-alternate)' }}>
-            <td style={{ padding: '8px 12px' }}>{item.description}</td>
-            <td style={{ padding: '8px 12px' }}>{item.unit || '-'}</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{item.quantity}</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatCurrency(item.estimated_cost)}</td>
-            <td style={{ padding: '8px 12px' }}>{item.observation || '-'}</td>
+            <td style={{ padding: '8px 12px' }}>{item.product_description}</td>
+            <td style={{ padding: '8px 12px' }}>{item.unity || '-'}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{Number(item.quantity_requested)}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatCurrency(item.unit_price_estimate != null ? Number(item.unit_price_estimate) : undefined)}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{item.quantity_approved != null ? Number(item.quantity_approved) : '-'}</td>
           </tr>
         ))}
       </tbody>
@@ -345,6 +415,7 @@ export default function MaterialRequisitions() {
             <thead>
               <tr>
                 <th>Nº Requisição</th>
+                <th>Projeto</th>
                 <th>Descrição</th>
                 <th>Prioridade</th>
                 <th>Status</th>
@@ -364,6 +435,7 @@ export default function MaterialRequisitions() {
                         </span>
                       </div>
                     </td>
+                    <td>{req.projects?.name || req.project_name || '-'}</td>
                     <td>{req.description || '-'}</td>
                     <td>
                       {req.priority ? (
@@ -373,13 +445,13 @@ export default function MaterialRequisitions() {
                     <td>
                       <StatusBadge status={req.status} colorMap={REQUISITION_STATUS_COLORS} />
                     </td>
-                    <td>{req.requester_name || '-'}</td>
+                    <td>{req.created_by?.name || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <ApprovalActions
                           status={req.status}
                           onSubmit={req.status === 'rascunho' ? () => handleSubmit(req.id) : undefined}
-                          onApprove={req.status === 'submetida' ? () => handleApprove(req.id) : undefined}
+                          onApprove={req.status === 'submetida' ? () => openApproveModal(req) : undefined}
                           onReject={req.status === 'submetida' ? () => { setRejectingId(req.id); setRejectionReason(''); } : undefined}
                           loading={actionLoading}
                         />
@@ -395,9 +467,9 @@ export default function MaterialRequisitions() {
                   </motion.tr>
                   {expandedId === req.id && (
                     <tr key={`${req.id}-detail`}>
-                      <td colSpan={6} style={{ padding: '0', backgroundColor: 'var(--color-primary-bg)' }}>
+                      <td colSpan={7} style={{ padding: '0', backgroundColor: 'var(--color-primary-bg)' }}>
                         <div style={{ padding: '16px 24px', borderTop: '2px solid var(--color-primary)' }}>
-                          {req.rejection_reason && (
+                          {expandedRequisition?.rejection_reason && (
                             <div style={{
                               marginBottom: '12px',
                               padding: '10px 14px',
@@ -406,7 +478,7 @@ export default function MaterialRequisitions() {
                               fontSize: '13px',
                               color: '#dc2626',
                             }}>
-                              <strong>Motivo da rejeição:</strong> {req.rejection_reason}
+                              <strong>Motivo da rejeição:</strong> {expandedRequisition.rejection_reason}
                             </div>
                           )}
                           <p style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px', color: 'var(--color-primary-text)' }}>
@@ -452,30 +524,42 @@ export default function MaterialRequisitions() {
           >
             <h3 style={{ marginBottom: '20px' }}>Nova Requisição de Material</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label>Projeto <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                <SearchableSelect
+                  options={modalProjects.map((p) => ({ value: p.id, label: p.name }))}
+                  value={createProjectId ?? undefined}
+                  onChange={(val) => { setCreateProjectId(val ? Number(val) : null); setValidationErrors((e) => { const { project, ...rest } = e; return rest; }); }}
+                  placeholder="Selecione o projeto"
+                />
+                {validationErrors.project && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.project}</span>}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Descrição</label>
+                  <label>Título <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
                     className="input-field"
                     value={createDescription}
-                    onChange={(e) => setCreateDescription(e.target.value)}
-                    placeholder="Descrição geral da requisição"
+                    onChange={(e) => { setCreateDescription(e.target.value); setValidationErrors((err) => { const { description, ...rest } = err; return rest; }); }}
+                    placeholder="Título da requisição"
+                    style={validationErrors.description ? { borderColor: 'var(--color-error)' } : undefined}
                   />
+                  {validationErrors.description && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.description}</span>}
                 </div>
                 <div className="input-group" style={{ marginBottom: 0, minWidth: '140px' }}>
-                  <label>Prioridade</label>
+                  <label>Prioridade <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <SearchableSelect
                     options={[
                       { value: 'baixa', label: 'Baixa' },
-                      { value: 'media', label: 'Média' },
-                      { value: 'alta', label: 'Alta' },
+                      { value: 'normal', label: 'Normal' },
                       { value: 'urgente', label: 'Urgente' },
                     ]}
                     value={createPriority || undefined}
-                    onChange={(val) => setCreatePriority(String(val ?? ''))}
+                    onChange={(val) => { setCreatePriority(String(val ?? '')); setValidationErrors((err) => { const { priority, ...rest } = err; return rest; }); }}
                     placeholder="Selecione"
                     allowClear
                   />
+                  {validationErrors.priority && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.priority}</span>}
                 </div>
               </div>
             </div>
@@ -550,13 +634,15 @@ export default function MaterialRequisitions() {
                       style={{ fontSize: '13px' }}
                     />
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       className="input-field"
-                      value={draft.estimated_cost}
-                      onChange={(e) => updateItemDraft(index, { estimated_cost: e.target.value })}
-                      placeholder="R$ 0,00"
-                      min="0"
-                      step="0.01"
+                      value={draft.estimated_cost ? formatCurrencyInput(draft.estimated_cost) : ''}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '');
+                        updateItemDraft(index, { estimated_cost: digits });
+                      }}
+                      placeholder="0,00"
                       style={{ fontSize: '13px' }}
                     />
                     <button
@@ -570,6 +656,7 @@ export default function MaterialRequisitions() {
                   </div>
                 ))}
               </div>
+              {validationErrors.items && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.items}</span>}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--color-alternate)' }}>
@@ -582,6 +669,73 @@ export default function MaterialRequisitions() {
                 disabled={createModalLoading}
               >
                 {createModalLoading ? <span className="spinner" /> : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------------
+          Modal: Approve Requisition
+      ---------------------------------------------------------------- */}
+      {approvingRequisition && (
+        <div className="modal-backdrop" onClick={() => setApprovingRequisition(null)}>
+          <div
+            className="modal-content"
+            style={{ padding: '24px', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3>Aprovar Requisição</h3>
+              <button className="btn btn-icon" onClick={() => setApprovingRequisition(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '16px' }}>
+              Revise as quantidades solicitadas e ajuste as quantidades aprovadas se necessário.
+            </p>
+            <table style={{ width: '100%', fontSize: '13px', marginBottom: '16px' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--color-alternate)' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Item</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Qtd. Solicitada</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Qtd. Aprovada</th>
+                </tr>
+              </thead>
+              <tbody>
+                {approveItems.map((item, idx) => (
+                  <tr key={item.id} style={{ borderBottom: '1px solid var(--color-alternate)' }}>
+                    <td style={{ padding: '8px 12px' }}>{item.product_description}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>{item.quantity_requested}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                      <input
+                        type="number"
+                        className="input-field"
+                        value={item.quantity_approved}
+                        onChange={(e) => {
+                          setApproveItems((prev) =>
+                            prev.map((it, i) => i === idx ? { ...it, quantity_approved: e.target.value } : it)
+                          );
+                        }}
+                        min="0"
+                        step="0.01"
+                        style={{ fontSize: '13px', width: '100px', textAlign: 'right' }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--color-alternate)' }}>
+              <button className="btn btn-secondary" onClick={() => setApprovingRequisition(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleApprove}
+                disabled={actionLoading}
+              >
+                {actionLoading ? <span className="spinner" /> : 'Confirmar Aprovação'}
               </button>
             </div>
           </div>

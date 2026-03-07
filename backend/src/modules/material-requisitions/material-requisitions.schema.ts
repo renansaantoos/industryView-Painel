@@ -26,7 +26,7 @@ const requisitionItemSchema = z.object({
   description: z.string().trim().min(1, 'description do item e obrigatorio'),
   unit: z.string().trim().optional(),
   quantity_requested: z.coerce.number().min(0.01),
-  unit_price_estimate: z.coerce.number().min(0).optional(),
+  unit_price_estimate: z.coerce.number().min(0).optional().nullable(),
   notes: z.string().trim().optional(),
 });
 
@@ -51,9 +51,15 @@ export const submitRequisitionSchema = z.object({
   id: z.coerce.number().int().min(1),
 });
 
+const approveItemSchema = z.object({
+  id: z.coerce.number().int().min(1),
+  quantity_approved: z.coerce.number().min(0),
+});
+
 export const approveRequisitionSchema = z.object({
   id: z.coerce.number().int().min(1),
   notes: z.string().trim().optional(),
+  items: z.array(approveItemSchema).optional(),
 });
 
 export const rejectRequisitionSchema = z.object({

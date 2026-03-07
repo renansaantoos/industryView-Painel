@@ -21,11 +21,12 @@ export async function getMeasurement(id: number): Promise<ContractMeasurement> {
 
 export async function createMeasurement(data: {
   projects_id: number;
-  measurement_number: string;
-  reference_period: string;
-  description?: string;
-  total_value?: number;
-  items?: { description: string; unit?: string; quantity: number; unit_price: number }[];
+  title: string;
+  measurement_date: string;
+  period_start?: string;
+  period_end?: string;
+  notes?: string;
+  items: { description: string; unit?: string; quantity: number; unit_price: number }[];
 }): Promise<ContractMeasurement> {
   const response = await apiClient.post(`${BASE}/measurements`, data);
   return response.data;
@@ -72,7 +73,7 @@ export async function createClaim(data: {
   title: string;
   description: string;
   claim_type?: string;
-  estimated_value?: number;
+  value_requested?: number;
 }): Promise<ContractClaim> {
   const response = await apiClient.post(`${BASE}/claims`, data);
   return response.data;
@@ -83,16 +84,19 @@ export async function updateClaim(id: number, data: Record<string, unknown>): Pr
   return response.data;
 }
 
-export async function closeClaim(id: number): Promise<ContractClaim> {
-  const response = await apiClient.post(`${BASE}/claims/${id}/close`);
+export async function closeClaim(id: number, data: {
+  resolution: string;
+  value_approved?: number;
+  outcome?: 'aprovada' | 'negada' | 'parcialmente_aprovada';
+}): Promise<ContractClaim> {
+  const response = await apiClient.post(`${BASE}/claims/${id}/close`, data);
   return response.data;
 }
 
 export async function addClaimEvidence(claimId: number, data: {
   file_url: string;
-  file_name?: string;
-  file_type?: string;
   description?: string;
+  file_type?: string;
 }): Promise<ClaimEvidence> {
   const response = await apiClient.post(`${BASE}/claims/${claimId}/evidences`, data);
   return response.data;

@@ -20,11 +20,13 @@ router.delete('/systems/:id', authenticate, CommissioningController.deleteSystem
 router.get('/systems/:id/punch-list', authenticate, CommissioningController.getPunchList);
 router.post('/systems/:id/punch-list', authenticate, CommissioningController.createPunchListItem);
 router.patch('/punch-list/:id', authenticate, CommissioningController.updatePunchListItem);
+router.delete('/punch-list/:id', authenticate, CommissioningController.deletePunchListItem);
 
 // Certificates (aninhado em sistema)
 router.get('/systems/:id/certificates', authenticate, CommissioningController.getCertificates);
 router.post('/systems/:id/certificates', authenticate, CommissioningController.createCertificate);
 router.patch('/certificates/:id', authenticate, CommissioningController.updateCertificate);
+router.delete('/certificates/:id', authenticate, CommissioningController.deleteCertificate);
 
 export { router as commissioningRoutes };
 export default router;

@@ -10,7 +10,7 @@ import { z } from 'zod';
 // =============================================================================
 
 export const listMeasurementsSchema = z.object({
-  projects_id: z.coerce.number().int().min(1, 'projects_id e obrigatorio'),
+  projects_id: z.coerce.number().int().min(1).optional(),
   company_id: z.coerce.number().int().optional(),
   status: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -57,7 +57,7 @@ export const measurementIdParamSchema = z.object({
 // =============================================================================
 
 export const listClaimsSchema = z.object({
-  projects_id: z.coerce.number().int().min(1, 'projects_id e obrigatorio'),
+  projects_id: z.coerce.number().int().min(1).optional(),
   company_id: z.coerce.number().int().optional(),
   status: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),

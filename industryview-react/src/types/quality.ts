@@ -1,26 +1,30 @@
 /** Non-Conformance */
 export interface NonConformance {
   id: number;
+  nc_number: string;
   projects_id?: number;
-  company_id: number;
   title: string;
   description: string;
-  origin?: string;
-  severity: 'baixa' | 'media' | 'alta' | 'critica';
-  category?: string;
+  origin: string;
+  severity: 'menor' | 'maior' | 'critica';
+  category: string;
   status: 'aberta' | 'em_analise' | 'em_tratamento' | 'verificacao' | 'encerrada';
-  responsible_id?: number;
-  responsible_name?: string;
-  root_cause?: string;
-  corrective_action?: string;
+  location_description?: string;
+  immediate_action?: string;
+  root_cause_analysis?: string;
+  corrective_action_plan?: string;
   preventive_action?: string;
   deadline?: string;
-  closed_by?: number;
+  opened_by_user_id: number;
+  responsible_user_id?: number;
+  closed_by_user_id?: number;
   closed_at?: string;
-  created_by: number;
-  creator_name?: string;
   created_at: string;
   updated_at: string;
+  projects?: { id: number; name: string };
+  opened_by?: { id: number; name: string };
+  responsible_user?: { id: number; name: string };
+  closed_by?: { id: number; name: string };
   attachments?: NonConformanceAttachment[];
 }
 
@@ -29,19 +33,18 @@ export interface NonConformanceAttachment {
   id: number;
   non_conformances_id: number;
   file_url: string;
-  file_name?: string;
-  file_type?: string;
-  uploaded_by: number;
-  uploader_name?: string;
+  description?: string;
+  uploaded_by_user_id: number;
   created_at: string;
 }
 
-/** NC Statistics */
+/** NC Statistics - arrays from groupBy */
 export interface NonConformanceStatistics {
   total: number;
-  by_status: Record<string, number>;
-  by_severity: Record<string, number>;
-  by_category: Record<string, number>;
+  by_status: { status: string; count: number }[];
+  by_severity: { severity: string; count: number }[];
+  by_category: { category: string; count: number }[];
+  by_origin: { origin: string; count: number }[];
 }
 
 /** Document (GED) */
@@ -53,17 +56,25 @@ export interface Document {
   title: string;
   document_type?: string;
   category?: string;
+  description?: string;
   revision?: string;
   file_url?: string;
-  status: 'rascunho' | 'em_revisao' | 'aprovado' | 'obsoleto';
-  approved_by?: number;
+  status: 'em_elaboracao' | 'em_revisao' | 'aprovado' | 'obsoleto';
+  requires_acknowledgment?: boolean;
+  valid_until?: string;
+  approved_by_user_id?: number;
   approved_at?: string;
-  validity_date?: string;
-  created_by: number;
-  creator_name?: string;
-  approver_name?: string;
+  created_by_user_id: number;
+  created_by?: { id: number; name: string };
+  approved_by?: { id: number; name: string };
+  acknowledgments?: { id: number; users_id: number; acknowledged_at: string }[];
   created_at: string;
   updated_at: string;
+}
+
+/** Pending document (from getPendingAcknowledgments - returns Document with relations) */
+export interface PendingDocument extends Document {
+  // Returned from getPendingAcknowledgments endpoint
 }
 
 /** Document Acknowledgment */
@@ -72,8 +83,7 @@ export interface DocumentAcknowledgment {
   documents_id: number;
   users_id: number;
   acknowledged_at?: string;
-  user_name?: string;
-  document_title?: string;
+  user?: { id: number; name: string; email?: string };
 }
 
 /** Task Document link */

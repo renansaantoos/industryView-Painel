@@ -2,22 +2,22 @@
 export interface MaterialRequisition {
   id: number;
   projects_id: number;
-  company_id: number;
   requisition_number?: string;
   description?: string;
   status: 'rascunho' | 'submetida' | 'aprovada' | 'rejeitada';
-  priority?: 'baixa' | 'media' | 'alta' | 'urgente';
-  requested_by: number;
-  requester_name?: string;
-  submitted_at?: string;
-  approved_by?: number;
+  priority?: string;
+  needed_by_date?: string;
+  created_by_user_id?: number;
+  approved_by_user_id?: number;
   approved_at?: string;
-  rejected_by?: number;
-  rejected_at?: string;
   rejection_reason?: string;
-  project_name?: string;
+  rejected_at?: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
+  projects?: { id: number; name: string };
+  created_by?: { id: number; name: string };
+  approved_by?: { id: number; name: string };
   items?: MaterialRequisitionItem[];
 }
 
@@ -25,9 +25,12 @@ export interface MaterialRequisition {
 export interface MaterialRequisitionItem {
   id: number;
   material_requisitions_id: number;
-  description: string;
-  unit?: string;
-  quantity: number;
-  estimated_cost?: number;
-  observation?: string;
+  product_description: string;
+  quantity_requested: number;
+  quantity_approved?: number;
+  quantity_delivered?: number;
+  unit_price_estimate?: number;
+  unity?: string;
+  observations?: string;
+  created_at?: string;
 }
