@@ -329,6 +329,7 @@ export default function MaterialRequisitions() {
   const [createDescription, setCreateDescription] = useState('');
   const [createRequesterName, setCreateRequesterName] = useState('');
   const [createPriority, setCreatePriority] = useState('');
+  const [createRequiredDate, setCreateRequiredDate] = useState('');
   const [createProjectId, setCreateProjectId] = useState<number | null>(null);
   const [modalProjects, setModalProjects] = useState<ProjectInfo[]>([]);
   const [itemDrafts, setItemDrafts] = useState<ItemDraft[]>([{ ...EMPTY_ITEM_DRAFT }]);
@@ -436,6 +437,7 @@ export default function MaterialRequisitions() {
     setCreateDescription('');
     setCreateRequesterName('');
     setCreatePriority('');
+    setCreateRequiredDate('');
     setCreateProjectId(projectsInfo?.id ?? null);
     setValidationErrors({});
     setItemDrafts([{ ...EMPTY_ITEM_DRAFT }]);
@@ -476,6 +478,7 @@ export default function MaterialRequisitions() {
         title: createDescription.trim(),
         requester_name: createRequesterName.trim() || undefined,
         priority: createPriority || undefined,
+        required_by_date: createRequiredDate || undefined,
         items: validItems,
       });
 
@@ -775,207 +778,278 @@ export default function MaterialRequisitions() {
         <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
           <div
             className="modal-content"
-            style={{ padding: '24px', width: '680px', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ padding: 0, width: '720px', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ marginBottom: '20px' }}>Nova Requisição de Material</h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              {/* Projeto */}
-              <div className="input-group" style={{ marginBottom: 0 }}>
-                <label>Projeto <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <SearchableSelect
-                  options={modalProjects.map((p) => ({ value: p.id, label: p.name }))}
-                  value={createProjectId ?? undefined}
-                  onChange={(val) => { setCreateProjectId(val ? Number(val) : null); setValidationErrors((e) => { const { project, ...rest } = e; return rest; }); }}
-                  placeholder="Selecione o projeto"
-                />
-                {validationErrors.project && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.project}</span>}
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px 24px',
+              borderBottom: '1px solid var(--color-alternate)',
+              flexShrink: 0,
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>Nova Requisição de Material</h3>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                  Preencha as informações e adicione os itens necessários
+                </p>
               </div>
-
-              {/* Título + Requisitante */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Título <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <input
-                    className="input-field"
-                    value={createDescription}
-                    onChange={(e) => { setCreateDescription(e.target.value); setValidationErrors((err) => { const { description, ...rest } = err; return rest; }); }}
-                    placeholder="Título da requisição"
-                    style={validationErrors.description ? { borderColor: 'var(--color-error)' } : undefined}
-                  />
-                  {validationErrors.description && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.description}</span>}
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Nome do Requisitante</label>
-                  <input
-                    className="input-field"
-                    value={createRequesterName}
-                    onChange={(e) => setCreateRequesterName(e.target.value)}
-                    placeholder="Nome de quem está solicitando"
-                  />
-                </div>
-              </div>
-
-              {/* Prioridade */}
-              <div className="input-group" style={{ marginBottom: 0, maxWidth: '200px' }}>
-                <label>Prioridade <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <SearchableSelect
-                  options={[
-                    { value: 'baixa', label: 'Baixa' },
-                    { value: 'normal', label: 'Normal' },
-                    { value: 'urgente', label: 'Urgente' },
-                  ]}
-                  value={createPriority || undefined}
-                  onChange={(val) => { setCreatePriority(String(val ?? '')); setValidationErrors((err) => { const { priority, ...rest } = err; return rest; }); }}
-                  placeholder="Selecione"
-                  allowClear
-                />
-                {validationErrors.priority && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.priority}</span>}
-              </div>
+              <button className="btn btn-icon" onClick={() => setShowCreateModal(false)}>
+                <X size={18} />
+              </button>
             </div>
 
-            {/* Items inline editor */}
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <p style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                  Itens
+            {/* Body (scrollable) */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Section: Informações Gerais */}
+              <div>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
+                  Informações Gerais
                 </p>
-                <button
-                  className="btn btn-secondary"
-                  style={{ fontSize: '12px', padding: '4px 10px' }}
-                  onClick={addItemDraft}
-                >
-                  <Plus size={14} /> Adicionar Item
-                </button>
-              </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Projeto */}
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Projeto <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                    <SearchableSelect
+                      options={modalProjects.map((p) => ({ value: p.id, label: p.name }))}
+                      value={createProjectId ?? undefined}
+                      onChange={(val) => { setCreateProjectId(val ? Number(val) : null); setValidationErrors((e) => { const { project: _p, ...rest } = e; return rest; }); }}
+                      placeholder="Selecione o projeto"
+                    />
+                    {validationErrors.project && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.project}</span>}
+                  </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {itemDrafts.map((draft, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      border: '1px solid var(--color-alternate)',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      backgroundColor: draft.inventory_product_id ? 'var(--color-primary-bg)' : undefined,
-                      position: 'relative',
-                    }}
-                  >
-                    {/* Row 1: search + delete */}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '10px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
-                          Produto do Estoque
-                        </label>
-                        <StockSearchField
-                          draft={draft}
-                          onUpdate={(patch) => updateItemDraft(index, patch)}
-                          projectId={createProjectId}
-                        />
-                      </div>
-                      <button
-                        className="btn btn-icon"
-                        onClick={() => removeItemDraft(index)}
-                        disabled={itemDrafts.length === 1}
-                        style={{ opacity: itemDrafts.length === 1 ? 0.4 : 1, marginTop: '20px' }}
-                      >
-                        <Trash2 size={14} color="var(--color-error)" />
-                      </button>
+                  {/* Título + Requisitante */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label>Título <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                      <input
+                        className="input-field"
+                        value={createDescription}
+                        onChange={(e) => { setCreateDescription(e.target.value); setValidationErrors((err) => { const { description: _d, ...rest } = err; return rest; }); }}
+                        placeholder="Ex: Materiais para instalação elétrica"
+                        style={validationErrors.description ? { borderColor: 'var(--color-error)' } : undefined}
+                      />
+                      {validationErrors.description && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.description}</span>}
                     </div>
-
-                    {/* Row 2: details (shown always, populated on selection) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '70px 80px 80px 80px 110px', gap: '8px' }}>
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
-                          Unid.
-                        </label>
-                        <input
-                          className="input-field"
-                          value={draft.unit}
-                          onChange={(e) => updateItemDraft(index, { unit: e.target.value })}
-                          placeholder="Un."
-                          style={{ fontSize: '13px' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
-                          Qtd. Req.
-                        </label>
-                        <input
-                          type="number"
-                          className="input-field"
-                          value={draft.quantity}
-                          onChange={(e) => updateItemDraft(index, { quantity: e.target.value })}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                          style={{ fontSize: '13px' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
-                          Estoque
-                        </label>
-                        <div
-                          className="input-field"
-                          style={{
-                            fontSize: '13px',
-                            backgroundColor: 'var(--color-alternate)',
-                            color: draft.stock_quantity != null && draft.stock_quantity <= (draft.min_quantity ?? 0)
-                              ? '#dc2626'
-                              : 'var(--color-primary-text)',
-                            fontWeight: 500,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {draft.stock_quantity != null ? draft.stock_quantity : '-'}
-                        </div>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
-                          Qtd. Mín.
-                        </label>
-                        <div
-                          className="input-field"
-                          style={{
-                            fontSize: '13px',
-                            backgroundColor: 'var(--color-alternate)',
-                            color: 'var(--color-primary-text)',
-                            fontWeight: 500,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {draft.min_quantity != null ? draft.min_quantity : '-'}
-                        </div>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
-                          Custo Est.
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          className="input-field"
-                          value={draft.estimated_cost ? formatCurrencyInput(draft.estimated_cost) : ''}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            updateItemDraft(index, { estimated_cost: digits });
-                          }}
-                          placeholder="0,00"
-                          style={{ fontSize: '13px' }}
-                        />
-                      </div>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label>Nome do Requisitante</label>
+                      <input
+                        className="input-field"
+                        value={createRequesterName}
+                        onChange={(e) => setCreateRequesterName(e.target.value)}
+                        placeholder="Quem está solicitando"
+                      />
                     </div>
                   </div>
-                ))}
+
+                  {/* Prioridade + Data Necessária */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label>Prioridade <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                      <SearchableSelect
+                        options={[
+                          { value: 'baixa', label: 'Baixa' },
+                          { value: 'normal', label: 'Normal' },
+                          { value: 'urgente', label: 'Urgente' },
+                        ]}
+                        value={createPriority || undefined}
+                        onChange={(val) => { setCreatePriority(String(val ?? '')); setValidationErrors((err) => { const { priority: _p, ...rest } = err; return rest; }); }}
+                        placeholder="Selecione a prioridade"
+                        allowClear
+                      />
+                      {validationErrors.priority && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.priority}</span>}
+                    </div>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label>Data Necessária</label>
+                      <input
+                        type="date"
+                        className="input-field"
+                        value={createRequiredDate}
+                        onChange={(e) => setCreateRequiredDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              {validationErrors.items && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px', display: 'block' }}>{validationErrors.items}</span>}
+
+              {/* Section: Itens */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Itens da Requisição
+                  </p>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ fontSize: '12px', padding: '4px 12px', height: '28px' }}
+                    onClick={addItemDraft}
+                  >
+                    <Plus size={13} /> Adicionar Item
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {itemDrafts.map((draft, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        border: `1px solid ${draft.inventory_product_id ? 'var(--color-primary)' : 'var(--color-alternate)'}`,
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        backgroundColor: draft.inventory_product_id ? 'var(--color-primary-bg)' : 'var(--color-alternate)',
+                        transition: 'border-color 0.2s',
+                      }}
+                    >
+                      {/* Search row */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '10px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                            Produto do Estoque
+                          </label>
+                          <StockSearchField
+                            draft={draft}
+                            onUpdate={(patch) => updateItemDraft(index, patch)}
+                            projectId={createProjectId}
+                          />
+                        </div>
+                        <button
+                          className="btn btn-icon"
+                          onClick={() => removeItemDraft(index)}
+                          disabled={itemDrafts.length === 1}
+                          style={{ opacity: itemDrafts.length === 1 ? 0.35 : 1, flexShrink: 0, marginBottom: '1px' }}
+                          title="Remover item"
+                        >
+                          <Trash2 size={14} color="var(--color-error)" />
+                        </button>
+                      </div>
+
+                      {/* Stock info badge */}
+                      {draft.inventory_product_id && (
+                        <div style={{
+                          display: 'flex',
+                          gap: '12px',
+                          alignItems: 'center',
+                          marginBottom: '10px',
+                          padding: '6px 10px',
+                          backgroundColor: 'var(--color-primary-bg)',
+                          border: '1px solid var(--color-alternate)',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                        }}>
+                          <Package size={13} color="var(--color-primary)" />
+                          <span style={{ fontWeight: 600, color: 'var(--color-primary-text)' }}>
+                            Estoque disponível:
+                          </span>
+                          <span style={{
+                            fontWeight: 700,
+                            color: draft.stock_quantity != null && draft.stock_quantity <= (draft.min_quantity ?? 0)
+                              ? '#dc2626'
+                              : '#16a34a',
+                          }}>
+                            {draft.stock_quantity ?? 0} {draft.unit}
+                          </span>
+                          {draft.min_quantity != null && (
+                            <>
+                              <span style={{ color: 'var(--color-secondary-text)' }}>·</span>
+                              <span style={{ color: 'var(--color-secondary-text)' }}>
+                                Qtd. mínima: <strong>{draft.min_quantity}</strong>
+                              </span>
+                            </>
+                          )}
+                          {draft.stock_quantity != null && draft.stock_quantity <= (draft.min_quantity ?? 0) && (
+                            <>
+                              <span style={{ color: 'var(--color-secondary-text)' }}>·</span>
+                              <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '11px' }}>
+                                ⚠ Estoque abaixo do mínimo
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Detail fields */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                            Unidade
+                          </label>
+                          <input
+                            className="input-field"
+                            value={draft.unit}
+                            onChange={(e) => updateItemDraft(index, { unit: e.target.value })}
+                            placeholder="Un."
+                            style={{ fontSize: '13px' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                            Quantidade Solicitada
+                          </label>
+                          <input
+                            type="number"
+                            className="input-field"
+                            value={draft.quantity}
+                            onChange={(e) => updateItemDraft(index, { quantity: e.target.value })}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            style={{ fontSize: '13px' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                            Custo Estimado (R$)
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="input-field"
+                            value={draft.estimated_cost ? formatCurrencyInput(draft.estimated_cost) : ''}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              updateItemDraft(index, { estimated_cost: digits });
+                            }}
+                            placeholder="0,00"
+                            style={{ fontSize: '13px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {validationErrors.items && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    backgroundColor: '#fee2e2',
+                    borderRadius: '6px',
+                    color: '#dc2626',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                  }}>
+                    {validationErrors.items}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--color-alternate)' }}>
+            {/* Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '8px',
+              padding: '16px 24px',
+              borderTop: '1px solid var(--color-alternate)',
+              flexShrink: 0,
+              backgroundColor: 'var(--color-primary-bg)',
+            }}>
               <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
                 Cancelar
               </button>
@@ -984,7 +1058,7 @@ export default function MaterialRequisitions() {
                 onClick={handleCreateRequisition}
                 disabled={createModalLoading}
               >
-                {createModalLoading ? <span className="spinner" /> : 'Salvar'}
+                {createModalLoading ? <span className="spinner" /> : 'Salvar Requisição'}
               </button>
             </div>
           </div>
