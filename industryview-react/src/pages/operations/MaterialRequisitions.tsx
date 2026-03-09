@@ -1098,7 +1098,7 @@ export default function MaterialRequisitions() {
                     <td style={{ padding: '8px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {item.inventory_product_id && (
-                          <Package size={13} color="var(--color-primary)" title="Vinculado ao estoque" />
+                          <Package size={13} color="var(--color-primary)" aria-label="Vinculado ao estoque" />
                         )}
                         {item.product_description}
                       </div>
