@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from '../../contexts/AppStateContext';
-import { materialRequisitionsApi, projectsApi } from '../../services';
-import type { MaterialRequisition, MaterialRequisitionItem, ProjectInfo } from '../../types';
+import { materialRequisitionsApi, projectsApi, inventoryApi } from '../../services';
+import type { MaterialRequisition, MaterialRequisitionItem, ProjectInfo, InventoryProduct } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -13,7 +13,7 @@ import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
 import ApprovalActions from '../../components/common/ApprovalActions';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { Plus, ChevronDown, ChevronUp, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, ShoppingCart, Trash2, X, Search, Package } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Status / priority color maps
@@ -46,18 +46,50 @@ interface ToastState {
 // ---------------------------------------------------------------------------
 
 interface ItemDraft {
+  inventory_product_id?: number;
   description: string;
   unit: string;
   quantity: string;
   estimated_cost: string;
+  // Stock info (display only)
+  stock_quantity?: number;
+  min_quantity?: number;
+  // Search state
+  searchTerm: string;
+  searchResults: InventoryProduct[];
+  searching: boolean;
+  showDropdown: boolean;
 }
 
 const EMPTY_ITEM_DRAFT: ItemDraft = {
+  inventory_product_id: undefined,
   description: '',
   unit: '',
   quantity: '',
   estimated_cost: '',
+  stock_quantity: undefined,
+  min_quantity: undefined,
+  searchTerm: '',
+  searchResults: [],
+  searching: false,
+  showDropdown: false,
 };
+
+// ---------------------------------------------------------------------------
+// Decode helpers for data stored in notes fields
+// ---------------------------------------------------------------------------
+
+function parseRequesterName(notes?: string): string | undefined {
+  if (!notes) return undefined;
+  const match = notes.match(/^__req__:(.+)/m);
+  return match ? match[1].trim() : undefined;
+}
+
+function parseInventoryProductId(observations?: string): number | undefined {
+  if (!observations) return undefined;
+  const match = observations.match(/__inv__:(\d+)/);
+  return match ? Number(match[1]) : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,6 +107,191 @@ function formatCurrencyInput(raw: string): string {
   return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// ---------------------------------------------------------------------------
+// Stock search dropdown for each item row
+// ---------------------------------------------------------------------------
+
+interface StockSearchFieldProps {
+  draft: ItemDraft;
+  onUpdate: (patch: Partial<ItemDraft>) => void;
+  projectId?: number | null;
+}
+
+function StockSearchField({ draft, onUpdate, projectId }: StockSearchFieldProps) {
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleSearch = (term: string) => {
+    onUpdate({ searchTerm: term, showDropdown: true });
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!term.trim()) {
+      onUpdate({ searchResults: [], searching: false });
+      return;
+    }
+    onUpdate({ searching: true });
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const result = await inventoryApi.queryAllProducts({
+          search: term,
+          ...(projectId ? { projects_id: projectId } : {}),
+          per_page: 10,
+        });
+        onUpdate({ searchResults: result.result1?.items ?? [], searching: false });
+      } catch {
+        onUpdate({ searchResults: [], searching: false });
+      }
+    }, 350);
+  };
+
+  const handleSelect = (product: InventoryProduct) => {
+    onUpdate({
+      inventory_product_id: product.id,
+      description: product.product,
+      unit: product.unity?.unity ?? '',
+      stock_quantity: product.inventory_quantity,
+      min_quantity: product.min_quantity,
+      searchTerm: product.product,
+      searchResults: [],
+      showDropdown: false,
+    });
+  };
+
+  const handleClear = () => {
+    onUpdate({
+      inventory_product_id: undefined,
+      description: '',
+      unit: '',
+      stock_quantity: undefined,
+      min_quantity: undefined,
+      searchTerm: '',
+      searchResults: [],
+      showDropdown: false,
+    });
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onUpdate({ showDropdown: false });
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onUpdate]);
+
+  const isSelected = !!draft.inventory_product_id;
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <Search
+          size={13}
+          style={{
+            position: 'absolute',
+            left: '8px',
+            color: 'var(--color-secondary-text)',
+            pointerEvents: 'none',
+          }}
+        />
+        <input
+          className="input-field"
+          value={draft.searchTerm}
+          onChange={(e) => handleSearch(e.target.value)}
+          onFocus={() => {
+            if (draft.searchTerm) onUpdate({ showDropdown: true });
+          }}
+          placeholder="Buscar por código, descrição, fabricante..."
+          style={{ fontSize: '13px', paddingLeft: '28px', paddingRight: isSelected ? '28px' : undefined }}
+          readOnly={isSelected}
+        />
+        {isSelected && (
+          <button
+            type="button"
+            onClick={handleClear}
+            style={{
+              position: 'absolute',
+              right: '6px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              color: 'var(--color-secondary-text)',
+            }}
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+
+      {draft.showDropdown && (draft.searching || draft.searchResults.length > 0) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            backgroundColor: 'var(--color-primary-bg)',
+            border: '1px solid var(--color-alternate)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            maxHeight: '220px',
+            overflowY: 'auto',
+            marginTop: '2px',
+          }}
+        >
+          {draft.searching ? (
+            <div style={{ padding: '12px', textAlign: 'center', color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+              Buscando...
+            </div>
+          ) : draft.searchResults.length === 0 ? (
+            <div style={{ padding: '12px', textAlign: 'center', color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+              Nenhum item encontrado.
+            </div>
+          ) : (
+            draft.searchResults.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onMouseDown={() => handleSelect(product)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  borderBottom: '1px solid var(--color-alternate)',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; }}
+              >
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Package size={13} color="var(--color-primary)" />
+                  <span style={{ fontWeight: 500, fontSize: '13px', color: 'var(--color-primary-text)' }}>
+                    {product.code ? `[${product.code}] ` : ''}{product.product}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--color-secondary-text)', paddingLeft: '21px' }}>
+                  {product.manufacturers?.name && <span>Fab: {product.manufacturers.name}</span>}
+                  {product.equipaments_types?.type && <span>Cat: {product.equipaments_types.type}</span>}
+                  <span>Estoque: <strong>{product.inventory_quantity}</strong> {product.unity?.unity}</span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -110,6 +327,7 @@ export default function MaterialRequisitions() {
   // ------------------------------------------------------------------
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createDescription, setCreateDescription] = useState('');
+  const [createRequesterName, setCreateRequesterName] = useState('');
   const [createPriority, setCreatePriority] = useState('');
   const [createProjectId, setCreateProjectId] = useState<number | null>(null);
   const [modalProjects, setModalProjects] = useState<ProjectInfo[]>([]);
@@ -121,7 +339,13 @@ export default function MaterialRequisitions() {
   // Approve modal
   // ------------------------------------------------------------------
   const [approvingRequisition, setApprovingRequisition] = useState<MaterialRequisition | null>(null);
-  const [approveItems, setApproveItems] = useState<{ id: number; product_description: string; quantity_requested: number; quantity_approved: string }[]>([]);
+  const [approveItems, setApproveItems] = useState<{
+    id: number;
+    product_description: string;
+    quantity_requested: number;
+    quantity_approved: string;
+    inventory_product_id?: number;
+  }[]>([]);
   const [_approveLoading, setApproveLoading] = useState(false);
 
   // ------------------------------------------------------------------
@@ -210,6 +434,7 @@ export default function MaterialRequisitions() {
 
   const openCreateModal = () => {
     setCreateDescription('');
+    setCreateRequesterName('');
     setCreatePriority('');
     setCreateProjectId(projectsInfo?.id ?? null);
     setValidationErrors({});
@@ -229,7 +454,7 @@ export default function MaterialRequisitions() {
     if (!createDescription.trim()) errors.description = 'Informe o título.';
     if (!createPriority) errors.priority = 'Selecione a prioridade.';
     const hasValidItem = itemDrafts.some((d) => d.description.trim());
-    if (!hasValidItem) errors.items = 'Adicione pelo menos um item com descrição.';
+    if (!hasValidItem) errors.items = 'Adicione pelo menos um item selecionado do estoque.';
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
       return;
@@ -237,21 +462,37 @@ export default function MaterialRequisitions() {
     setValidationErrors({});
     setCreateModalLoading(true);
     try {
-      const validItems = itemDrafts
-        .filter((d) => d.description.trim())
-        .map((d) => ({
-          description: d.description.trim(),
-          unit: d.unit.trim() || undefined,
-          quantity_requested: parseFloat(d.quantity) || 1,
-          unit_price_estimate: d.estimated_cost ? parseInt(d.estimated_cost, 10) / 100 : undefined,
-        }));
+      const filteredDrafts = itemDrafts.filter((d) => d.description.trim());
+      const validItems = filteredDrafts.map((d) => ({
+        description: d.description.trim(),
+        unit: d.unit.trim() || undefined,
+        quantity_requested: parseFloat(d.quantity) || 1,
+        unit_price_estimate: d.estimated_cost ? parseInt(d.estimated_cost, 10) / 100 : undefined,
+        inventory_product_id: d.inventory_product_id,
+      }));
 
-      await materialRequisitionsApi.createRequisition({
+      const created = await materialRequisitionsApi.createRequisition({
         projects_id: createProjectId!,
         title: createDescription.trim(),
+        requester_name: createRequesterName.trim() || undefined,
         priority: createPriority || undefined,
         items: validItems,
       });
+
+      // Persist inventory product mapping and requester name in localStorage
+      // (backend doesn't have these columns yet)
+      const invMap: Record<number, number> = {};
+      filteredDrafts.forEach((d, idx) => {
+        if (d.inventory_product_id) invMap[idx] = d.inventory_product_id;
+      });
+      const meta = {
+        requester_name: createRequesterName.trim() || undefined,
+        inv_map: invMap,
+      };
+      if (created?.id) {
+        localStorage.setItem(`req_meta_${created.id}`, JSON.stringify(meta));
+      }
+
       setShowCreateModal(false);
       await loadRequisitions();
       showToast('Requisição criada com sucesso.');
@@ -287,12 +528,17 @@ export default function MaterialRequisitions() {
     try {
       const detail = await materialRequisitionsApi.getRequisition(req.id);
       setApprovingRequisition(detail);
+      // Load inventory mapping from localStorage
+      const storedMeta = localStorage.getItem(`req_meta_${detail.id}`);
+      const invMap: Record<number, number> = storedMeta ? (JSON.parse(storedMeta).inv_map ?? {}) : {};
+
       setApproveItems(
-        (detail.items || []).map((item) => ({
+        (detail.items || []).map((item, idx) => ({
           id: item.id,
           product_description: item.product_description,
           quantity_requested: Number(item.quantity_requested),
           quantity_approved: String(Number(item.quantity_requested)),
+          inventory_product_id: item.inventory_product_id ?? parseInventoryProductId(item.observations) ?? invMap[idx],
         }))
       );
     } catch (err) {
@@ -313,11 +559,26 @@ export default function MaterialRequisitions() {
           quantity_approved: parseFloat(i.quantity_approved) || 0,
         })),
       });
+
+      // Dar baixa no estoque para cada item com produto vinculado
+      const stockDeductions = approveItems
+        .filter((i) => i.inventory_product_id && parseFloat(i.quantity_approved) > 0)
+        .map((i) =>
+          inventoryApi.removeQuantity({
+            product_inventory_id: i.inventory_product_id!,
+            quantity: parseFloat(i.quantity_approved),
+          }).catch((err) => {
+            console.error(`Falha ao dar baixa no estoque para item ${i.inventory_product_id}:`, err);
+          })
+        );
+      await Promise.all(stockDeductions);
+
+      localStorage.removeItem(`req_meta_${approvingRequisition.id}`);
       setApprovingRequisition(null);
       setExpandedId(null);
       setExpandedRequisition(null);
       await loadRequisitions();
-      showToast('Requisição aprovada com sucesso.');
+      showToast('Requisição aprovada e estoque atualizado.');
     } catch (err) {
       console.error('Failed to approve requisition:', err);
       showToast('Erro ao aprovar requisição.', 'error');
@@ -440,7 +701,7 @@ export default function MaterialRequisitions() {
                     <td>
                       <StatusBadge status={req.status} colorMap={REQUISITION_STATUS_COLORS} />
                     </td>
-                    <td>{req.created_by?.name || '-'}</td>
+                    <td>{parseRequesterName(req.notes) || (() => { try { return JSON.parse(localStorage.getItem(`req_meta_${req.id}`) ?? '{}').requester_name; } catch { return undefined; } })() || req.created_by?.name || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <ApprovalActions
@@ -514,11 +775,13 @@ export default function MaterialRequisitions() {
         <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
           <div
             className="modal-content"
-            style={{ padding: '24px', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ padding: '24px', width: '680px', maxHeight: '90vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ marginBottom: '20px' }}>Nova Requisição de Material</h3>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              {/* Projeto */}
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label>Projeto <span style={{ color: 'var(--color-error)' }}>*</span></label>
                 <SearchableSelect
@@ -529,7 +792,9 @@ export default function MaterialRequisitions() {
                 />
                 {validationErrors.project && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.project}</span>}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
+
+              {/* Título + Requisitante */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group" style={{ marginBottom: 0 }}>
                   <label>Título <span style={{ color: 'var(--color-error)' }}>*</span></label>
                   <input
@@ -541,21 +806,32 @@ export default function MaterialRequisitions() {
                   />
                   {validationErrors.description && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.description}</span>}
                 </div>
-                <div className="input-group" style={{ marginBottom: 0, minWidth: '140px' }}>
-                  <label>Prioridade <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                  <SearchableSelect
-                    options={[
-                      { value: 'baixa', label: 'Baixa' },
-                      { value: 'normal', label: 'Normal' },
-                      { value: 'urgente', label: 'Urgente' },
-                    ]}
-                    value={createPriority || undefined}
-                    onChange={(val) => { setCreatePriority(String(val ?? '')); setValidationErrors((err) => { const { priority, ...rest } = err; return rest; }); }}
-                    placeholder="Selecione"
-                    allowClear
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Nome do Requisitante</label>
+                  <input
+                    className="input-field"
+                    value={createRequesterName}
+                    onChange={(e) => setCreateRequesterName(e.target.value)}
+                    placeholder="Nome de quem está solicitando"
                   />
-                  {validationErrors.priority && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.priority}</span>}
                 </div>
+              </div>
+
+              {/* Prioridade */}
+              <div className="input-group" style={{ marginBottom: 0, maxWidth: '200px' }}>
+                <label>Prioridade <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                <SearchableSelect
+                  options={[
+                    { value: 'baixa', label: 'Baixa' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'urgente', label: 'Urgente' },
+                  ]}
+                  value={createPriority || undefined}
+                  onChange={(val) => { setCreatePriority(String(val ?? '')); setValidationErrors((err) => { const { priority, ...rest } = err; return rest; }); }}
+                  placeholder="Selecione"
+                  allowClear
+                />
+                {validationErrors.priority && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.priority}</span>}
               </div>
             </div>
 
@@ -574,84 +850,129 @@ export default function MaterialRequisitions() {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {/* Header row */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 80px 80px 110px 32px',
-                  gap: '8px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--color-secondary-text)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  padding: '0 4px',
-                }}>
-                  <span>Descrição</span>
-                  <span>Unidade</span>
-                  <span>Qtd.</span>
-                  <span>Custo Est.</span>
-                  <span></span>
-                </div>
-
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {itemDrafts.map((draft, index) => (
                   <div
                     key={index}
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: '2fr 80px 80px 110px 32px',
-                      gap: '8px',
-                      alignItems: 'center',
+                      border: '1px solid var(--color-alternate)',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      backgroundColor: draft.inventory_product_id ? 'var(--color-primary-bg)' : undefined,
+                      position: 'relative',
                     }}
                   >
-                    <input
-                      className="input-field"
-                      value={draft.description}
-                      onChange={(e) => updateItemDraft(index, { description: e.target.value })}
-                      placeholder="Descrição do item"
-                      style={{ fontSize: '13px' }}
-                    />
-                    <input
-                      className="input-field"
-                      value={draft.unit}
-                      onChange={(e) => updateItemDraft(index, { unit: e.target.value })}
-                      placeholder="Un."
-                      style={{ fontSize: '13px' }}
-                    />
-                    <input
-                      type="number"
-                      className="input-field"
-                      value={draft.quantity}
-                      onChange={(e) => updateItemDraft(index, { quantity: e.target.value })}
-                      placeholder="0"
-                      min="0"
-                      step="0.01"
-                      style={{ fontSize: '13px' }}
-                    />
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className="input-field"
-                      value={draft.estimated_cost ? formatCurrencyInput(draft.estimated_cost) : ''}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '');
-                        updateItemDraft(index, { estimated_cost: digits });
-                      }}
-                      placeholder="0,00"
-                      style={{ fontSize: '13px' }}
-                    />
-                    <button
-                      className="btn btn-icon"
-                      onClick={() => removeItemDraft(index)}
-                      disabled={itemDrafts.length === 1}
-                      style={{ opacity: itemDrafts.length === 1 ? 0.4 : 1 }}
-                    >
-                      <Trash2 size={14} color="var(--color-error)" />
-                    </button>
+                    {/* Row 1: search + delete */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '10px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                          Produto do Estoque
+                        </label>
+                        <StockSearchField
+                          draft={draft}
+                          onUpdate={(patch) => updateItemDraft(index, patch)}
+                          projectId={createProjectId}
+                        />
+                      </div>
+                      <button
+                        className="btn btn-icon"
+                        onClick={() => removeItemDraft(index)}
+                        disabled={itemDrafts.length === 1}
+                        style={{ opacity: itemDrafts.length === 1 ? 0.4 : 1, marginTop: '20px' }}
+                      >
+                        <Trash2 size={14} color="var(--color-error)" />
+                      </button>
+                    </div>
+
+                    {/* Row 2: details (shown always, populated on selection) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '70px 80px 80px 80px 110px', gap: '8px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                          Unid.
+                        </label>
+                        <input
+                          className="input-field"
+                          value={draft.unit}
+                          onChange={(e) => updateItemDraft(index, { unit: e.target.value })}
+                          placeholder="Un."
+                          style={{ fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                          Qtd. Req.
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          value={draft.quantity}
+                          onChange={(e) => updateItemDraft(index, { quantity: e.target.value })}
+                          placeholder="0"
+                          min="0"
+                          step="0.01"
+                          style={{ fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                          Estoque
+                        </label>
+                        <div
+                          className="input-field"
+                          style={{
+                            fontSize: '13px',
+                            backgroundColor: 'var(--color-alternate)',
+                            color: draft.stock_quantity != null && draft.stock_quantity <= (draft.min_quantity ?? 0)
+                              ? '#dc2626'
+                              : 'var(--color-primary-text)',
+                            fontWeight: 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {draft.stock_quantity != null ? draft.stock_quantity : '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                          Qtd. Mín.
+                        </label>
+                        <div
+                          className="input-field"
+                          style={{
+                            fontSize: '13px',
+                            backgroundColor: 'var(--color-alternate)',
+                            color: 'var(--color-primary-text)',
+                            fontWeight: 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {draft.min_quantity != null ? draft.min_quantity : '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block', marginBottom: '4px' }}>
+                          Custo Est.
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="input-field"
+                          value={draft.estimated_cost ? formatCurrencyInput(draft.estimated_cost) : ''}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            updateItemDraft(index, { estimated_cost: digits });
+                          }}
+                          placeholder="0,00"
+                          style={{ fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-              {validationErrors.items && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px' }}>{validationErrors.items}</span>}
+              {validationErrors.items && <span style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px', display: 'block' }}>{validationErrors.items}</span>}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--color-alternate)' }}>
@@ -687,7 +1008,7 @@ export default function MaterialRequisitions() {
               </button>
             </div>
             <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '16px' }}>
-              Revise as quantidades solicitadas e ajuste as quantidades aprovadas se necessário.
+              Revise as quantidades solicitadas e ajuste as quantidades aprovadas. Ao confirmar, os itens com produto vinculado terão baixa automática no estoque.
             </p>
             <table style={{ width: '100%', fontSize: '13px', marginBottom: '16px' }}>
               <thead>
@@ -700,7 +1021,14 @@ export default function MaterialRequisitions() {
               <tbody>
                 {approveItems.map((item, idx) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid var(--color-alternate)' }}>
-                    <td style={{ padding: '8px 12px' }}>{item.product_description}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {item.inventory_product_id && (
+                          <Package size={13} color="var(--color-primary)" title="Vinculado ao estoque" />
+                        )}
+                        {item.product_description}
+                      </div>
+                    </td>
                     <td style={{ padding: '8px 12px', textAlign: 'right' }}>{item.quantity_requested}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                       <input

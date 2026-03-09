@@ -21,12 +21,18 @@ export async function getRequisition(id: number): Promise<MaterialRequisition> {
 export async function createRequisition(data: {
   projects_id: number;
   title: string;
+  requester_name?: string;
   priority?: string;
   required_by_date?: string;
   notes?: string;
-  items: { description: string; unit?: string; quantity_requested: number; unit_price_estimate?: number; notes?: string }[];
+  items: { description: string; unit?: string; quantity_requested: number; unit_price_estimate?: number; notes?: string; inventory_product_id?: number }[];
 }): Promise<MaterialRequisition> {
-  const response = await apiClient.post(BASE, data);
+  // Strip fields not yet in backend schema (requester_name, inventory_product_id, item notes)
+  const { requester_name: _rn, items, ...rest } = data;
+
+  const cleanItems = items.map(({ inventory_product_id: _inv, notes: _n, ...item }) => item);
+
+  const response = await apiClient.post(BASE, { ...rest, items: cleanItems });
   return response.data;
 }
 

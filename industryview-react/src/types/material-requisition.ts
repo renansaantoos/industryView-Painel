@@ -4,6 +4,9 @@ export interface MaterialRequisition {
   projects_id: number;
   requisition_number?: string;
   description?: string;
+  /** Encoded in notes field as __req__:NAME — use parseRequesterName() */
+  requester_name?: string;
+  notes?: string;
   status: 'rascunho' | 'submetida' | 'aprovada' | 'rejeitada';
   priority?: string;
   needed_by_date?: string;
@@ -26,6 +29,7 @@ export interface MaterialRequisitionItem {
   id: number;
   material_requisitions_id: number;
   product_description: string;
+  inventory_product_id?: number;
   quantity_requested: number;
   quantity_approved?: number;
   quantity_delivered?: number;
