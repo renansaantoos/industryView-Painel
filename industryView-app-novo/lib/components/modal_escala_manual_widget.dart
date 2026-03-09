@@ -17,7 +17,10 @@ import 'modal_escala_manual_model.dart';
 export 'modal_escala_manual_model.dart';
 
 class ModalEscalaManualWidget extends StatefulWidget {
-  const ModalEscalaManualWidget({super.key});
+  const ModalEscalaManualWidget({super.key, this.onEmployeeAdded});
+
+  /// Callback chamado após adicionar um funcionário (para salvar escala no backend)
+  final VoidCallback? onEmployeeAdded;
 
   @override
   State<ModalEscalaManualWidget> createState() =>
@@ -737,6 +740,8 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                           AppState().addEscalaEntryTime(_model.id!, DateTime.now().toUtc().toIso8601String());
                         });
                         safeSetState(() {});
+                        // Salvar escala no backend
+                        widget.onEmployeeAdded?.call();
                         // Registrar check-in no controle de mão de obra
                         try {
                           ProjectsGroup.workforceCheckInCall.call(

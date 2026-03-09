@@ -277,16 +277,18 @@ export class AuthModuleService {
   }
 
   /**
-   * Login diario (app mobile)
-   * Equivalente a: query "daily_login" verb=POST do Xano
+   * Login diario (app mobile) - Marca first_login = false para o usuario autenticado
+   * Chamado ao clicar "Comecar jornada de trabalho" no app
    */
-  static async dailyLogin(email?: string, password?: string) {
-    if (!email || !password) {
-      throw new BadRequestError('Email e senha sao obrigatorios');
-    }
+  static async dailyLogin(userId: number) {
+    await db.users.update({
+      where: { id: BigInt(userId) },
+      data: { first_login: false },
+    });
 
-    // Reutiliza logica de login
-    return this.login({ email, password_hash: password });
+    logger.info({ userId }, 'Daily login: first_login set to false');
+
+    return { success: true, message: 'Jornada iniciada' };
   }
 
   /**

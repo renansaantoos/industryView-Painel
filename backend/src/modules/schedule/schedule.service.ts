@@ -26,24 +26,46 @@ export class ScheduleService {
     });
 
     if (existing) {
-      // Atualizar schedule existente: adicionar novos users
-      const existingUserIds = existing.schedule_user
+      // Atualizar schedule existente: adicionar novos users ou reativar soft-deleted
+      const activeUserIds = existing.schedule_user
         .filter(su => su.deleted_at === null)
         .map(su => Number(su.users_id));
 
-      const newUserIds = data.users_id.filter(id => !existingUserIds.includes(id));
+      const softDeletedUserIds = existing.schedule_user
+        .filter(su => su.deleted_at !== null)
+        .map(su => Number(su.users_id));
 
-      if (newUserIds.length > 0) {
-        await db.schedule_user.createMany({
-          data: newUserIds.map(userId => ({
-            schedule_id: existing.id,
-            users_id: BigInt(userId),
-          })),
-          skipDuplicates: true,
-        });
+      for (const userId of data.users_id) {
+        if (activeUserIds.includes(userId)) {
+          // Já ativo, nada a fazer
+          continue;
+        }
+        if (softDeletedUserIds.includes(userId)) {
+          // Reativar registro soft-deleted
+          await db.schedule_user.updateMany({
+            where: {
+              schedule_id: existing.id,
+              users_id: BigInt(userId),
+            },
+            data: { deleted_at: null },
+          });
+        } else {
+          // Criar novo registro
+          await db.schedule_user.create({
+            data: {
+              schedule_id: existing.id,
+              users_id: BigInt(userId),
+            },
+          });
+        }
       }
 
-      return this.serialize(existing);
+      // Recarregar com dados atualizados
+      const updated = await db.schedule.findUnique({
+        where: { id: existing.id },
+        include: { schedule_user: true },
+      });
+      return this.serialize(updated!);
     }
 
     // Criar novo schedule
@@ -102,33 +124,63 @@ export class ScheduleService {
    * Equivalente ao PUT /schedule/:id do Xano.
    */
   static async update(scheduleId: number, usersId: number[]) {
-    // Soft delete todos os existentes
-    await db.schedule_user.updateMany({
-      where: {
-        schedule_id: BigInt(scheduleId),
-        deleted_at: null,
-      },
-      data: { deleted_at: new Date() },
-    });
+    // Proteção: não permitir update com lista vazia (destruiria a escala)
+    if (!usersId || usersId.length === 0) {
+      const existing = await db.schedule.findUnique({
+        where: { id: BigInt(scheduleId) },
+        include: { schedule_user: { where: { deleted_at: null } } },
+      });
+      return existing ? this.serialize(existing) : null;
+    }
 
-    // Criar novos
-    await db.schedule_user.createMany({
-      data: usersId.map(userId => ({
-        schedule_id: BigInt(scheduleId),
-        users_id: BigInt(userId),
-      })),
-    });
-
-    const schedule = await db.schedule.findUnique({
-      where: { id: BigInt(scheduleId) },
-      include: {
-        schedule_user: {
-          where: { deleted_at: null },
+    // Usar transaction para garantir atomicidade
+    return db.$transaction(async (tx) => {
+      // Soft delete todos os existentes
+      await tx.schedule_user.updateMany({
+        where: {
+          schedule_id: BigInt(scheduleId),
+          deleted_at: null,
         },
-      },
-    });
+        data: { deleted_at: new Date() },
+      });
 
-    return schedule ? this.serialize(schedule) : null;
+      // Reativar existentes soft-deleted ou criar novos
+      const allExisting = await tx.schedule_user.findMany({
+        where: { schedule_id: BigInt(scheduleId) },
+        select: { id: true, users_id: true },
+      });
+      const existingByUserId = new Map(allExisting.map(su => [Number(su.users_id), su.id]));
+
+      for (const userId of usersId) {
+        const existingId = existingByUserId.get(userId);
+        if (existingId) {
+          // Reativar registro existente
+          await tx.schedule_user.update({
+            where: { id: existingId },
+            data: { deleted_at: null },
+          });
+        } else {
+          // Criar novo
+          await tx.schedule_user.create({
+            data: {
+              schedule_id: BigInt(scheduleId),
+              users_id: BigInt(userId),
+            },
+          });
+        }
+      }
+
+      const schedule = await tx.schedule.findUnique({
+        where: { id: BigInt(scheduleId) },
+        include: {
+          schedule_user: {
+            where: { deleted_at: null },
+          },
+        },
+      });
+
+      return schedule ? this.serialize(schedule) : null;
+    });
   }
 
   /**

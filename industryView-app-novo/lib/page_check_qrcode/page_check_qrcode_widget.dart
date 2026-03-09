@@ -154,17 +154,39 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           (_model.validToken?.jsonBody ?? ''),
         ) ?? true;
 
-        // Se já tem projeto/equipe definidos (sessão restaurada),
-        // verificar se já existe escala para hoje e ir direto para Home
-        // MAS só se NÃO for primeiro login (novo dia = nova escala)
+        // Extrair projectId e teamsId — prioridade é o AppState (projeto selecionado pelo usuário),
+        // fallback para o meCall (primeiro projeto da lista)
+        final meCall = AuthenticationGroup
+            .getTheRecordBelongingToTheAuthenticationTokenCall;
+        final tokenJson = _model.validToken?.jsonBody ?? '';
+        final tokenProjectId = AppState().user.projectId > 0
+            ? AppState().user.projectId
+            : valueOrDefault<int>(meCall.projectId(tokenJson), 0);
+        final tokenTeamsId = AppState().user.teamsId > 0
+            ? AppState().user.teamsId
+            : valueOrDefault<int>(meCall.teamsId(tokenJson), 0);
+
+        if (kDebugMode) {
+          final rawFirstLogin = getJsonField(tokenJson, r'''$.user.first_login''');
+          print('=== QR PAGE DEBUG ===');
+          print('rawFirstLogin from API: $rawFirstLogin (type: ${rawFirstLogin.runtimeType})');
+          print('isFirstLogin (parsed): $isFirstLogin');
+          print('tokenProjectId: $tokenProjectId (appState: ${AppState().user.projectId}, meCall: ${meCall.projectId(tokenJson)})');
+          print('tokenTeamsId: $tokenTeamsId (appState: ${AppState().user.teamsId}, meCall: ${meCall.teamsId(tokenJson)})');
+          print('validToken succeeded: ${_model.validToken?.succeeded}');
+          print('validToken statusCode: ${_model.validToken?.statusCode}');
+          print('====================');
+        }
+
+        // Se já iniciou jornada hoje (first_login=false), ir direto para Home
         if (!isFirstLogin &&
-            AppState().user.projectId > 0 &&
-            AppState().user.teamsId > 0) {
+            tokenProjectId > 0 &&
+            tokenTeamsId > 0) {
           final existingSchedule = await ProjectsGroup
               .listaColaboradoresDaEscalaDoDiaCall
               .call(
-            projectsId: AppState().user.projectId,
-            teamsId: AppState().user.teamsId,
+            projectsId: tokenProjectId,
+            teamsId: tokenTeamsId,
             token: currentAuthenticationToken,
           );
           if (existingSchedule.succeeded) {
@@ -190,7 +212,7 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
               SprintsStruct? sprintData;
               final sprintResponse =
                   await SprintsGroup.getSprintAtivaCall.call(
-                projectsId: AppState().user.projectId,
+                projectsId: tokenProjectId,
                 token: currentAuthenticationToken,
               );
               if (sprintResponse.succeeded) {
@@ -217,6 +239,8 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
               AppState().updateUserStruct(
                 (e) => e
                   ..sheduleId = resolvedScheduleId
+                  ..projectId = tokenProjectId
+                  ..teamsId = tokenTeamsId
                   ..sprint = sprintData ?? e.sprint,
               );
               AppState().loading = false;
@@ -242,15 +266,15 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
         }
 
         // Verificar múltiplos projetos (para auto-login / sessão restaurada)
+        if (kDebugMode) {
+          print('=== MULTI-PROJECT CHECK ===');
+          print('skipProjectCheck: ${widget.skipProjectCheck}');
+          print('allProjectIds: ${meCall.allProjectIds(tokenJson)}');
+        }
         if (!widget.skipProjectCheck) {
-          final meCall = AuthenticationGroup
-              .getTheRecordBelongingToTheAuthenticationTokenCall;
-          final allProjects = meCall.allProjectIds(
-            _model.validToken?.jsonBody ?? '',
-          );
+          final allProjects = meCall.allProjectIds(tokenJson);
           if (allProjects.length > 1) {
             // Atualizar dados básicos do usuário antes de redirecionar
-            final tokenJson = _model.validToken?.jsonBody ?? '';
             AppState().updateUserStruct(
               (e) => e
                 ..token = valueOrDefault<String>(
@@ -443,65 +467,93 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           );
         }
 
-        // Se é primeiro login do dia, limpar escala anterior
-        if (isFirstLogin) {
-          AppState().update(() {
-            AppState().escalaServerIds = [];
-            AppState().escalaLocalIds = [];
-            AppState().escalaRemovedIds = [];
-            AppState().escalaEntryTimes = {};
-            AppState().allIds = [];
-          });
-        }
+        // Limpar listas locais (serão recarregadas do backend)
+        AppState().update(() {
+          AppState().escalaServerIds = [];
+          AppState().escalaLocalIds = [];
+          AppState().escalaRemovedIds = [];
+          AppState().escalaEntryTimes = {};
+          AppState().allIds = [];
+          AppState().qrCodeIDs = [];
+          AppState().liberaManual = [];
+        });
 
-        // Pré-carregar seleção da escala no QRCode (antes de abrir a página)
-        // Só carregar escala existente se NÃO for primeiro login (novo dia = escala limpa)
-        if (!isFirstLogin) {
-          Future.microtask(() async {
-            try {
-              final escalaDia = await ProjectsGroup
-                  .listaColaboradoresDaEscalaDoDiaCall
-                  .call(
-                projectsId: AppState().user.projectId,
-                teamsId: AppState().user.teamsId,
-                token: currentAuthenticationToken,
+        // Carregar escala existente do backend (pode ter sido salva antes de fechar o app)
+        try {
+          if (kDebugMode) {
+            print('=== LOADING SCHEDULE FROM BACKEND ===');
+            print('projectsId: ${AppState().user.projectId}, teamsId: ${AppState().user.teamsId}');
+          }
+          final escalaDia = await ProjectsGroup
+              .listaColaboradoresDaEscalaDoDiaCall
+              .call(
+            projectsId: AppState().user.projectId,
+            teamsId: AppState().user.teamsId,
+            token: currentAuthenticationToken,
+          );
+          if (kDebugMode) {
+            print('escalaDia succeeded: ${escalaDia.succeeded}, statusCode: ${escalaDia.statusCode}');
+            print('escalaDia body: ${escalaDia.jsonBody}');
+          }
+          if (escalaDia.succeeded) {
+            final ids = ProjectsGroup
+                    .listaColaboradoresDaEscalaDoDiaCall
+                    .ids(escalaDia.jsonBody)
+                    ?.toList()
+                    .cast<int>() ??
+                <int>[];
+            if (kDebugMode) {
+              print('Parsed employee IDs from schedule: $ids');
+            }
+            // Extrair horários de entrada e scheduleId
+            final entryTimes = <int, String>{};
+            final rawBody = escalaDia.jsonBody;
+            int resolvedScheduleId = 0;
+            if (rawBody is List && rawBody.isNotEmpty) {
+              resolvedScheduleId = valueOrDefault<int>(
+                getJsonField(rawBody.first, r'''$.schedule_id'''),
+                0,
               );
-              if (escalaDia.succeeded) {
-                final ids = ProjectsGroup
-                        .listaColaboradoresDaEscalaDoDiaCall
-                        .ids(escalaDia.jsonBody)
-                        ?.toList()
-                        .cast<int>() ??
-                    <int>[];
-                // Extrair horários de entrada de cada schedule_user
-                final entryTimes = <int, String>{};
-                final rawBody = escalaDia.jsonBody;
-                if (rawBody is List) {
-                  for (final item in rawBody) {
-                    final userId = castToType<int>(getJsonField(item, r'''$.users_id'''));
-                    final createdAt = getJsonField(item, r'''$.created_at''')?.toString();
-                    if (userId != null && createdAt != null) {
-                      entryTimes[userId] = createdAt;
-                    }
+              if (resolvedScheduleId == 0) {
+                resolvedScheduleId = valueOrDefault<int>(
+                  getJsonField(rawBody.first, r'''$.id'''),
+                  0,
+                );
+              }
+              for (final item in rawBody) {
+                final userId = castToType<int>(getJsonField(item, r'''$.users_id'''));
+                final createdAt = getJsonField(item, r'''$.created_at''')?.toString();
+                if (userId != null && createdAt != null) {
+                  entryTimes[userId] = createdAt;
+                }
+              }
+            }
+            if (ids.isNotEmpty) {
+              AppState().update(() {
+                AppState().escalaServerIds = ids;
+                AppState().escalaEntryTimes = entryTimes;
+                for (final id in ids) {
+                  if (!AppState().allIds.contains(id)) {
+                    AppState().addToAllIds(id);
                   }
                 }
-                AppState().update(() {
-                  AppState().escalaServerIds = ids;
-                  AppState().escalaLocalIds = [];
-                  AppState().escalaRemovedIds = [];
-                  AppState().escalaEntryTimes = entryTimes;
-                  // Marcar funcionários já registrados no servidor como presentes
-                  for (final id in ids) {
-                    if (!AppState().allIds.contains(id)) {
-                      AppState().addToAllIds(id);
-                    }
-                  }
-                });
+              });
+              if (resolvedScheduleId != 0) {
+                AppState().updateUserStruct(
+                  (e) => e..sheduleId = resolvedScheduleId,
+                );
               }
-            } catch (_) {
-              // Ignorar erro de preload
+            } else {
+              // Escala do dia está vazia — limpar scheduleId persistido para
+              // evitar que _saveScheduleToBackend faça UPDATE em escala de outro dia
+              if (kDebugMode) {
+                print('LOADING SCHEDULE: nenhuma escala para hoje. Limpando sheduleId antigo (${AppState().user.sheduleId})');
+              }
+              AppState().updateUserStruct((e) => e..sheduleId = 0);
             }
-          });
+          }
+        } catch (_) {
+          // Ignorar erro de preload
         }
 
         // Pré-carregar lista de membros para uso offline na Escala
@@ -556,61 +608,26 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           }
         });
 
-        if (isFirstLogin) {
-          _model.listaFuncionarios =
-              await ProjectsGroup.listaMembrosDeUmaEquipeCall.call(
-            teamsId: AppState().user.teamsId,
-            page: 1,
-            perPage: 100,
-            token: currentAuthenticationToken,
-          );
+        // Carregar lista de funcionários da equipe (para QR e seleção manual)
+        _model.listaFuncionarios =
+            await ProjectsGroup.listaMembrosDeUmaEquipeCall.call(
+          teamsId: AppState().user.teamsId,
+          page: 1,
+          perPage: 100,
+          token: currentAuthenticationToken,
+        );
 
-          _model.retornoAPI = castToType<int>(getJsonField(
-                _model.listaFuncionarios?.jsonBody ?? '',
-                r'''$.itemsTotal''',
-              )) ??
-              ProjectsGroup.listaMembrosDeUmaEquipeCall
-                  .list((_model.listaFuncionarios?.jsonBody ?? ''))
-                  ?.length;
+        _model.retornoAPI = castToType<int>(getJsonField(
+              _model.listaFuncionarios?.jsonBody ?? '',
+              r'''$.itemsTotal''',
+            )) ??
+            ProjectsGroup.listaMembrosDeUmaEquipeCall
+                .list((_model.listaFuncionarios?.jsonBody ?? ''))
+                ?.length;
 
-          safeSetState(() {});
-          AppState().loading = false;
-          safeSetState(() {});
-        } else {
-          _model.getScheduleId1 =
-              await ProjectsGroup.listaColaboradoresDaEscalaDoDiaCall.call(
-            projectsId: AppState().user.projectId,
-            teamsId: AppState().user.teamsId,
-            token: currentAuthenticationToken,
-          );
-
-          AppState().updateUserStruct(
-            (e) => e
-              ..sheduleId = valueOrDefault<int>(
-                getJsonField(
-                  (_model.getScheduleId1?.jsonBody ?? ''),
-                  r'''$[0].schedule_id''',
-                ),
-                0,
-              ),
-          );
-          AppState().loading = false;
-          safeSetState(() {});
-
-          context.goNamedAuth(
-            HomePageTarefasWidget.routeName,
-            context.mounted,
-            extra: <String, dynamic>{
-              kTransitionInfoKey: TransitionInfo(
-                hasTransition: true,
-                transitionType: PageTransitionType.fade,
-                duration: Duration(milliseconds: 250),
-              ),
-            },
-          );
-
-          return;
-        }
+        safeSetState(() {});
+        AppState().loading = false;
+        safeSetState(() {});
       } else {
         AppState().loading = false;
         safeSetState(() {});
@@ -619,6 +636,92 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
+  }
+
+  /// Salva a escala no backend (cria se não existe, edita se já existe).
+  ///
+  /// Sempre consulta o backend para descobrir o scheduleId de HOJE antes de
+  /// decidir entre CREATE e UPDATE, evitando atualizar escalas de dias anteriores
+  /// que possam estar persistidas no AppState via SharedPreferences.
+  Future<void> _saveScheduleToBackend() async {
+    if (kDebugMode) {
+      print('=== SAVE SCHEDULE TO BACKEND ===');
+      print('allIds: ${AppState().allIds}');
+      print('scheduleId (AppState, pode ser de outro dia): ${AppState().user.sheduleId}');
+      print('projectId: ${AppState().user.projectId}, teamsId: ${AppState().user.teamsId}');
+    }
+    if (AppState().allIds.isEmpty) {
+      if (kDebugMode) print('SAVE ABORTED: allIds is empty');
+      return;
+    }
+    try {
+      // Passo 1: consultar o backend para ver se já existe escala de HOJE.
+      // Isso garante que nunca usaremos um scheduleId de outro dia persistido no AppState.
+      if (kDebugMode) print('SAVE: Consultando escala de hoje no backend...');
+      int todayScheduleId = 0;
+      final escalaDia = await ProjectsGroup.listaColaboradoresDaEscalaDoDiaCall.call(
+        projectsId: AppState().user.projectId,
+        teamsId: AppState().user.teamsId,
+        token: currentAuthenticationToken,
+      );
+      if (kDebugMode) {
+        print('SAVE: escalaDia.succeeded=${escalaDia.succeeded}, body=${escalaDia.jsonBody}');
+      }
+      if (escalaDia.succeeded) {
+        final rawBody = escalaDia.jsonBody;
+        if (rawBody is List && rawBody.isNotEmpty) {
+          // Tentar campo schedule_id primeiro, depois id
+          todayScheduleId = valueOrDefault<int>(
+            getJsonField(rawBody.first, r'''$.schedule_id'''),
+            0,
+          );
+          if (todayScheduleId == 0) {
+            todayScheduleId = valueOrDefault<int>(
+              getJsonField(rawBody.first, r'''$.id'''),
+              0,
+            );
+          }
+        }
+      }
+      if (kDebugMode) print('SAVE: todayScheduleId=$todayScheduleId');
+
+      if (todayScheduleId != 0) {
+        // Escala de hoje já existe no backend — atualizar com o ID correto
+        if (kDebugMode) print('UPDATING existing schedule $todayScheduleId (de hoje)');
+        await ProjectsGroup.editaEscalaDosColaboradoresCall.call(
+          usersIdList: AppState().allIds,
+          scheduleId: todayScheduleId,
+          token: currentAuthenticationToken,
+        );
+        // Garantir que o AppState reflita o scheduleId correto
+        AppState().updateUserStruct((e) => e..sheduleId = todayScheduleId);
+      } else {
+        // Nenhuma escala para hoje — criar nova
+        if (kDebugMode) print('CREATING new schedule...');
+        final response = await ProjectsGroup.adicionaColaboradoresNaEscalaCall.call(
+          teamsId: AppState().user.teamsId,
+          usersIdList: AppState().allIds,
+          projectsId: AppState().user.projectId,
+          scheduleDate: dateTimeFormat("yyyy-MM-dd", getCurrentTimestamp),
+          sprintsId: AppState().user.sprint.id,
+          token: currentAuthenticationToken,
+        );
+        if (kDebugMode) {
+          print('CREATE response succeeded: ${response.succeeded}, statusCode: ${response.statusCode}');
+          print('CREATE response body: ${response.jsonBody}');
+        }
+        if (response.succeeded) {
+          final newScheduleId = getJsonField(response.jsonBody ?? '', r'''$.id''');
+          if (newScheduleId != null) {
+            AppState().updateUserStruct((e) => e..sheduleId = newScheduleId);
+            if (kDebugMode) print('SAVE: novo scheduleId salvo no AppState: $newScheduleId');
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('SAVE SCHEDULE ERROR: $e');
+      // Falha silenciosa — a escala será salva na próxima adição ou ao iniciar
+    }
   }
 
   @override
@@ -1060,7 +1163,7 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                 ),
                                 Text(
                                   valueOrDefault<String>(
-                                    AppState().liberaManual.length.toString(),
+                                    (AppState().liberaManual.length + AppState().escalaServerIds.length).toString(),
                                     '0',
                                   ),
                                   style: AppTheme.of(context)
@@ -1251,6 +1354,8 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                       AppState().addEscalaEntryTime(qrUserId!, DateTime.now().toUtc().toIso8601String());
                                     });
                                     safeSetState(() {});
+                                    // Salvar escala no backend
+                                    _saveScheduleToBackend();
                                     // Registrar check-in no controle de mão de obra
                                     try {
                                       ProjectsGroup.workforceCheckInCall.call(
@@ -1401,7 +1506,9 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                             FocusManager.instance.primaryFocus
                                                 ?.unfocus();
                                           },
-                                          child: ModalEscalaManualWidget(),
+                                          child: ModalEscalaManualWidget(
+                                            onEmployeeAdded: _saveScheduleToBackend,
+                                          ),
                                         ),
                                       );
                                     },
@@ -1467,57 +1574,18 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                   onPressed: !(AppState().allIds.isNotEmpty)
                                       ? null
                                       : () async {
-                                          var _shouldSetState = false;
-                                          _model.creatSchedule = await ProjectsGroup
-                                              .adicionaColaboradoresNaEscalaCall
-                                              .call(
-                                            teamsId: AppState().user.teamsId,
-                                            usersIdList: AppState().allIds,
-                                            projectsId:
-                                                AppState().user.projectId,
-                                            scheduleDate: dateTimeFormat(
-                                              "yyyy-MM-dd",
-                                              getCurrentTimestamp,
-                                              locale:
-                                                  AppLocalizations.of(context)
-                                                      .languageCode,
-                                            ),
-                                            sprintsId:
-                                                AppState().user.sprint.id,
+                                          // Garantir que a escala está salva no backend
+                                          await _saveScheduleToBackend();
+
+                                          // Marcar first_login = false (jornada iniciada)
+                                          _model.firstLogin =
+                                              await AuthenticationGroup
+                                                  .dailyLoginCall
+                                                  .call(
                                             token: currentAuthenticationToken,
                                           );
 
-                                          _shouldSetState = true;
-                                          if ((_model
-                                                  .creatSchedule?.succeeded ??
-                                              true)) {
-                                            _model.firstLogin =
-                                                await AuthenticationGroup
-                                                    .dailyLoginCall
-                                                    .call(
-                                              token: currentAuthenticationToken,
-                                            );
-
-                                            _shouldSetState = true;
-                                            AppState().updateUserStruct(
-                                              (e) => e
-                                                ..sheduleId = getJsonField(
-                                                  (_model.creatSchedule
-                                                          ?.jsonBody ??
-                                                      ''),
-                                                  r'''$.id''',
-                                                ),
-                                            );
-                                            safeSetState(() {});
-
-                                          if (await NetworkService.instance
-                                              .checkConnection()) {
-                                            await InitialSyncService.instance
-                                                .performInitialSyncIfNeeded(
-                                              force: true,
-                                            );
-                                          }
-                                          } else {
+                                          if (!(_model.firstLogin?.succeeded ?? false)) {
                                             await showDialog(
                                               context: context,
                                               builder: (dialogContext) {
@@ -1547,21 +1615,27 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                                           .getText(
                                                         'z0y0nc0v' /* Erro */,
                                                       ),
-                                                      description: getJsonField(
-                                                        (_model.creatSchedule
-                                                                ?.jsonBody ??
-                                                            ''),
-                                                        r'''$.message''',
-                                                      ).toString(),
+                                                      description: AppLocalizations.of(context)
+                                                          .getVariableText(
+                                                        ptText: 'Erro ao iniciar jornada. Tente novamente.',
+                                                        esText: 'Error al iniciar jornada. Intente de nuevo.',
+                                                        enText: 'Error starting work journey. Try again.',
+                                                      ),
                                                     ),
                                                   ),
                                                 );
                                               },
                                             );
-
-                                            if (_shouldSetState)
-                                              safeSetState(() {});
                                             return;
+                                          }
+
+                                          // Sync em background
+                                          if (await NetworkService.instance
+                                              .checkConnection()) {
+                                            InitialSyncService.instance
+                                                .performInitialSyncIfNeeded(
+                                              force: true,
+                                            );
                                           }
 
                                           AppState().liberaManual = [];
@@ -1581,9 +1655,6 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                               ),
                                             },
                                           );
-
-                                          if (_shouldSetState)
-                                            safeSetState(() {});
                                         },
                                   text: AppLocalizations.of(context).getText(
                                     'sefof8ig' /* Começar jornada de trabalho */,

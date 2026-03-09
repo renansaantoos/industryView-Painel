@@ -78,19 +78,19 @@ export class AuthController {
 
   /**
    * POST /auth/daily-login
-   * Login diario (app mobile)
-   * Equivalente a: query "daily_login" verb=POST do Xano (endpoint 613)
+   * Marca first_login = false (usuario ja iniciou jornada do dia)
+   * Requer token de autenticacao no header
    */
   static async dailyLogin(
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
-      const { email, password } = req.body;
-      const result = await AuthModuleService.dailyLogin(email, password);
+      const userId = req.auth!.id;
+      const result = await AuthModuleService.dailyLogin(userId);
 
-      logger.info({ email }, 'Daily login successful');
+      logger.info({ userId }, 'Daily login successful');
 
       res.status(200).json(result);
     } catch (error) {

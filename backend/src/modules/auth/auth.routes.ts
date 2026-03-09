@@ -9,7 +9,7 @@ import { AuthController } from './auth.controller';
 import { validateBody } from '../../middleware/validation';
 import { authenticate } from '../../middleware/auth';
 import { authRateLimiter } from '../../middleware/rateLimit';
-import { signupSchema, loginSchema, dailyLoginSchema } from './auth.schema';
+import { signupSchema, loginSchema } from './auth.schema';
 
 const router = Router();
 
@@ -139,28 +139,19 @@ router.get(
  * @swagger
  * /auth/daily-login:
  *   post:
- *     summary: Login diario (app mobile)
+ *     summary: Marca first_login = false (inicio de jornada)
  *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Login realizado com sucesso
+ *         description: Jornada iniciada com sucesso
+ *       401:
+ *         description: Nao autenticado
  */
 router.post(
   '/daily-login',
-  authRateLimiter,
-  validateBody(dailyLoginSchema),
+  authenticate,
   AuthController.dailyLogin
 );
 

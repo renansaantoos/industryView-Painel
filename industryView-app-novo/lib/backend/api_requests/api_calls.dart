@@ -42,11 +42,11 @@ class LoginAndRetrieveAnAuthenticationTokenCall {
     final apiRequestBody = '''
 {
   "email": "${escapeStringForJson(email)}",
-  "password": "${escapeStringForJson(passwordHash)}"
+  "password_hash": "${escapeStringForJson(passwordHash)}"
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Login and retrieve an authentication token',
-      apiUrl: '${baseUrl}/auth/daily-login',
+      apiUrl: '${baseUrl}/auth/login',
       callType: ApiCallType.POST,
       headers: {
       },
@@ -142,7 +142,12 @@ class GetTheRecordBelongingToTheAuthenticationTokenCall {
 
   // === Sprint ativa — NÃO vem no /me/app do Painel, buscar via GET /sprints separado ===
   int? sprintId(dynamic response) => null;
-  int? projectId(dynamic response) => null;
+  int? projectId(dynamic response) {
+    // Tenta $.projects[0] primeiro, depois $.teams.leader[0].projects_id
+    final fromProjects = castToType<int>(getJsonField(response, r'''$.projects[0]'''));
+    if (fromProjects != null) return fromProjects;
+    return castToType<int>(getJsonField(response, r'''$.teams.leader[0].projects_id'''));
+  }
   String? spritnTitle(dynamic response) => null;
   String? sprintObjective(dynamic response) => null;
   int? sprintDtStart(dynamic response) => null;
@@ -1640,7 +1645,7 @@ class AddImagensCall {
         'Authorization': 'Bearer ${token}',
       },
       params: {
-        'content': content,
+        'file': content,
         'schedule_id': scheduleId,
       },
       bodyType: BodyType.MULTIPART,

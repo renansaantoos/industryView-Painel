@@ -488,11 +488,11 @@ export class ReportsService {
   static async getSchedulePerDay(input: GetSchedulePerDayInput) {
     const { projects_id, date } = input;
 
-    // Se nao tiver data, usa hoje
+    // Se nao tiver data, usa hoje (UTC para consistencia com schedule_date armazenada)
     const targetDate = date
       ? new Date(/^\d+$/.test(date) ? Number(date) : date)
       : new Date();
-    targetDate.setHours(0, 0, 0, 0);
+    targetDate.setUTCHours(0, 0, 0, 0);
 
     const schedules = await db.schedule.findMany({
       where: {
@@ -502,6 +502,21 @@ export class ReportsService {
         schedule_date: targetDate,
       },
       include: {
+        schedule_user: {
+          where: { deleted_at: null },
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                profile_picture: true,
+                qrcode: true,
+              },
+            },
+          },
+        },
         teams: {
           include: {
             teams_leaders: {
@@ -530,7 +545,14 @@ export class ReportsService {
       },
     });
 
-    return schedules;
+    // Mapear schedule_user para schedule_user_of_schedule (compatibilidade com app Xano)
+    return schedules.map(s => {
+      const { schedule_user, ...rest } = s as any;
+      return {
+        ...rest,
+        schedule_user_of_schedule: schedule_user,
+      };
+    });
   }
 
   // ===========================================================================
