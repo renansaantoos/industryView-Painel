@@ -361,17 +361,6 @@ export default function WorkforceControl() {
   // ------------------------------------------------------------------
   // Edit log
   // ------------------------------------------------------------------
-  const openEdit = (log: WorkforceDailyLog) => {
-    setEditingLog(log);
-    setEditForm({
-      users_id: log.users_id,
-      log_date: log.log_date,
-      check_in: log.check_in ? formatTime(log.check_in) : '',
-      team: log.teams?.name || log.team || '',
-      observation: log.observation || '',
-    });
-  };
-
   const handleEdit = async () => {
     if (!editingLog) return;
     setEditLoading(true);
