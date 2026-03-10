@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,8 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import StatusBadge from '../../components/common/StatusBadge';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import { Plus, Edit, Trash2, X, LogIn, LogOut, BarChart2 } from 'lucide-react';
+import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
+import { Plus, X, LogIn, LogOut, BarChart2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -202,6 +203,11 @@ export default function WorkforceControl() {
   const [showHistogram, setShowHistogram] = useState(false);
   const [histInitialDate, setHistInitialDate] = useState('');
   const [histFinalDate, setHistFinalDate] = useState('');
+
+  // ------------------------------------------------------------------
+  // Sort
+  // ------------------------------------------------------------------
+  const { sortField, sortDirection, handleSort } = useBackendSort();
 
   // ------------------------------------------------------------------
   // Toast
@@ -413,6 +419,28 @@ export default function WorkforceControl() {
   };
 
   // ------------------------------------------------------------------
+  // Sorted logs (client-side)
+  // ------------------------------------------------------------------
+  const sortedLogs = useMemo(() => {
+    if (!sortField || !sortDirection) return logs;
+    return [...logs].sort((a, b) => {
+      let aVal = '';
+      let bVal = '';
+      switch (sortField) {
+        case 'name': aVal = resolveUserName(a); bVal = resolveUserName(b); break;
+        case 'log_date': aVal = a.log_date; bVal = b.log_date; break;
+        case 'check_in': aVal = a.check_in || ''; bVal = b.check_in || ''; break;
+        case 'check_out': aVal = a.check_out || ''; bVal = b.check_out || ''; break;
+        case 'team': aVal = a.teams?.name || a.team || ''; bVal = b.teams?.name || b.team || ''; break;
+        case 'status': aVal = a.status || ''; bVal = b.status || ''; break;
+      }
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [logs, sortField, sortDirection, users]);
+
+  // ------------------------------------------------------------------
   // Histogram legend
   // ------------------------------------------------------------------
   const histogramMaxVal = histogram.reduce(
@@ -619,17 +647,17 @@ export default function WorkforceControl() {
           <table>
             <thead>
               <tr>
-                <th>Colaborador</th>
-                <th>Data</th>
-                <th>Check-in</th>
-                <th>Check-out</th>
-                <th>Equipe</th>
-                <th>Status</th>
+                <SortableHeader label="Colaborador" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Data" field="log_date" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Check-in" field="check_in" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Check-out" field="check_out" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Equipe" field="team" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Status" field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <motion.tbody variants={staggerParent} initial="initial" animate="animate">
-              {logs.map((log) => (
+              {sortedLogs.map((log) => (
                 <motion.tr key={log.id} variants={tableRowVariants}>
                   <td>
                     <span style={{ fontWeight: 500 }}>{resolveUserName(log)}</span>
@@ -676,20 +704,6 @@ export default function WorkforceControl() {
                           <LogOut size={15} color="var(--color-warning)" />
                         </button>
                       )}
-                      <button
-                        className="btn btn-icon"
-                        title={t('common.edit')}
-                        onClick={() => openEdit(log)}
-                      >
-                        <Edit size={15} color="var(--color-secondary-text)" />
-                      </button>
-                      <button
-                        className="btn btn-icon"
-                        title={t('common.delete')}
-                        onClick={() => setDeleteLogId(log.id)}
-                      >
-                        <Trash2 size={15} color="var(--color-error)" />
-                      </button>
                     </div>
                   </td>
                 </motion.tr>
