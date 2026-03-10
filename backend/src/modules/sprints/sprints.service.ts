@@ -819,6 +819,15 @@ export class SprintsService {
       data: updateData,
     });
 
+    // Se concluida, reseta quality_status do backlog para 1 (pendente de inspecao)
+    // para que a tarefa sempre passe pela coluna de inspeção antes de ir para concluída
+    if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA && existing.projects_backlogs_id) {
+      await db.projects_backlogs.update({
+        where: { id: existing.projects_backlogs_id },
+        data: { quality_status_id: 1, updated_at: new Date() },
+      });
+    }
+
     // Se Em Andamento (2), define actual_start_date no backlog (se ainda nao definida)
     if (input.sprints_tasks_statuses_id === 2 && existing.projects_backlogs_id) {
       await db.$executeRaw`
@@ -843,7 +852,12 @@ export class SprintsService {
   static async updateListTaskStatus(input: UpdateListSprintTaskStatusInput) {
     const results = await Promise.all(
       input.tasks.map(async (task) => {
-        return db.sprints_tasks.update({
+        const existing = await db.sprints_tasks.findFirst({
+          where: { id: task.sprints_tasks_id, deleted_at: null },
+          select: { id: true, projects_backlogs_id: true },
+        });
+
+        const updated = await db.sprints_tasks.update({
           where: { id: task.sprints_tasks_id },
           data: {
             sprints_tasks_statuses_id: task.sprints_tasks_statuses_id,
@@ -851,6 +865,16 @@ export class SprintsService {
             ...(task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA ? { executed_at: new Date() } : {}),
           },
         });
+
+        // Reseta quality_status do backlog para 1 (pendente de inspecao)
+        if (task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA && existing?.projects_backlogs_id) {
+          await db.projects_backlogs.update({
+            where: { id: existing.projects_backlogs_id },
+            data: { quality_status_id: 1, updated_at: new Date() },
+          });
+        }
+
+        return updated;
       })
     );
 
