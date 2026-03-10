@@ -847,27 +847,16 @@ export class SprintsService {
   static async updateListTaskStatus(input: UpdateListSprintTaskStatusInput) {
     const results = await Promise.all(
       input.tasks.map(async (task) => {
-        const existing = await db.sprints_tasks.findFirst({
-          where: { id: task.sprints_tasks_id, deleted_at: null },
-          select: { id: true, projects_backlogs_id: true },
-        });
-
         const updated = await db.sprints_tasks.update({
           where: { id: task.sprints_tasks_id },
           data: {
             sprints_tasks_statuses_id: task.sprints_tasks_statuses_id,
             updated_at: new Date(),
-            ...(task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA ? { executed_at: new Date() } : {}),
+            ...(task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA
+              ? { executed_at: new Date(), quality_status_id: 1 }
+              : {}),
           },
         });
-
-        // Marca a propria tarefa como pendente de inspecao
-        if (task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
-          await db.sprints_tasks.update({
-            where: { id: task.sprints_tasks_id },
-            data: { quality_status_id: 1 },
-          });
-        }
 
         return updated;
       })
