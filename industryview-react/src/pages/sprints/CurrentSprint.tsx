@@ -912,6 +912,7 @@ export default function CurrentSprint() {
             emptyLabel={t('sprints.noTasks')}
             onViewDetail={(task) => setDetailTask(task)}
             transitionLoading={transitionLoading}
+            isInspection
           />
 
           <KanbanColumn
@@ -1549,6 +1550,7 @@ interface KanbanColumnProps {
   onViewDetail: (task: SprintTask) => void;
   transitionLoading: number | null;
   renderActions?: (task: SprintTask) => React.ReactNode;
+  isInspection?: boolean;
   // Bulk selection (optional)
   selectedIds?: Set<number>;
   onToggleSelect?: (taskId: number) => void;
@@ -1565,6 +1567,7 @@ function KanbanColumn({
   onDelete,
   onViewDetail,
   renderActions,
+  isInspection,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
@@ -1661,6 +1664,7 @@ function KanbanColumn({
                 onDelete={onDelete}
                 onViewDetail={onViewDetail}
                 renderActions={renderActions}
+                isInspection={isInspection}
                 selected={selectedIds?.has(task.id)}
                 onToggleSelect={onToggleSelect ? () => onToggleSelect(task.id) : undefined}
               />
@@ -1679,11 +1683,12 @@ interface TaskCardProps {
   onDelete?: (id: number) => void;
   onViewDetail: (task: SprintTask) => void;
   renderActions?: (task: SprintTask) => React.ReactNode;
+  isInspection?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
 }
 
-function TaskCard({ task, onDelete, onViewDetail, renderActions, selected, onToggleSelect }: TaskCardProps) {
+function TaskCard({ task, onDelete, onViewDetail, renderActions, isInspection, selected, onToggleSelect }: TaskCardProps) {
   const { t } = useTranslation();
   const a = task as any; // shortcut for snake_case access
   const taskName = getTaskDisplayName(task);
@@ -1708,7 +1713,9 @@ function TaskCard({ task, onDelete, onViewDetail, renderActions, selected, onTog
   const subtaskName = subtask?.description;
   const updatedAt = task.updatedAt || a.updated_at;
   const taskStatus = task.sprintsTasksStatusesId || a.sprints_tasks_statuses_id;
-  const scheduleStatus = getTaskScheduleStatus(taskStatus, scheduledFor, t);
+  const scheduleStatus = isInspection && taskStatus === STATUS_DONE
+    ? { label: t('sprints.taskInspection') || 'Em Inspeção', color: '#ca8a04', bgColor: 'rgba(202,138,4,0.12)' }
+    : getTaskScheduleStatus(taskStatus, scheduledFor, t);
 
   return (
     <div
