@@ -525,14 +525,14 @@ export class SprintsService {
       where: whereAndamento,
     });
 
-    // Status 3 = Concluida (com quality_status_id = 2 - Aprovado)
+    // Status 3 = Concluida (quality_status_id da propria tarefa = 2 ou nulo - Aprovado)
     const whereConcluidas = {
       ...baseWhere,
       sprints_tasks_statuses_id: 3,
-      projects_backlogs: {
-        ...baseWhere.projects_backlogs,
-        quality_status_id: 2,
-      },
+      OR: [
+        { quality_status_id: 2 },
+        { quality_status_id: null },
+      ],
       ...(scheduled_for ? { scheduled_for: new Date(scheduled_for) } : {}),
     };
 
@@ -567,15 +567,11 @@ export class SprintsService {
       where: whereSemSucesso,
     });
 
-    // Inspecao (quality_status_id = 1 - Pendente e status = 3)
+    // Inspecao: status = 3 e quality_status_id da propria tarefa = 1 (pendente de revisao)
     const whereInspecao = {
       ...baseWhere,
       sprints_tasks_statuses_id: 3,
-      projects_backlogs: {
-        ...baseWhere.projects_backlogs,
-        quality_status_id: 1,
-        is_inspection: false,
-      },
+      quality_status_id: 1,
       ...(scheduled_for ? { scheduled_for: new Date(scheduled_for) } : {}),
     };
 
@@ -819,12 +815,11 @@ export class SprintsService {
       data: updateData,
     });
 
-    // Se concluida, reseta quality_status do backlog para 1 (pendente de inspecao)
-    // para que a tarefa sempre passe pela coluna de inspeção antes de ir para concluída
-    if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA && existing.projects_backlogs_id) {
-      await db.projects_backlogs.update({
-        where: { id: existing.projects_backlogs_id },
-        data: { quality_status_id: 1, updated_at: new Date() },
+    // Se concluida, marca a propria tarefa como pendente de inspecao (quality_status_id = 1)
+    if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
+      await db.sprints_tasks.update({
+        where: { id: input.sprints_tasks_id },
+        data: { quality_status_id: 1 },
       });
     }
 
@@ -866,11 +861,11 @@ export class SprintsService {
           },
         });
 
-        // Reseta quality_status do backlog para 1 (pendente de inspecao)
-        if (task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA && existing?.projects_backlogs_id) {
-          await db.projects_backlogs.update({
-            where: { id: existing.projects_backlogs_id },
-            data: { quality_status_id: 1, updated_at: new Date() },
+        // Marca a propria tarefa como pendente de inspecao
+        if (task.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
+          await db.sprints_tasks.update({
+            where: { id: task.sprints_tasks_id },
+            data: { quality_status_id: 1 },
           });
         }
 
@@ -1126,27 +1121,16 @@ export class SprintsService {
       throw new NotFoundError('Tarefa nao encontrada.');
     }
 
-    // Atualiza quality_status no backlog
-    if (task.projects_backlogs_id) {
-      await db.projects_backlogs.update({
-        where: { id: task.projects_backlogs_id },
-        data: {
-          quality_status_id: input.quality_status_id,
-          updated_at: new Date(),
-        },
-      });
-    }
-
-    // Se rejeitado (quality_status_id != 2), volta status da tarefa para pendente
-    if (input.quality_status_id !== 2) {
-      await db.sprints_tasks.update({
-        where: { id: input.sprints_tasks_id },
-        data: {
-          sprints_tasks_statuses_id: 1, // Pendente
-          updated_at: new Date(),
-        },
-      });
-    }
+    // Atualiza quality_status na propria tarefa (nao no backlog - evita afetar outras tarefas)
+    await db.sprints_tasks.update({
+      where: { id: input.sprints_tasks_id },
+      data: {
+        quality_status_id: input.quality_status_id,
+        updated_at: new Date(),
+        // Se rejeitado (quality_status_id != 2), volta status da tarefa para pendente
+        ...(input.quality_status_id !== 2 ? { sprints_tasks_statuses_id: 1 } : {}),
+      },
+    });
 
     // Se aprovado (quality_status_id === 2), dispara rollup de progresso
     if (input.quality_status_id === 2) {

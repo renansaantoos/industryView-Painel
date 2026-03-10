@@ -90,6 +90,7 @@ model quality_status {
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
   projects_backlogs projects_backlogs[]
   subtasks          subtasks[]
+  sprints_tasks     sprints_tasks[]
 }
 
 model stakes_statuses {
@@ -1007,6 +1008,7 @@ model sprints_tasks {
   sprints_id                BigInt?
   teams_id                  BigInt?
   sprints_tasks_statuses_id BigInt?
+  quality_status_id         BigInt?
   scheduled_for             DateTime?                @db.Date
   executed_at               DateTime?                @db.Date
   assigned_user_id          BigInt?
@@ -1029,6 +1031,7 @@ model sprints_tasks {
   teams                     teams?                   @relation(fields: [teams_id], references: [id], onUpdate: NoAction)
   assigned_user             users?                   @relation("assigned_tasks", fields: [assigned_user_id], references: [id], onUpdate: NoAction)
   non_execution_reason      non_execution_reasons?   @relation(fields: [non_execution_reason_id], references: [id], onUpdate: NoAction)
+  quality_status            quality_status?          @relation(fields: [quality_status_id], references: [id], onUpdate: NoAction)
 
   @@index([created_at(sort: Desc)], map: "idx_sprints_tasks_created_at")
   @@index([projects_backlogs_id], map: "idx_sprints_tasks_projects_backlogs_id")
