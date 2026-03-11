@@ -47,7 +47,7 @@ const STATUS_COLOR_MAP: Record<string, { bg: string; color: string; label: strin
 };
 
 const SHIFT_OPTIONS = ['manha', 'tarde', 'noite', 'integral'];
-const _WEATHER_OPTIONS = ['ensolarado', 'nublado', 'chuvoso', 'parcialmente_nublado', 'tempestade'];
+// WEATHER_OPTIONS: ensolarado, nublado, chuvoso, parcialmente_nublado, tempestade
 
 // ---------------------------------------------------------------------------
 // Sub-types for forms
