@@ -88,8 +88,10 @@ export default function SprintList() {
   const handleCreateSprint = async () => {
     if (!projectsInfo) return;
     const errors: Record<string, string | undefined> = {};
+    const today = new Date().toISOString().split('T')[0];
     if (!newSprintName.trim()) errors.sprintName = t('common.requiredField', 'Campo obrigatório');
     if (!newSprintStart) errors.sprintStart = t('common.requiredField', 'Campo obrigatório');
+    else if (newSprintStart < today) errors.sprintStart = 'A data de início não pode ser anterior a hoje';
     if (!newSprintEnd) errors.sprintEnd = t('common.requiredField', 'Campo obrigatório');
     if (Object.keys(errors).length > 0) {
       setCreateSprintErrors(errors);
@@ -362,6 +364,7 @@ export default function SprintList() {
                   type="date"
                   className="input-field"
                   value={newSprintStart}
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => {
                     setNewSprintStart(e.target.value);
                     if (createSprintErrors.sprintStart) setCreateSprintErrors((prev) => ({ ...prev, sprintStart: undefined }));
