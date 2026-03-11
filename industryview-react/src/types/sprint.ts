@@ -8,6 +8,7 @@ export interface Sprint {
   progress_percentage: number;
   projects_id: number;
   sprints_statuses_id: number;
+  pending_inspection_count?: number;
   created_at?: number;
   updated_at?: number;
   deleted_at?: number | null;

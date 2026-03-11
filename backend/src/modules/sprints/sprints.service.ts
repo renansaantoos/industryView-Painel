@@ -99,9 +99,38 @@ export class SprintsService {
       where: { ...baseWhere, sprints_statuses_id: 3, ...dateFilter },
     });
 
+    // Conta tarefas pendentes de inspecao por sprint (quality_status_id = 1)
+    const allSprintIds = [
+      ...sprintsAtiva.map(s => s.id),
+      ...sprintsFutura.map(s => s.id),
+      ...sprintsConcluida.map(s => s.id),
+    ];
+
+    const inspectionGroups = allSprintIds.length > 0
+      ? await db.sprints_tasks.groupBy({
+          by: ['sprints_id'],
+          where: {
+            sprints_id: { in: allSprintIds },
+            quality_status_id: BigInt(1),
+            deleted_at: null,
+          },
+          _count: { id: true },
+        })
+      : [];
+
+    const inspectionCountMap = new Map(
+      inspectionGroups.map(g => [g.sprints_id?.toString(), g._count.id])
+    );
+
+    const withInspection = (items: typeof sprintsAtiva) =>
+      items.map(s => ({
+        ...s,
+        pending_inspection_count: inspectionCountMap.get(s.id.toString()) ?? 0,
+      }));
+
     return {
       sprints_ativa: {
-        items: sprintsAtiva,
+        items: withInspection(sprintsAtiva),
         curPage: page,
         perPage,
         itemsReceived: sprintsAtiva.length,
@@ -109,7 +138,7 @@ export class SprintsService {
         pageTotal: Math.ceil(totalAtiva / perPage),
       },
       sprints_futura: {
-        items: sprintsFutura,
+        items: withInspection(sprintsFutura),
         curPage: page,
         perPage,
         itemsReceived: sprintsFutura.length,
@@ -117,7 +146,7 @@ export class SprintsService {
         pageTotal: Math.ceil(totalFutura / perPage),
       },
       sprints_concluida: {
-        items: sprintsConcluida,
+        items: withInspection(sprintsConcluida),
         curPage: page,
         perPage,
         itemsReceived: sprintsConcluida.length,
@@ -706,6 +735,10 @@ export class SprintsService {
         data: { sprint_added: true, updated_at: new Date() },
       });
     }
+
+    // Recalcula progresso do sprint ao adicionar nova tarefa
+    const { ProgressRollupService } = await import('../../services/progressRollup');
+    await ProgressRollupService.updateSprintProgress(input.sprints_id);
 
     return created;
   }

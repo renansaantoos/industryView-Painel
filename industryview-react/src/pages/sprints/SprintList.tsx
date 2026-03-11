@@ -166,12 +166,22 @@ export default function SprintList() {
           <Kanban size={18} color="var(--color-primary)" />
           <h4 style={{ fontSize: '14px', fontWeight: 600 }}>{sprint.title}</h4>
         </div>
-        <span
-          className="badge"
-          style={{ backgroundColor: categoryConfig.bgColor, color: categoryConfig.color }}
-        >
-          {getCategoryLabel(categoryConfig.key)}
-        </span>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {(sprint.pending_inspection_count ?? 0) > 0 && (
+            <span
+              className="badge"
+              style={{ backgroundColor: 'var(--color-status-02)', color: 'var(--color-warning)', whiteSpace: 'nowrap' }}
+            >
+              Aguardando inspeção
+            </span>
+          )}
+          <span
+            className="badge"
+            style={{ backgroundColor: categoryConfig.bgColor, color: categoryConfig.color }}
+          >
+            {getCategoryLabel(categoryConfig.key)}
+          </span>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--color-secondary-text)', marginBottom: '12px' }}>
