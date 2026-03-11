@@ -206,13 +206,15 @@ export default function SprintList() {
         <Link to={`/sprint-atual?sprintId=${sprint.id}`} className="btn btn-icon" title={t('common.view')}>
           <Eye size={16} color="var(--color-primary)" />
         </Link>
-        <button
-          className="btn btn-icon"
-          title={t('common.delete')}
-          onClick={() => setDeleteConfirm(sprint.id)}
-        >
-          <Trash2 size={16} color="var(--color-error)" />
-        </button>
+        {categoryConfig.key !== 'sprints_concluida' && (
+          <button
+            className="btn btn-icon"
+            title={t('common.delete')}
+            onClick={() => setDeleteConfirm(sprint.id)}
+          >
+            <Trash2 size={16} color="var(--color-error)" />
+          </button>
+        )}
       </div>
     </motion.div>
   );
