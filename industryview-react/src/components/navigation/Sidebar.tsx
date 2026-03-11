@@ -30,7 +30,7 @@ import {
   ClipboardCheck,
   UserCheck,
   AlertTriangle,
-  FileArchive,
+  // FileArchive,
   Receipt,
   Zap,
   ShoppingCart,

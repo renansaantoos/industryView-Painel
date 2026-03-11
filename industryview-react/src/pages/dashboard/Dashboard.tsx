@@ -359,7 +359,7 @@ export default function Dashboard() {
             <YAxis fontSize={12} />
             <Tooltip />
             <Bar dataKey="value" name="Tarefas" fill={C.primary} radius={[4, 4, 0, 0]}>
-              {installationData.map((entry, index) => (
+              {installationData.map((_entry, index) => (
                 <Cell key={index} fill={index === 0 ? C.success : C.warning} />
               ))}
             </Bar>

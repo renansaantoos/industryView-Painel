@@ -47,7 +47,7 @@ const STATUS_COLOR_MAP: Record<string, { bg: string; color: string; label: strin
 };
 
 const SHIFT_OPTIONS = ['manha', 'tarde', 'noite', 'integral'];
-const WEATHER_OPTIONS = ['ensolarado', 'nublado', 'chuvoso', 'parcialmente_nublado', 'tempestade'];
+const _WEATHER_OPTIONS = ['ensolarado', 'nublado', 'chuvoso', 'parcialmente_nublado', 'tempestade'];
 
 // ---------------------------------------------------------------------------
 // Sub-types for forms
@@ -458,7 +458,7 @@ export default function DailyReportsEnhanced() {
     setApprovalLoading(true);
     try {
       const updated = await dailyReportsApi.rejectDailyReport(selectedReport.id, {
-        rejection_reason: rejectionReason || undefined,
+        rejection_reason: rejectionReason || '',
       });
       setSelectedReport(updated);
       setShowRejectModal(false);
@@ -809,8 +809,8 @@ export default function DailyReportsEnhanced() {
               : undefined,
           )}
           {renderInfoField('Líder', selectedReport.created_by_name || selectedReport.creator_name || String(selectedReport.created_by_user_id))}
-          {selectedReport.schedule && selectedReport.schedule.length > 0 && selectedReport.schedule[0].teams &&
-            renderInfoField('Equipe', (selectedReport.schedule[0] as any).teams?.name || '-')
+          {selectedReport.schedule && selectedReport.schedule.length > 0 && selectedReport.schedule[0].team_name &&
+            renderInfoField('Equipe', selectedReport.schedule[0].team_name || '-')
           }
           {renderInfoField('Status', undefined, <StatusBadge status={selectedReport.status} colorMap={STATUS_COLOR_MAP} />)}
         </div>
