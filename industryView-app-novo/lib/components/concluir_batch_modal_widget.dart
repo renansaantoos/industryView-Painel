@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -101,6 +102,26 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
     );
 
     if (apiResult.succeeded) {
+      // Vincular tarefas ao schedule do dia
+      try {
+        final scheduleId = AppState().user.sheduleId;
+        if (scheduleId != null && scheduleId != 0) {
+          final taskIds = AppState().taskslist
+              .map((t) => t.sprintsTasksId)
+              .where((id) => id != 0)
+              .toList();
+          if (taskIds.isNotEmpty) {
+            await ProjectsGroup.linkTasksToScheduleCall.call(
+              token: currentAuthenticationToken,
+              scheduleId: scheduleId,
+              sprintsTasksIds: taskIds,
+            );
+            if (kDebugMode) print('Batch tasks $taskIds linked to schedule $scheduleId');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print('Error linking batch tasks to schedule: $e');
+      }
       _addOfflineMaskIfNeeded(apiResult, AppState().taskslist.toList());
       AppState().comment = '';
       AppState().taskslist = [];
@@ -123,7 +144,7 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
               child: ModalInfoWidget(
                 title: 'Erro',
                 description: getJsonField(
-                  apiResult.jsonBody ?? '',
+                  apiResult.jsonBody,
                   r'''$.message''',
                 ).toString(),
               ),

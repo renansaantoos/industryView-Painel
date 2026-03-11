@@ -44,8 +44,12 @@ const envSchema = z.object({
   CLAUDE_MAX_TOKENS: z.string().transform(Number).default('2000'),
 
   // Storage
-  STORAGE_TYPE: z.enum(['local', 's3']).default('local'),
+  STORAGE_TYPE: z.enum(['local', 'gcp', 's3']).default('local'),
   STORAGE_PATH: z.string().default('./uploads'),
+  GCP_PROJECT_ID: z.string().optional(),
+  GCP_BUCKET_NAME: z.string().optional(),
+  GCP_REGION: z.string().optional(),
+  GCP_CREDENTIALS: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_REGION: z.string().optional(),
@@ -157,6 +161,12 @@ export const config = {
   storage: {
     type: env.STORAGE_TYPE,
     path: env.STORAGE_PATH,
+    gcp: {
+      projectId: env.GCP_PROJECT_ID,
+      bucketName: env.GCP_BUCKET_NAME,
+      region: env.GCP_REGION,
+      credentials: env.GCP_CREDENTIALS,
+    },
     aws: {
       accessKeyId: env.AWS_ACCESS_KEY_ID,
       secretAccessKey: env.AWS_SECRET_ACCESS_KEY,

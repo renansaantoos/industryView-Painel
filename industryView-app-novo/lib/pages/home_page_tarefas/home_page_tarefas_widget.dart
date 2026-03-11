@@ -24,6 +24,7 @@ import 'dart:ui';
 import '/core/actions/index.dart' as actions;
 import '/core/utils/custom_functions.dart' as functions;
 import '/index.dart';
+import '/pages/project_selection/project_selection_widget.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
@@ -53,6 +54,12 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
   late HomePageTarefasModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// ID da tarefa que está processando uma ação (loading individual)
+  int? _loadingTaskId;
+
+  /// Tipo da ação em loading: 'concluir', 'aprovado', 'reprovado', 'semSucesso'
+  String? _loadingAction;
 
   bool _isOfflineMaskedTask(dynamic item) {
     if (NetworkService.instance.isConnected) {
@@ -97,6 +104,22 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
       case 'alta': return {'bg': const Color(0x26F97316), 'text': const Color(0xFFEA580C)};
       case 'critica': return {'bg': const Color(0x26EF4444), 'text': const Color(0xFFDC2626)};
       default: return {'bg': const Color(0x1A9CA3AF), 'text': const Color(0xFF6B7280)};
+    }
+  }
+
+  /// Vincula tarefa ao schedule do dia (schedule_sprints_tasks)
+  Future<void> _linkTaskToSchedule(int taskId) async {
+    try {
+      final scheduleId = AppState().user.sheduleId;
+      if (scheduleId == null || scheduleId == 0) return;
+      await ProjectsGroup.linkTasksToScheduleCall.call(
+        token: currentAuthenticationToken,
+        scheduleId: scheduleId,
+        sprintsTasksIds: [taskId],
+      );
+      if (kDebugMode) print('Task $taskId linked to schedule $scheduleId');
+    } catch (e) {
+      if (kDebugMode) print('Error linking task to schedule: $e');
     }
   }
 
@@ -239,48 +262,66 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
 
     if (result == null) return;
 
-    // Chamar API single para concluir com quantidade
-    final apiResult =
-        await SprintsGroup.atualizaStatusSingleTaskCall.call(
-      sprintsTasksId: taskId,
-      sprintsTasksStatusesId: 3,
-      quantityDone: result,
-      token: currentAuthenticationToken,
-    );
+    // Ativar loading no card
+    safeSetState(() {
+      _loadingTaskId = taskId;
+      _loadingAction = 'concluir';
+    });
 
-    if (apiResult.succeeded) {
-      // Se offline, mascarar a tarefa para desaparecer da lista
-      if (getJsonField(apiResult.jsonBody, r'''$.offline''') == true) {
-        AppState().update(() {
-          final current = AppState().offlineMaskedTasksIds.toList();
-          if (!current.contains(taskId)) {
-            current.add(taskId);
-            AppState().offlineMaskedTasksIds = current;
-          }
-        });
-      }
-      AppState().signalTasksRefresh();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              getJsonField(apiResult.jsonBody, r'''$.offline''') == true
-                  ? 'Tarefa salva localmente. Será sincronizada ao reconectar.'
-                  : 'Tarefa concluída com sucesso!',
+    try {
+      // Chamar API single para concluir com quantidade
+      final apiResult =
+          await SprintsGroup.atualizaStatusSingleTaskCall.call(
+        sprintsTasksId: taskId,
+        sprintsTasksStatusesId: 3,
+        quantityDone: result,
+        token: currentAuthenticationToken,
+      );
+
+      if (apiResult.succeeded) {
+        // Vincular tarefa ao schedule do dia
+        _linkTaskToSchedule(taskId);
+        // Se offline, mascarar a tarefa para desaparecer da lista
+        if (getJsonField(apiResult.jsonBody, r'''$.offline''') == true) {
+          AppState().update(() {
+            final current = AppState().offlineMaskedTasksIds.toList();
+            if (!current.contains(taskId)) {
+              current.add(taskId);
+              AppState().offlineMaskedTasksIds = current;
+            }
+          });
+        }
+        AppState().signalTasksRefresh();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                getJsonField(apiResult.jsonBody, r'''$.offline''') == true
+                    ? 'Tarefa salva localmente. Será sincronizada ao reconectar.'
+                    : 'Tarefa concluída com sucesso!',
+              ),
+              backgroundColor: AppTheme.of(context).success,
             ),
-            backgroundColor: AppTheme.of(context).success,
-          ),
-        );
-        onSuccess();
+          );
+          onSuccess();
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Erro ao concluir tarefa. Tente novamente.'),
+              backgroundColor: AppTheme.of(context).error,
+            ),
+          );
       }
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Erro ao concluir tarefa. Tente novamente.'),
-            backgroundColor: AppTheme.of(context).error,
-          ),
-        );
+    }
+    } finally {
+      // Desativar loading
+      if (mounted) {
+        safeSetState(() {
+          _loadingTaskId = null;
+          _loadingAction = null;
+        });
       }
     }
   }
@@ -431,7 +472,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
     );
   }
 
-  List<Widget> _buildAndamentoCardBody(BuildContext context, dynamic item, {bool isInspection = false}) {
+  List<Widget> _buildAndamentoCardBody(BuildContext context, dynamic item, {bool isInspection = false, bool isSemSucesso = false}) {
     final taskId = castToType<int>(getJsonField(item, r'$.id')) ?? 0;
     final subtasksId = castToType<int>(getJsonField(item, r'$.subtasks_id')) ?? 0;
     final isSubtask = subtasksId != 0;
@@ -771,7 +812,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
               child: Builder(
                 builder: (context) => InkWell(
                   borderRadius: BorderRadius.circular(8.0),
-                  onTap: () async {
+                  onTap: _loadingTaskId != null ? null : () async {
                     if (isInspection) {
                       // Aprovado — modal de confirmação + updateInspectionCall com qualityStatusId: 2
                       final confirmed = await showDialog<bool>(
@@ -798,25 +839,40 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                         ),
                       );
                       if (confirmed != true) return;
-                      final result = await SprintsGroup.updateInspectionCall.call(
-                        sprintsTasksId: taskId,
-                        qualityStatusId: 2,
-                        token: currentAuthenticationToken,
-                      );
-                      if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
-                        AppState().update(() {
-                          final current = AppState().offlineMaskedTasksIds.toList();
-                          if (!current.contains(taskId)) {
-                            current.add(taskId);
-                            AppState().offlineMaskedTasksIds = current;
-                          }
-                        });
-                      }
                       safeSetState(() {
-                        _model.clearHomePageCache();
-                        _model.apiRequestCompleted = false;
+                        _loadingTaskId = taskId;
+                        _loadingAction = 'aprovado';
                       });
-                      await _model.waitForApiRequestCompleted();
+                      try {
+                        final result = await SprintsGroup.updateInspectionCall.call(
+                          sprintsTasksId: taskId,
+                          qualityStatusId: 2,
+                          token: currentAuthenticationToken,
+                        );
+                        // Vincular tarefa ao schedule do dia
+                        _linkTaskToSchedule(taskId);
+                        if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
+                          AppState().update(() {
+                            final current = AppState().offlineMaskedTasksIds.toList();
+                            if (!current.contains(taskId)) {
+                              current.add(taskId);
+                              AppState().offlineMaskedTasksIds = current;
+                            }
+                          });
+                        }
+                        safeSetState(() {
+                          _model.clearHomePageCache();
+                          _model.apiRequestCompleted = false;
+                        });
+                        await _model.waitForApiRequestCompleted();
+                      } finally {
+                        if (mounted) {
+                          safeSetState(() {
+                            _loadingTaskId = null;
+                            _loadingAction = null;
+                          });
+                        }
+                      }
                       return;
                     }
                     if ((AppConstants.um ==
@@ -858,6 +914,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                       });
                     } else {
                       // Tarefa sem quantidade — concluir direto
+                      safeSetState(() {
+                        _loadingTaskId = taskId;
+                        _loadingAction = 'concluir';
+                      });
+                      try {
                       AppState().tasksfinish = [];
                       AppState().tasksfinish = [_buildTaskStruct()];
                       safeSetState(() {});
@@ -889,6 +950,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                           );
                         },
                       );
+                      } finally {
+                        if (mounted) {
+                          safeSetState(() {
+                            _loadingTaskId = null;
+                            _loadingAction = null;
+                          });
+                        }
+                      }
                     }
                   },
                   child: Container(
@@ -900,7 +969,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.check_circle_outline,
+                        _loadingTaskId == taskId && _loadingAction == 'concluir'
+                          ? const SizedBox(width: 14.0, height: 14.0, child: CircularProgressIndicator(strokeWidth: 2.0, color: Color(0xFF16A34A)))
+                          : const Icon(Icons.check_circle_outline,
                             size: 14.0, color: Color(0xFF16A34A)),
                         const SizedBox(width: 4.0),
                         Text(
@@ -925,7 +996,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
               child: Builder(
                 builder: (context) => InkWell(
                 borderRadius: BorderRadius.circular(8.0),
-                onTap: () async {
+                onTap: _loadingTaskId != null ? null : () async {
                   if (isInspection) {
                     // Reprovado — modal de confirmação + updateInspectionCall com qualityStatusId: 3
                     final confirmed = await showDialog<bool>(
@@ -952,25 +1023,40 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                       ),
                     );
                     if (confirmed != true) return;
-                    final result = await SprintsGroup.updateInspectionCall.call(
-                      sprintsTasksId: taskId,
-                      qualityStatusId: 3,
-                      token: currentAuthenticationToken,
-                    );
-                    if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
-                      AppState().update(() {
-                        final current = AppState().offlineMaskedTasksIds.toList();
-                        if (!current.contains(taskId)) {
-                          current.add(taskId);
-                          AppState().offlineMaskedTasksIds = current;
-                        }
-                      });
-                    }
                     safeSetState(() {
-                      _model.clearHomePageCache();
-                      _model.apiRequestCompleted = false;
+                      _loadingTaskId = taskId;
+                      _loadingAction = 'reprovado';
                     });
-                    await _model.waitForApiRequestCompleted();
+                    try {
+                      final result = await SprintsGroup.updateInspectionCall.call(
+                        sprintsTasksId: taskId,
+                        qualityStatusId: 3,
+                        token: currentAuthenticationToken,
+                      );
+                      // Vincular tarefa ao schedule do dia
+                      _linkTaskToSchedule(taskId);
+                      if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
+                        AppState().update(() {
+                          final current = AppState().offlineMaskedTasksIds.toList();
+                          if (!current.contains(taskId)) {
+                            current.add(taskId);
+                            AppState().offlineMaskedTasksIds = current;
+                          }
+                        });
+                      }
+                      safeSetState(() {
+                        _model.clearHomePageCache();
+                        _model.apiRequestCompleted = false;
+                      });
+                      await _model.waitForApiRequestCompleted();
+                    } finally {
+                      if (mounted) {
+                        safeSetState(() {
+                          _loadingTaskId = null;
+                          _loadingAction = null;
+                        });
+                      }
+                    }
                     return;
                   }
                   await showDialog(
@@ -1012,7 +1098,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.cancel_outlined,
+                      _loadingTaskId == taskId && (_loadingAction == 'reprovado' || _loadingAction == 'semSucesso')
+                        ? const SizedBox(width: 14.0, height: 14.0, child: CircularProgressIndicator(strokeWidth: 2.0, color: Color(0xFFDC2626)))
+                        : const Icon(Icons.cancel_outlined,
                           size: 14.0, color: Color(0xFFDC2626)),
                       const SizedBox(width: 4.0),
                       Text(
@@ -1070,42 +1158,25 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
         } catch (_) {}
       });
 
-      _model.validTokenCopy = await AuthenticationGroup
-          .getTheRecordBelongingToTheAuthenticationTokenCall
-          .call(
-        bearerAuth: currentAuthenticationToken,
-      );
+      // Verificar se ainda tem schedule ativo — se não, voltar para seleção
+      if (AppState().user.sheduleId == 0 || AppState().user.sheduleId == null) {
+        AppState().loading = false;
+        safeSetState(() {});
 
-      if ((_model.validTokenCopy?.succeeded ?? true)) {
-        // Só redireciona para QR code se é firstLogin E o usuário ainda
-        // não criou a escala nesta sessão (sheduleId == 0)
-        final isFirstLogin = AuthenticationGroup
-                .getTheRecordBelongingToTheAuthenticationTokenCall
-                .firstLogin(
-              (_model.validTokenCopy?.jsonBody ?? ''),
-            ) ==
-            true;
-        final hasSchedule = AppState().user.sheduleId > 0;
+        context.goNamedAuth(
+          PageCheckQrcodeWidget.routeName,
+          context.mounted,
+          extra: <String, dynamic>{
+            kTransitionInfoKey: TransitionInfo(
+              hasTransition: true,
+              transitionType: PageTransitionType.fade,
+              duration: Duration(milliseconds: 250),
+            ),
+            'skipProjectCheck': true,
+          },
+        );
 
-        if (isFirstLogin && !hasSchedule) {
-          AppState().loading = false;
-          safeSetState(() {});
-
-          context.goNamedAuth(
-            PageCheckQrcodeWidget.routeName,
-            context.mounted,
-            extra: <String, dynamic>{
-              kTransitionInfoKey: TransitionInfo(
-                hasTransition: true,
-                transitionType: PageTransitionType.fade,
-                duration: Duration(milliseconds: 250),
-              ),
-              'skipProjectCheck': true,
-            },
-          );
-
-          return;
-        }
+        return;
       }
     });
 
@@ -1376,6 +1447,30 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                   ),
                                 ),
                                 const SizedBox(width: 6.0),
+                                AppIconButton(
+                                  borderRadius: 10.0,
+                                  buttonSize: 36.0,
+                                  fillColor: Colors.white.withOpacity(0.15),
+                                  icon: const Icon(
+                                    Icons.swap_horiz_rounded,
+                                    color: Colors.white,
+                                    size: 18.0,
+                                  ),
+                                  onPressed: () {
+                                    context.goNamedAuth(
+                                      ProjectSelectionWidget.routeName,
+                                      context.mounted,
+                                      extra: <String, dynamic>{
+                                        kTransitionInfoKey: TransitionInfo(
+                                          hasTransition: true,
+                                          transitionType: PageTransitionType.fade,
+                                          duration: const Duration(milliseconds: 250),
+                                        ),
+                                      },
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 6.0),
                                 AppDropDown<String>(
                                     controller: _model.dropDownValueController2 ??=
                                         FormFieldController<String>(
@@ -1499,7 +1594,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                               Flexible(
                                                 child: Text(
                                                   AppState().user.projectName.isNotEmpty
-                                                      ? AppState().user.projectName
+                                                      ? (AppState().user.teamName.isNotEmpty
+                                                          ? '${AppState().user.projectName} / ${AppState().user.teamName}'
+                                                          : AppState().user.projectName)
                                                       : AppLocalizations.of(context).getVariableText(
                                                           ptText: 'Projeto',
                                                           esText: 'Proyecto',
@@ -1519,18 +1616,19 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                         ),
                                         InkWell(
                                           onTap: () async {
-                                            // Limpar sheduleId para forçar novo fluxo
+                                            // Limpar dados de projeto/equipe para forçar novo fluxo
                                             AppState().updateUserStruct(
                                               (e) => e
                                                 ..sheduleId = null
                                                 ..projectId = null
                                                 ..teamsId = null
+                                                ..teamName = null
                                                 ..sprint = SprintsStruct(),
                                             );
                                             AppState().update(() {});
                                             if (!context.mounted) return;
                                             context.goNamedAuth(
-                                              PageCheckQrcodeWidget.routeName,
+                                              ProjectSelectionWidget.routeName,
                                               context.mounted,
                                               extra: <String, dynamic>{
                                                 kTransitionInfoKey: TransitionInfo(
@@ -2580,7 +2678,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                               ),
-                                                                                            ..._buildAndamentoCardBody(context, listaSemSucessoItem),
+                                                                                            ..._buildAndamentoCardBody(context, listaSemSucessoItem, isSemSucesso: true),
                                                                                           ],
                                                                                         ),
                                                                                       ),

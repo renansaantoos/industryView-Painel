@@ -819,7 +819,7 @@ export class SprintsService {
     if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
       await db.sprints_tasks.update({
         where: { id: input.sprints_tasks_id },
-        data: { quality_status_id: 1 },
+        data: { quality_status_id: 1 } as any,
       });
     }
 
@@ -1111,14 +1111,17 @@ export class SprintsService {
     }
 
     // Atualiza quality_status na propria tarefa (nao no backlog - evita afetar outras tarefas)
+    const qualityUpdateData: any = {
+      quality_status_id: input.quality_status_id,
+      updated_at: new Date(),
+    };
+    // Se rejeitado (quality_status_id != 2), volta status da tarefa para pendente
+    if (input.quality_status_id !== 2) {
+      qualityUpdateData.sprints_tasks_statuses_id = 1;
+    }
     await db.sprints_tasks.update({
       where: { id: input.sprints_tasks_id },
-      data: {
-        quality_status_id: input.quality_status_id,
-        updated_at: new Date(),
-        // Se rejeitado (quality_status_id != 2), volta status da tarefa para pendente
-        ...(input.quality_status_id !== 2 ? { sprints_tasks_statuses_id: 1 } : {}),
-      },
+      data: qualityUpdateData,
     });
 
     // Se aprovado (quality_status_id === 2), dispara rollup de progresso

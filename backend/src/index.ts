@@ -23,6 +23,7 @@ import fs from 'fs';
 const upload = multer();
 
 import { config } from './config/env';
+import { storageService } from './services/storage.service';
 import { connectDatabase, disconnectDatabase, checkDatabaseHealth } from './config/database';
 import { swaggerSpec } from './config/swagger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -491,7 +492,7 @@ app.use(`${API_PREFIX}/tools`, toolsRoutes);
 // =============================================================================
 
 const fileUpload = multer({
-  storage: multer.diskStorage({
+  storage: config.storage.type === 'gcp' ? multer.memoryStorage() : multer.diskStorage({
     destination: (_req, _file, cb) => {
       const dest = path.resolve(config.storage.path, 'attachments');
       fs.mkdirSync(dest, { recursive: true });
@@ -536,22 +537,28 @@ const fileUpload = multer({
  *       201:
  *         description: File uploaded successfully
  */
-app.post(`${API_PREFIX}/uploads`, authenticate, fileUpload.single('file'), (req: Request, res: Response) => {
+app.post(`${API_PREFIX}/uploads`, authenticate, fileUpload.single('file'), async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) {
     res.status(400).json({ error: true, message: 'Nenhum arquivo enviado.' });
     return;
   }
 
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  const fileUrl = `${baseUrl}/uploads/attachments/${file.filename}`;
+  try {
+    const folder = (req.query.folder as string) || 'attachments';
+    const result = await storageService.upload(file, folder);
 
-  res.status(201).json({
-    file_url: fileUrl,
-    file_name: file.originalname,
-    file_type: file.mimetype,
-    file_size: file.size,
-  });
+    // For local storage, prepend the base URL
+    if (!result.file_url.startsWith('http')) {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      result.file_url = `${baseUrl}${result.file_url}`;
+    }
+
+    res.status(201).json(result);
+  } catch (err: any) {
+    console.error('[Upload Error]', err.message);
+    res.status(500).json({ error: true, message: 'Erro ao fazer upload do arquivo.' });
+  }
 });
 
 // =============================================================================

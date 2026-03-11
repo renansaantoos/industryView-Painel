@@ -1113,43 +1113,6 @@ export class TeamsService {
       throw new BadRequestError('Usuario ja e lider desta equipe.');
     }
 
-    // Verifica se o usuario ja e lider de outra equipe no mesmo projeto
-    const targetTeam = await db.teams.findFirst({
-      where: { id: input.teams_id, deleted_at: null },
-      select: {
-        projects_id: true,
-        teams_projects: { where: { deleted_at: null }, select: { projects_id: true } },
-      },
-    });
-    if (targetTeam) {
-      const projectIds = [
-        ...(targetTeam.projects_id ? [targetTeam.projects_id] : []),
-        ...targetTeam.teams_projects.map((tp) => tp.projects_id),
-      ];
-      if (projectIds.length > 0) {
-        const conflicting = await db.teams_leaders.findFirst({
-          where: {
-            users_id: input.users_id,
-            teams_id: { not: input.teams_id },
-            deleted_at: null,
-            teams: {
-              deleted_at: null,
-              OR: [
-                { projects_id: { in: projectIds } },
-                { teams_projects: { some: { projects_id: { in: projectIds }, deleted_at: null } } },
-              ],
-            },
-          },
-          include: { teams: { select: { name: true } } },
-        });
-        if (conflicting) {
-          throw new BadRequestError(
-            `Usuario ja e lider da equipe "${conflicting.teams?.name}" neste projeto. Um usuario so pode ser lider de 1 equipe por projeto.`,
-          );
-        }
-      }
-    }
-
     // Bloqueia funcionarios demitidos
     const hrData = await db.employees_hr_data.findFirst({
       where: { users_id: input.users_id },
@@ -1203,51 +1166,6 @@ export class TeamsService {
     // Remove usuarios de equipes anteriores (transferencia)
     if (transfer_users_ids && transfer_users_ids.length > 0) {
       await this.removeUsersFromOtherTeams(transfer_users_ids, teams_id, performedBy);
-    }
-
-    // Verifica se algum usuario ja e lider de outra equipe no mesmo projeto
-    const targetTeam = await db.teams.findFirst({
-      where: { id: teams_id, deleted_at: null },
-      select: {
-        projects_id: true,
-        teams_projects: { where: { deleted_at: null }, select: { projects_id: true } },
-      },
-    });
-    if (targetTeam) {
-      const projectIds = [
-        ...(targetTeam.projects_id ? [targetTeam.projects_id] : []),
-        ...targetTeam.teams_projects.map((tp) => tp.projects_id),
-      ];
-      if (projectIds.length > 0) {
-        // Exclui da verificacao usuarios que serao transferidos (ja serao removidos das equipes anteriores)
-        const idsToCheck = users_ids.filter((id) => !transfer_users_ids?.includes(id));
-        if (idsToCheck.length > 0) {
-          const conflicting = await db.teams_leaders.findMany({
-            where: {
-              users_id: { in: idsToCheck },
-              teams_id: { not: teams_id },
-              deleted_at: null,
-              teams: {
-                deleted_at: null,
-                OR: [
-                  { projects_id: { in: projectIds } },
-                  { teams_projects: { some: { projects_id: { in: projectIds }, deleted_at: null } } },
-                ],
-              },
-            },
-            include: {
-              teams: { select: { name: true } },
-              users: { select: { name: true } },
-            },
-          });
-          if (conflicting.length > 0) {
-            const names = conflicting.map((c) => `${c.users?.name} (equipe "${c.teams?.name}")`).join(', ');
-            throw new BadRequestError(
-              `Os seguintes usuarios ja sao lideres de outra equipe neste projeto: ${names}. Um usuario so pode ser lider de 1 equipe por projeto.`,
-            );
-          }
-        }
-      }
     }
 
     // Busca lideres ativos (nao deletados) para este time e evita duplicatas

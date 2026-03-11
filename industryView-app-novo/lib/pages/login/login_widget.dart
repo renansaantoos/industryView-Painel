@@ -8,6 +8,7 @@ import '/core/widgets/app_button.dart';
 import 'dart:ui';
 import '/index.dart';
 import '/pages/project_selection/project_selection_widget.dart';
+import '/pages/team_selection/team_selection_widget.dart';
 import '/services/initial_sync_service.dart';
 import '/services/network_service.dart';
 import 'package:flutter/foundation.dart';
@@ -115,8 +116,8 @@ class _LoginWidgetState extends State<LoginWidget> {
     ApiCallResponse? sprintResponse,
     bool skipProjectData = false,
   }) {
-    final tokenJson = tokenResponse.jsonBody ?? '';
-    final loginJson = loginResponse.jsonBody ?? '';
+    final dynamic tokenJson = tokenResponse.jsonBody;
+    final dynamic loginJson = loginResponse.jsonBody;
 
     final meCall = AuthenticationGroup
         .getTheRecordBelongingToTheAuthenticationTokenCall;
@@ -142,7 +143,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       // Sprint data vem da chamada separada GET /sprints (passo 3)
       if (sprintResponse != null) {
         final sprintItems = SprintsGroup.getSprintAtivaCall
-            .listAtivas(sprintResponse.jsonBody ?? '');
+            .listAtivas(sprintResponse.jsonBody);
         if (sprintItems != null && sprintItems.isNotEmpty) {
           final s = sprintItems.first;
           sprintData = SprintsStruct(
@@ -190,10 +191,12 @@ class _LoginWidgetState extends State<LoginWidget> {
     setState(() => _isSubmitting = true);
 
     try {
+      if (kDebugMode) print('=== LOGIN: starting ===');
       final result = await _loginService.login(
         email: _emailController.text,
         password: _passwordController.text,
       );
+      if (kDebugMode) print('=== LOGIN: result status=${result.status} ===');
 
       switch (result.status) {
         case LoginStatus.connectionError:
@@ -313,14 +316,14 @@ class _LoginWidgetState extends State<LoginWidget> {
 
       final meCall = AuthenticationGroup
           .getTheRecordBelongingToTheAuthenticationTokenCall;
-      final allProjectIds = meCall.allProjectIds(_validToken!.jsonBody ?? '');
+      final allProjectIds = meCall.allProjectIds(_validToken!.jsonBody);
 
       final authToken = AuthenticationGroup
           .loginAndRetrieveAnAuthenticationTokenCall
-          .token((_apiLogin?.jsonBody ?? ''));
+          .token((_apiLogin?.jsonBody));
 
       // Buscar projetos do backend para filtrar por status ativo/em andamento
-      final companyId = meCall.companyID(_validToken!.jsonBody ?? '');
+      final companyId = meCall.companyID(_validToken!.jsonBody);
       List<Map<String, dynamic>> activeProjects = [];
 
       if (companyId != null && authToken != null && allProjectIds.isNotEmpty) {
@@ -330,7 +333,7 @@ class _LoginWidgetState extends State<LoginWidget> {
         );
         if (projectsResponse.succeeded) {
           final allItems = ProjectsGroup.getUserProjectsCall.items(
-            projectsResponse.jsonBody ?? '',
+            projectsResponse.jsonBody,
           );
           if (allItems != null) {
             final userIds = allProjectIds.toSet();
@@ -383,7 +386,7 @@ class _LoginWidgetState extends State<LoginWidget> {
           },
         );
       } else {
-        // 0 ou 1 projeto ativo: fluxo direto
+        // 0 ou 1 projeto ativo: verificar se tem múltiplas equipes
         _persistUserState(
           tokenResponse: _validToken!,
           loginResponse: _apiLogin!,
@@ -392,8 +395,33 @@ class _LoginWidgetState extends State<LoginWidget> {
 
         // Definir nome do projeto ativo (se houver)
         if (activeProjects.isNotEmpty) {
+          final dynamic tokenJson = _validToken!.jsonBody;
+          final leaders = meCall.teamsLeader(tokenJson);
+          final members = meCall.teamsMember(tokenJson);
+          String? singleTeamName;
+          final projectId = activeProjects.first['id'] as int;
+          // Encontrar nome da equipe (se única)
+          if (leaders != null) {
+            for (final leader in leaders) {
+              final teamProjectId = castToType<int>(getJsonField(leader, r'''$.projects_id'''));
+              if (teamProjectId == projectId) {
+                singleTeamName = castToType<String>(getJsonField(leader, r'''$.name''')) ?? 'Equipe';
+                break;
+              }
+            }
+          }
+          if (singleTeamName == null && members != null) {
+            for (final member in members) {
+              final teamProjectId = castToType<int>(getJsonField(member, r'''$.projects_id'''));
+              if (teamProjectId == projectId) {
+                singleTeamName = castToType<String>(getJsonField(member, r'''$.name''')) ?? 'Equipe';
+                break;
+              }
+            }
+          }
           AppState().updateUserStruct((user) {
             user.projectName = activeProjects.first['name'] as String;
+            if (singleTeamName != null) user.teamName = singleTeamName;
           });
         }
 
@@ -403,6 +431,56 @@ class _LoginWidgetState extends State<LoginWidget> {
         );
 
         if (!mounted) return;
+
+        // Verificar se o projeto tem múltiplas equipes
+        if (activeProjects.isNotEmpty) {
+          final projectId = activeProjects.first['id'] as int;
+          final projectName = activeProjects.first['name'] as String;
+          final dynamic tokenJson = _validToken!.jsonBody;
+          final leaders = meCall.teamsLeader(tokenJson);
+          final members = meCall.teamsMember(tokenJson);
+          final teamsMap = <int, TeamItem>{};
+
+          if (leaders != null) {
+            for (final leader in leaders) {
+              final teamProjectId = castToType<int>(getJsonField(leader, r'''$.projects_id'''));
+              if (teamProjectId == projectId) {
+                final teamId = castToType<int>(getJsonField(leader, r'''$.id'''));
+                final teamName = castToType<String>(getJsonField(leader, r'''$.name''')) ?? 'Equipe';
+                if (teamId != null) teamsMap[teamId] = TeamItem(id: teamId, name: teamName);
+              }
+            }
+          }
+          if (members != null) {
+            for (final member in members) {
+              final teamProjectId = castToType<int>(getJsonField(member, r'''$.projects_id'''));
+              if (teamProjectId == projectId) {
+                final teamId = castToType<int>(getJsonField(member, r'''$.id'''));
+                final teamName = castToType<String>(getJsonField(member, r'''$.name''')) ?? 'Equipe';
+                if (teamId != null && !teamsMap.containsKey(teamId)) {
+                  teamsMap[teamId] = TeamItem(id: teamId, name: teamName);
+                }
+              }
+            }
+          }
+
+          if (teamsMap.length > 1) {
+            // Múltiplas equipes — ir para seleção de equipe
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TeamSelectionWidget(
+                  projectId: projectId,
+                  projectName: projectName,
+                  teams: teamsMap.values.toList(),
+                  tokenResponse: _validToken!,
+                  loginResponse: _apiLogin!,
+                ),
+              ),
+            );
+            return;
+          }
+        }
+
         context.pushNamedAuth(
           PageCheckQrcodeWidget.routeName,
           context.mounted,
@@ -414,7 +492,11 @@ class _LoginWidgetState extends State<LoginWidget> {
           },
         );
       }
-    } catch (error) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        print('=== LOGIN ERROR: $error ===');
+        print('=== LOGIN STACKTRACE: $stackTrace ===');
+      }
       await _showModalInfo(
         title: AppLocalizations.of(context).getVariableText(
           ptText: 'Erro inesperado',

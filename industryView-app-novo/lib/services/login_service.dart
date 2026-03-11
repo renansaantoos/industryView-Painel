@@ -1,6 +1,7 @@
 import '/backend/api_requests/api_calls.dart';
 import '/core/actions/index.dart' as actions;
 import '/core/utils/app_utils.dart';
+import 'package:flutter/foundation.dart';
 
 enum LoginStatus {
   success,
@@ -50,9 +51,14 @@ class LoginService {
       );
 
       final loginSucceeded = loginResponse.succeeded == true;
+      if (kDebugMode) {
+        print('=== LOGIN_SERVICE: loginSucceeded=$loginSucceeded statusCode=${loginResponse.statusCode}');
+        print('=== LOGIN_SERVICE: jsonBody type=${loginResponse.jsonBody?.runtimeType}');
+        print('=== LOGIN_SERVICE: jsonBody=${ loginResponse.jsonBody}');
+      }
       if (!loginSucceeded) {
         final message = AuthenticationGroup.loginAndRetrieveAnAuthenticationTokenCall
-            .message(loginResponse.jsonBody ?? '');
+            .message(loginResponse.jsonBody);
         final isInvalidPassword = message == 'Invalid Credentials.';
         return LoginResult(
           status: isInvalidPassword
@@ -65,7 +71,7 @@ class LoginService {
 
       final authToken = AuthenticationGroup
           .loginAndRetrieveAnAuthenticationTokenCall
-          .token(loginResponse.jsonBody ?? '');
+          .token(loginResponse.jsonBody);
 
       // Passo 2: GET /auth/me/app → user + projects + teams
       final tokenResponse = await AuthenticationGroup
@@ -75,7 +81,7 @@ class LoginService {
       final tokenSucceeded = tokenResponse.succeeded == true;
       if (!tokenSucceeded) {
         final tokenMessage = getJsonField(
-          (tokenResponse.jsonBody ?? ''),
+          (tokenResponse.jsonBody),
           r'''$.message''',
         ).toString();
         return LoginResult(
@@ -88,7 +94,7 @@ class LoginService {
 
       final systemAccess = AuthenticationGroup
           .getTheRecordBelongingToTheAuthenticationTokenCall
-          .system(tokenResponse.jsonBody ?? '');
+          .system(tokenResponse.jsonBody);
       final hasAccess = systemAccess == 2 || systemAccess == 3;
 
       if (!hasAccess) {
@@ -102,7 +108,7 @@ class LoginService {
       // Verificar se o usuário é líder de pelo menos uma equipe
       final meCall = AuthenticationGroup
           .getTheRecordBelongingToTheAuthenticationTokenCall;
-      final leaders = meCall.teamsLeader(tokenResponse.jsonBody ?? '');
+      final leaders = meCall.teamsLeader(tokenResponse.jsonBody);
       final isLeader = leaders != null && leaders.isNotEmpty;
       if (!isLeader) {
         return LoginResult(
@@ -117,7 +123,7 @@ class LoginService {
       // Com múltiplos projetos, a sprint será buscada após a seleção do projeto.
       final allProjects = AuthenticationGroup
           .getTheRecordBelongingToTheAuthenticationTokenCall
-          .allProjectIds(tokenResponse.jsonBody ?? '');
+          .allProjectIds(tokenResponse.jsonBody);
 
       ApiCallResponse? sprintResponse;
       final hasSingleProject = allProjects.length == 1;

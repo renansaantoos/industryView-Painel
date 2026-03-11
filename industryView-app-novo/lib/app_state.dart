@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '/core/utils/request_manager.dart';
 import '/backend/schema/structs/index.dart';
 import '/backend/api_requests/api_manager.dart';
@@ -31,6 +32,24 @@ class AppState extends ChangeNotifier {
         }
       }
     });
+    _safeInit(() {
+      if (prefs.containsKey('ff_project_contexts')) {
+        try {
+          final serializedData = prefs.getString('ff_project_contexts') ?? '[]';
+          final list = jsonDecode(serializedData) as List<dynamic>;
+          _projectContexts = list
+              .map((e) => ActiveProjectContextStruct.fromSerializableMap(
+                  (e as Map).cast<String, dynamic>()))
+              .toList();
+        } catch (e) {
+          print("Can't decode project contexts. Error: $e.");
+        }
+      }
+    });
+    _safeInit(() {
+      _activeProjectIndex = prefs.getInt('ff_active_project_index') ?? -1;
+    });
+    _cleanOldProjectContexts();
   }
 
   void update(VoidCallback callback) {
@@ -477,6 +496,143 @@ class AppState extends ChangeNotifier {
 
   void insertAtIndexInTasksfinish(int index, TasksListStruct value) {
     tasksfinish.insert(index, value);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Multi-Project Context Management
+  // ═══════════════════════════════════════════════════════════════
+
+  List<ActiveProjectContextStruct> _projectContexts = [];
+  List<ActiveProjectContextStruct> get projectContexts => _projectContexts;
+  set projectContexts(List<ActiveProjectContextStruct> value) {
+    _projectContexts = value;
+    _persistProjectContexts();
+  }
+
+  int _activeProjectIndex = -1;
+  int get activeProjectIndex => _activeProjectIndex;
+  set activeProjectIndex(int value) {
+    _activeProjectIndex = value;
+    prefs.setInt('ff_active_project_index', value);
+  }
+
+  ActiveProjectContextStruct? get activeProjectContext {
+    if (_activeProjectIndex >= 0 &&
+        _activeProjectIndex < _projectContexts.length) {
+      return _projectContexts[_activeProjectIndex];
+    }
+    return null;
+  }
+
+  void _persistProjectContexts() {
+    final serialized =
+        jsonEncode(_projectContexts.map((e) => e.toSerializableMap()).toList());
+    prefs.setString('ff_project_contexts', serialized);
+  }
+
+  void _cleanOldProjectContexts() {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final before = _projectContexts.length;
+    _projectContexts.removeWhere((ctx) => ctx.date != today);
+    if (_projectContexts.length != before) {
+      if (_activeProjectIndex >= _projectContexts.length) {
+        _activeProjectIndex = -1;
+        prefs.setInt('ff_active_project_index', -1);
+      }
+      _persistProjectContexts();
+      if (kDebugMode) {
+        print('Cleaned ${before - _projectContexts.length} old project contexts');
+      }
+    }
+  }
+
+  int findProjectContextIndex(int projectId) {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return _projectContexts.indexWhere(
+        (ctx) => ctx.projectId == projectId && ctx.date == today);
+  }
+
+  int addOrGetProjectContext({
+    required int projectId,
+    required String projectName,
+    required int teamsId,
+    int? scheduleId,
+    int? sprintId,
+    String? sprintTitle,
+  }) {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final existingIndex = findProjectContextIndex(projectId);
+    if (existingIndex >= 0) {
+      return existingIndex;
+    }
+    _projectContexts.add(ActiveProjectContextStruct(
+      projectId: projectId,
+      projectName: projectName,
+      teamsId: teamsId,
+      scheduleId: scheduleId,
+      sprintId: sprintId,
+      sprintTitle: sprintTitle,
+      date: today,
+      allIds: [],
+      qrCodeIDs: [],
+      liberaManual: [],
+      rdoFinalized: false,
+    ));
+    _persistProjectContexts();
+    return _projectContexts.length - 1;
+  }
+
+  void switchToProject(int index) {
+    if (index < 0 || index >= _projectContexts.length) return;
+    _activeProjectIndex = index;
+    prefs.setInt('ff_active_project_index', index);
+    final ctx = _projectContexts[index];
+
+    // Sincronizar AppState global com o contexto ativo
+    updateUserStruct((e) => e
+      ..projectId = ctx.projectId
+      ..projectName = ctx.projectName
+      ..teamsId = ctx.teamsId
+      ..sheduleId = ctx.scheduleId != 0 ? ctx.scheduleId : null
+      ..sprint = SprintsStruct(id: ctx.sprintId, title: ctx.sprintTitle));
+
+    allIds = ctx.allIds.toList();
+    qrCodeIDs = ctx.qrCodeIDs.toList();
+    liberaManual = ctx.liberaManual.toList();
+
+    if (kDebugMode) {
+      print('Switched to project context $index: ${ctx.projectName} (id: ${ctx.projectId})');
+    }
+    notifyListeners();
+  }
+
+  void saveCurrentToActiveContext() {
+    if (_activeProjectIndex < 0 ||
+        _activeProjectIndex >= _projectContexts.length) return;
+    final ctx = _projectContexts[_activeProjectIndex];
+    ctx.scheduleId = user.sheduleId;
+    ctx.allIds = allIds.toList();
+    ctx.qrCodeIDs = qrCodeIDs.toList();
+    ctx.liberaManual = liberaManual.toList();
+    _persistProjectContexts();
+  }
+
+  void markActiveProjectRdoFinalized() {
+    if (_activeProjectIndex < 0 ||
+        _activeProjectIndex >= _projectContexts.length) return;
+    _projectContexts[_activeProjectIndex].rdoFinalized = true;
+    _persistProjectContexts();
+  }
+
+  void clearAllProjectContexts() {
+    _projectContexts.clear();
+    _activeProjectIndex = -1;
+    prefs.setInt('ff_active_project_index', -1);
+    _persistProjectContexts();
+  }
+
+  bool get hasUnfinalizedProjects {
+    return _projectContexts.any((ctx) => !ctx.rdoFinalized && ctx.scheduleId != 0);
   }
 
   final _escalaManager = FutureRequestManager<ApiCallResponse>();

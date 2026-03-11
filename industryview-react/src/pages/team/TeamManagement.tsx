@@ -14,7 +14,7 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import SortableHeader from '../../components/common/SortableHeader';
-import ProjectSelector from '../../components/common/ProjectSelector';
+import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import {
   Plus, Search, ArrowLeft, Trash2, UserPlus, Crown, Users, Edit,
   ChevronLeft, ChevronRight, UserCheck, FolderOpen,
@@ -686,18 +686,17 @@ function AddUserModal({ title, onClose, onSave, saving, teamId, targetTeamName, 
         )}
       </div>
 
-      {/* Modal de confirmacao de transferencia */}
+      {/* Modal de confirmacao de vinculacao a outra equipe */}
       {transferConfirm && (
         <ConfirmModal
-          title="Transferir colaborador"
-          message={`"${transferConfirm.user.name}" já pertence à equipe "${transferConfirm.user.currentTeamName || 'outra equipe'}". Deseja transferi-lo para ${targetTeamName ? `a equipe "${targetTeamName}"` : 'esta equipe'}? Ele será removido da equipe anterior.`}
-          confirmLabel="Transferir"
+          title="Vincular colaborador"
+          message={`"${transferConfirm.user.name}" já pertence à equipe "${transferConfirm.user.currentTeamName || 'outra equipe'}". Deseja vinculá-lo também ${targetTeamName ? `à equipe "${targetTeamName}"` : 'a esta equipe'}? Ele continuará nas equipes anteriores.`}
+          confirmLabel="Vincular"
           cancelLabel="Cancelar"
           variant="warning"
           onConfirm={() => {
             const user = transferConfirm.user;
             setSelectedUsers((prev) => [...prev, { id: user.id, name: user.name }]);
-            setTransferUserIds((prev) => new Set(prev).add(user.id));
             setTransferConfirm(null);
           }}
           onCancel={() => setTransferConfirm(null)}
@@ -732,6 +731,11 @@ export default function TeamManagement() {
   const [membersSortField, setMembersSortField] = useState<string | null>(null);
   const [membersSortDirection, setMembersSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [memberSearch, setMemberSearch] = useState('');
+
+  // Collapse states for right column sections
+  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
+  const [leadersCollapsed, setLeadersCollapsed] = useState(false);
+  const [membersCollapsed, setMembersCollapsed] = useState(false);
 
   // Modal states
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -1298,9 +1302,7 @@ export default function TeamManagement() {
     (p) => !linkedProjectIds.has(p.id) && (!projectSearch || fuzzyMatch(p.name || '', projectSearch))
   );
 
-  if (!projectsInfo) return <ProjectSelector />;
-
-  const projectName = projectsInfo.name;
+  const projectName = projectsInfo?.name || t('projects.title');
 
   return (
     <div>
@@ -1313,13 +1315,22 @@ export default function TeamManagement() {
             <Link to="/projeto-detalhes" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
             </Link>
-            <button className="btn btn-primary" onClick={() => setShowCreateTeamModal(true)}>
-              <Plus size={18} /> {t('teams.createTeam')}
-            </button>
+            {projectsInfo && (
+              <button className="btn btn-primary" onClick={() => setShowCreateTeamModal(true)}>
+                <Plus size={18} /> {t('teams.createTeam')}
+              </button>
+            )}
           </div>
         }
       />
 
+      <ProjectFilterDropdown />
+
+      {!projectsInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
+          Selecione um projeto para gerenciar as equipes
+        </div>
+      ) : (<>
       {/* Search bar */}
       <div style={{ marginBottom: '12px' }}>
         <div style={{ position: 'relative', width: '340px' }}>
@@ -1514,8 +1525,12 @@ export default function TeamManagement() {
 
           {/* --- Linked Projects Section --- */}
           <div className="card" style={{ flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: linkedProjects.length > 0 || teamId === 0 ? '16px' : '0' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: projectsCollapsed ? '0' : (linkedProjects.length > 0 || teamId === 0 ? '16px' : '0') }}>
+              <h3
+                style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setProjectsCollapsed((v) => !v)}
+              >
+                {projectsCollapsed ? <ChevronRight size={18} color="var(--color-secondary-text)" /> : <ChevronDown size={18} color="var(--color-secondary-text)" />}
                 <FolderOpen size={18} color="var(--color-success)" />
                 {t('teams.linkedProjects')}
                 {selectedTeamName && (
@@ -1557,57 +1572,63 @@ export default function TeamManagement() {
                 </div>
               )}
             </div>
-            {teamId === 0 ? (
-              <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center', padding: '12px 0' }}>
-                {t('teams.noTeamSelected')}
-              </p>
-            ) : linkedProjects.length === 0 ? (
-              null
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {linkedProjects.map((lp) => (
-                  <div
-                    key={lp.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '10px',
-                      padding: '8px 12px', borderRadius: '8px',
-                      border: '1px solid var(--color-alternate)',
-                      backgroundColor: 'var(--color-primary-bg)',
-                      flex: '1 1 calc(50% - 4px)', maxWidth: 'calc(50% - 4px)',
-                      minWidth: '200px',
-                    }}
-                  >
-                    <FolderOpen size={16} color="var(--color-success)" style={{ flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {lp.projects?.name || `Projeto #${lp.projects_id}`}
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--color-secondary-text)' }}>
-                        {t('teams.since')} {formatDate(lp.start_at)}
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-icon"
-                      onClick={() => setUnlinkConfirm({
-                        teams_id: lp.teams_id,
-                        projects_id: lp.projects_id,
-                        project_name: lp.projects?.name || `Projeto #${lp.projects_id}`,
-                      })}
-                      title={t('teams.unlinkFromProject')}
-                      style={{ flexShrink: 0 }}
+            {!projectsCollapsed && (
+              teamId === 0 ? (
+                <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center', padding: '12px 0' }}>
+                  {t('teams.noTeamSelected')}
+                </p>
+              ) : linkedProjects.length === 0 ? (
+                null
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {linkedProjects.map((lp) => (
+                    <div
+                      key={lp.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '8px 12px', borderRadius: '8px',
+                        border: '1px solid var(--color-alternate)',
+                        backgroundColor: 'var(--color-primary-bg)',
+                        flex: '1 1 calc(50% - 4px)', maxWidth: 'calc(50% - 4px)',
+                        minWidth: '200px',
+                      }}
                     >
-                      <Unlink size={14} color="var(--color-error)" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <FolderOpen size={16} color="var(--color-success)" style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {lp.projects?.name || `Projeto #${lp.projects_id}`}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--color-secondary-text)' }}>
+                          {t('teams.since')} {formatDate(lp.start_at)}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-icon"
+                        onClick={() => setUnlinkConfirm({
+                          teams_id: lp.teams_id,
+                          projects_id: lp.projects_id,
+                          project_name: lp.projects?.name || `Projeto #${lp.projects_id}`,
+                        })}
+                        title={t('teams.unlinkFromProject')}
+                        style={{ flexShrink: 0 }}
+                      >
+                        <Unlink size={14} color="var(--color-error)" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
 
           {/* --- Leaders Section --- */}
           <div className="card" style={{ flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: leadersCollapsed ? '0' : '16px' }}>
+              <h3
+                style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setLeadersCollapsed((v) => !v)}
+              >
+                {leadersCollapsed ? <ChevronRight size={18} color="var(--color-secondary-text)" /> : <ChevronDown size={18} color="var(--color-secondary-text)" />}
                 <Crown size={18} color="var(--color-warning)" />
                 {t('teams.leaders')}
                 {selectedTeamName && (
@@ -1640,71 +1661,77 @@ export default function TeamManagement() {
                 </div>
               )}
             </div>
-            {teamId === 0 ? (
-              <EmptyState message={t('teams.noTeamSelected')} />
-            ) : filteredLeaders.length === 0 ? (
-              <EmptyState message={globalSearch ? `Nenhum líder encontrado para "${globalSearch}"` : t('teams.noLeaders')} />
-            ) : (
-              <>
-                <motion.div
-                  key={leaders.map((l) => l.id).join()}
-                  variants={staggerParent}
-                  initial="initial"
-                  animate="animate"
-                  style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}
-                >
-                  {leadersPag.items.map((leader) => (
-                    <motion.div
-                      key={leader.id}
-                      variants={fadeUpChild}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        padding: '10px 14px', borderRadius: '8px',
-                        border: '1px solid var(--color-alternate)',
-                        backgroundColor: 'var(--color-primary-bg)',
-                        minWidth: '240px', flex: '1 1 calc(33% - 10px)',
-                        maxWidth: 'calc(33.33% - 7px)',
-                      }}
-                    >
-                      <img
-                        src={getAvatarUrl(leader.userName || '')}
-                        alt={leader.userName || ''}
-                        style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {leader.userName || '-'}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {leader.userEmail || ''}
-                        </div>
-                      </div>
-                      <button
-                        className="btn btn-icon"
-                        onClick={() => setDeleteConfirm({ type: 'leader', id: leader.id })}
-                        style={{ flexShrink: 0 }}
+            {!leadersCollapsed && (
+              teamId === 0 ? (
+                <EmptyState message={t('teams.noTeamSelected')} />
+              ) : filteredLeaders.length === 0 ? (
+                <EmptyState message={globalSearch ? `Nenhum líder encontrado para "${globalSearch}"` : t('teams.noLeaders')} />
+              ) : (
+                <>
+                  <motion.div
+                    key={leaders.map((l) => l.id).join()}
+                    variants={staggerParent}
+                    initial="initial"
+                    animate="animate"
+                    style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}
+                  >
+                    {leadersPag.items.map((leader) => (
+                      <motion.div
+                        key={leader.id}
+                        variants={fadeUpChild}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '10px 14px', borderRadius: '8px',
+                          border: '1px solid var(--color-alternate)',
+                          backgroundColor: 'var(--color-primary-bg)',
+                          minWidth: '240px', flex: '1 1 calc(33% - 10px)',
+                          maxWidth: 'calc(33.33% - 7px)',
+                        }}
                       >
-                        <Trash2 size={14} color="var(--color-error)" />
-                      </button>
-                    </motion.div>
-                  ))}
-                </motion.div>
-                <PaginationControls
-                  page={leadersPag.page}
-                  totalPages={leadersPag.totalPages}
-                  total={leadersPag.total}
-                  perPage={LEADERS_PER_PAGE}
-                  onPageChange={setLeadersPage}
-                  label={t('teams.results')}
-                />
-              </>
+                        <img
+                          src={getAvatarUrl(leader.userName || '')}
+                          alt={leader.userName || ''}
+                          style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {leader.userName || '-'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {leader.userEmail || ''}
+                          </div>
+                        </div>
+                        <button
+                          className="btn btn-icon"
+                          onClick={() => setDeleteConfirm({ type: 'leader', id: leader.id })}
+                          style={{ flexShrink: 0 }}
+                        >
+                          <Trash2 size={14} color="var(--color-error)" />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                  <PaginationControls
+                    page={leadersPag.page}
+                    totalPages={leadersPag.totalPages}
+                    total={leadersPag.total}
+                    perPage={LEADERS_PER_PAGE}
+                    onPageChange={setLeadersPage}
+                    label={t('teams.results')}
+                  />
+                </>
+              )
             )}
           </div>
 
           {/* --- Members Section --- */}
           <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: membersCollapsed ? '0' : '16px' }}>
+              <h3
+                style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setMembersCollapsed((v) => !v)}
+              >
+                {membersCollapsed ? <ChevronRight size={18} color="var(--color-secondary-text)" /> : <ChevronDown size={18} color="var(--color-secondary-text)" />}
                 <Users size={18} color="var(--color-primary)" />
                 {t('teams.members')}
                 {selectedTeamName && (
@@ -1737,100 +1764,105 @@ export default function TeamManagement() {
                 </div>
               )}
             </div>
-            {teamId > 0 && members.length > 0 && (
-              <div style={{ marginBottom: '12px', position: 'relative', maxWidth: '300px' }}>
-                <Search
-                  size={15}
-                  style={{
-                    position: 'absolute', left: '10px', top: '50%',
-                    transform: 'translateY(-50%)', color: 'var(--color-secondary-text)',
-                  }}
-                />
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Buscar membro..."
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  style={{ paddingLeft: '32px', fontSize: '12px', height: '32px', borderRadius: '8px' }}
-                />
-                {memberSearch && (
-                  <button
-                    onClick={() => setMemberSearch('')}
-                    style={{
-                      position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary-text)',
-                      fontSize: '14px', lineHeight: 1, padding: '2px',
-                    }}
-                  >
-                    &times;
-                  </button>
-                )}
-              </div>
-            )}
-            {teamId === 0 ? (
-              <EmptyState message={t('teams.noTeamSelected')} />
-            ) : filteredMembers.length === 0 ? (
-              <EmptyState message={memberSearch.trim() ? `Nenhum membro encontrado para "${memberSearch.trim()}"` : t('teams.noMembers')} />
-            ) : (
+            {!membersCollapsed && (
               <>
-                <div className="table-container" style={{ flex: 1, overflowY: 'auto' }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <SortableHeader label={t('teams.memberName')} field="userName" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
-                        <SortableHeader label={t('teams.memberEmail')} field="userEmail" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
-                        <SortableHeader label={t('teams.memberRole')} field="roleName" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
-                        <th style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>Senioridade</th>
-                        <th style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>Nível</th>
-                        <th style={{ width: '60px', position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>{t('common.actions')}</th>
-                      </tr>
-                    </thead>
-                    <motion.tbody key={membersPag.items.map((m) => m.id).join()} variants={staggerParent} initial="initial" animate="animate">
-                      {membersPag.items.map((member) => (
-                        <motion.tr key={member.id} variants={tableRowVariants}>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <img
-                                src={getAvatarUrl(member.userName || '')}
-                                alt={member.userName || ''}
-                                style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
-                              />
-                              {member.userName || '-'}
-                            </div>
-                          </td>
-                          <td>{member.userEmail || '-'}</td>
-                          <td>{member.roleName || '-'}</td>
-                          <td style={{ fontSize: '13px' }}>{member.senioridade || '-'}</td>
-                          <td style={{ fontSize: '13px' }}>{member.nivel || '-'}</td>
-                          <td>
-                            <button
-                              className="btn btn-icon"
-                              onClick={() => setDeleteConfirm({ type: 'member', id: member.id })}
-                            >
-                              <Trash2 size={14} color="var(--color-error)" />
-                            </button>
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </motion.tbody>
-                  </table>
-                </div>
-                <div style={{ flexShrink: 0 }}>
-                  <PaginationControls
-                    page={membersPag.page}
-                    totalPages={membersPag.totalPages}
-                    total={membersPag.total}
-                    perPage={MEMBERS_PER_PAGE}
-                    onPageChange={setMembersPage}
-                    label={t('teams.results')}
-                  />
-                </div>
+                {teamId > 0 && members.length > 0 && (
+                  <div style={{ marginBottom: '12px', position: 'relative', maxWidth: '300px' }}>
+                    <Search
+                      size={15}
+                      style={{
+                        position: 'absolute', left: '10px', top: '50%',
+                        transform: 'translateY(-50%)', color: 'var(--color-secondary-text)',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="Buscar membro..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      style={{ paddingLeft: '32px', fontSize: '12px', height: '32px', borderRadius: '8px' }}
+                    />
+                    {memberSearch && (
+                      <button
+                        onClick={() => setMemberSearch('')}
+                        style={{
+                          position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                          background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary-text)',
+                          fontSize: '14px', lineHeight: 1, padding: '2px',
+                        }}
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                )}
+                {teamId === 0 ? (
+                  <EmptyState message={t('teams.noTeamSelected')} />
+                ) : filteredMembers.length === 0 ? (
+                  <EmptyState message={memberSearch.trim() ? `Nenhum membro encontrado para "${memberSearch.trim()}"` : t('teams.noMembers')} />
+                ) : (
+                  <>
+                    <div className="table-container" style={{ flex: 1, overflowY: 'auto' }}>
+                      <table>
+                        <thead>
+                          <tr>
+                            <SortableHeader label={t('teams.memberName')} field="userName" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
+                            <SortableHeader label={t('teams.memberEmail')} field="userEmail" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
+                            <SortableHeader label={t('teams.memberRole')} field="roleName" currentField={membersSortField} currentDirection={membersSortDirection} onSort={handleMembersSort} style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }} />
+                            <th style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>Senioridade</th>
+                            <th style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>Nível</th>
+                            <th style={{ width: '60px', position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--color-secondary)' }}>{t('common.actions')}</th>
+                          </tr>
+                        </thead>
+                        <motion.tbody key={membersPag.items.map((m) => m.id).join()} variants={staggerParent} initial="initial" animate="animate">
+                          {membersPag.items.map((member) => (
+                            <motion.tr key={member.id} variants={tableRowVariants}>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <img
+                                    src={getAvatarUrl(member.userName || '')}
+                                    alt={member.userName || ''}
+                                    style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+                                  />
+                                  {member.userName || '-'}
+                                </div>
+                              </td>
+                              <td>{member.userEmail || '-'}</td>
+                              <td>{member.roleName || '-'}</td>
+                              <td style={{ fontSize: '13px' }}>{member.senioridade || '-'}</td>
+                              <td style={{ fontSize: '13px' }}>{member.nivel || '-'}</td>
+                              <td>
+                                <button
+                                  className="btn btn-icon"
+                                  onClick={() => setDeleteConfirm({ type: 'member', id: member.id })}
+                                >
+                                  <Trash2 size={14} color="var(--color-error)" />
+                                </button>
+                              </td>
+                            </motion.tr>
+                          ))}
+                        </motion.tbody>
+                      </table>
+                    </div>
+                    <div style={{ flexShrink: 0 }}>
+                      <PaginationControls
+                        page={membersPag.page}
+                        totalPages={membersPag.totalPages}
+                        total={membersPag.total}
+                        perPage={MEMBERS_PER_PAGE}
+                        onPageChange={setMembersPage}
+                        label={t('teams.results')}
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
         </div>
       </div>
+      </>)}
 
       {/* Modal: Criar Equipe */}
       {showCreateTeamModal && (

@@ -307,8 +307,8 @@ export default function Dashboard() {
   ];
 
   const installationData = [
-    { name: 'Trackers', total: stats.trackersTotal, installed: stats.trackersInstalled },
-    { name: t('dashboard.modules', 'Módulos'), total: stats.modulesTotal, installed: stats.modulesInstalled },
+    { name: t('dashboard.completed', 'Concluídas'), value: stats.completedTasks },
+    { name: t('dashboard.pending', 'Pendentes'), value: stats.pendingTasks },
   ];
 
   const taskDistribution = [
@@ -347,10 +347,10 @@ export default function Dashboard() {
 
   const renderGeralTab = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
-      {/* Installation Progress */}
+      {/* Progresso de Tarefas */}
       <div className="card">
         <h3 style={{ fontSize: '15px', fontWeight: 500, marginBottom: '16px' }}>
-          {t('dashboard.installationProgress', 'Progresso de Instalação')}
+          {t('dashboard.taskProgress', 'Progresso de Tarefas')}
         </h3>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={installationData} barCategoryGap="30%">
@@ -358,9 +358,11 @@ export default function Dashboard() {
             <XAxis dataKey="name" fontSize={12} />
             <YAxis fontSize={12} />
             <Tooltip />
-            <Legend />
-            <Bar dataKey="total" name="Total" fill={C.primary} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="installed" name="Instalados" fill={C.success} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="value" name="Tarefas" fill={C.primary} radius={[4, 4, 0, 0]}>
+              {installationData.map((entry, index) => (
+                <Cell key={index} fill={index === 0 ? C.success : C.warning} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

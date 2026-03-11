@@ -98,7 +98,7 @@ export default function Sidebar() {
     { key: 'dailyReports', label: t('nav.dailyReports'), icon: <ClipboardCheck size={18} />, path: '/operacoes/rdo', selectionIndex: 21 },
     { key: 'workforceControl', label: t('nav.workforceControl'), icon: <UserCheck size={18} />, path: '/operacoes/efetivo', selectionIndex: 22 },
     { key: 'nonConformances', label: t('nav.nonConformances'), icon: <AlertTriangle size={18} />, path: '/operacoes/nao-conformidades', selectionIndex: 23 },
-    { key: 'documents', label: t('nav.documents'), icon: <FileArchive size={18} />, path: '/operacoes/documentos', selectionIndex: 24 },
+    // { key: 'documents', label: t('nav.documents'), icon: <FileArchive size={18} />, path: '/operacoes/documentos', selectionIndex: 24 },
     { key: 'contracts', label: t('nav.contracts'), icon: <Receipt size={18} />, path: '/operacoes/contratos', selectionIndex: 25 },
     { key: 'commissioning', label: t('nav.commissioning'), icon: <Zap size={18} />, path: '/operacoes/comissionamento', selectionIndex: 26 },
     { key: 'materialRequisitions', label: t('nav.materialRequisitions'), icon: <ShoppingCart size={18} />, path: '/operacoes/requisicoes', selectionIndex: 27 },

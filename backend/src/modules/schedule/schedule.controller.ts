@@ -91,6 +91,47 @@ export class ScheduleController {
       next(error);
     }
   }
+  /**
+   * POST /schedule/:id/tasks
+   * Vincula tarefas ao schedule (schedule_sprints_tasks).
+   */
+  static async linkTasks(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const scheduleId = parseInt(req.params.id, 10);
+      const { sprints_tasks_ids } = req.body;
+      if (!Array.isArray(sprints_tasks_ids) || sprints_tasks_ids.length === 0) {
+        res.status(400).json({ error: 'sprints_tasks_ids é obrigatório e deve ser um array não vazio' });
+        return;
+      }
+      const result = await ScheduleService.linkTasks(scheduleId, sprints_tasks_ids);
+      logger.info({ scheduleId, count: result.length }, 'Tasks linked to schedule');
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /schedule/pending
+   * Retorna schedules pendentes (sem RDO) de dias anteriores para o usuário autenticado.
+   */
+  static async getPending(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.auth!.id;
+      const result = await ScheduleService.getPendingSchedules(userId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default ScheduleController;

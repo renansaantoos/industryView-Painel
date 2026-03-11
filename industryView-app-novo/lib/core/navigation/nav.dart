@@ -167,6 +167,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             final extra = params.state.extraMap;
             return PageCheckQrcodeWidget(
               skipProjectCheck: extra['skipProjectCheck'] == true,
+              fromDailyHub: extra['fromDailyHub'] == true,
             );
           },
         ),
@@ -181,6 +182,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               loginResponse: extra['loginResponse'] as ApiCallResponse?,
             );
           },
+        ),
+        AppRoute(
+          name: DailyHubWidget.routeName,
+          path: DailyHubWidget.routePath,
+          requireAuth: true,
+          builder: (context, params) => DailyHubWidget(),
         ),
         AppRoute(
           name: SyncConflictsWidget.routeName,

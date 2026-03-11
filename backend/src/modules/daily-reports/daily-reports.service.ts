@@ -366,7 +366,7 @@ export class DailyReportsService {
 
     const report = reports[0];
 
-    // Busca schedules vinculados
+    // Busca schedules vinculados (com equipe, sprint, funcionários e imagens)
     const schedules = await db.schedule.findMany({
       where: {
         daily_report_id: BigInt(daily_report_id),
@@ -375,6 +375,14 @@ export class DailyReportsService {
       include: {
         teams: { select: { id: true, name: true } },
         sprints: { select: { id: true, title: true } },
+        schedule_user: {
+          where: { deleted_at: null },
+          include: {
+            users: {
+              select: { id: true, name: true, email: true, phone: true },
+            },
+          },
+        },
       },
     });
 

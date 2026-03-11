@@ -9,7 +9,6 @@ import type {
   DailyReportWorkforce,
   DailyReportActivity,
   DailyReportOccurrence,
-  DailyReportEquipment,
 } from '../../types';
 import type { Project } from '../../types';
 import SearchableSelect from '../../components/common/SearchableSelect';
@@ -32,14 +31,13 @@ import {
   Users,
   Activity,
   AlertTriangle,
-  Wrench,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-type RdoTab = 'header' | 'workforce' | 'activities' | 'occurrences' | 'equipment';
+type RdoTab = 'header' | 'workforce' | 'activities' | 'occurrences';
 
 const STATUS_COLOR_MAP: Record<string, { bg: string; color: string; label: string }> = {
   rascunho:  { bg: 'var(--color-alternate)',  color: 'var(--color-secondary-text)', label: 'Rascunho' },
@@ -48,7 +46,7 @@ const STATUS_COLOR_MAP: Record<string, { bg: string; color: string; label: strin
   rejeitado:  { bg: '#fee2e2', color: '#b91c1c', label: 'Rejeitado' },
 };
 
-const SHIFT_OPTIONS = ['diurno', 'noturno', 'integral'];
+const SHIFT_OPTIONS = ['manha', 'tarde', 'noite', 'integral'];
 const WEATHER_OPTIONS = ['ensolarado', 'nublado', 'chuvoso', 'parcialmente_nublado', 'tempestade'];
 
 // ---------------------------------------------------------------------------
@@ -57,28 +55,32 @@ const WEATHER_OPTIONS = ['ensolarado', 'nublado', 'chuvoso', 'parcialmente_nubla
 
 interface CreateRdoForm {
   projects_id: number | '';
-  report_date: string;
+  rdo_date: string;
   shift: string;
-  weather: string;
+  weather_morning: string;
+  weather_afternoon: string;
+  weather_night: string;
   temperature_min: string;
   temperature_max: string;
-  observations: string;
+  safety_topic: string;
+  general_observations: string;
 }
 
 interface WorkforceForm {
-  category: string;
-  planned_count: string;
-  present_count: string;
-  absent_count: string;
-  observation: string;
+  role_category: string;
+  quantity_planned: string;
+  quantity_present: string;
+  quantity_absent: string;
+  absence_reason: string;
 }
 
 interface ActivityForm {
-  backlog_name: string;
   description: string;
-  quantity: string;
-  unit: string;
-  team: string;
+  projects_backlogs_id: string;
+  quantity_done: string;
+  unity_id: string;
+  teams_id: string;
+  location_description: string;
 }
 
 interface OccurrenceForm {
@@ -86,41 +88,38 @@ interface OccurrenceForm {
   description: string;
   start_time: string;
   end_time: string;
-  impact: string;
+  impact_description: string;
 }
 
-interface EquipmentForm {
-  equipment_type: string;
-  description: string;
-  quantity: string;
-  operating_hours: string;
-  idle_hours: string;
-}
 
 const EMPTY_RDO_FORM: CreateRdoForm = {
   projects_id: '',
-  report_date: new Date().toISOString().split('T')[0],
+  rdo_date: new Date().toISOString().split('T')[0],
   shift: '',
-  weather: '',
+  weather_morning: '',
+  weather_afternoon: '',
+  weather_night: '',
   temperature_min: '',
   temperature_max: '',
-  observations: '',
+  safety_topic: '',
+  general_observations: '',
 };
 
 const EMPTY_WORKFORCE_FORM: WorkforceForm = {
-  category: '',
-  planned_count: '',
-  present_count: '',
-  absent_count: '',
-  observation: '',
+  role_category: '',
+  quantity_planned: '',
+  quantity_present: '',
+  quantity_absent: '',
+  absence_reason: '',
 };
 
 const EMPTY_ACTIVITY_FORM: ActivityForm = {
-  backlog_name: '',
   description: '',
-  quantity: '',
-  unit: '',
-  team: '',
+  projects_backlogs_id: '',
+  quantity_done: '',
+  unity_id: '',
+  teams_id: '',
+  location_description: '',
 };
 
 const EMPTY_OCCURRENCE_FORM: OccurrenceForm = {
@@ -128,20 +127,24 @@ const EMPTY_OCCURRENCE_FORM: OccurrenceForm = {
   description: '',
   start_time: '',
   end_time: '',
-  impact: '',
+  impact_description: '',
 };
 
-const EMPTY_EQUIPMENT_FORM: EquipmentForm = {
-  equipment_type: '',
-  description: '',
-  quantity: '',
-  operating_hours: '',
-  idle_hours: '',
-};
 
 // ---------------------------------------------------------------------------
 // Helper: tab button style
 // ---------------------------------------------------------------------------
+
+/** Formata ISO date para dd/MM/yyyy */
+function formatDate(raw?: string): string {
+  if (!raw) return '-';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
 
 function tabStyle(active: boolean): React.CSSProperties {
   return {
@@ -242,14 +245,6 @@ export default function DailyReportsEnhanced() {
   const [deleteOccurrenceId, setDeleteOccurrenceId] = useState<number | null>(null);
 
   // ------------------------------------------------------------------
-  // Equipment sub-tab
-  // ------------------------------------------------------------------
-  const [equipmentForm, setEquipmentForm] = useState<EquipmentForm>(EMPTY_EQUIPMENT_FORM);
-  const [editingEquipment, setEditingEquipment] = useState<DailyReportEquipment | null>(null);
-  const [equipmentLoading, setEquipmentLoading] = useState(false);
-  const [deleteEquipmentId, setDeleteEquipmentId] = useState<number | null>(null);
-
-  // ------------------------------------------------------------------
   // Delete RDO confirm
   // ------------------------------------------------------------------
   const [deleteReportId, setDeleteReportId] = useState<number | null>(null);
@@ -341,8 +336,6 @@ export default function DailyReportsEnhanced() {
     setEditingActivity(null);
     setOccurrenceForm(EMPTY_OCCURRENCE_FORM);
     setEditingOccurrence(null);
-    setEquipmentForm(EMPTY_EQUIPMENT_FORM);
-    setEditingEquipment(null);
   };
 
   // ------------------------------------------------------------------
@@ -350,7 +343,7 @@ export default function DailyReportsEnhanced() {
   // ------------------------------------------------------------------
   const handleCreate = async () => {
     const projectId = projectsInfo ? projectsInfo.id : Number(createForm.projects_id);
-    if (!projectId || !createForm.report_date) {
+    if (!projectId || !createForm.rdo_date) {
       setCreateError('Projeto e data são obrigatórios.');
       return;
     }
@@ -359,12 +352,15 @@ export default function DailyReportsEnhanced() {
     try {
       await dailyReportsApi.createDailyReport({
         projects_id: projectId,
-        report_date: createForm.report_date,
+        rdo_date: createForm.rdo_date,
         shift: createForm.shift || undefined,
-        weather: createForm.weather || undefined,
+        weather_morning: createForm.weather_morning || undefined,
+        weather_afternoon: createForm.weather_afternoon || undefined,
+        weather_night: createForm.weather_night || undefined,
         temperature_min: createForm.temperature_min ? Number(createForm.temperature_min) : undefined,
         temperature_max: createForm.temperature_max ? Number(createForm.temperature_max) : undefined,
-        observations: createForm.observations || undefined,
+        safety_topic: createForm.safety_topic || undefined,
+        general_observations: createForm.general_observations || undefined,
       });
       setShowCreateModal(false);
       setCreateForm(EMPTY_RDO_FORM);
@@ -385,10 +381,13 @@ export default function DailyReportsEnhanced() {
     if (!selectedReport) return;
     setHeaderForm({
       shift: selectedReport.shift || '',
-      weather: selectedReport.weather || '',
+      weather_morning: selectedReport.weather_morning || '',
+      weather_afternoon: selectedReport.weather_afternoon || '',
+      weather_night: selectedReport.weather_night || '',
       temperature_min: selectedReport.temperature_min != null ? String(selectedReport.temperature_min) : '',
       temperature_max: selectedReport.temperature_max != null ? String(selectedReport.temperature_max) : '',
-      observations: selectedReport.observations || '',
+      safety_topic: selectedReport.safety_topic || '',
+      general_observations: selectedReport.general_observations || '',
     });
     setEditingHeader(true);
   };
@@ -399,10 +398,13 @@ export default function DailyReportsEnhanced() {
     try {
       const updated = await dailyReportsApi.updateDailyReport(selectedReport.id, {
         shift: headerForm.shift || undefined,
-        weather: headerForm.weather || undefined,
+        weather_morning: headerForm.weather_morning || undefined,
+        weather_afternoon: headerForm.weather_afternoon || undefined,
+        weather_night: headerForm.weather_night || undefined,
         temperature_min: headerForm.temperature_min ? Number(headerForm.temperature_min) : undefined,
         temperature_max: headerForm.temperature_max ? Number(headerForm.temperature_max) : undefined,
-        observations: headerForm.observations || undefined,
+        safety_topic: headerForm.safety_topic || undefined,
+        general_observations: headerForm.general_observations || undefined,
       });
       setSelectedReport(updated);
       setEditingHeader(false);
@@ -475,15 +477,15 @@ export default function DailyReportsEnhanced() {
   // Workforce CRUD
   // ------------------------------------------------------------------
   const handleAddWorkforce = async () => {
-    if (!selectedReport || !workforceForm.category.trim()) return;
+    if (!selectedReport || !workforceForm.role_category.trim()) return;
     setWorkforceLoading(true);
     try {
       const entry = await dailyReportsApi.addWorkforce(selectedReport.id, {
-        category: workforceForm.category.trim(),
-        planned_count: Number(workforceForm.planned_count) || 0,
-        present_count: Number(workforceForm.present_count) || 0,
-        absent_count: Number(workforceForm.absent_count) || 0,
-        observation: workforceForm.observation || undefined,
+        role_category: workforceForm.role_category.trim(),
+        quantity_planned: Number(workforceForm.quantity_planned) || 0,
+        quantity_present: Number(workforceForm.quantity_present) || 0,
+        quantity_absent: Number(workforceForm.quantity_absent) || 0,
+        absence_reason: workforceForm.absence_reason || undefined,
       });
       setSelectedReport((prev) =>
         prev ? { ...prev, workforce: [...(prev.workforce || []), entry] } : prev,
@@ -503,11 +505,11 @@ export default function DailyReportsEnhanced() {
     setWorkforceLoading(true);
     try {
       const updated = await dailyReportsApi.updateWorkforce(editingWorkforce.id, {
-        category: workforceForm.category.trim(),
-        planned_count: Number(workforceForm.planned_count) || 0,
-        present_count: Number(workforceForm.present_count) || 0,
-        absent_count: Number(workforceForm.absent_count) || 0,
-        observation: workforceForm.observation || undefined,
+        role_category: workforceForm.role_category.trim(),
+        quantity_planned: Number(workforceForm.quantity_planned) || 0,
+        quantity_present: Number(workforceForm.quantity_present) || 0,
+        quantity_absent: Number(workforceForm.quantity_absent) || 0,
+        absence_reason: workforceForm.absence_reason || undefined,
       });
       setSelectedReport((prev) =>
         prev
@@ -552,11 +554,11 @@ export default function DailyReportsEnhanced() {
   const startEditWorkforce = (entry: DailyReportWorkforce) => {
     setEditingWorkforce(entry);
     setWorkforceForm({
-      category: entry.category,
-      planned_count: String(entry.planned_count),
-      present_count: String(entry.present_count),
-      absent_count: String(entry.absent_count),
-      observation: entry.observation || '',
+      role_category: entry.role_category,
+      quantity_planned: String(entry.quantity_planned),
+      quantity_present: String(entry.quantity_present),
+      quantity_absent: String(entry.quantity_absent),
+      absence_reason: entry.absence_reason || '',
     });
   };
 
@@ -568,11 +570,12 @@ export default function DailyReportsEnhanced() {
     setActivityLoading(true);
     try {
       const entry = await dailyReportsApi.addActivity(selectedReport.id, {
-        backlog_name: activityForm.backlog_name || undefined,
         description: activityForm.description.trim(),
-        quantity: activityForm.quantity ? Number(activityForm.quantity) : undefined,
-        unit: activityForm.unit || undefined,
-        team: activityForm.team || undefined,
+        projects_backlogs_id: activityForm.projects_backlogs_id ? Number(activityForm.projects_backlogs_id) : undefined,
+        quantity_done: activityForm.quantity_done ? Number(activityForm.quantity_done) : undefined,
+        unity_id: activityForm.unity_id ? Number(activityForm.unity_id) : undefined,
+        teams_id: activityForm.teams_id ? Number(activityForm.teams_id) : undefined,
+        location_description: activityForm.location_description || undefined,
       });
       setSelectedReport((prev) =>
         prev ? { ...prev, activities: [...(prev.activities || []), entry] } : prev,
@@ -592,11 +595,12 @@ export default function DailyReportsEnhanced() {
     setActivityLoading(true);
     try {
       const updated = await dailyReportsApi.updateActivity(editingActivity.id, {
-        backlog_name: activityForm.backlog_name || undefined,
         description: activityForm.description.trim(),
-        quantity: activityForm.quantity ? Number(activityForm.quantity) : undefined,
-        unit: activityForm.unit || undefined,
-        team: activityForm.team || undefined,
+        projects_backlogs_id: activityForm.projects_backlogs_id ? Number(activityForm.projects_backlogs_id) : undefined,
+        quantity_done: activityForm.quantity_done ? Number(activityForm.quantity_done) : undefined,
+        unity_id: activityForm.unity_id ? Number(activityForm.unity_id) : undefined,
+        teams_id: activityForm.teams_id ? Number(activityForm.teams_id) : undefined,
+        location_description: activityForm.location_description || undefined,
       });
       setSelectedReport((prev) =>
         prev
@@ -641,11 +645,12 @@ export default function DailyReportsEnhanced() {
   const startEditActivity = (entry: DailyReportActivity) => {
     setEditingActivity(entry);
     setActivityForm({
-      backlog_name: entry.backlog_name || '',
       description: entry.description,
-      quantity: entry.quantity != null ? String(entry.quantity) : '',
-      unit: entry.unit || '',
-      team: entry.team || '',
+      projects_backlogs_id: entry.projects_backlogs_id != null ? String(entry.projects_backlogs_id) : '',
+      quantity_done: entry.quantity_done != null ? String(entry.quantity_done) : '',
+      unity_id: entry.unity_id != null ? String(entry.unity_id) : '',
+      teams_id: entry.teams_id != null ? String(entry.teams_id) : '',
+      location_description: entry.location_description || '',
     });
   };
 
@@ -661,7 +666,7 @@ export default function DailyReportsEnhanced() {
         description: occurrenceForm.description.trim(),
         start_time: occurrenceForm.start_time || undefined,
         end_time: occurrenceForm.end_time || undefined,
-        impact: occurrenceForm.impact || undefined,
+        impact_description: occurrenceForm.impact_description || undefined,
       });
       setSelectedReport((prev) =>
         prev ? { ...prev, occurrences: [...(prev.occurrences || []), entry] } : prev,
@@ -685,7 +690,7 @@ export default function DailyReportsEnhanced() {
         description: occurrenceForm.description.trim(),
         start_time: occurrenceForm.start_time || undefined,
         end_time: occurrenceForm.end_time || undefined,
-        impact: occurrenceForm.impact || undefined,
+        impact_description: occurrenceForm.impact_description || undefined,
       });
       setSelectedReport((prev) =>
         prev
@@ -734,96 +739,7 @@ export default function DailyReportsEnhanced() {
       description: entry.description,
       start_time: entry.start_time || '',
       end_time: entry.end_time || '',
-      impact: entry.impact || '',
-    });
-  };
-
-  // ------------------------------------------------------------------
-  // Equipment CRUD
-  // ------------------------------------------------------------------
-  const handleAddEquipment = async () => {
-    if (!selectedReport || !equipmentForm.equipment_type.trim()) return;
-    setEquipmentLoading(true);
-    try {
-      const entry = await dailyReportsApi.addEquipment(selectedReport.id, {
-        equipment_type: equipmentForm.equipment_type.trim(),
-        description: equipmentForm.description || undefined,
-        quantity: Number(equipmentForm.quantity) || 1,
-        operating_hours: equipmentForm.operating_hours ? Number(equipmentForm.operating_hours) : undefined,
-        idle_hours: equipmentForm.idle_hours ? Number(equipmentForm.idle_hours) : undefined,
-      });
-      setSelectedReport((prev) =>
-        prev ? { ...prev, equipment: [...(prev.equipment || []), entry] } : prev,
-      );
-      setEquipmentForm(EMPTY_EQUIPMENT_FORM);
-      showToast('Equipamento adicionado!');
-    } catch (err) {
-      console.error('Failed to add equipment:', err);
-      showToast('Erro ao adicionar equipamento.', 'error');
-    } finally {
-      setEquipmentLoading(false);
-    }
-  };
-
-  const handleSaveEquipment = async () => {
-    if (!editingEquipment) return;
-    setEquipmentLoading(true);
-    try {
-      const updated = await dailyReportsApi.updateEquipment(editingEquipment.id, {
-        equipment_type: equipmentForm.equipment_type.trim(),
-        description: equipmentForm.description || undefined,
-        quantity: Number(equipmentForm.quantity) || 1,
-        operating_hours: equipmentForm.operating_hours ? Number(equipmentForm.operating_hours) : undefined,
-        idle_hours: equipmentForm.idle_hours ? Number(equipmentForm.idle_hours) : undefined,
-      });
-      setSelectedReport((prev) =>
-        prev
-          ? {
-              ...prev,
-              equipment: (prev.equipment || []).map((e) =>
-                e.id === updated.id ? updated : e,
-              ),
-            }
-          : prev,
-      );
-      setEditingEquipment(null);
-      setEquipmentForm(EMPTY_EQUIPMENT_FORM);
-      showToast('Equipamento atualizado!');
-    } catch (err) {
-      console.error('Failed to update equipment:', err);
-      showToast('Erro ao atualizar equipamento.', 'error');
-    } finally {
-      setEquipmentLoading(false);
-    }
-  };
-
-  const handleDeleteEquipment = async (id: number) => {
-    setEquipmentLoading(true);
-    try {
-      await dailyReportsApi.deleteEquipment(id);
-      setSelectedReport((prev) =>
-        prev
-          ? { ...prev, equipment: (prev.equipment || []).filter((e) => e.id !== id) }
-          : prev,
-      );
-      showToast('Equipamento removido.');
-    } catch (err) {
-      console.error('Failed to delete equipment:', err);
-      showToast('Erro ao remover equipamento.', 'error');
-    } finally {
-      setEquipmentLoading(false);
-      setDeleteEquipmentId(null);
-    }
-  };
-
-  const startEditEquipment = (entry: DailyReportEquipment) => {
-    setEditingEquipment(entry);
-    setEquipmentForm({
-      equipment_type: entry.equipment_type,
-      description: entry.description || '',
-      quantity: String(entry.quantity),
-      operating_hours: entry.operating_hours != null ? String(entry.operating_hours) : '',
-      idle_hours: entry.idle_hours != null ? String(entry.idle_hours) : '',
+      impact_description: entry.impact_description || '',
     });
   };
 
@@ -863,7 +779,8 @@ export default function DailyReportsEnhanced() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-          {renderInfoField('Data', selectedReport.report_date)}
+          {renderInfoField('Data', formatDate(selectedReport.rdo_date))}
+          {selectedReport.rdo_number != null && renderInfoField('RDO Nº', String(selectedReport.rdo_number))}
           {renderInfoField('Turno', editingHeader
             ? undefined
             : (selectedReport.shift || '-'),
@@ -872,19 +789,6 @@ export default function DailyReportsEnhanced() {
                   options={SHIFT_OPTIONS.map((s) => ({ value: s, label: s }))}
                   value={headerForm.shift || undefined}
                   onChange={(val) => setHeaderForm((p) => ({ ...p, shift: String(val ?? '') }))}
-                  placeholder="Selecione"
-                  allowClear
-                />
-              : undefined,
-          )}
-          {renderInfoField('Clima', editable && editingHeader
-            ? undefined
-            : (selectedReport.weather || '-'),
-            editable && editingHeader
-              ? <SearchableSelect
-                  options={WEATHER_OPTIONS.map((w) => ({ value: w, label: w }))}
-                  value={headerForm.weather || undefined}
-                  onChange={(val) => setHeaderForm((p) => ({ ...p, weather: String(val ?? '') }))}
                   placeholder="Selecione"
                   allowClear
                 />
@@ -904,27 +808,113 @@ export default function DailyReportsEnhanced() {
               ? <input type="number" className="input-field" value={headerForm.temperature_max || ''} onChange={(e) => setHeaderForm((p) => ({ ...p, temperature_max: e.target.value }))} />
               : undefined,
           )}
-          {renderInfoField('Criado por', selectedReport.creator_name || String(selectedReport.created_by))}
+          {renderInfoField('Líder', selectedReport.created_by_name || selectedReport.creator_name || String(selectedReport.created_by_user_id))}
+          {selectedReport.schedule && selectedReport.schedule.length > 0 && selectedReport.schedule[0].teams &&
+            renderInfoField('Equipe', (selectedReport.schedule[0] as any).teams?.name || '-')
+          }
           {renderInfoField('Status', undefined, <StatusBadge status={selectedReport.status} colorMap={STATUS_COLOR_MAP} />)}
         </div>
 
+        {editable && editingHeader && (
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+              Tópico de Segurança
+            </div>
+            <textarea
+              className="input-field"
+              rows={2}
+              value={headerForm.safety_topic || ''}
+              onChange={(e) => setHeaderForm((p) => ({ ...p, safety_topic: e.target.value }))}
+            />
+          </div>
+        )}
+        {!editingHeader && selectedReport.safety_topic && (
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+              Tópico de Segurança
+            </div>
+            <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--color-primary-text)', whiteSpace: 'pre-wrap' }}>
+              {selectedReport.safety_topic}
+            </p>
+          </div>
+        )}
+
         <div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-            Observações
+            Observações Gerais
           </div>
           {editable && editingHeader ? (
             <textarea
               className="input-field"
               rows={4}
-              value={headerForm.observations || ''}
-              onChange={(e) => setHeaderForm((p) => ({ ...p, observations: e.target.value }))}
+              value={headerForm.general_observations || ''}
+              onChange={(e) => setHeaderForm((p) => ({ ...p, general_observations: e.target.value }))}
             />
           ) : (
             <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--color-primary-text)', whiteSpace: 'pre-wrap', minHeight: '60px' }}>
-              {selectedReport.observations || '-'}
+              {selectedReport.general_observations || '-'}
             </p>
           )}
         </div>
+
+        {/* Funcionários do schedule vinculado */}
+        {selectedReport.schedule && selectedReport.schedule.length > 0 && (() => {
+          const allWorkers = selectedReport.schedule!.flatMap((s: any) =>
+            (s.schedule_user || []).map((su: any) => su.users).filter(Boolean)
+          );
+          if (allWorkers.length === 0) return null;
+          return (
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                Funcionários ({allWorkers.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {allWorkers.map((w: any, i: number) => (
+                  <div key={w.id || i} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 12px', background: 'var(--color-alternate)',
+                    borderRadius: '8px', fontSize: '13px',
+                  }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: `hsl(${(i * 67) % 360}, 60%, 85%)`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '11px', fontWeight: 700,
+                      color: `hsl(${(i * 67) % 360}, 60%, 35%)`,
+                    }}>
+                      {(w.name || '?').split(' ').map((p: string) => p[0]).filter((_: any, j: number) => j === 0 || j === (w.name || '').split(' ').length - 1).join('').toUpperCase()}
+                    </div>
+                    <span style={{ fontWeight: 500 }}>{w.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Fotos do schedule */}
+        {selectedReport.schedule && selectedReport.schedule.length > 0 && (() => {
+          const allImages = selectedReport.schedule!.flatMap((s: any) => s.images || []);
+          if (allImages.length === 0) return null;
+          return (
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-secondary-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                Fotos da Obra ({allImages.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {allImages.map((url: string, i: number) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={url}
+                      alt={`Foto ${i + 1}`}
+                      style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--color-border)' }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {selectedReport.rejection_reason && (
           <div style={{ padding: '12px 16px', background: '#fee2e2', borderRadius: '8px', borderLeft: '4px solid #b91c1c' }}>
@@ -966,23 +956,23 @@ export default function DailyReportsEnhanced() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
             <div className="input-group">
               <label>Categoria *</label>
-              <input className="input-field" value={workforceForm.category} onChange={(e) => setWorkforceForm((p) => ({ ...p, category: e.target.value }))} />
+              <input className="input-field" value={workforceForm.role_category} onChange={(e) => setWorkforceForm((p) => ({ ...p, role_category: e.target.value }))} />
             </div>
             <div className="input-group">
               <label>Planejado</label>
-              <input type="number" className="input-field" value={workforceForm.planned_count} onChange={(e) => setWorkforceForm((p) => ({ ...p, planned_count: e.target.value }))} />
+              <input type="number" className="input-field" value={workforceForm.quantity_planned} onChange={(e) => setWorkforceForm((p) => ({ ...p, quantity_planned: e.target.value }))} />
             </div>
             <div className="input-group">
               <label>Presentes</label>
-              <input type="number" className="input-field" value={workforceForm.present_count} onChange={(e) => setWorkforceForm((p) => ({ ...p, present_count: e.target.value }))} />
+              <input type="number" className="input-field" value={workforceForm.quantity_present} onChange={(e) => setWorkforceForm((p) => ({ ...p, quantity_present: e.target.value }))} />
             </div>
             <div className="input-group">
               <label>Ausentes</label>
-              <input type="number" className="input-field" value={workforceForm.absent_count} onChange={(e) => setWorkforceForm((p) => ({ ...p, absent_count: e.target.value }))} />
+              <input type="number" className="input-field" value={workforceForm.quantity_absent} onChange={(e) => setWorkforceForm((p) => ({ ...p, quantity_absent: e.target.value }))} />
             </div>
             <div className="input-group" style={{ gridColumn: '1 / -1' }}>
-              <label>Observação</label>
-              <input className="input-field" value={workforceForm.observation} onChange={(e) => setWorkforceForm((p) => ({ ...p, observation: e.target.value }))} />
+              <label>Motivo ausência</label>
+              <input className="input-field" value={workforceForm.absence_reason} onChange={(e) => setWorkforceForm((p) => ({ ...p, absence_reason: e.target.value }))} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
@@ -994,7 +984,7 @@ export default function DailyReportsEnhanced() {
             <button
               className="btn btn-primary"
               onClick={editingWorkforce ? handleSaveWorkforce : handleAddWorkforce}
-              disabled={workforceLoading || !workforceForm.category.trim()}
+              disabled={workforceLoading || !workforceForm.role_category.trim()}
             >
               {workforceLoading ? <span className="spinner" /> : (editingWorkforce ? 'Salvar' : <><Plus size={16} /> Adicionar</>)}
             </button>
@@ -1012,18 +1002,18 @@ export default function DailyReportsEnhanced() {
                   <th style={{ textAlign: 'center' }}>Planejado</th>
                   <th style={{ textAlign: 'center' }}>Presentes</th>
                   <th style={{ textAlign: 'center' }}>Ausentes</th>
-                  <th>Observação</th>
+                  <th>Motivo Ausência</th>
                   <th>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((entry) => (
                   <tr key={entry.id}>
-                    <td style={{ fontWeight: 500 }}>{entry.category}</td>
-                    <td style={{ textAlign: 'center' }}>{entry.planned_count}</td>
-                    <td style={{ textAlign: 'center' }}>{entry.present_count}</td>
-                    <td style={{ textAlign: 'center' }}>{entry.absent_count}</td>
-                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.observation || '-'}</td>
+                    <td style={{ fontWeight: 500 }}>{entry.role_category}</td>
+                    <td style={{ textAlign: 'center' }}>{entry.quantity_planned}</td>
+                    <td style={{ textAlign: 'center' }}>{entry.quantity_present}</td>
+                    <td style={{ textAlign: 'center' }}>{entry.quantity_absent}</td>
+                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.absence_reason || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button className="btn btn-icon" title="Editar" onClick={() => startEditWorkforce(entry)}>
@@ -1058,25 +1048,25 @@ export default function DailyReportsEnhanced() {
             {editingActivity ? 'Editar atividade' : 'Adicionar atividade'}
           </h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
-            <div className="input-group">
-              <label>Backlog</label>
-              <input className="input-field" value={activityForm.backlog_name} onChange={(e) => setActivityForm((p) => ({ ...p, backlog_name: e.target.value }))} />
-            </div>
             <div className="input-group" style={{ gridColumn: '1 / -1' }}>
               <label>Descrição *</label>
               <input className="input-field" value={activityForm.description} onChange={(e) => setActivityForm((p) => ({ ...p, description: e.target.value }))} />
             </div>
             <div className="input-group">
-              <label>Quantidade</label>
-              <input type="number" className="input-field" value={activityForm.quantity} onChange={(e) => setActivityForm((p) => ({ ...p, quantity: e.target.value }))} />
+              <label>Qtd Realizada</label>
+              <input type="number" className="input-field" value={activityForm.quantity_done} onChange={(e) => setActivityForm((p) => ({ ...p, quantity_done: e.target.value }))} />
             </div>
             <div className="input-group">
-              <label>Unidade</label>
-              <input className="input-field" value={activityForm.unit} onChange={(e) => setActivityForm((p) => ({ ...p, unit: e.target.value }))} />
+              <label>Backlog ID</label>
+              <input type="number" className="input-field" value={activityForm.projects_backlogs_id} onChange={(e) => setActivityForm((p) => ({ ...p, projects_backlogs_id: e.target.value }))} />
             </div>
             <div className="input-group">
-              <label>Equipe</label>
-              <input className="input-field" value={activityForm.team} onChange={(e) => setActivityForm((p) => ({ ...p, team: e.target.value }))} />
+              <label>Equipe ID</label>
+              <input type="number" className="input-field" value={activityForm.teams_id} onChange={(e) => setActivityForm((p) => ({ ...p, teams_id: e.target.value }))} />
+            </div>
+            <div className="input-group" style={{ gridColumn: '1 / -1' }}>
+              <label>Local</label>
+              <input className="input-field" value={activityForm.location_description} onChange={(e) => setActivityForm((p) => ({ ...p, location_description: e.target.value }))} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
@@ -1102,22 +1092,20 @@ export default function DailyReportsEnhanced() {
             <table>
               <thead>
                 <tr>
-                  <th>Backlog</th>
                   <th>Descrição</th>
-                  <th>Qtd</th>
-                  <th>Unidade</th>
+                  <th>Qtd Realizada</th>
                   <th>Equipe</th>
+                  <th>Local</th>
                   <th>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((entry) => (
                   <tr key={entry.id}>
-                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.backlog_name || '-'}</td>
                     <td style={{ fontWeight: 500 }}>{entry.description}</td>
-                    <td>{entry.quantity ?? '-'}</td>
-                    <td>{entry.unit || '-'}</td>
-                    <td>{entry.team || '-'}</td>
+                    <td>{entry.quantity_done ?? '-'}</td>
+                    <td>{entry.team_name || (entry.teams_id ? `#${entry.teams_id}` : '-')}</td>
+                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.location_description || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button className="btn btn-icon" title="Editar" onClick={() => startEditActivity(entry)}>
@@ -1170,7 +1158,7 @@ export default function DailyReportsEnhanced() {
             </div>
             <div className="input-group">
               <label>Impacto</label>
-              <input className="input-field" value={occurrenceForm.impact} onChange={(e) => setOccurrenceForm((p) => ({ ...p, impact: e.target.value }))} />
+              <input className="input-field" value={occurrenceForm.impact_description} onChange={(e) => setOccurrenceForm((p) => ({ ...p, impact_description: e.target.value }))} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
@@ -1213,107 +1201,13 @@ export default function DailyReportsEnhanced() {
                     <td style={{ fontWeight: 500 }}>{entry.description}</td>
                     <td>{entry.start_time || '-'}</td>
                     <td>{entry.end_time || '-'}</td>
-                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.impact || '-'}</td>
+                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.impact_description || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button className="btn btn-icon" title="Editar" onClick={() => startEditOccurrence(entry)}>
                           <Edit size={15} color="var(--color-secondary-text)" />
                         </button>
                         <button className="btn btn-icon" title="Remover" onClick={() => setDeleteOccurrenceId(entry.id)}>
-                          <Trash2 size={15} color="var(--color-error)" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ------------------------------------------------------------------
-  // Render: Equipment tab
-  // ------------------------------------------------------------------
-  const renderEquipmentTab = () => {
-    if (!selectedReport) return null;
-    const entries = selectedReport.equipment || [];
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div className="card" style={{ padding: '16px' }}>
-          <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
-            {editingEquipment ? 'Editar equipamento' : 'Adicionar equipamento'}
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
-            <div className="input-group">
-              <label>Tipo *</label>
-              <input className="input-field" value={equipmentForm.equipment_type} onChange={(e) => setEquipmentForm((p) => ({ ...p, equipment_type: e.target.value }))} />
-            </div>
-            <div className="input-group">
-              <label>Descrição</label>
-              <input className="input-field" value={equipmentForm.description} onChange={(e) => setEquipmentForm((p) => ({ ...p, description: e.target.value }))} />
-            </div>
-            <div className="input-group">
-              <label>Quantidade</label>
-              <input type="number" className="input-field" value={equipmentForm.quantity} onChange={(e) => setEquipmentForm((p) => ({ ...p, quantity: e.target.value }))} />
-            </div>
-            <div className="input-group">
-              <label>Hs operando</label>
-              <input type="number" className="input-field" value={equipmentForm.operating_hours} onChange={(e) => setEquipmentForm((p) => ({ ...p, operating_hours: e.target.value }))} />
-            </div>
-            <div className="input-group">
-              <label>Hs parado</label>
-              <input type="number" className="input-field" value={equipmentForm.idle_hours} onChange={(e) => setEquipmentForm((p) => ({ ...p, idle_hours: e.target.value }))} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
-            {editingEquipment && (
-              <button className="btn btn-secondary" onClick={() => { setEditingEquipment(null); setEquipmentForm(EMPTY_EQUIPMENT_FORM); }}>
-                Cancelar
-              </button>
-            )}
-            <button
-              className="btn btn-primary"
-              onClick={editingEquipment ? handleSaveEquipment : handleAddEquipment}
-              disabled={equipmentLoading || !equipmentForm.equipment_type.trim()}
-            >
-              {equipmentLoading ? <span className="spinner" /> : (editingEquipment ? 'Salvar' : <><Plus size={16} /> Adicionar</>)}
-            </button>
-          </div>
-        </div>
-
-        {entries.length === 0 ? (
-          <EmptyState message="Nenhum equipamento registrado." />
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Descrição</th>
-                  <th style={{ textAlign: 'center' }}>Qtd</th>
-                  <th style={{ textAlign: 'center' }}>Hs Oper.</th>
-                  <th style={{ textAlign: 'center' }}>Hs Parado</th>
-                  <th>{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id}>
-                    <td style={{ fontWeight: 500 }}>{entry.equipment_type}</td>
-                    <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>{entry.description || '-'}</td>
-                    <td style={{ textAlign: 'center' }}>{entry.quantity}</td>
-                    <td style={{ textAlign: 'center' }}>{entry.operating_hours ?? '-'}</td>
-                    <td style={{ textAlign: 'center' }}>{entry.idle_hours ?? '-'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button className="btn btn-icon" title="Editar" onClick={() => startEditEquipment(entry)}>
-                          <Edit size={15} color="var(--color-secondary-text)" />
-                        </button>
-                        <button className="btn btn-icon" title="Remover" onClick={() => setDeleteEquipmentId(entry.id)}>
                           <Trash2 size={15} color="var(--color-error)" />
                         </button>
                       </div>
@@ -1357,7 +1251,7 @@ export default function DailyReportsEnhanced() {
 
       <PageHeader
         title="Relatórios Diários de Obra"
-        subtitle="Registro e acompanhamento dos RDOs com mão de obra, atividades, ocorrências e equipamentos"
+        subtitle="Registro e acompanhamento dos RDOs com mão de obra, atividades e ocorrências"
         actions={
           <button className="btn btn-primary" onClick={() => { setCreateForm(EMPTY_RDO_FORM); setCreateError(''); setShowCreateModal(true); }}>
             <Plus size={18} /> Novo RDO
@@ -1431,7 +1325,6 @@ export default function DailyReportsEnhanced() {
               <tr>
                 <th>Data</th>
                 <th>Turno</th>
-                <th>Clima</th>
                 <th>Status</th>
                 <th>Criado por</th>
                 <th>{t('common.actions')}</th>
@@ -1448,16 +1341,15 @@ export default function DailyReportsEnhanced() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <FileText size={16} color="var(--color-primary)" />
-                      <span style={{ fontWeight: 500 }}>{report.report_date}</span>
+                      <span style={{ fontWeight: 500 }}>{formatDate(report.rdo_date)}</span>
                     </div>
                   </td>
                   <td>{report.shift || '-'}</td>
-                  <td>{report.weather || '-'}</td>
                   <td>
                     <StatusBadge status={report.status} colorMap={STATUS_COLOR_MAP} />
                   </td>
                   <td style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
-                    {report.creator_name || String(report.created_by)}
+                    {report.created_by_name || report.creator_name || String(report.created_by_user_id)}
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -1505,7 +1397,7 @@ export default function DailyReportsEnhanced() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--color-border)' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
-                  RDO — {selectedReport?.report_date || '...'}
+                  RDO {selectedReport?.rdo_number ? `#${selectedReport.rdo_number}` : ''} — {formatDate(selectedReport?.rdo_date) || '...'}
                 </h3>
                 {selectedReport?.project_name && (
                   <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', margin: '2px 0 0' }}>
@@ -1542,10 +1434,6 @@ export default function DailyReportsEnhanced() {
                     <AlertTriangle size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
                     Ocorrências
                   </button>
-                  <button style={tabStyle(activeTab === 'equipment')} onClick={() => setActiveTab('equipment')}>
-                    <Wrench size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-                    Equipamentos
-                  </button>
                 </div>
 
                 {/* Tab content */}
@@ -1554,7 +1442,6 @@ export default function DailyReportsEnhanced() {
                   {activeTab === 'workforce' && renderWorkforceTab()}
                   {activeTab === 'activities' && renderActivitiesTab()}
                   {activeTab === 'occurrences' && renderOccurrencesTab()}
-                  {activeTab === 'equipment' && renderEquipmentTab()}
                 </div>
               </>
             )}
@@ -1591,57 +1478,27 @@ export default function DailyReportsEnhanced() {
                 <input
                   type="date"
                   className="input-field"
-                  value={createForm.report_date}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, report_date: e.target.value }))}
+                  value={createForm.rdo_date}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, rdo_date: e.target.value }))}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label>Turno</label>
-                  <SearchableSelect
-                    options={SHIFT_OPTIONS.map((s) => ({ value: s, label: s }))}
-                    value={createForm.shift || undefined}
-                    onChange={(val) => setCreateForm((p) => ({ ...p, shift: String(val ?? '') }))}
-                    placeholder="Selecione"
-                    allowClear
-                  />
-                </div>
-                <div className="input-group">
-                  <label>Clima</label>
-                  <SearchableSelect
-                    options={WEATHER_OPTIONS.map((w) => ({ value: w, label: w }))}
-                    value={createForm.weather || undefined}
-                    onChange={(val) => setCreateForm((p) => ({ ...p, weather: String(val ?? '') }))}
-                    placeholder="Selecione"
-                    allowClear
-                  />
-                </div>
-                <div className="input-group">
-                  <label>Temp. Mín (°C)</label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={createForm.temperature_min}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, temperature_min: e.target.value }))}
-                  />
-                </div>
-                <div className="input-group">
-                  <label>Temp. Máx (°C)</label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={createForm.temperature_max}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, temperature_max: e.target.value }))}
-                  />
-                </div>
+              <div className="input-group">
+                <label>Turno</label>
+                <SearchableSelect
+                  options={SHIFT_OPTIONS.map((s) => ({ value: s, label: s }))}
+                  value={createForm.shift || undefined}
+                  onChange={(val) => setCreateForm((p) => ({ ...p, shift: String(val ?? '') }))}
+                  placeholder="Selecione"
+                  allowClear
+                />
               </div>
               <div className="input-group">
-                <label>Observações</label>
+                <label>Observações gerais</label>
                 <textarea
                   className="input-field"
                   rows={3}
-                  value={createForm.observations}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, observations: e.target.value }))}
+                  value={createForm.general_observations}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, general_observations: e.target.value }))}
                 />
               </div>
 
@@ -1657,7 +1514,7 @@ export default function DailyReportsEnhanced() {
               <button
                 className="btn btn-primary"
                 onClick={handleCreate}
-                disabled={createLoading || !createForm.report_date || (!projectsInfo && !createForm.projects_id)}
+                disabled={createLoading || !createForm.rdo_date || (!projectsInfo && !createForm.projects_id)}
               >
                 {createLoading ? <span className="spinner" /> : 'Criar RDO'}
               </button>
@@ -1736,14 +1593,6 @@ export default function DailyReportsEnhanced() {
           message="Remover esta ocorrência do RDO?"
           onConfirm={() => handleDeleteOccurrence(deleteOccurrenceId)}
           onCancel={() => setDeleteOccurrenceId(null)}
-        />
-      )}
-      {deleteEquipmentId !== null && (
-        <ConfirmModal
-          title="Remover equipamento"
-          message="Remover este equipamento do RDO?"
-          onConfirm={() => handleDeleteEquipment(deleteEquipmentId)}
-          onCancel={() => setDeleteEquipmentId(null)}
         />
       )}
     </div>

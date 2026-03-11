@@ -594,6 +594,24 @@ class SyncService {
             idempotencyKey: operationId,
             ifMatch: data['local_version']?.toString(),
           );
+          // Vincular tarefas ao schedule
+          try {
+            final sId = _toInt(data['schedule_id']);
+            final tasksList = data['tasks_list'] as List?;
+            if (sId != null && sId != 0 && tasksList != null) {
+              final taskIds = tasksList
+                  .map((t) => t is Map ? t['sprints_tasks_id'] : null)
+                  .whereType<int>()
+                  .toList();
+              if (taskIds.isNotEmpty) {
+                await ProjectsGroup.linkTasksToScheduleCall.call(
+                  token: token,
+                  scheduleId: sId,
+                  sprintsTasksIds: taskIds,
+                );
+              }
+            }
+          } catch (_) {}
           return _resultFromApi(response);
 
         case SyncOperationType.delete:

@@ -5,7 +5,7 @@ import { useAppState } from '../../contexts/AppStateContext';
 import { projectCalendarApi } from '../../services';
 import type { ProjectHoliday, ProjectWorkCalendar, CalendarOverride } from '../../services/api/projectCalendar';
 import PageHeader from '../../components/common/PageHeader';
-import ProjectSelector from '../../components/common/ProjectSelector';
+import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import {
   ArrowLeft,
@@ -62,10 +62,8 @@ export default function ProjectCalendar() {
   const [overrideModal, setOverrideModal] = useState<{ open: boolean; month: number; existing: CalendarOverride | null }>({ open: false, month: 1, existing: null });
   const [overrideForm, setOverrideForm] = useState<Record<string, any>>({ ...DEFAULT_CAL, year: '' });
 
-  if (!projectsInfo) return <ProjectSelector />;
-
-  const projectId = projectsInfo.id;
-  const country = (projectsInfo as any).country || 'Brasil';
+  const projectId = projectsInfo?.id ?? 0;
+  const country = (projectsInfo as any)?.country || 'Brasil';
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -286,13 +284,21 @@ export default function ProjectCalendar() {
       <PageHeader
         title={t('projectCalendar.title')}
         subtitle={t('projectCalendar.subtitle')}
-        breadcrumb={`${projectsInfo.name} / ${t('projectCalendar.title')}`}
+        breadcrumb={`${projectsInfo?.name || ''} / ${t('projectCalendar.title')}`}
         actions={
           <Link to="/projeto-detalhes" className="btn btn-secondary">
             <ArrowLeft size={18} /> {t('common.back')}
           </Link>
         }
       />
+
+      <ProjectFilterDropdown />
+
+      {!projectsInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
+          Selecione um projeto para visualizar o calendário
+        </div>
+      ) : (<>
 
       {/* Toast */}
       {toast && (
@@ -529,6 +535,7 @@ export default function ProjectCalendar() {
           )}
         </div>
       )}
+      </>)}
     </div>
   );
 }

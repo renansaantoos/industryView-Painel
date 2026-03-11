@@ -542,15 +542,37 @@ export class ReportsService {
             },
           },
         },
+        schedule_sprints_tasks: {
+          include: {
+            sprints_tasks: {
+              include: {
+                projects_backlogs: {
+                  select: { id: true, description: true },
+                },
+                sprints_tasks_statuses: {
+                  select: { id: true, status: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
     // Mapear schedule_user para schedule_user_of_schedule (compatibilidade com app Xano)
     return schedules.map(s => {
-      const { schedule_user, ...rest } = s as any;
+      const { schedule_user, schedule_sprints_tasks, ...rest } = s as any;
       return {
         ...rest,
         schedule_user_of_schedule: schedule_user,
+        sprints_tasks_of_schedule: (schedule_sprints_tasks ?? []).map((sst: any) => ({
+          id: sst.sprints_tasks ? Number(sst.sprints_tasks.id) : null,
+          description: sst.sprints_tasks?.projects_backlogs?.description ?? null,
+          status: sst.sprints_tasks?.sprints_tasks_statuses?.status ?? null,
+          status_id: sst.sprints_tasks?.sprints_tasks_statuses?.id
+            ? Number(sst.sprints_tasks.sprints_tasks_statuses.id)
+            : null,
+        })),
       };
     });
   }

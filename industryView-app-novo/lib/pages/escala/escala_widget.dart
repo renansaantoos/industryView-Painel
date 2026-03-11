@@ -12,6 +12,8 @@ import '/core/widgets/app_icon_button.dart';
 import '/core/widgets/form_field_controller.dart';
 import '/services/network_service.dart';
 import '/index.dart';
+import '/pages/project_selection/project_selection_widget.dart';
+import '/core/navigation/nav.dart';
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_debounce/easy_debounce.dart';
@@ -128,7 +130,7 @@ class _EscalaWidgetState extends State<EscalaWidget> {
 
         if ((_model.escalaDia?.succeeded ?? true)) {
           final apiIds = ProjectsGroup.listaColaboradoresDaEscalaDoDiaCall
-                  .ids((_model.escalaDia?.jsonBody ?? ''))
+                  .ids((_model.escalaDia?.jsonBody))
                   ?.toList()
                   .cast<int>() ??
               <int>[];
@@ -158,7 +160,7 @@ class _EscalaWidgetState extends State<EscalaWidget> {
                   child: ModalInfoWidget(
                     title: 'Erro',
                     description: getJsonField(
-                      (_model.escalaDia?.jsonBody ?? ''),
+                      (_model.escalaDia?.jsonBody),
                       r'''$.message''',
                     ).toString(),
                   ),
@@ -567,7 +569,9 @@ class _EscalaWidgetState extends State<EscalaWidget> {
                 Flexible(
                   child: Text(
                     AppState().user.projectName.isNotEmpty
-                        ? AppState().user.projectName
+                        ? (AppState().user.teamName.isNotEmpty
+                            ? '${AppState().user.projectName} / ${AppState().user.teamName}'
+                            : AppState().user.projectName)
                         : 'Projeto',
                     style: GoogleFonts.lexend(
                       fontSize: 14.0,
@@ -588,12 +592,13 @@ class _EscalaWidgetState extends State<EscalaWidget> {
                   ..sheduleId = null
                   ..projectId = null
                   ..teamsId = null
+                  ..teamName = null
                   ..sprint = SprintsStruct(),
               );
               AppState().update(() {});
               if (!context.mounted) return;
               context.goNamedAuth(
-                PageCheckQrcodeWidget.routeName,
+                ProjectSelectionWidget.routeName,
                 context.mounted,
                 extra: <String, dynamic>{
                   kTransitionInfoKey: const TransitionInfo(
@@ -1164,7 +1169,7 @@ class _EscalaWidgetState extends State<EscalaWidget> {
                 child: ModalInfoWidget(
                   title: 'Erro',
                   description: getJsonField(
-                    (_model.editaEscala?.jsonBody ?? ''),
+                    (_model.editaEscala?.jsonBody),
                     r'''$.message''',
                   ).toString(),
                 ),

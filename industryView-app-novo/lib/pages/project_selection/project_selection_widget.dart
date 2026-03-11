@@ -3,7 +3,10 @@ import '/backend/api_requests/api_calls.dart';
 import '/backend/schema/structs/index.dart';
 import '/core/theme/app_theme.dart';
 import '/core/utils/app_utils.dart';
+import '/core/navigation/nav.dart';
 import '/index.dart';
+import '/pages/team_selection/team_selection_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,6 +32,7 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
   bool _isLoading = true;
   bool _isSelecting = false;
   List<_ProjectItem> _projects = [];
+  ApiCallResponse? _cachedMeResponse;
 
   @override
   void initState() {
@@ -37,59 +41,105 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
   }
 
   Future<void> _loadProjects() async {
-    final meCall = AuthenticationGroup
-        .getTheRecordBelongingToTheAuthenticationTokenCall;
-    final tokenJson = widget.tokenResponse?.jsonBody ?? '';
-    final loginJson = widget.loginResponse?.jsonBody ?? '';
+    try {
+      final meCall = AuthenticationGroup
+          .getTheRecordBelongingToTheAuthenticationTokenCall;
 
-    final companyId = meCall.companyID(tokenJson);
-    final authToken = AuthenticationGroup
-        .loginAndRetrieveAnAuthenticationTokenCall
-        .token(loginJson);
+      // Tentar usar dados do login, senão buscar /me/app com token atual
+      dynamic tokenJson = widget.tokenResponse?.jsonBody;
+      final authToken = currentAuthenticationToken ?? '';
 
-    final userProjectIds = meCall.allProjectIds(tokenJson);
-
-    if (companyId == null || authToken == null) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
-    final response = await ProjectsGroup.getUserProjectsCall.call(
-      companyId: companyId,
-      token: authToken,
-    );
-
-    if (!mounted) return;
-
-    if (response.succeeded) {
-      final allItems = ProjectsGroup.getUserProjectsCall.items(
-        response.jsonBody ?? '',
-      );
-      if (allItems != null && userProjectIds.isNotEmpty) {
-        final userIds = userProjectIds.toSet();
-        // Status permitidos: 1 (Ativo) e 3 (Em andamento)
-        const allowedStatuses = {1, 3};
-        _projects = allItems
-            .where((item) {
-              final id = castToType<int>(getJsonField(item, r'''$.id'''));
-              final statusId = castToType<int>(
-                  getJsonField(item, r'''$.projects_statuses_id'''));
-              return id != null &&
-                  userIds.contains(id) &&
-                  statusId != null &&
-                  allowedStatuses.contains(statusId);
-            })
-            .map((item) => _ProjectItem(
-                  id: castToType<int>(getJsonField(item, r'''$.id'''))!,
-                  name: castToType<String>(
-                          getJsonField(item, r'''$.name''')) ??
-                      'Projeto',
-                ))
-            .toList();
+      if (kDebugMode) {
+        print('=== ProjectSelection._loadProjects ===');
+        print('tokenJson type: ${tokenJson?.runtimeType}');
+        print('tokenJson null: ${tokenJson == null}');
+        print('authToken empty: ${authToken.isEmpty}');
       }
-    }
 
-    setState(() => _isLoading = false);
+      if (tokenJson == null && authToken.isNotEmpty) {
+        final meResponse = await meCall.call(bearerAuth: authToken);
+        if (kDebugMode) {
+          print('meResponse succeeded: ${meResponse.succeeded}');
+          print('meResponse statusCode: ${meResponse.statusCode}');
+        }
+        if (meResponse.succeeded) {
+          tokenJson = meResponse.jsonBody;
+          _cachedMeResponse = meResponse;
+        }
+      } else if (widget.tokenResponse != null) {
+        _cachedMeResponse = widget.tokenResponse;
+      }
+
+      final companyId = meCall.companyID(tokenJson);
+      final userProjectIds = meCall.allProjectIds(tokenJson);
+
+      if (kDebugMode) {
+        print('companyId: $companyId');
+        print('userProjectIds: $userProjectIds');
+      }
+
+      if (companyId == null || authToken.isEmpty) {
+        if (kDebugMode) {
+          print('Early return: companyId=$companyId, authToken empty=${authToken.isEmpty}');
+        }
+        return;
+      }
+
+      final response = await ProjectsGroup.getUserProjectsCall.call(
+        companyId: companyId,
+        token: authToken,
+      );
+
+      if (!mounted) return;
+
+      if (kDebugMode) {
+        print('projects response succeeded: ${response.succeeded}');
+        print('projects response statusCode: ${response.statusCode}');
+      }
+
+      if (response.succeeded) {
+        final allItems = ProjectsGroup.getUserProjectsCall.items(
+          response.jsonBody,
+        );
+        if (kDebugMode) {
+          print('allItems count: ${allItems?.length}');
+        }
+        if (allItems != null && userProjectIds.isNotEmpty) {
+          final userIds = userProjectIds.toSet();
+          // Status permitidos: 1 (Ativo) e 3 (Em andamento)
+          const allowedStatuses = {1, 3};
+          _projects = allItems
+              .where((item) {
+                final id = castToType<int>(getJsonField(item, r'''$.id'''));
+                final statusId = castToType<int>(
+                    getJsonField(item, r'''$.projects_statuses_id'''));
+                return id != null &&
+                    userIds.contains(id) &&
+                    statusId != null &&
+                    allowedStatuses.contains(statusId);
+              })
+              .map((item) => _ProjectItem(
+                    id: castToType<int>(getJsonField(item, r'''$.id'''))!,
+                    name: castToType<String>(
+                            getJsonField(item, r'''$.name''')) ??
+                        'Projeto',
+                  ))
+              .toList();
+        }
+      }
+
+      if (kDebugMode) {
+        print('projects loaded: ${_projects.length}');
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('=== ProjectSelection._loadProjects ERROR ===');
+        print('Error: $e');
+        print('StackTrace: $stackTrace');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _selectProject(_ProjectItem project) async {
@@ -99,98 +149,110 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
     try {
       final meCall = AuthenticationGroup
           .getTheRecordBelongingToTheAuthenticationTokenCall;
-      final tokenJson = widget.tokenResponse?.jsonBody ?? '';
-      final loginJson = widget.loginResponse?.jsonBody ?? '';
+      final dynamic tokenJson = _cachedMeResponse?.jsonBody ?? widget.tokenResponse?.jsonBody;
+      final authToken = currentAuthenticationToken ?? '';
 
-      final authToken = AuthenticationGroup
-          .loginAndRetrieveAnAuthenticationTokenCall
-          .token(loginJson);
-
-      // Determinar teamsId cruzando o projects_id do team
+      // Coletar TODAS as equipes do usuário neste projeto (leader + member)
       final leaders = meCall.teamsLeader(tokenJson);
       final members = meCall.teamsMember(tokenJson);
-      int? teamsId;
+      final teamsMap = <int, TeamItem>{};
 
-      // Primeiro busca nos leaders com projects_id == projectId
       if (leaders != null) {
         for (final leader in leaders) {
           final teamProjectId =
               castToType<int>(getJsonField(leader, r'''$.projects_id'''));
           if (teamProjectId == project.id) {
-            teamsId = castToType<int>(getJsonField(leader, r'''$.id'''));
-            break;
+            final teamId = castToType<int>(getJsonField(leader, r'''$.id'''));
+            final teamName = castToType<String>(getJsonField(leader, r'''$.name''')) ?? 'Equipe';
+            if (teamId != null) {
+              teamsMap[teamId] = TeamItem(id: teamId, name: teamName);
+            }
           }
         }
       }
-      // Se não encontrou nos leaders, busca nos members
-      if (teamsId == null && members != null) {
+      if (members != null) {
         for (final member in members) {
           final teamProjectId =
               castToType<int>(getJsonField(member, r'''$.projects_id'''));
           if (teamProjectId == project.id) {
-            teamsId = castToType<int>(getJsonField(member, r'''$.id'''));
-            break;
-          }
-        }
-      }
-      // Fallback: usa o primeiro team disponível
-      if (teamsId == null) {
-        if (leaders != null && leaders.isNotEmpty) {
-          teamsId = castToType<int>(getJsonField(leaders.first, r'''$.id'''));
-        } else if (members != null && members.isNotEmpty) {
-          teamsId = castToType<int>(getJsonField(members.first, r'''$.id'''));
-        }
-      }
-
-      // Buscar sprint ativa para o projeto selecionado
-      SprintsStruct? sprintData;
-      if (authToken != null) {
-        final sprintResponse = await SprintsGroup.getSprintAtivaCall.call(
-          projectsId: project.id,
-          token: authToken,
-        );
-        if (sprintResponse.succeeded) {
-          final sprintItems = SprintsGroup.getSprintAtivaCall
-              .listAtivas(sprintResponse.jsonBody ?? '');
-          if (sprintItems != null && sprintItems.isNotEmpty) {
-            final s = sprintItems.first;
-            sprintData = SprintsStruct(
-              id: castToType<int>(getJsonField(s, r'''$.id''')),
-              title: castToType<String>(getJsonField(s, r'''$.title''')),
-              objective:
-                  castToType<String>(getJsonField(s, r'''$.objective''')),
-              startDate: parseDateToMillis(getJsonField(s, r'''$.start_date''')),
-              endDate: parseDateToMillis(getJsonField(s, r'''$.end_date''')),
-              progressPercentage: castToType<double>(
-                  getJsonField(s, r'''$.progress_percentage''')),
-            );
+            final teamId = castToType<int>(getJsonField(member, r'''$.id'''));
+            final teamName = castToType<String>(getJsonField(member, r'''$.name''')) ?? 'Equipe';
+            if (teamId != null && !teamsMap.containsKey(teamId)) {
+              teamsMap[teamId] = TeamItem(id: teamId, name: teamName);
+            }
           }
         }
       }
 
-      // Atualizar AppState com projeto e team selecionados
-      AppState().updateUserStruct((user) {
-        user.projectId = project.id;
-        user.teamsId = teamsId;
-        user.sprint = sprintData ?? SprintsStruct();
-        user.projectName = project.name;
-      });
-      AppState().update(() {});
+      final teams = teamsMap.values.toList();
 
       if (!mounted) return;
 
-      // Navegar para PageCheckQrcode (skipProjectCheck para não redirecionar de volta)
-      context.pushNamedAuth(
-        PageCheckQrcodeWidget.routeName,
-        context.mounted,
-        extra: <String, dynamic>{
-          kTransitionInfoKey: TransitionInfo(
-            hasTransition: true,
-            transitionType: PageTransitionType.fade,
+      if (teams.length <= 1) {
+        // Apenas 1 equipe (ou nenhuma) — ir direto para PageCheckQrcode
+        final teamsId = teams.isNotEmpty ? teams.first.id : null;
+
+        SprintsStruct? sprintData;
+        if (authToken.isNotEmpty) {
+          final sprintResponse = await SprintsGroup.getSprintAtivaCall.call(
+            projectsId: project.id,
+            token: authToken,
+          );
+          if (sprintResponse.succeeded) {
+            final sprintItems = SprintsGroup.getSprintAtivaCall
+                .listAtivas(sprintResponse.jsonBody);
+            if (sprintItems != null && sprintItems.isNotEmpty) {
+              final s = sprintItems.first;
+              sprintData = SprintsStruct(
+                id: castToType<int>(getJsonField(s, r'''$.id''')),
+                title: castToType<String>(getJsonField(s, r'''$.title''')),
+                objective:
+                    castToType<String>(getJsonField(s, r'''$.objective''')),
+                startDate: parseDateToMillis(getJsonField(s, r'''$.start_date''')),
+                endDate: parseDateToMillis(getJsonField(s, r'''$.end_date''')),
+                progressPercentage: castToType<double>(
+                    getJsonField(s, r'''$.progress_percentage''')),
+              );
+            }
+          }
+        }
+
+        AppState().updateUserStruct((user) {
+          user.projectId = project.id;
+          user.teamsId = teamsId;
+          user.teamName = teams.isNotEmpty ? teams.first.name : '';
+          user.sprint = sprintData ?? SprintsStruct();
+          user.projectName = project.name;
+        });
+        AppState().update(() {});
+
+        if (!mounted) return;
+
+        context.pushNamedAuth(
+          PageCheckQrcodeWidget.routeName,
+          context.mounted,
+          extra: <String, dynamic>{
+            kTransitionInfoKey: TransitionInfo(
+              hasTransition: true,
+              transitionType: PageTransitionType.fade,
+            ),
+            'skipProjectCheck': true,
+          },
+        );
+      } else {
+        // Múltiplas equipes — ir para seleção de equipe
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TeamSelectionWidget(
+              projectId: project.id,
+              projectName: project.name,
+              teams: teams,
+              tokenResponse: widget.tokenResponse,
+              loginResponse: widget.loginResponse,
+            ),
           ),
-          'skipProjectCheck': true,
-        },
-      );
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isSelecting = false);

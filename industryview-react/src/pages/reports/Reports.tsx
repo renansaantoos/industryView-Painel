@@ -16,7 +16,7 @@ import { formatDate, formatDateTime } from '../../utils/dateUtils';
 import { generateSimplePdf } from '../../utils/pdfUtils';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
-import ProjectSelector from '../../components/common/ProjectSelector';
+import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 
 interface ToastState {
   message: string;
@@ -167,14 +167,14 @@ export default function Reports() {
     showToast('Relatório exportado com sucesso.');
   };
 
-  if (!projectsInfo) return <ProjectSelector />;
+  // projectsInfo may be null — handled in JSX
 
   return (
     <div>
       <PageHeader
         title={t('reports.title')}
         subtitle={t('reports.subtitle')}
-        breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('reports.title')}`}
+        breadcrumb={`${t('projects.title')} / ${projectsInfo?.name || ''} / ${t('reports.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
             <Link to="/projeto-detalhes" className="btn btn-secondary">
@@ -189,6 +189,14 @@ export default function Reports() {
           </div>
         }
       />
+
+      <ProjectFilterDropdown />
+
+      {!projectsInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
+          Selecione um projeto para visualizar os relatórios
+        </div>
+      ) : (<>
 
       {/* Filters */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -397,6 +405,7 @@ export default function Reports() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
     </div>
   );
 }

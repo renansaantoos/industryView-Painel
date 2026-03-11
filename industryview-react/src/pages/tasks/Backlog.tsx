@@ -14,7 +14,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import ProjectSelector from '../../components/common/ProjectSelector';
+import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import {
   Plus,
   Search,
@@ -604,7 +604,7 @@ export default function Backlog() {
   // Guard
   // ---------------------------------------------------------------------------
 
-  if (!projectsInfo) return <ProjectSelector />;
+  // projectsInfo may be null — handled in JSX
 
   // ---------------------------------------------------------------------------
   // Render
@@ -615,7 +615,7 @@ export default function Backlog() {
       <PageHeader
         title={t('backlog.title')}
         subtitle={t('backlog.subtitle')}
-        breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('backlog.title')}`}
+        breadcrumb={`${t('projects.title')} / ${projectsInfo?.name || ''} / ${t('backlog.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
             <Link to="/projeto-detalhes" className="btn btn-secondary">
@@ -630,6 +630,14 @@ export default function Backlog() {
           </div>
         }
       />
+
+      <ProjectFilterDropdown />
+
+      {!projectsInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
+          Selecione um projeto para visualizar o backlog
+        </div>
+      ) : (<>
 
       {/* Search and filter bar */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -1188,6 +1196,7 @@ export default function Backlog() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
     </div>
   );
 }

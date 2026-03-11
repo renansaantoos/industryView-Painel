@@ -897,6 +897,17 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
     safeSetState(() => _model.isActionLoading = false);
 
     if (_model.statusUpdateResult?.succeeded ?? false) {
+      // Vincular tarefa ao schedule do dia
+      try {
+        final scheduleId = AppState().user.sheduleId;
+        if (scheduleId != null && scheduleId != 0 && taskId != null && taskId != 0) {
+          ProjectsGroup.linkTasksToScheduleCall.call(
+            token: currentAuthenticationToken,
+            scheduleId: scheduleId,
+            sprintsTasksIds: [taskId],
+          );
+        }
+      } catch (_) {}
       _model.statusChanged = true;
       AppState().signalTasksRefresh();
       if (context.mounted) {

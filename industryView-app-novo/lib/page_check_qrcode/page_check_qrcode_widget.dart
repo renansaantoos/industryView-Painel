@@ -5,14 +5,17 @@ import '/components/modal_escala_manual_widget.dart';
 import '/components/modal_info_widget.dart';
 import '/components/modal_sucess_qrcode_widget.dart';
 import '/components/offline_banner_widget.dart';
+import '/components/pending_day_finalization_widget.dart';
 import '/core/theme/app_theme.dart';
 import '/core/utils/app_utils.dart';
 import '/core/widgets/app_button.dart';
+import '/database/daos/rdo_finalization_dao.dart';
 import '/services/network_service.dart';
 import '/services/initial_sync_service.dart';
 import 'dart:ui';
 import '/core/utils/custom_functions.dart' as functions;
 import '/index.dart';
+import '/pages/daily_hub/daily_hub_widget.dart';
 import '/pages/project_selection/project_selection_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -25,9 +28,14 @@ import 'page_check_qrcode_model.dart';
 export 'page_check_qrcode_model.dart';
 
 class PageCheckQrcodeWidget extends StatefulWidget {
-  const PageCheckQrcodeWidget({super.key, this.skipProjectCheck = false});
+  const PageCheckQrcodeWidget({
+    super.key,
+    this.skipProjectCheck = false,
+    this.fromDailyHub = false,
+  });
 
   final bool skipProjectCheck;
+  final bool fromDailyHub;
 
   static String routeName = 'Page_check_qrcode';
   static String routePath = '/pageCheckQrcode';
@@ -50,6 +58,7 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       AppState().loading = true;
       safeSetState(() {});
+      try {
       final isOnline = await NetworkService.instance.checkConnection();
 
       if (!isOnline) {
@@ -82,14 +91,14 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
 
         final scheduleId = valueOrDefault<int>(
           getJsonField(
-            (_model.getScheduleId1?.jsonBody ?? ''),
+            (_model.getScheduleId1?.jsonBody),
             r'''$[0].schedule_id''',
           ),
           0,
         );
         final scheduleIdFallback = valueOrDefault<int>(
           getJsonField(
-            (_model.getScheduleId1?.jsonBody ?? ''),
+            (_model.getScheduleId1?.jsonBody),
             r'''$[0].id''',
           ),
           0,
@@ -128,11 +137,11 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
         );
 
         _model.retornoAPI = castToType<int>(getJsonField(
-              _model.listaFuncionarios?.jsonBody ?? '',
+              _model.listaFuncionarios?.jsonBody,
               r'''$.itemsTotal''',
             )) ??
             ProjectsGroup.listaMembrosDeUmaEquipeCall
-                .list((_model.listaFuncionarios?.jsonBody ?? ''))
+                .list((_model.listaFuncionarios?.jsonBody))
                 ?.length;
         safeSetState(() {});
         AppState().loading = false;
@@ -147,169 +156,107 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
       );
 
       if ((_model.validToken?.succeeded ?? true)) {
-        // Verificar se é primeiro login do dia (novo dia de trabalho)
-        final isFirstLogin = AuthenticationGroup
-            .getTheRecordBelongingToTheAuthenticationTokenCall
-            .firstLogin(
-          (_model.validToken?.jsonBody ?? ''),
-        ) ?? true;
-
-        // Extrair projectId e teamsId — prioridade é o AppState (projeto selecionado pelo usuário),
-        // fallback para o meCall (primeiro projeto da lista)
         final meCall = AuthenticationGroup
             .getTheRecordBelongingToTheAuthenticationTokenCall;
-        final tokenJson = _model.validToken?.jsonBody ?? '';
-        final tokenProjectId = AppState().user.projectId > 0
-            ? AppState().user.projectId
-            : valueOrDefault<int>(meCall.projectId(tokenJson), 0);
-        final tokenTeamsId = AppState().user.teamsId > 0
-            ? AppState().user.teamsId
-            : valueOrDefault<int>(meCall.teamsId(tokenJson), 0);
+        final tokenJson = _model.validToken?.jsonBody;
 
         if (kDebugMode) {
-          final rawFirstLogin = getJsonField(tokenJson, r'''$.user.first_login''');
           print('=== QR PAGE DEBUG ===');
-          print('rawFirstLogin from API: $rawFirstLogin (type: ${rawFirstLogin.runtimeType})');
-          print('isFirstLogin (parsed): $isFirstLogin');
-          print('tokenProjectId: $tokenProjectId (appState: ${AppState().user.projectId}, meCall: ${meCall.projectId(tokenJson)})');
-          print('tokenTeamsId: $tokenTeamsId (appState: ${AppState().user.teamsId}, meCall: ${meCall.teamsId(tokenJson)})');
-          print('validToken succeeded: ${_model.validToken?.succeeded}');
-          print('validToken statusCode: ${_model.validToken?.statusCode}');
+          print('tokenProjectId (appState): ${AppState().user.projectId}, meCall: ${meCall.projectId(tokenJson)}');
+          print('tokenTeamsId (appState): ${AppState().user.teamsId}, meCall: ${meCall.teamsId(tokenJson)}');
           print('====================');
         }
 
-        // Se já iniciou jornada hoje (first_login=false), ir direto para Home
-        if (!isFirstLogin &&
-            tokenProjectId > 0 &&
-            tokenTeamsId > 0) {
-          final existingSchedule = await ProjectsGroup
-              .listaColaboradoresDaEscalaDoDiaCall
-              .call(
-            projectsId: tokenProjectId,
-            teamsId: tokenTeamsId,
-            token: currentAuthenticationToken,
-          );
-          if (existingSchedule.succeeded) {
-            final scheduleId = valueOrDefault<int>(
-              getJsonField(
-                (existingSchedule.jsonBody ?? ''),
-                r'''$[0].schedule_id''',
-              ),
-              0,
-            );
-            final scheduleIdFallback = valueOrDefault<int>(
-              getJsonField(
-                (existingSchedule.jsonBody ?? ''),
-                r'''$[0].id''',
-              ),
-              0,
-            );
-            final resolvedScheduleId =
-                scheduleId != 0 ? scheduleId : scheduleIdFallback;
+        // ═══════════════════════════════════════════════════════════════
+        // VERIFICAÇÃO DE PENDÊNCIAS DE DIAS ANTERIORES.
+        // Se o usuário tem schedules de dias anteriores sem RDO,
+        // obriga a finalizar ANTES de poder iniciar uma nova sessão.
+        // Quando vindo do DailyHub, ele já tratou as pendências.
+        // ═══════════════════════════════════════════════════════════════
+        if (!widget.fromDailyHub) {
+          try {
+            final pendingResp = await ProjectsGroup
+                .getPendingSchedulesCall
+                .call(token: currentAuthenticationToken);
 
-            if (resolvedScheduleId != 0) {
-              // Escala do dia já existe — buscar sprint ativa e ir para Home
-              SprintsStruct? sprintData;
-              final sprintResponse =
-                  await SprintsGroup.getSprintAtivaCall.call(
-                projectsId: tokenProjectId,
-                token: currentAuthenticationToken,
-              );
-              if (sprintResponse.succeeded) {
-                final sprintItems = SprintsGroup.getSprintAtivaCall
-                    .listAtivas(sprintResponse.jsonBody ?? '');
-                if (sprintItems != null && sprintItems.isNotEmpty) {
-                  final s = sprintItems.first;
-                  sprintData = SprintsStruct(
-                    id: castToType<int>(getJsonField(s, r'''$.id''')),
-                    title: castToType<String>(
-                        getJsonField(s, r'''$.title''')),
-                    objective: castToType<String>(
-                        getJsonField(s, r'''$.objective''')),
-                    startDate: parseDateToMillis(
-                        getJsonField(s, r'''$.start_date''')),
-                    endDate: parseDateToMillis(
-                        getJsonField(s, r'''$.end_date''')),
-                    progressPercentage: castToType<double>(
-                        getJsonField(s, r'''$.progress_percentage''')),
+            if (pendingResp.succeeded) {
+              final hasPend = ProjectsGroup
+                  .getPendingSchedulesCall
+                  .hasPending(pendingResp.jsonBody) ?? false;
+
+              if (hasPend && mounted) {
+                // Multi-projeto: DailyHub cuida das pendências
+                final allProjects = meCall.allProjectIds(tokenJson);
+                if (allProjects.length > 1) {
+                  AppState().updateUserStruct(
+                    (e) => e
+                      ..token = valueOrDefault<String>(currentAuthenticationToken, AppState().user.token)
+                      ..id = valueOrDefault<int>(meCall.id(tokenJson), AppState().user.id)
+                      ..name = valueOrDefault<String>(meCall.name(tokenJson), AppState().user.name)
+                      ..email = valueOrDefault<String>(meCall.email(tokenJson), AppState().user.email)
+                      ..phone = valueOrDefault<String>(meCall.phone(tokenJson), AppState().user.phone)
+                      ..companyId = valueOrDefault<int>(meCall.companyID(tokenJson), AppState().user.companyId),
                   );
+                  AppState().update(() {});
+                  AppState().loading = false;
+                  safeSetState(() {});
+                  if (!mounted) return;
+                  context.goNamedAuth(
+                    DailyHubWidget.routeName,
+                    context.mounted,
+                    extra: <String, dynamic>{
+                      kTransitionInfoKey: TransitionInfo(
+                        hasTransition: true,
+                        transitionType: PageTransitionType.fade,
+                      ),
+                    },
+                  );
+                  return;
+                }
+
+                // Single-project: tratar pendência inline
+                final pendList = ProjectsGroup
+                    .getPendingSchedulesCall
+                    .pendingSchedules(pendingResp.jsonBody);
+                final fp = (pendList?.isNotEmpty == true) ? pendList!.first : null;
+                if (fp != null) {
+                  final pDate = fp['schedule_date']?.toString() ?? '';
+                  final pId = (fp['schedule_id'] as int?) ?? 0;
+                  final pProject = fp['project_name']?.toString();
+                  final pTeam = fp['team_name']?.toString();
+                  final pWorkers = fp['workers'] as List<dynamic>?;
+                  final pTasks = fp['tasks'] as List<dynamic>?;
+
+                  AppState().loading = false;
+                  safeSetState(() {});
+
+                  if (kDebugMode) {
+                    print('=== PENDING SCHEDULE FOUND ===');
+                    print('scheduleId: $pId, date: $pDate, project: $pProject');
+                  }
+
+                  await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      fullscreenDialog: true,
+                      builder: (_) => PendingDayFinalizationWidget(
+                        scheduleId: pId,
+                        scheduleDate: pDate,
+                        projectName: pProject,
+                        teamName: pTeam,
+                        workers: pWorkers,
+                        tasks: pTasks,
+                      ),
+                    ),
+                  );
+                  // Após finalizar, continua o fluxo normal
                 }
               }
-
-              AppState().updateUserStruct(
-                (e) => e
-                  ..sheduleId = resolvedScheduleId
-                  ..projectId = tokenProjectId
-                  ..teamsId = tokenTeamsId
-                  ..sprint = sprintData ?? e.sprint,
-              );
-              AppState().loading = false;
-              safeSetState(() {});
-
-              if (!mounted) return;
-              context.goNamedAuth(
-                HomePageTarefasWidget.routeName,
-                context.mounted,
-                extra: <String, dynamic>{
-                  kTransitionInfoKey: TransitionInfo(
-                    hasTransition: true,
-                    transitionType: PageTransitionType.fade,
-                    duration: Duration(milliseconds: 250),
-                  ),
-                },
-              );
-              return;
             }
-          }
-          // Nenhuma escala encontrada para hoje — limpar sheduleId antigo
-          AppState().updateUserStruct((e) => e..sheduleId = null);
-        }
-
-        // Verificar múltiplos projetos (para auto-login / sessão restaurada)
-        if (kDebugMode) {
-          print('=== MULTI-PROJECT CHECK ===');
-          print('skipProjectCheck: ${widget.skipProjectCheck}');
-          print('allProjectIds: ${meCall.allProjectIds(tokenJson)}');
-        }
-        if (!widget.skipProjectCheck) {
-          final allProjects = meCall.allProjectIds(tokenJson);
-          if (allProjects.length > 1) {
-            // Atualizar dados básicos do usuário antes de redirecionar
-            AppState().updateUserStruct(
-              (e) => e
-                ..token = valueOrDefault<String>(
-                  currentAuthenticationToken,
-                  AppState().user.token,
-                )
-                ..id = valueOrDefault<int>(meCall.id(tokenJson), AppState().user.id)
-                ..name = valueOrDefault<String>(meCall.name(tokenJson), AppState().user.name)
-                ..email = valueOrDefault<String>(meCall.email(tokenJson), AppState().user.email)
-                ..phone = valueOrDefault<String>(meCall.phone(tokenJson), AppState().user.phone)
-                ..companyId = valueOrDefault<int>(meCall.companyID(tokenJson), AppState().user.companyId),
-            );
-            AppState().update(() {});
-
-            AppState().loading = false;
-            safeSetState(() {});
-
-            if (!mounted) return;
-            context.goNamedAuth(
-              ProjectSelectionWidget.routeName,
-              context.mounted,
-              extra: <String, dynamic>{
-                kTransitionInfoKey: TransitionInfo(
-                  hasTransition: true,
-                  transitionType: PageTransitionType.fade,
-                ),
-                'tokenResponse': _model.validToken!,
-                'loginResponse': ApiCallResponse(
-                  {'authToken': currentAuthenticationToken},
-                  <String, String>{},
-                  200,
-                ),
-              },
-            );
-            return;
+          } catch (e) {
+            if (kDebugMode) {
+              print('=== PENDING CHECK ERROR: $e ===');
+            }
           }
         }
 
@@ -319,143 +266,7 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
         final savedSprint = AppState().user.sprint;
 
         // Persistir/atualizar dados do usuário quando online
-        AppState().updateUserStruct(
-          (e) => e
-            ..token = valueOrDefault<String>(
-              currentAuthenticationToken,
-              AppState().user.token,
-            )
-            ..id = valueOrDefault<int>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .id(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.id,
-            )
-            ..name = valueOrDefault<String>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .name(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.name,
-            )
-            ..email = valueOrDefault<String>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .email(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.email,
-            )
-            ..phone = valueOrDefault<String>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .phone(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.phone,
-            )
-            ..image = valueOrDefault<String>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .image(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.image,
-            )
-            ..teamsId = valueOrDefault<int>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .teamsId(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.teamsId,
-            )
-            ..projectId = valueOrDefault<int>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .projectId(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.projectId,
-            )
-            ..companyId = valueOrDefault<int>(
-              AuthenticationGroup
-                  .getTheRecordBelongingToTheAuthenticationTokenCall
-                  .companyID(
-                (_model.validToken?.jsonBody ?? ''),
-              ),
-              AppState().user.companyId,
-            )
-            ..sprint = SprintsStruct(
-              id: valueOrDefault<int>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .sprintId(
-                  (_model.validToken?.jsonBody ?? ''),
-                ),
-                AppState().user.sprint.id,
-              ),
-              title: valueOrDefault<String>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .spritnTitle(
-                  (_model.validToken?.jsonBody ?? ''),
-                ),
-                AppState().user.sprint.title,
-              ),
-              objective: valueOrDefault<String>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .sprintObjective(
-                  (_model.validToken?.jsonBody ?? ''),
-                ),
-                AppState().user.sprint.objective,
-              ),
-              startDate: valueOrDefault<int>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .sprintDtStart(
-                  (_model.validToken?.jsonBody ?? ''),
-                ),
-                AppState().user.sprint.startDate,
-              ),
-              endDate: valueOrDefault<int>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .sprintDtEnd(
-                  (_model.validToken?.jsonBody ?? ''),
-                ),
-                AppState().user.sprint.endDate,
-              ),
-              progressPercentage: valueOrDefault<double>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .sprintProgress(
-                  (_model.validToken?.jsonBody ?? ''),
-                ),
-                AppState().user.sprint.progressPercentage,
-              ),
-              tasksConcluidas: valueOrDefault<int>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .concluidas(
-                  (_model.validToken?.jsonBody ?? ''),
-                )?.length,
-                AppState().user.sprint.tasksConcluidas,
-              ),
-              tasksAndamento: valueOrDefault<int>(
-                AuthenticationGroup
-                    .getTheRecordBelongingToTheAuthenticationTokenCall
-                    .andamento(
-                  (_model.validToken?.jsonBody ?? ''),
-                )?.length,
-                AppState().user.sprint.tasksAndamento,
-              ),
-            ),
-        );
+        _updateUserFromToken(tokenJson);
 
         // Restaurar dados do projeto selecionado (evita sobrescrita pelo me endpoint)
         if (widget.skipProjectCheck) {
@@ -467,7 +278,79 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           );
         }
 
-        // Limpar listas locais (serão recarregadas do backend)
+        // ═══════════════════════════════════════════════════════════════
+        // VERIFICAR SE JÁ EXISTE SCHEDULE ATIVO HOJE (sem RDO)
+        // Se sim → carregar funcionários já selecionados e ir para tarefas
+        // Se não → tela limpa para nova seleção de funcionários
+        // ═══════════════════════════════════════════════════════════════
+        _model.getScheduleId1 =
+            await ProjectsGroup.listaColaboradoresDaEscalaDoDiaCall.call(
+          projectsId: AppState().user.projectId,
+          teamsId: AppState().user.teamsId,
+          token: currentAuthenticationToken,
+        );
+
+        final existingScheduleId = valueOrDefault<int>(
+          getJsonField(
+            (_model.getScheduleId1?.jsonBody),
+            r'''$[0].schedule_id''',
+          ),
+          0,
+        );
+        final existingUserIds = ProjectsGroup
+            .listaColaboradoresDaEscalaDoDiaCall
+            .ids(_model.getScheduleId1?.jsonBody);
+
+        if (kDebugMode) {
+          print('=== SCHEDULE CHECK ===');
+          print('existingScheduleId: $existingScheduleId');
+          print('existingUserIds: $existingUserIds');
+          print('======================');
+        }
+
+        if (existingScheduleId != 0 && existingUserIds != null && existingUserIds.isNotEmpty) {
+          // ═══════════════════════════════════════════════════════════
+          // SCHEDULE ATIVO ENCONTRADO — jornada já em andamento
+          // Restaurar estado e ir direto para tela de tarefas
+          // ═══════════════════════════════════════════════════════════
+          AppState().allIds = existingUserIds;
+          AppState().updateUserStruct((e) => e..sheduleId = existingScheduleId);
+          AppState().saveCurrentToActiveContext();
+
+          if (kDebugMode) {
+            print('=== ACTIVE SCHEDULE → navigating to HomePageTarefas ===');
+          }
+
+          // Sync em background
+          Future.microtask(() async {
+            try {
+              await InitialSyncService.instance
+                  .performInitialSyncIfNeeded(force: true);
+            } catch (_) {}
+          });
+
+          AppState().loading = false;
+          safeSetState(() {});
+
+          if (!mounted) return;
+          context.goNamedAuth(
+            HomePageTarefasWidget.routeName,
+            context.mounted,
+            extra: <String, dynamic>{
+              kTransitionInfoKey: TransitionInfo(
+                hasTransition: true,
+                transitionType: PageTransitionType.fade,
+                duration: Duration(milliseconds: 250),
+              ),
+            },
+          );
+          return;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SEM SCHEDULE ATIVO — Nova sessão de trabalho
+        // Limpar tudo e mostrar tela de seleção de funcionários
+        // ═══════════════════════════════════════════════════════════════
         AppState().update(() {
           AppState().escalaServerIds = [];
           AppState().escalaLocalIds = [];
@@ -477,86 +360,14 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           AppState().qrCodeIDs = [];
           AppState().liberaManual = [];
         });
+        AppState().updateUserStruct((e) => e..sheduleId = 0);
 
-        // Carregar escala existente do backend (pode ter sido salva antes de fechar o app)
+        // Limpar flag de RDO finalizada (permite novo ciclo completo)
         try {
-          if (kDebugMode) {
-            print('=== LOADING SCHEDULE FROM BACKEND ===');
-            print('projectsId: ${AppState().user.projectId}, teamsId: ${AppState().user.teamsId}');
-          }
-          final escalaDia = await ProjectsGroup
-              .listaColaboradoresDaEscalaDoDiaCall
-              .call(
-            projectsId: AppState().user.projectId,
-            teamsId: AppState().user.teamsId,
-            token: currentAuthenticationToken,
-          );
-          if (kDebugMode) {
-            print('escalaDia succeeded: ${escalaDia.succeeded}, statusCode: ${escalaDia.statusCode}');
-            print('escalaDia body: ${escalaDia.jsonBody}');
-          }
-          if (escalaDia.succeeded) {
-            final ids = ProjectsGroup
-                    .listaColaboradoresDaEscalaDoDiaCall
-                    .ids(escalaDia.jsonBody)
-                    ?.toList()
-                    .cast<int>() ??
-                <int>[];
-            if (kDebugMode) {
-              print('Parsed employee IDs from schedule: $ids');
-            }
-            // Extrair horários de entrada e scheduleId
-            final entryTimes = <int, String>{};
-            final rawBody = escalaDia.jsonBody;
-            int resolvedScheduleId = 0;
-            if (rawBody is List && rawBody.isNotEmpty) {
-              resolvedScheduleId = valueOrDefault<int>(
-                getJsonField(rawBody.first, r'''$.schedule_id'''),
-                0,
-              );
-              if (resolvedScheduleId == 0) {
-                resolvedScheduleId = valueOrDefault<int>(
-                  getJsonField(rawBody.first, r'''$.id'''),
-                  0,
-                );
-              }
-              for (final item in rawBody) {
-                final userId = castToType<int>(getJsonField(item, r'''$.users_id'''));
-                final createdAt = getJsonField(item, r'''$.created_at''')?.toString();
-                if (userId != null && createdAt != null) {
-                  entryTimes[userId] = createdAt;
-                }
-              }
-            }
-            if (ids.isNotEmpty) {
-              AppState().update(() {
-                AppState().escalaServerIds = ids;
-                AppState().escalaEntryTimes = entryTimes;
-                for (final id in ids) {
-                  if (!AppState().allIds.contains(id)) {
-                    AppState().addToAllIds(id);
-                  }
-                }
-              });
-              if (resolvedScheduleId != 0) {
-                AppState().updateUserStruct(
-                  (e) => e..sheduleId = resolvedScheduleId,
-                );
-              }
-            } else {
-              // Escala do dia está vazia — limpar scheduleId persistido para
-              // evitar que _saveScheduleToBackend faça UPDATE em escala de outro dia
-              if (kDebugMode) {
-                print('LOADING SCHEDULE: nenhuma escala para hoje. Limpando sheduleId antigo (${AppState().user.sheduleId})');
-              }
-              AppState().updateUserStruct((e) => e..sheduleId = 0);
-            }
-          }
-        } catch (_) {
-          // Ignorar erro de preload
-        }
+          await RdoFinalizationDao().clearToday();
+        } catch (_) {}
 
-        // Pré-carregar lista de membros para uso offline na Escala
+        // Pré-carregar dados em background
         Future.microtask(() async {
           try {
             await ProjectsGroup.listaMembrosDeUmaEquipeCall.call(
@@ -565,13 +376,8 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
               perPage: 100,
               token: currentAuthenticationToken,
             );
-          } catch (_) {
-            // Ignorar erro de preload
-          }
+          } catch (_) {}
         });
-
-        // Pré-carregar dados da RDO para uso offline (Tarefas da sprint + escala)
-        // perPage 50 para incluir mais tarefas concluídas quando ficar offline
         Future.microtask(() async {
           try {
             await SprintsGroup.queryAllSprintsTasksRecordCall.call(
@@ -590,22 +396,13 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
               sprintsId: AppState().user.sprint.id,
               token: currentAuthenticationToken,
             );
-          } catch (_) {
-            // Ignorar erro de preload
-          }
+          } catch (_) {}
         });
-
-        // Após validar e salvar usuário, força sync completo em background
         Future.microtask(() async {
           try {
             await InitialSyncService.instance
                 .performInitialSyncIfNeeded(force: true);
-          } catch (e, stackTrace) {
-            if (kDebugMode) {
-              print('PageCheckQrcode: Erro no initial sync (não crítico): $e');
-              print('PageCheckQrcode: StackTrace: $stackTrace');
-            }
-          }
+          } catch (_) {}
         });
 
         // Carregar lista de funcionários da equipe (para QR e seleção manual)
@@ -618,11 +415,11 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
         );
 
         _model.retornoAPI = castToType<int>(getJsonField(
-              _model.listaFuncionarios?.jsonBody ?? '',
+              _model.listaFuncionarios?.jsonBody,
               r'''$.itemsTotal''',
             )) ??
             ProjectsGroup.listaMembrosDeUmaEquipeCall
-                .list((_model.listaFuncionarios?.jsonBody ?? ''))
+                .list((_model.listaFuncionarios?.jsonBody))
                 ?.length;
 
         safeSetState(() {});
@@ -633,21 +430,56 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
         safeSetState(() {});
         return;
       }
+      } catch (e, stackTrace) {
+        if (kDebugMode) {
+          print('=== PageCheckQrcode FATAL ERROR ===');
+          print('Error: $e');
+          print('StackTrace: $stackTrace');
+        }
+      } finally {
+        AppState().loading = false;
+        safeSetState(() {});
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
   }
 
-  /// Salva a escala no backend (cria se não existe, edita se já existe).
-  ///
-  /// Sempre consulta o backend para descobrir o scheduleId de HOJE antes de
-  /// decidir entre CREATE e UPDATE, evitando atualizar escalas de dias anteriores
-  /// que possam estar persistidas no AppState via SharedPreferences.
+  /// Atualiza os dados do usuário no AppState a partir do token /me/app
+  void _updateUserFromToken(dynamic tokenJson) {
+    final meCall = AuthenticationGroup
+        .getTheRecordBelongingToTheAuthenticationTokenCall;
+    AppState().updateUserStruct(
+      (e) => e
+        ..token = valueOrDefault<String>(
+          currentAuthenticationToken, AppState().user.token)
+        ..id = valueOrDefault<int>(meCall.id(tokenJson), AppState().user.id)
+        ..name = valueOrDefault<String>(meCall.name(tokenJson), AppState().user.name)
+        ..email = valueOrDefault<String>(meCall.email(tokenJson), AppState().user.email)
+        ..phone = valueOrDefault<String>(meCall.phone(tokenJson), AppState().user.phone)
+        ..image = valueOrDefault<String>(meCall.image(tokenJson), AppState().user.image)
+        ..teamsId = valueOrDefault<int>(meCall.teamsId(tokenJson), AppState().user.teamsId)
+        ..projectId = valueOrDefault<int>(meCall.projectId(tokenJson), AppState().user.projectId)
+        ..companyId = valueOrDefault<int>(meCall.companyID(tokenJson), AppState().user.companyId)
+        ..sprint = SprintsStruct(
+          id: valueOrDefault<int>(meCall.sprintId(tokenJson), AppState().user.sprint.id),
+          title: valueOrDefault<String>(meCall.spritnTitle(tokenJson), AppState().user.sprint.title),
+          objective: valueOrDefault<String>(meCall.sprintObjective(tokenJson), AppState().user.sprint.objective),
+          startDate: valueOrDefault<int>(meCall.sprintDtStart(tokenJson), AppState().user.sprint.startDate),
+          endDate: valueOrDefault<int>(meCall.sprintDtEnd(tokenJson), AppState().user.sprint.endDate),
+          progressPercentage: valueOrDefault<double>(meCall.sprintProgress(tokenJson), AppState().user.sprint.progressPercentage),
+          tasksConcluidas: valueOrDefault<int>(meCall.concluidas(tokenJson)?.length, AppState().user.sprint.tasksConcluidas),
+          tasksAndamento: valueOrDefault<int>(meCall.andamento(tokenJson)?.length, AppState().user.sprint.tasksAndamento),
+        ),
+    );
+  }
+
+  /// Salva a escala no backend — sempre cria uma nova schedule.
+  /// Cada sessão de trabalho gera sua própria schedule (mesmo dia pode ter várias).
   Future<void> _saveScheduleToBackend() async {
     if (kDebugMode) {
       print('=== SAVE SCHEDULE TO BACKEND ===');
       print('allIds: ${AppState().allIds}');
-      print('scheduleId (AppState, pode ser de outro dia): ${AppState().user.sheduleId}');
       print('projectId: ${AppState().user.projectId}, teamsId: ${AppState().user.teamsId}');
     }
     if (AppState().allIds.isEmpty) {
@@ -655,49 +487,18 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
       return;
     }
     try {
-      // Passo 1: consultar o backend para ver se já existe escala de HOJE.
-      // Isso garante que nunca usaremos um scheduleId de outro dia persistido no AppState.
-      if (kDebugMode) print('SAVE: Consultando escala de hoje no backend...');
-      int todayScheduleId = 0;
-      final escalaDia = await ProjectsGroup.listaColaboradoresDaEscalaDoDiaCall.call(
-        projectsId: AppState().user.projectId,
-        teamsId: AppState().user.teamsId,
-        token: currentAuthenticationToken,
-      );
-      if (kDebugMode) {
-        print('SAVE: escalaDia.succeeded=${escalaDia.succeeded}, body=${escalaDia.jsonBody}');
-      }
-      if (escalaDia.succeeded) {
-        final rawBody = escalaDia.jsonBody;
-        if (rawBody is List && rawBody.isNotEmpty) {
-          // Tentar campo schedule_id primeiro, depois id
-          todayScheduleId = valueOrDefault<int>(
-            getJsonField(rawBody.first, r'''$.schedule_id'''),
-            0,
-          );
-          if (todayScheduleId == 0) {
-            todayScheduleId = valueOrDefault<int>(
-              getJsonField(rawBody.first, r'''$.id'''),
-              0,
-            );
-          }
-        }
-      }
-      if (kDebugMode) print('SAVE: todayScheduleId=$todayScheduleId');
-
-      if (todayScheduleId != 0) {
-        // Escala de hoje já existe no backend — atualizar com o ID correto
-        if (kDebugMode) print('UPDATING existing schedule $todayScheduleId (de hoje)');
+      // Se já temos um scheduleId desta sessão, atualizar
+      final currentScheduleId = AppState().user.sheduleId;
+      if (currentScheduleId != 0) {
+        if (kDebugMode) print('UPDATING current session schedule $currentScheduleId');
         await ProjectsGroup.editaEscalaDosColaboradoresCall.call(
           usersIdList: AppState().allIds,
-          scheduleId: todayScheduleId,
+          scheduleId: currentScheduleId,
           token: currentAuthenticationToken,
         );
-        // Garantir que o AppState reflita o scheduleId correto
-        AppState().updateUserStruct((e) => e..sheduleId = todayScheduleId);
       } else {
-        // Nenhuma escala para hoje — criar nova
-        if (kDebugMode) print('CREATING new schedule...');
+        // Criar nova schedule para esta sessão
+        if (kDebugMode) print('CREATING new schedule for this session...');
         final response = await ProjectsGroup.adicionaColaboradoresNaEscalaCall.call(
           teamsId: AppState().user.teamsId,
           usersIdList: AppState().allIds,
@@ -711,13 +512,15 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           print('CREATE response body: ${response.jsonBody}');
         }
         if (response.succeeded) {
-          final newScheduleId = getJsonField(response.jsonBody ?? '', r'''$.id''');
+          final newScheduleId = getJsonField(response.jsonBody, r'''$.id''');
           if (newScheduleId != null) {
             AppState().updateUserStruct((e) => e..sheduleId = newScheduleId);
             if (kDebugMode) print('SAVE: novo scheduleId salvo no AppState: $newScheduleId');
           }
         }
       }
+      // Salvar estado no contexto do projeto ativo
+      AppState().saveCurrentToActiveContext();
     } catch (e) {
       if (kDebugMode) print('SAVE SCHEDULE ERROR: $e');
       // Falha silenciosa — a escala será salva na próxima adição ou ao iniciar
@@ -881,35 +684,57 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                               if (AppState().user.projectName.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4.0),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.business_rounded,
-                                        color: Colors.white70,
-                                        size: 14.0,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          AppState().user.projectName,
-                                          style: AppTheme.of(context)
-                                              .labelSmall
-                                              .override(
-                                                font: GoogleFonts.lexend(
-                                                  fontWeight: AppTheme.of(context)
-                                                      .labelSmall
-                                                      .fontWeight,
-                                                  fontStyle: AppTheme.of(context)
-                                                      .labelSmall
-                                                      .fontStyle,
-                                                ),
-                                                color: Colors.white70,
-                                                letterSpacing: 0.0,
-                                              ),
-                                          overflow: TextOverflow.ellipsis,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      context.goNamedAuth(
+                                        ProjectSelectionWidget.routeName,
+                                        context.mounted,
+                                        extra: <String, dynamic>{
+                                          kTransitionInfoKey: TransitionInfo(
+                                            hasTransition: true,
+                                            transitionType: PageTransitionType.fade,
+                                          ),
+                                        },
+                                      );
+                                    },
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.business_rounded,
+                                          color: Colors.white70,
+                                          size: 14.0,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            AppState().user.teamName.isNotEmpty
+                                                ? '${AppState().user.projectName} / ${AppState().user.teamName}'
+                                                : AppState().user.projectName,
+                                            style: AppTheme.of(context)
+                                                .labelSmall
+                                                .override(
+                                                  font: GoogleFonts.lexend(
+                                                    fontWeight: AppTheme.of(context)
+                                                        .labelSmall
+                                                        .fontWeight,
+                                                    fontStyle: AppTheme.of(context)
+                                                        .labelSmall
+                                                        .fontStyle,
+                                                  ),
+                                                  color: Colors.white70,
+                                                  letterSpacing: 0.0,
+                                                ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.swap_horiz_rounded,
+                                          color: Colors.white54,
+                                          size: 14.0,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               const OfflineBannerWidget(),
@@ -1214,7 +1039,7 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                   // Buscar funcionário: primeiro localmente pela matrícula/ID, depois via API
                                   final membrosList = ProjectsGroup
                                       .listaMembrosDeUmaEquipeCall
-                                      .list((_model.listaFuncionarios?.jsonBody ?? ''));
+                                      .list((_model.listaFuncionarios?.jsonBody));
 
                                   int? qrUserId;
                                   String? qrUserName;
@@ -1262,9 +1087,9 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                     );
                                     _shouldSetState = true;
                                     qrUserId = ReportsGroup.qrcodeReaderCall
-                                        .userId((_model.apiQrcode?.jsonBody ?? ''));
+                                        .userId((_model.apiQrcode?.jsonBody));
                                     qrUserName = ReportsGroup.qrcodeReaderCall
-                                        .userName((_model.apiQrcode?.jsonBody ?? ''));
+                                        .userName((_model.apiQrcode?.jsonBody));
 
                                     // Se encontrou via API, verificar pertencimento à equipe
                                     if (qrUserId != null && membrosList != null) {
@@ -1577,58 +1402,6 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                           // Garantir que a escala está salva no backend
                                           await _saveScheduleToBackend();
 
-                                          // Marcar first_login = false (jornada iniciada)
-                                          _model.firstLogin =
-                                              await AuthenticationGroup
-                                                  .dailyLoginCall
-                                                  .call(
-                                            token: currentAuthenticationToken,
-                                          );
-
-                                          if (!(_model.firstLogin?.succeeded ?? false)) {
-                                            await showDialog(
-                                              context: context,
-                                              builder: (dialogContext) {
-                                                return Dialog(
-                                                  elevation: 0,
-                                                  insetPadding: EdgeInsets.zero,
-                                                  backgroundColor:
-                                                      Colors.transparent,
-                                                  alignment:
-                                                      AlignmentDirectional(
-                                                              0.0, 0.0)
-                                                          .resolve(
-                                                              Directionality.of(
-                                                                  context)),
-                                                  child: GestureDetector(
-                                                    onTap: () {
-                                                      FocusScope.of(
-                                                              dialogContext)
-                                                          .unfocus();
-                                                      FocusManager
-                                                          .instance.primaryFocus
-                                                          ?.unfocus();
-                                                    },
-                                                    child: ModalInfoWidget(
-                                                      title: AppLocalizations.of(
-                                                              context)
-                                                          .getText(
-                                                        'z0y0nc0v' /* Erro */,
-                                                      ),
-                                                      description: AppLocalizations.of(context)
-                                                          .getVariableText(
-                                                        ptText: 'Erro ao iniciar jornada. Tente novamente.',
-                                                        esText: 'Error al iniciar jornada. Intente de nuevo.',
-                                                        enText: 'Error starting work journey. Try again.',
-                                                      ),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                            );
-                                            return;
-                                          }
-
                                           // Sync em background
                                           if (await NetworkService.instance
                                               .checkConnection()) {
@@ -1637,6 +1410,18 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                               force: true,
                                             );
                                           }
+
+                                          // Registrar contexto do projeto ativo
+                                          final ctxIdx = AppState().addOrGetProjectContext(
+                                            projectId: AppState().user.projectId,
+                                            projectName: AppState().user.projectName,
+                                            teamsId: AppState().user.teamsId,
+                                            scheduleId: AppState().user.sheduleId,
+                                            sprintId: AppState().user.sprint.id,
+                                            sprintTitle: AppState().user.sprint.title,
+                                          );
+                                          AppState().activeProjectIndex = ctxIdx;
+                                          AppState().saveCurrentToActiveContext();
 
                                           AppState().liberaManual = [];
                                           AppState().qrCodeIDs = [];

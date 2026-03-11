@@ -22,6 +22,7 @@ import '/core/widgets/form_field_controller.dart';
 import '/database/daos/rdo_finalization_dao.dart';
 import '/services/network_service.dart';
 import '/index.dart';
+import '/core/navigation/nav.dart';
 
 import 'rdo_model.dart';
 export 'rdo_model.dart';
@@ -56,7 +57,8 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
   // Extracted data
   List _pendentes = [];
   List _emAndamento = [];
-  List _concluidas = [];
+  List _concluidas = [];          // Concluídas filtradas ao schedule ativo (para RDO)
+  List _allSprintConcluidas = []; // Todas as concluídas da sprint (para card de progresso)
   List _semSucesso = [];
   List _inspecao = [];
   String _sprintTitle = '';
@@ -99,38 +101,24 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
     }
     if (mounted) setState(() {});
 
-    // Validate token and check for first login
-    try {
-      _model.validTokenCopy = await AuthenticationGroup
-          .getTheRecordBelongingToTheAuthenticationTokenCall
-          .call(bearerAuth: currentAuthenticationToken);
-
-      if ((_model.validTokenCopy?.succeeded ?? true)) {
-        final isFirstLogin = AuthenticationGroup
-                .getTheRecordBelongingToTheAuthenticationTokenCall
-                .firstLogin((_model.validTokenCopy?.jsonBody ?? '')) ==
-            true;
-        final hasSchedule = AppState().user.sheduleId > 0;
-        if (isFirstLogin && !hasSchedule) {
-          if (mounted) {
-            context.goNamedAuth(
-              PageCheckQrcodeWidget.routeName,
-              context.mounted,
-              extra: <String, dynamic>{
-                kTransitionInfoKey: const TransitionInfo(
-                  hasTransition: true,
-                  transitionType: PageTransitionType.fade,
-                  duration: Duration(milliseconds: 250),
-                ),
-                'skipProjectCheck': true,
-              },
-            );
-          }
-          return;
-        }
+    // Verificar se tem schedule ativo — se não, voltar para seleção
+    final hasSchedule = AppState().user.sheduleId > 0;
+    if (!hasSchedule) {
+      if (mounted) {
+        context.goNamedAuth(
+          PageCheckQrcodeWidget.routeName,
+          context.mounted,
+          extra: <String, dynamic>{
+            kTransitionInfoKey: const TransitionInfo(
+              hasTransition: true,
+              transitionType: PageTransitionType.fade,
+              duration: Duration(milliseconds: 250),
+            ),
+            'skipProjectCheck': true,
+          },
+        );
       }
-    } catch (e) {
-      if (kDebugMode) print('RDO: Erro token: $e');
+      return;
     }
 
     await _loadApiData();
@@ -181,9 +169,6 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       _emAndamento =
           SprintsGroup.queryAllSprintsTasksRecordCall.nOandamento(_sprintJson) ??
               [];
-      _concluidas =
-          SprintsGroup.queryAllSprintsTasksRecordCall.nOconcluidas(_sprintJson) ??
-              [];
       _semSucesso =
           SprintsGroup.queryAllSprintsTasksRecordCall.nOsemSucesso(_sprintJson) ??
               [];
@@ -193,6 +178,43 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       _sprintTitle =
           SprintsGroup.queryAllSprintsTasksRecordCall.nOtitle(_sprintJson) ??
               AppState().user.sprint.title;
+
+      // Concluídas: usar apenas tarefas vinculadas ao schedule ativo
+      // (via schedule_sprints_tasks), não todas as concluídas da sprint
+      _allSprintConcluidas =
+          SprintsGroup.queryAllSprintsTasksRecordCall.nOconcluidas(_sprintJson) ??
+              [];
+      final allSprintConcluidas = _allSprintConcluidas;
+      final scheduleTasks =
+          ProjectsGroup.queryAllScheduleCall.listaTasksOfSchedule(_scheduleJson) ?? [];
+      // Extrair IDs das tarefas vinculadas ao schedule ativo
+      final scheduleTaskIds = <int>{};
+      for (final tg in scheduleTasks) {
+        if (tg is List) {
+          for (final t in tg) {
+            final tid = t is Map ? (t['id'] as int?) : null;
+            if (tid != null) scheduleTaskIds.add(tid);
+          }
+        } else if (tg is Map) {
+          final tid = tg['id'] as int?;
+          if (tid != null) scheduleTaskIds.add(tid);
+        }
+      }
+
+      if (scheduleTaskIds.isNotEmpty) {
+        // Filtrar concluídas: somente as vinculadas ao schedule ativo
+        _concluidas = allSprintConcluidas.where((task) {
+          final taskId = getJsonField(task, r'''$.id''');
+          return taskId != null && scheduleTaskIds.contains(taskId is int ? taskId : int.tryParse(taskId.toString()));
+        }).toList();
+      } else {
+        // Se nenhuma tarefa vinculada ao schedule, lista vazia (schedule recém-criado)
+        _concluidas = [];
+      }
+
+      if (kDebugMode) {
+        print('RDO: Sprint concluídas=${allSprintConcluidas.length}, Schedule tasks=$scheduleTaskIds, Filtered concluídas=${_concluidas.length}');
+      }
     } catch (e) {
       if (kDebugMode) print('RDO: Erro extrair sprint: $e');
     }
@@ -573,7 +595,6 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(4),
@@ -588,16 +609,60 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            'RDO finalizada hoje',
-            style: GoogleFonts.lexend(
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              fontSize: 13,
+          Expanded(
+            child: Text(
+              'RDO finalizada hoje',
+              style: GoogleFonts.lexend(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _startNewWorkDay(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Nova jornada',
+                style: GoogleFonts.lexend(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                  fontSize: 11,
+                ),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _startNewWorkDay() async {
+    // Limpar flag de finalização local para permitir novo ciclo
+    await RdoFinalizationDao().clearToday();
+
+    // Limpar scheduleId para forçar nova escala
+    AppState().updateUserStruct((e) => e..sheduleId = null);
+    AppState().update(() {});
+
+    if (!mounted) return;
+
+    // Navegar para PageCheckQrcode para iniciar novo ciclo
+    context.goNamedAuth(
+      PageCheckQrcodeWidget.routeName,
+      context.mounted,
+      extra: <String, dynamic>{
+        kTransitionInfoKey: const TransitionInfo(
+          hasTransition: true,
+          transitionType: PageTransitionType.fade,
+        ),
+        'skipProjectCheck': true,
+      },
     );
   }
 
@@ -716,12 +781,13 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
   // ─── Sprint card (identical to home_page_tarefas) ───────────────────────────
 
   Widget _buildSprintCard(AppTheme theme) {
+    // Usar todas as concluídas da sprint para o progresso geral
     final totalTasks = _pendentes.length +
         _emAndamento.length +
-        _concluidas.length +
+        _allSprintConcluidas.length +
         _semSucesso.length +
         _inspecao.length;
-    final doneTasks = _concluidas.length + _inspecao.length + _semSucesso.length;
+    final doneTasks = _allSprintConcluidas.length + _inspecao.length + _semSucesso.length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
@@ -866,7 +932,7 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
                 style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFFCA8A04)),
               ),
               Text(
-                'Concluída: ${_concluidas.length}',
+                'Concluída: ${_allSprintConcluidas.length}',
                 style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFF16A34A)),
               ),
               Text(
@@ -1593,6 +1659,14 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       await RdoFinalizationDao().markAsFinalizedToday();
       AppState().signalTasksRefresh();
       _model.isFinalizedToday = true;
+
+      // Marcar o contexto do projeto ativo como RDO finalizada
+      AppState().markActiveProjectRdoFinalized();
+
+      // Limpar scheduleId — schedule atual já tem daily_report vinculado
+      // Permite iniciar nova jornada quando o usuário quiser
+      AppState().updateUserStruct((e) => e..sheduleId = 0);
+      AppState().update(() {});
 
       if (mounted) {
         messenger.showSnackBar(

@@ -21,6 +21,7 @@ class UserLoginStruct extends BaseStruct {
     SprintsStruct? sprint,
     int? companyId,
     String? projectName,
+    String? teamName,
   })  : _token = token,
         _id = id,
         _name = name,
@@ -33,7 +34,8 @@ class UserLoginStruct extends BaseStruct {
         _sheduleId = sheduleId,
         _sprint = sprint,
         _companyId = companyId,
-        _projectName = projectName;
+        _projectName = projectName,
+        _teamName = teamName;
 
   // "token" field.
   String? _token;
@@ -145,6 +147,13 @@ class UserLoginStruct extends BaseStruct {
 
   bool hasProjectName() => _projectName != null;
 
+  // "team_name" field.
+  String? _teamName;
+  String get teamName => _teamName ?? '';
+  set teamName(String? val) => _teamName = val;
+
+  bool hasTeamName() => _teamName != null;
+
   static UserLoginStruct fromMap(Map<String, dynamic> data) => UserLoginStruct(
         token: data['token'] as String?,
         id: castToType<int>(data['id']),
@@ -163,6 +172,7 @@ class UserLoginStruct extends BaseStruct {
             : SprintsStruct.maybeFromMap(data['sprint']),
         companyId: castToType<int>(data['company_id']),
         projectName: data['project_name'] as String?,
+        teamName: data['team_name'] as String?,
       );
 
   static UserLoginStruct? maybeFromMap(dynamic data) => data is Map
@@ -183,6 +193,7 @@ class UserLoginStruct extends BaseStruct {
         'sprint': _sprint?.toMap(),
         'company_id': _companyId,
         'project_name': _projectName,
+        'team_name': _teamName,
       }.withoutNulls;
 
   @override
@@ -237,6 +248,10 @@ class UserLoginStruct extends BaseStruct {
         ),
         'project_name': serializeParam(
           _projectName,
+          ParamType.String,
+        ),
+        'team_name': serializeParam(
+          _teamName,
           ParamType.String,
         ),
       }.withoutNulls;
@@ -310,6 +325,11 @@ class UserLoginStruct extends BaseStruct {
           ParamType.String,
           false,
         ),
+        teamName: deserializeParam(
+          data['team_name'],
+          ParamType.String,
+          false,
+        ),
       );
 
   @override
@@ -330,7 +350,8 @@ class UserLoginStruct extends BaseStruct {
         sheduleId == other.sheduleId &&
         sprint == other.sprint &&
         companyId == other.companyId &&
-        projectName == other.projectName;
+        projectName == other.projectName &&
+        teamName == other.teamName;
   }
 
   @override
@@ -347,7 +368,8 @@ class UserLoginStruct extends BaseStruct {
         sheduleId,
         sprint,
         companyId,
-        projectName
+        projectName,
+        teamName
       ]);
 }
 
@@ -365,6 +387,7 @@ UserLoginStruct createUserLoginStruct({
   SprintsStruct? sprint,
   int? companyId,
   String? projectName,
+  String? teamName,
 }) =>
     UserLoginStruct(
       token: token,
@@ -380,4 +403,5 @@ UserLoginStruct createUserLoginStruct({
       sprint: sprint ?? SprintsStruct(),
       companyId: companyId,
       projectName: projectName,
+      teamName: teamName,
     );

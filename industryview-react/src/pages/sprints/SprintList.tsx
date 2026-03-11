@@ -11,7 +11,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
-import ProjectSelector from '../../components/common/ProjectSelector';
+import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import { Plus, Search, ArrowLeft, Eye, Trash2, Calendar, Kanban } from 'lucide-react';
 import { formatTimestamp } from '../../utils/dateUtils';
 import { formatPercentage } from '../../utils/formatters';
@@ -154,7 +154,7 @@ export default function SprintList() {
       (sprintData.sprints_concluida?.itemsTotal || 0)
     : 0;
 
-  if (!projectsInfo) return <ProjectSelector />;
+  // projectsInfo may be null — handled in JSX
 
   const renderSprintCard = (sprint: Sprint, categoryConfig: typeof CATEGORY_CONFIG[number]) => (
     <motion.div key={sprint.id} variants={fadeUpChild} className="card" style={{ padding: '16px' }}>
@@ -260,7 +260,7 @@ export default function SprintList() {
       <PageHeader
         title={t('sprints.title')}
         subtitle={t('sprints.subtitle')}
-        breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('sprints.title')}`}
+        breadcrumb={`${t('projects.title')} / ${projectsInfo?.name || ''} / ${t('sprints.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
             <Link to="/projeto-detalhes" className="btn btn-secondary">
@@ -272,6 +272,14 @@ export default function SprintList() {
           </div>
         }
       />
+
+      <ProjectFilterDropdown />
+
+      {!projectsInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
+          Selecione um projeto para visualizar os sprints
+        </div>
+      ) : (<>
 
       {/* Search */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -455,6 +463,7 @@ export default function SprintList() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
     </div>
   );
 }

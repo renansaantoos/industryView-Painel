@@ -37,6 +37,14 @@ class RdoFinalizationDao {
     );
   }
 
+  /// Remove o registro de finalização de hoje (para permitir nova jornada)
+  Future<void> clearToday() async {
+    final db = await _dbHelper.database;
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    await db.delete('rdo_finalization', where: 'finalization_date = ?', whereArgs: [todayStr]);
+  }
+
   /// Obtém a data da última finalização
   Future<DateTime?> getLastFinalizationDate() async {
     final db = await _dbHelper.database;

@@ -16,6 +16,12 @@ router.get('/', ScheduleController.listToday);
 // PUT /schedule/:id — Atualizar colaboradores da escala
 router.put('/:id', ScheduleController.update);
 
+// POST /schedule/:id/tasks — Vincular tarefas ao schedule
+router.post('/:id/tasks', ScheduleController.linkTasks);
+
+// GET /schedule/pending — Schedules pendentes (sem RDO) do usuário autenticado
+router.get('/pending', ScheduleController.getPending);
+
 // GET /schedule/:id — Buscar schedule por ID
 router.get('/:id', ScheduleController.getById);
 

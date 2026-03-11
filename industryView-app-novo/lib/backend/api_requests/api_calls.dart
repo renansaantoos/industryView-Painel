@@ -1367,6 +1367,10 @@ class ProjectsGroup {
   static EquipamentsTypeCall equipamentsTypeCall = EquipamentsTypeCall();
   static GetUserProjectsCall getUserProjectsCall = GetUserProjectsCall();
   static WorkforceCheckInCall workforceCheckInCall = WorkforceCheckInCall();
+  static GetPendingSchedulesCall getPendingSchedulesCall =
+      GetPendingSchedulesCall();
+  static LinkTasksToScheduleCall linkTasksToScheduleCall =
+      LinkTasksToScheduleCall();
 }
 
 class ListaMembrosDeUmaEquipeCall {
@@ -1625,6 +1629,12 @@ class QueryAllScheduleCall {
         r'''$[:].schedule_user_of_schedule''',
         true,
       ) as List?;
+  /// Tarefas vinculadas ao schedule ativo (via schedule_sprints_tasks)
+  List? listaTasksOfSchedule(dynamic response) => getJsonField(
+        response,
+        r'''$[:].sprints_tasks_of_schedule''',
+        true,
+      ) as List?;
 }
 
 class AddImagensCall {
@@ -1818,6 +1828,68 @@ class WorkforceCheckInCall {
     return ApiManager.instance.makeApiCall(
       callName: 'Workforce Check-In',
       apiUrl: '${baseUrl}/workforce/check-in',
+      callType: ApiCallType.POST,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      body: apiRequestBody,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+}
+
+class GetPendingSchedulesCall {
+  Future<ApiCallResponse> call({
+    String? token = '',
+  }) async {
+    final baseUrl = ProjectsGroup.getBaseUrl(token: token);
+
+    return ApiManager.instance.makeApiCall(
+      callName: 'Get pending schedules',
+      apiUrl: '${baseUrl}/schedule/pending',
+      callType: ApiCallType.GET,
+      headers: {
+        'Authorization': 'Bearer ${token}',
+      },
+      params: {},
+      returnBody: true,
+      encodeBodyUtf8: false,
+      decodeUtf8: false,
+      cache: false,
+      isStreamingApi: false,
+      alwaysAllowBody: false,
+    );
+  }
+
+  bool? hasPending(dynamic response) => castToType<bool>(
+        getJsonField(response, r'''$.has_pending'''));
+
+  List? pendingSchedules(dynamic response) =>
+      getJsonField(response, r'''$.pending_schedules''', true) as List?;
+}
+
+class LinkTasksToScheduleCall {
+  Future<ApiCallResponse> call({
+    String? token = '',
+    required int scheduleId,
+    required List<int> sprintsTasksIds,
+  }) async {
+    final baseUrl = ProjectsGroup.getBaseUrl(token: token);
+
+    final apiRequestBody = json.encode({
+      'sprints_tasks_ids': sprintsTasksIds,
+    });
+
+    return ApiManager.instance.makeApiCall(
+      callName: 'Link tasks to schedule',
+      apiUrl: '${baseUrl}/schedule/${scheduleId}/tasks',
       callType: ApiCallType.POST,
       headers: {
         'Authorization': 'Bearer ${token}',

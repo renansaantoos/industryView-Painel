@@ -9,7 +9,7 @@ import PageHeader from '../../components/common/PageHeader';
 import Pagination from '../../components/common/Pagination';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
-import ProjectSelector from '../../components/common/ProjectSelector';
+import ProjectFilterDropdown from '../../components/common/ProjectFilterDropdown';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import SortableHeader, { useBackendSort } from '../../components/common/SortableHeader';
@@ -415,14 +415,14 @@ export default function Inventory() {
     return { label: t('inventory.inStock'), color: 'var(--color-success)', bg: 'var(--color-status-04)' };
   };
 
-  if (!projectsInfo) return <ProjectSelector />;
+  // projectsInfo may be null — handled in JSX
 
   return (
     <div>
       <PageHeader
         title={t('inventory.title')}
         subtitle={t('inventory.subtitle')}
-        breadcrumb={`${t('projects.title')} / ${projectsInfo.name} / ${t('inventory.title')}`}
+        breadcrumb={`${t('projects.title')} / ${projectsInfo?.name || ''} / ${t('inventory.title')}`}
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="btn btn-secondary" onClick={handleExportCsv}>
@@ -434,6 +434,14 @@ export default function Inventory() {
           </div>
         }
       />
+
+      <ProjectFilterDropdown />
+
+      {!projectsInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
+          Selecione um projeto para visualizar o estoque
+        </div>
+      ) : (<>
 
       {/* KPI Cards - using backend counters */}
       <motion.div
@@ -946,6 +954,7 @@ export default function Inventory() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+      </>)}
     </div>
   );
 }
