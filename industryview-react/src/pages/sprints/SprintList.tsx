@@ -93,6 +93,7 @@ export default function SprintList() {
     if (!newSprintStart) errors.sprintStart = t('common.requiredField', 'Campo obrigatório');
     else if (newSprintStart < today) errors.sprintStart = 'A data de início não pode ser anterior a hoje';
     if (!newSprintEnd) errors.sprintEnd = t('common.requiredField', 'Campo obrigatório');
+    else if (newSprintStart && newSprintEnd < newSprintStart) errors.sprintEnd = 'A data de término não pode ser anterior à data de início';
     if (Object.keys(errors).length > 0) {
       setCreateSprintErrors(errors);
       return;
@@ -385,6 +386,7 @@ export default function SprintList() {
                   type="date"
                   className="input-field"
                   value={newSprintEnd}
+                  min={newSprintStart || new Date().toISOString().split('T')[0]}
                   onChange={(e) => {
                     setNewSprintEnd(e.target.value);
                     if (createSprintErrors.sprintEnd) setCreateSprintErrors((prev) => ({ ...prev, sprintEnd: undefined }));
