@@ -740,7 +740,7 @@ export default function Inventory() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="input-group">
                   <label>{t('inventory.quantity')}</label>
-                  <input type="number" className="input-field" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} min="0" />
+                  <input type="number" className="input-field" value={productQuantity} onChange={(e) => setProductQuantity(e.target.value)} min="0" disabled={!!editingProduct} style={editingProduct ? { opacity: 0.5, cursor: 'not-allowed' } : undefined} />
                 </div>
                 <div className="input-group">
                   <label>{t('inventory.minQuantity')}</label>
