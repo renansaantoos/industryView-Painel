@@ -32,6 +32,7 @@ import { downloadCsv } from '../../utils/csvUtils';
 
 export default function Inventory() {
   const ADD_MANUFACTURER_OPTION = '__add_new_manufacturer__';
+  const ADD_CATEGORY_OPTION = '__add_new_category__';
   const { t } = useTranslation();
   const { projectsInfo, setNavBarSelection } = useAppState();
 
@@ -73,6 +74,9 @@ export default function Inventory() {
   const [showAddManufacturerModal, setShowAddManufacturerModal] = useState(false);
   const [newManufacturerName, setNewManufacturerName] = useState('');
   const [manufacturerModalLoading, setManufacturerModalLoading] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryModalLoading, setCategoryModalLoading] = useState(false);
   const [editingManufacturerId, setEditingManufacturerId] = useState<number | null>(null);
   const [deleteManufacturerConfirm, setDeleteManufacturerConfirm] = useState<Manufacturer | null>(null);
 
@@ -300,6 +304,22 @@ export default function Inventory() {
     setShowAddManufacturerModal(false);
     setNewManufacturerName('');
     setEditingManufacturerId(null);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    setCategoryModalLoading(true);
+    try {
+      const created = await equipamentTypesApi.addEquipamentType({ type: newCategoryName.trim() });
+      setCategoryOptions((prev) => [...prev, created]);
+      setProductCategoryId(created?.id ? Number(created.id) : undefined);
+      setShowAddCategoryModal(false);
+      setNewCategoryName('');
+    } catch (err) {
+      console.error('Failed to save category:', err);
+    } finally {
+      setCategoryModalLoading(false);
+    }
   };
 
   const handleOpenEditManufacturerModal = (manufacturer: Manufacturer) => {
@@ -654,9 +674,19 @@ export default function Inventory() {
                 <div className="input-group">
                   <label>{t('inventory.category')}</label>
                   <SearchableSelect
-                    options={categoryOptions.map(c => ({ value: c.id, label: c.type }))}
+                    options={[
+                      { value: ADD_CATEGORY_OPTION, label: 'Cadastrar nova categoria', dividerBelow: true, icon: <Plus size={16} /> },
+                      ...categoryOptions.map(c => ({ value: c.id, label: c.type })),
+                    ]}
                     value={productCategoryId}
-                    onChange={(v) => setProductCategoryId(v as number | undefined)}
+                    onChange={(v) => {
+                      if (v === ADD_CATEGORY_OPTION) {
+                        setNewCategoryName('');
+                        setShowAddCategoryModal(true);
+                        return;
+                      }
+                      setProductCategoryId(v as number | undefined);
+                    }}
                     placeholder={t('common.select', 'Selecione...')}
                   />
                 </div>
@@ -861,6 +891,34 @@ export default function Inventory() {
               </button>
               <button className="btn btn-primary" onClick={handleSaveManufacturer} disabled={manufacturerModalLoading || !newManufacturerName.trim()}>
                 {manufacturerModalLoading ? <span className="spinner" /> : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Category Modal */}
+      {showAddCategoryModal && (
+        <div className="modal-backdrop" style={{ zIndex: 1200 }} onClick={() => setShowAddCategoryModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', minWidth: '320px', maxWidth: '480px', width: '90%' }}>
+            <h3 style={{ marginBottom: '16px' }}>Cadastrar categoria</h3>
+            <div className="input-group">
+              <label>Nome da categoria *</label>
+              <input
+                className="input-field"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveCategory()}
+                placeholder="Ex: Ferramentas, EPI, Elétrico..."
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowAddCategoryModal(false)}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveCategory} disabled={categoryModalLoading || !newCategoryName.trim()}>
+                {categoryModalLoading ? <span className="spinner" /> : t('common.save')}
               </button>
             </div>
           </div>
