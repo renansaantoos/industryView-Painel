@@ -24,6 +24,7 @@ import {
   IdCard,
   Wrench,
   KeyRound,
+  Camera,
 } from 'lucide-react';
 
 // Tab components
@@ -89,6 +90,7 @@ export default function EmployeeProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('dados');
   const [isBadgeGenerating, setIsBadgeGenerating] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [fotoUrl, setFotoUrl] = useState<string>('');
   const [summary, setSummary] = useState<SummaryData>({
     vacationBalance: null,
@@ -128,16 +130,41 @@ export default function EmployeeProfile() {
         vacationBalance: vacBalance.status === 'fulfilled' ? vacBalance.value : null,
         ppeStatus: ppeStatus.status === 'fulfilled' ? ppeStatus.value : null,
       });
-      // Inicializa foto: preferência para foto_documento_url, fallback user.url
+      // Inicializa foto: preferência para foto_documento_url, fallback profile_picture, fallback url
       if (hrDataValue?.foto_documento_url) {
         setFotoUrl(hrDataValue.foto_documento_url);
-      } else if (userData.status === 'fulfilled' && userData.value?.url) {
-        setFotoUrl(userData.value.url);
+      } else if (userData.status === 'fulfilled' && (userData.value?.profile_picture || userData.value?.url)) {
+        setFotoUrl(userData.value.profile_picture || userData.value.url || '');
       }
     } catch (err) {
       console.error('Failed to load profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || isUploadingPhoto) return;
+
+    // Valida tipo e tamanho
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Imagem muito grande. Maximo 5MB.');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const fileUrl = await usersApi.uploadFile(file, 'profile-photos');
+      await usersApi.patchUser(usersId, { profile_picture: fileUrl });
+      setFotoUrl(fileUrl);
+    } catch (err) {
+      console.error('Erro ao enviar foto:', err);
+      alert('Erro ao enviar foto. Tente novamente.');
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
     }
   };
 
@@ -223,8 +250,8 @@ export default function EmployeeProfile() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-          {/* Avatar (somente exibição) */}
-          <div style={{ flexShrink: 0 }}>
+          {/* Avatar com upload */}
+          <div style={{ flexShrink: 0, position: 'relative' }}>
             <div
               style={{
                 width: '72px',
@@ -250,6 +277,40 @@ export default function EmployeeProfile() {
                 initials
               )}
             </div>
+            <label
+              htmlFor="avatar-upload"
+              title="Alterar foto de perfil"
+              style={{
+                position: 'absolute',
+                bottom: '-2px',
+                right: '-2px',
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: 'var(--color-primary)',
+                border: '2px solid var(--color-card-bg, #fff)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isUploadingPhoto ? 'wait' : 'pointer',
+                opacity: isUploadingPhoto ? 0.6 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              {isUploadingPhoto ? (
+                <div style={{ width: 14, height: 14, border: '2px solid transparent', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+              ) : (
+                <Camera size={14} color="white" />
+              )}
+            </label>
+            <input
+              id="avatar-upload"
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              disabled={isUploadingPhoto}
+              style={{ display: 'none' }}
+            />
           </div>
 
           {/* Info */}

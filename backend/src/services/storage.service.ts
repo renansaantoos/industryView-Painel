@@ -54,12 +54,7 @@ class StorageService {
 
   async upload(file: Express.Multer.File, folder: string = 'attachments'): Promise<UploadResult> {
     if (this.gcpStorage && this.gcpBucket) {
-      try {
-        return await this.uploadToGCP(file, folder);
-      } catch (e: any) {
-        console.warn(`[StorageService] GCP upload failed, falling back to local storage: ${e.message}`);
-        return this.uploadToLocal(file, folder);
-      }
+      return this.uploadToGCP(file, folder);
     }
     return this.uploadToLocal(file, folder);
   }

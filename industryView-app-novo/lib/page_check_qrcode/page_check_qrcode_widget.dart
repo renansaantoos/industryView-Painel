@@ -585,18 +585,6 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                                 mainAxisSize: MainAxisSize.max,
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  if (widget.skipProjectCheck) ...[
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.arrow_back,
-                                        color: Colors.white,
-                                      ),
-                                      onPressed: () => Navigator.pop(context),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    const SizedBox(width: 12),
-                                  ],
                                   Expanded(
                                     child: Align(
                                       alignment: AlignmentDirectional(-1.0, -1.0),
@@ -683,58 +671,80 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                               ),
                               if (AppState().user.projectName.isNotEmpty)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      context.goNamedAuth(
-                                        ProjectSelectionWidget.routeName,
-                                        context.mounted,
-                                        extra: <String, dynamic>{
-                                          kTransitionInfoKey: TransitionInfo(
-                                            hasTransition: true,
-                                            transitionType: PageTransitionType.fade,
-                                          ),
-                                        },
-                                      );
-                                    },
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.business_rounded,
-                                          color: Colors.white70,
-                                          size: 14.0,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: Text(
-                                            AppState().user.teamName.isNotEmpty
-                                                ? '${AppState().user.projectName} / ${AppState().user.teamName}'
-                                                : AppState().user.projectName,
-                                            style: AppTheme.of(context)
-                                                .labelSmall
-                                                .override(
-                                                  font: GoogleFonts.lexend(
-                                                    fontWeight: AppTheme.of(context)
-                                                        .labelSmall
-                                                        .fontWeight,
-                                                    fontStyle: AppTheme.of(context)
-                                                        .labelSmall
-                                                        .fontStyle,
-                                                  ),
-                                                  color: Colors.white70,
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.business_rounded,
+                                              color: Colors.white,
+                                              size: 18.0,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                AppState().user.teamName.isNotEmpty
+                                                    ? '${AppState().user.projectName} / ${AppState().user.teamName}'
+                                                    : AppState().user.projectName,
+                                                style: GoogleFonts.lexend(
+                                                  fontSize: 14.0,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white,
                                                   letterSpacing: 0.0,
                                                 ),
-                                            overflow: TextOverflow.ellipsis,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () {
+                                          context.goNamedAuth(
+                                            ProjectSelectionWidget.routeName,
+                                            context.mounted,
+                                            extra: <String, dynamic>{
+                                              kTransitionInfoKey: TransitionInfo(
+                                                hasTransition: true,
+                                                transitionType: PageTransitionType.fade,
+                                              ),
+                                            },
+                                          );
+                                        },
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.swap_horiz_rounded,
+                                                color: Colors.white,
+                                                size: 16.0,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                AppLocalizations.of(context).getVariableText(
+                                                  ptText: 'Trocar',
+                                                  esText: 'Cambiar',
+                                                  enText: 'Switch',
+                                                ),
+                                                style: GoogleFonts.lexend(
+                                                  fontSize: 12.0,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.0,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.swap_horiz_rounded,
-                                          color: Colors.white54,
-                                          size: 14.0,
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               const OfflineBannerWidget(),

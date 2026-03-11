@@ -388,6 +388,7 @@ export class UsersService {
     }
     if (input.email !== undefined) updateData.email = input.email;
     if (input.phone !== undefined) updateData.phone = input.phone;
+    if (input.profile_picture !== undefined) updateData.profile_picture = input.profile_picture;
     if (input.company_id !== undefined) updateData.company_id = input.company_id;
     if (input.first_login !== undefined) updateData.first_login = input.first_login;
 

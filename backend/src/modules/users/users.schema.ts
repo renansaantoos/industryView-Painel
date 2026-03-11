@@ -79,6 +79,7 @@ export const updateUserSchema = z.object({
   name: z.string().trim().optional(),
   phone: z.string().trim().optional().nullable(),
   email: z.string().email('Email invalido').trim().toLowerCase().optional(),
+  profile_picture: z.string().trim().optional().nullable(),
   users_roles_id: stringOrNumber.optional(),
   users_control_system_id: stringOrNumber.optional(),
   users_system_access_id: stringOrNumber.optional(),

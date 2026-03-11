@@ -44,10 +44,20 @@ export async function patchUser(userId: number, data: Partial<{
   name: string;
   email: string;
   phone: string;
-  url: string;
+  profile_picture: string | null;
 }>): Promise<UserFull> {
   const response = await apiClient.patch(`${USERS_BASE}/${userId}`, data);
   return response.data;
+}
+
+/** Upload a file (returns the file URL) */
+export async function uploadFile(file: File, folder: string = 'attachments'): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post(`/uploads?folder=${encodeURIComponent(folder)}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data?.file_url || response.data?.url || '';
 }
 
 /** Delete a user */

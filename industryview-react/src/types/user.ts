@@ -66,6 +66,7 @@ export interface UserFull {
   deletedAt: string | null;
   usersPermissionsId: number;
   url?: string;
+  profile_picture?: string | null;
   roles?: UserRole;
   roleName?: string;
   systemAccess?: UserSystemAccess;
