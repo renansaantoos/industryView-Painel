@@ -723,9 +723,11 @@ export default function CurrentSprint() {
             <Link to="/sprints" className="btn btn-secondary">
               <ArrowLeft size={18} /> {t('common.back')}
             </Link>
-            <button className="btn btn-primary" onClick={handleOpenAddTask}>
-              <Plus size={18} /> {t('sprints.addTask')}
-            </button>
+            {sprint?.sprints_statuses_id !== 3 && (
+              <button className="btn btn-primary" onClick={handleOpenAddTask}>
+                <Plus size={18} /> {t('sprints.addTask')}
+              </button>
+            )}
           </div>
         }
       />
