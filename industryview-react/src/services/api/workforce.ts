@@ -58,8 +58,8 @@ export async function checkOut(id: number, data: { check_out: string }): Promise
 
 export async function getHistogram(params: {
   projects_id: number;
-  initial_date?: string;
-  final_date?: string;
+  start_date?: string;
+  end_date?: string;
 }): Promise<WorkforceHistogram[]> {
   const response = await apiClient.get(`${BASE}/histogram`, { params });
   return response.data;

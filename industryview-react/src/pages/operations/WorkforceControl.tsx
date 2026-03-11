@@ -281,8 +281,8 @@ export default function WorkforceControl() {
     try {
       const data = await workforceApi.getHistogram({
         projects_id: projectsInfo.id,
-        initial_date: histInitialDate || undefined,
-        final_date: histFinalDate || undefined,
+        start_date: histInitialDate || undefined,
+        end_date: histFinalDate || undefined,
       });
       setHistogram(data);
       setShowHistogram(true);

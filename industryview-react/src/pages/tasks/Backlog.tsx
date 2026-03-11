@@ -157,6 +157,9 @@ export default function Backlog() {
   const [manualName, setManualName] = useState('');
   const [manualParentId, setManualParentId] = useState('');
   const [manualDisciplineId, setManualDisciplineId] = useState('');
+  const [manualProjectId, setManualProjectId] = useState('');
+  const [allProjects, setAllProjects] = useState<{ id: number; name: string }[]>([]);
+  const [manualTriedSubmit, setManualTriedSubmit] = useState(false);
 
   // --- Edit modal ---
   const [editTarget, setEditTarget] = useState<ProjectBacklog | null>(null);
@@ -190,6 +193,16 @@ export default function Backlog() {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ message, type });
     toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Load projects list on mount (for manual add modal)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    projectsApi.queryAllProjects({ per_page: 100 }).then((data) => {
+      setAllProjects((data.items ?? []).map((p: { id: number; name: string }) => ({ id: p.id, name: p.name })));
+    }).catch(() => {});
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -399,21 +412,27 @@ export default function Backlog() {
     setManualName('');
     setManualParentId('');
     setManualDisciplineId('');
+    setManualProjectId(projectsInfo ? String(projectsInfo.id) : '');
+    setManualTriedSubmit(false);
     setShowManualModal(true);
   };
 
   const handleAddManualTask = async () => {
-    if (!projectsInfo || !manualName.trim()) return;
+    setManualTriedSubmit(true);
+    if (!manualProjectId || !manualName.trim()) return;
     setModalLoading(true);
     try {
       await projectsApi.addTasksBacklogManual({
-        projects_id: projectsInfo.id,
+        projects_id: parseInt(manualProjectId, 10),
         name: manualName.trim(),
         projects_backlogs_id: manualParentId ? parseInt(manualParentId, 10) : undefined,
         discipline_id: manualDisciplineId ? parseInt(manualDisciplineId, 10) : undefined,
       });
       setShowManualModal(false);
-      loadBacklogs();
+      // Reload backlogs if the added task belongs to the currently selected project
+      if (projectsInfo && String(projectsInfo.id) === manualProjectId) {
+        loadBacklogs();
+      }
       showToast('Item adicionado ao backlog com sucesso.');
     } catch (err) {
       console.error('Failed to add manual task:', err);
@@ -932,62 +951,6 @@ export default function Backlog() {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* Add from task list modal */}
-      {/* ------------------------------------------------------------------ */}
-      {/* ------------------------------------------------------------------ */}
-      {/* Manual add modal */}
-      {/* ------------------------------------------------------------------ */}
-      {showManualModal && (
-        <div className="modal-backdrop" onClick={() => setShowManualModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '24px' }}>
-            <h3 style={{ marginBottom: '16px' }}>{t('backlog.addManual')}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="input-group">
-                <label>{t('backlog.taskName')} *</label>
-                <input
-                  className="input-field"
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>{t('backlog.parentItem')}</label>
-                <SearchableSelect
-                  options={backlogs.map((b) => ({ value: b.id, label: b.description || b.name || '' }))}
-                  value={manualParentId || undefined}
-                  onChange={(value) => setManualParentId(value ? String(value) : '')}
-                  placeholder={t('backlog.selectParent')}
-                  searchPlaceholder={t('common.search')}
-                />
-              </div>
-              <div className="input-group">
-                <label>{t('backlog.discipline')}</label>
-                <SearchableSelect
-                  options={disciplines.map((d) => ({ value: d.id, label: d.discipline || d.name || '' }))}
-                  value={manualDisciplineId || undefined}
-                  onChange={(value) => setManualDisciplineId(value ? String(value) : '')}
-                  placeholder={t('backlog.selectDiscipline')}
-                  searchPlaceholder={t('common.search')}
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowManualModal(false)}>
-                {t('common.cancel')}
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleAddManualTask}
-                disabled={modalLoading || !manualName.trim()}
-              >
-                {modalLoading ? <span className="spinner" /> : t('common.save')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------------ */}
       {/* Edit backlog modal */}
       {/* ------------------------------------------------------------------ */}
       {editTarget && (
@@ -1197,6 +1160,78 @@ export default function Backlog() {
         )}
       </AnimatePresence>
       </>)}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Manual add modal (rendered outside projectsInfo check) */}
+      {/* ------------------------------------------------------------------ */}
+      {showManualModal && (
+        <div className="modal-backdrop" onClick={() => setShowManualModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '24px' }}>
+            <h3 style={{ marginBottom: '16px' }}>{t('backlog.addManual')}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="input-group">
+                <label>{t('common.project')} *</label>
+                <div style={manualTriedSubmit && !manualProjectId ? { borderRadius: '8px', border: '1.5px solid #dc2626' } : undefined}>
+                  <SearchableSelect
+                    options={allProjects.map((p) => ({ value: p.id, label: p.name }))}
+                    value={manualProjectId ? Number(manualProjectId) : undefined}
+                    onChange={(value) => setManualProjectId(value ? String(value) : '')}
+                    placeholder="Selecione o projeto"
+                    searchPlaceholder={t('common.search')}
+                  />
+                </div>
+                {manualTriedSubmit && !manualProjectId && (
+                  <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>Campo obrigatório</span>
+                )}
+              </div>
+              <div className="input-group">
+                <label>{t('backlog.taskName')} *</label>
+                <input
+                  className="input-field"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  style={manualTriedSubmit && !manualName.trim() ? { border: '1.5px solid #dc2626' } : undefined}
+                />
+                {manualTriedSubmit && !manualName.trim() && (
+                  <span style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>Campo obrigatório</span>
+                )}
+              </div>
+              <div className="input-group">
+                <label>{t('backlog.parentItem')}</label>
+                <SearchableSelect
+                  options={backlogs.map((b) => ({ value: b.id, label: b.description || b.name || '' }))}
+                  value={manualParentId || undefined}
+                  onChange={(value) => setManualParentId(value ? String(value) : '')}
+                  placeholder={t('backlog.selectParent')}
+                  searchPlaceholder={t('common.search')}
+                />
+              </div>
+              <div className="input-group">
+                <label>{t('backlog.discipline')}</label>
+                <SearchableSelect
+                  options={disciplines.map((d) => ({ value: d.id, label: d.discipline || d.name || '' }))}
+                  value={manualDisciplineId || undefined}
+                  onChange={(value) => setManualDisciplineId(value ? String(value) : '')}
+                  placeholder={t('backlog.selectDiscipline')}
+                  searchPlaceholder={t('common.search')}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowManualModal(false)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleAddManualTask}
+                disabled={modalLoading}
+              >
+                {modalLoading ? <span className="spinner" /> : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
