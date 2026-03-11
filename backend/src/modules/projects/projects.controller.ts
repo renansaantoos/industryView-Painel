@@ -509,12 +509,6 @@ export class ProjectsController {
       const sortField = req.query.sort_field as string | undefined;
       const sortDirection = (req.query.sort_direction as string | undefined) || 'asc';
 
-      if (!projectId) {
-        const all = await ProjectsService.listAllBacklogs(projectId);
-        res.status(200).json(serializeBigInt(all));
-        return;
-      }
-
       // Status IDs: 1=Pendente, 2=Em andamento, 3=Concluído, 4=Cancelado, 5=Impedido, 6=Sucesso, 7=Sem sucesso
       // checked=true quando status = 3 (Concluído) ou 6 (Sucesso)
       const CHECKED_STATUS_IDS = [3, 6];
@@ -566,6 +560,7 @@ export class ProjectsController {
           name: b.description || '',
           description: b.description || '',
           projectsId: b.projects_id,
+          projectName: (b as any).projects?.name || '',
           taskName: b.tasks_template?.description || b.description || '',
           checked: CHECKED_STATUS_IDS.includes(statusId),
           status: b.projects_backlogs_statuses?.status || 'Pendente',

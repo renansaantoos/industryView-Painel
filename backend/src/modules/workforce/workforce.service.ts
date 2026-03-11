@@ -259,19 +259,19 @@ export class WorkforceService {
       orderBy: { log_date: 'asc' },
     });
 
-    const histogramMap = new Map<string, { total: number; present: number; absent: number; total_hours: number }>();
+    const histogramMap = new Map<string, { total_planned: number; total_present: number; total_absent: number; total_hours: number }>();
 
     for (const log of logs) {
       if (!log.log_date) continue;
       const dateStr = log.log_date.toISOString().split('T')[0];
-      if (!histogramMap.has(dateStr)) histogramMap.set(dateStr, { total: 0, present: 0, absent: 0, total_hours: 0 });
+      if (!histogramMap.has(dateStr)) histogramMap.set(dateStr, { total_planned: 0, total_present: 0, total_absent: 0, total_hours: 0 });
       const entry = histogramMap.get(dateStr)!;
-      entry.total += 1;
+      entry.total_planned += 1;
       if (log.status === 'presente') {
-        entry.present += 1;
+        entry.total_present += 1;
         entry.total_hours += Number(log.hours_normal ?? 0) + Number(log.hours_overtime ?? 0);
       } else {
-        entry.absent += 1;
+        entry.total_absent += 1;
       }
     }
 

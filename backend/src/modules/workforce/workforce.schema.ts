@@ -58,8 +58,11 @@ export const updateDailyLogSchema = z.object({
 
 export const getHistogramSchema = z.object({
   projects_id: z.coerce.number().int().min(1, 'projects_id e obrigatorio'),
-  start_date: z.string().min(1, 'start_date e obrigatorio'),
-  end_date: z.string().min(1, 'end_date e obrigatorio'),
+  start_date: z.string().optional().default(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  }),
+  end_date: z.string().optional().default(() => new Date().toISOString().split('T')[0]),
 });
 
 // =============================================================================

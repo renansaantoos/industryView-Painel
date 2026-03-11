@@ -210,8 +210,6 @@ export default function Backlog() {
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (!projectsInfo) return;
-
     const loadDropdowns = async () => {
       try {
         const [unitiesData, disciplinesData, tasksData] = await Promise.all([
@@ -228,18 +226,17 @@ export default function Backlog() {
     };
 
     loadDropdowns();
-  }, [projectsInfo]);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Load backlogs
   // ---------------------------------------------------------------------------
 
   const loadBacklogs = useCallback(async () => {
-    if (!projectsInfo) return;
     setLoading(true);
     try {
       const data = await projectsApi.queryAllProjectBacklogIds({
-        projects_id: projectsInfo.id,
+        projects_id: projectsInfo?.id,
         page,
         per_page: perPage,
         search: search || undefined,
@@ -652,11 +649,7 @@ export default function Backlog() {
 
       <ProjectFilterDropdown />
 
-      {!projectsInfo ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-secondary-text)' }}>
-          Selecione um projeto para visualizar o backlog
-        </div>
-      ) : (<>
+      {(<>
 
       {/* Search and filter bar */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -744,13 +737,14 @@ export default function Backlog() {
                     onChange={toggleBacklogSelectAll}
                   />
                 </th>
+                {!projectsInfo && <th style={{ maxWidth: '140px' }}>{t('common.project')}</th>}
                 <SortableHeader label={t('backlog.taskName')} field="taskName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.wbsCode')} field="wbsCode" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.discipline')} field="disciplineName" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.plannedStart')} field="plannedStartDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <SortableHeader label={t('backlog.plannedEnd')} field="plannedEndDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('backlog.actualStart')} field="actualStartDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                <SortableHeader label={t('backlog.actualEnd')} field="actualEndDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                {projectsInfo && <SortableHeader label={t('backlog.actualStart')} field="actualStartDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />}
+                {projectsInfo && <SortableHeader label={t('backlog.actualEnd')} field="actualEndDate" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />}
                 <SortableHeader label={t('backlog.percentComplete')} field="percentComplete" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} style={{ width: '80px' }} />
                 <SortableHeader label={t('backlog.status')} field="checked" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} />
                 <th>{t('common.actions')}</th>
@@ -775,6 +769,13 @@ export default function Backlog() {
                         onChange={() => toggleBacklogSelect(backlog.id)}
                       />
                     </td>
+
+                    {/* Project name (when no project filter) */}
+                    {!projectsInfo && (
+                      <td style={{ fontSize: '12px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-secondary-text)' }} title={backlog.projectName || ''}>
+                        {backlog.projectName || '-'}
+                      </td>
+                    )}
 
                     {/* Task name + expand toggle */}
                     <td>
@@ -819,14 +820,18 @@ export default function Backlog() {
                     </td>
 
                     {/* Actual start */}
+                    {projectsInfo && (
                     <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
                       {formatDate(backlog.actualStartDate)}
                     </td>
+                    )}
 
                     {/* Actual end */}
+                    {projectsInfo && (
                     <td style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
                       {formatDate(backlog.actualEndDate)}
                     </td>
+                    )}
 
                     {/* % complete */}
                     <td>

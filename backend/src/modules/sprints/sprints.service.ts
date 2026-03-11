@@ -780,7 +780,7 @@ export class SprintsService {
    * Atualiza status da tarefa
    * Equivalente a: query update_sprint_task_status verb=PUT do Xano (endpoint 591)
    */
-  static async updateTaskStatus(input: UpdateSprintTaskStatusInput) {
+  static async updateTaskStatus(input: UpdateSprintTaskStatusInput, userId?: number) {
     const existing = await db.sprints_tasks.findFirst({
       where: {
         id: input.sprints_tasks_id,
@@ -792,8 +792,11 @@ export class SprintsService {
       throw new NotFoundError('Tarefa nao encontrada.');
     }
 
+    const oldStatusId = existing.sprints_tasks_statuses_id;
+    const newStatusId = input.sprints_tasks_statuses_id;
+
     const updateData: any = {
-      sprints_tasks_statuses_id: input.sprints_tasks_statuses_id,
+      sprints_tasks_statuses_id: newStatusId,
       updated_at: new Date(),
     };
 
@@ -802,7 +805,7 @@ export class SprintsService {
     }
 
     // Se status for concluida, define executed_at e quantity_done default
-    if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
+    if (newStatusId === SPRINT_TASK_STATUS.CONCLUIDA) {
       updateData.executed_at = new Date();
       // Se quantity_done nao foi informado, usa quantity_assigned como default
       if (input.quantity_done === undefined && existing.quantity_assigned) {
@@ -815,8 +818,22 @@ export class SprintsService {
       data: updateData,
     });
 
+    // Registra change log para burndown e historico
+    if (oldStatusId !== BigInt(newStatusId)) {
+      await db.sprint_task_change_log.create({
+        data: {
+          sprints_tasks_id: input.sprints_tasks_id,
+          users_id: userId ? BigInt(userId) : null,
+          changed_field: 'sprints_tasks_statuses_id',
+          old_value: String(oldStatusId),
+          new_value: String(newStatusId),
+          date: new Date(),
+        },
+      });
+    }
+
     // Se concluida, marca a propria tarefa como pendente de inspecao (quality_status_id = 1)
-    if (input.sprints_tasks_statuses_id === SPRINT_TASK_STATUS.CONCLUIDA) {
+    if (newStatusId === SPRINT_TASK_STATUS.CONCLUIDA) {
       await db.sprints_tasks.update({
         where: { id: input.sprints_tasks_id },
         data: { quality_status_id: 1 } as any,
@@ -824,7 +841,7 @@ export class SprintsService {
     }
 
     // Se Em Andamento (2), define actual_start_date no backlog (se ainda nao definida)
-    if (input.sprints_tasks_statuses_id === 2 && existing.projects_backlogs_id) {
+    if (newStatusId === 2 && existing.projects_backlogs_id) {
       await db.$executeRaw`
         UPDATE projects_backlogs SET
           actual_start_date = COALESCE(actual_start_date, CURRENT_DATE),
@@ -844,9 +861,15 @@ export class SprintsService {
    * Atualiza status de multiplas tarefas
    * Equivalente a: query update_lista_sprint_task_status verb=PUT do Xano (endpoint 631)
    */
-  static async updateListTaskStatus(input: UpdateListSprintTaskStatusInput) {
+  static async updateListTaskStatus(input: UpdateListSprintTaskStatusInput, userId?: number) {
     const results = await Promise.all(
       input.tasks.map(async (task) => {
+        // Busca status anterior para o change log
+        const existing = await db.sprints_tasks.findFirst({
+          where: { id: task.sprints_tasks_id },
+          select: { sprints_tasks_statuses_id: true },
+        });
+
         const updated = await db.sprints_tasks.update({
           where: { id: task.sprints_tasks_id },
           data: {
@@ -857,6 +880,20 @@ export class SprintsService {
               : {}),
           },
         });
+
+        // Registra change log para burndown e historico
+        if (existing && existing.sprints_tasks_statuses_id !== BigInt(task.sprints_tasks_statuses_id)) {
+          await db.sprint_task_change_log.create({
+            data: {
+              sprints_tasks_id: task.sprints_tasks_id,
+              users_id: userId ? BigInt(userId) : null,
+              changed_field: 'sprints_tasks_statuses_id',
+              old_value: String(existing.sprints_tasks_statuses_id),
+              new_value: String(task.sprints_tasks_statuses_id),
+              date: new Date(),
+            },
+          });
+        }
 
         return updated;
       })

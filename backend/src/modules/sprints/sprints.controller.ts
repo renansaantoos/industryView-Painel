@@ -363,7 +363,8 @@ export class SprintsController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const result = await SprintsService.updateTaskStatus(req.body);
+      const userId = (req as any).user?.id;
+      const result = await SprintsService.updateTaskStatus(req.body, userId);
       res.status(200).json(serializeBigInt(result));
     } catch (error) {
       next(error);
@@ -381,7 +382,8 @@ export class SprintsController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const result = await SprintsService.updateListTaskStatus(req.body);
+      const userId = (req as any).user?.id;
+      const result = await SprintsService.updateListTaskStatus(req.body, userId);
       res.status(200).json(serializeBigInt(result));
     } catch (error) {
       next(error);

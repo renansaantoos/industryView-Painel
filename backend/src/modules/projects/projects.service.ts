@@ -805,13 +805,16 @@ export class ProjectsService {
    * Lista backlogs do projeto
    * Equivalente a: query projects_backlogs_list/{projects_id} verb=POST do Xano (endpoint 572)
    */
-  static async listBacklogs(projectId: number, input: ListProjectBacklogsInput) {
+  static async listBacklogs(projectId: number | undefined, input: ListProjectBacklogsInput) {
     const { page, per_page, search, sprint_added, projects_backlogs_statuses_id, tasks_types_id, discipline_id, sort_field, sort_direction } = input;
 
     const whereConditions: any = {
       deleted_at: null,
-      projects_id: projectId,
     };
+
+    if (projectId) {
+      whereConditions.projects_id = projectId;
+    }
 
     // Filtro por sprint_added
     if (sprint_added !== undefined && sprint_added !== null) {
@@ -883,6 +886,9 @@ export class ProjectsService {
         },
         discipline: true,
         unity: true,
+        projects: {
+          select: { id: true, name: true },
+        },
       },
       orderBy: (() => {
         const ALLOWED_SORT_FIELDS = ['description', 'quantity', 'weight', 'created_at', 'sort_order', 'wbs_code'];

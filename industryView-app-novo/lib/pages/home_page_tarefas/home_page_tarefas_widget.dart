@@ -141,121 +141,142 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
             ? qtyAssigned.toInt().toString()
             : qtyAssigned.toString());
 
+    final maxLabel = qtyAssigned.truncateToDouble() == qtyAssigned ? qtyAssigned.toInt().toString() : qtyAssigned.toString();
+
+    String? errorText;
+    final theme = AppTheme.of(context);
+
     final result = await showDialog<double?>(
       context: context,
       barrierDismissible: false,
       barrierColor: const Color(0x80000000),
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppTheme.of(context).secondaryBackground,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          title: Text(
-            'Concluir Tarefa',
-            style: GoogleFonts.lexend(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.of(context).primaryText,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Divider(color: AppTheme.of(context).alternate),
-              const SizedBox(height: 8.0),
-              if (taskName.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(
-                    taskName,
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: theme.secondaryBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+              title: Text(
+                'Concluir Tarefa',
+                style: GoogleFonts.lexend(
+                  fontWeight: FontWeight.w600,
+                  color: theme.primaryText,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: theme.alternate),
+                  const SizedBox(height: 8.0),
+                  if (taskName.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text(
+                        taskName,
+                        style: GoogleFonts.lexend(
+                          color: theme.secondaryText,
+                          fontSize: 13.0,
+                        ),
+                      ),
+                    ),
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Quantidade Executada  ',
+                          style: GoogleFonts.lexend(
+                            fontWeight: FontWeight.w600,
+                            color: theme.primaryText,
+                            fontSize: 14.0,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '(Designado: $maxLabel)',
+                          style: GoogleFonts.lexend(
+                            color: theme.secondaryText,
+                            fontSize: 13.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8.0),
+                  TextField(
+                    controller: controller,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(color: theme.alternate),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(
+                          color: errorText != null ? theme.error : theme.alternate,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(
+                          color: errorText != null ? theme.error : theme.primary,
+                          width: 2.0,
+                        ),
+                      ),
+                      errorText: errorText,
+                      errorStyle: GoogleFonts.lexend(
+                        color: theme.error,
+                        fontSize: 11.0,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12.0, vertical: 12.0),
+                    ),
                     style: GoogleFonts.lexend(
-                      color: AppTheme.of(context).secondaryText,
-                      fontSize: 13.0,
+                      color: theme.primaryText,
+                      fontSize: 14.0,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, null),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.lexend(
+                      color: theme.secondaryText,
                     ),
                   ),
                 ),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Quantidade Executada  ',
-                      style: GoogleFonts.lexend(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.of(context).primaryText,
-                        fontSize: 14.0,
-                      ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    final qty = double.tryParse(controller.text) ?? qtyAssigned;
+                    if (qty > qtyAssigned) {
+                      setDialogState(() {
+                        errorText = 'Valor não pode ser maior que $maxLabel';
+                      });
+                      return;
+                    }
+                    Navigator.pop(dialogContext, qty);
+                  },
+                  icon: const Icon(Icons.check_circle_outline, size: 18.0),
+                  label: const Text('Confirmar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
-                    TextSpan(
-                      text:
-                          '(Designado: ${qtyAssigned.truncateToDouble() == qtyAssigned ? qtyAssigned.toInt() : qtyAssigned})',
-                      style: GoogleFonts.lexend(
-                        color: AppTheme.of(context).secondaryText,
-                        fontSize: 13.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextField(
-                controller: controller,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                autofocus: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide:
-                        BorderSide(color: AppTheme.of(context).alternate),
+                    textStyle: GoogleFonts.lexend(fontWeight: FontWeight.w600),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide:
-                        BorderSide(color: AppTheme.of(context).alternate),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(
-                        color: AppTheme.of(context).primary, width: 2.0),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12.0, vertical: 12.0),
                 ),
-                style: GoogleFonts.lexend(
-                  color: AppTheme.of(context).primaryText,
-                  fontSize: 14.0,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, null),
-              child: Text(
-                'Cancelar',
-                style: GoogleFonts.lexend(
-                  color: AppTheme.of(context).secondaryText,
-                ),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                final qty = double.tryParse(controller.text) ?? qtyAssigned;
-                Navigator.pop(dialogContext, qty);
-              },
-              icon: const Icon(Icons.check_circle_outline, size: 18.0),
-              label: const Text('Confirmar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.of(context).primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                textStyle: GoogleFonts.lexend(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

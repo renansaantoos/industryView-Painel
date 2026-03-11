@@ -66,10 +66,6 @@ export class ReportsService {
 
     if (!projects_id) {
       return {
-        trackers_total: 0,
-        trackers_installed: [],
-        modules_total: [],
-        modules_installed: [],
         totalProjects,
         activeProjects,
         completedTasks: 0,
@@ -79,84 +75,6 @@ export class ReportsService {
         burndown: [],
       };
     }
-
-    // -------------------------------------------------------------------------
-    // Stats de trackers/modulos do projeto (logica existente - mantida intacta)
-    // -------------------------------------------------------------------------
-
-    // Total de trackers no projeto
-    // Equivalente ao primeiro db.query do Xano
-    const trackersTotal = await db.$queryRaw<{ count: bigint }[]>`
-      SELECT COUNT(*)::bigint as count
-      FROM rows_trackers rt
-      JOIN rows r ON rt.rows_id = r.id
-      JOIN sections s ON r.sections_id = s.id
-      JOIN fields f ON s.fields_id = f.id
-      WHERE f.projects_id = ${BigInt(projects_id)}
-        AND r.deleted_at IS NULL
-        AND rt.deleted_at IS NULL
-        AND s.deleted_at IS NULL
-        AND f.deleted_at IS NULL
-    `;
-
-    // Trackers instalados (status 2, 3, 5)
-    // Equivalente ao segundo db.query do Xano
-    const trackersInstalled = await db.rows_trackers.findMany({
-      where: {
-        deleted_at: null,
-        rows_trackers_statuses_id: {
-          in: [BigInt(2), BigInt(3), BigInt(5)],
-        },
-        rows: {
-          deleted_at: null,
-          sections: {
-            deleted_at: null,
-            fields: {
-              deleted_at: null,
-              projects_id: BigInt(projects_id),
-            },
-          },
-        },
-      },
-    });
-
-    // Modulos total (status 5, 4)
-    const modulesTotal = await db.rows_trackers.findMany({
-      where: {
-        deleted_at: null,
-        rows_trackers_statuses_id: {
-          in: [BigInt(4), BigInt(5)],
-        },
-        rows: {
-          deleted_at: null,
-          sections: {
-            deleted_at: null,
-            fields: {
-              deleted_at: null,
-              projects_id: BigInt(projects_id),
-            },
-          },
-        },
-      },
-    });
-
-    // Modulos instalados (status 5)
-    const modulesInstalled = await db.rows_trackers.findMany({
-      where: {
-        deleted_at: null,
-        rows_trackers_statuses_id: BigInt(5),
-        rows: {
-          deleted_at: null,
-          sections: {
-            deleted_at: null,
-            fields: {
-              deleted_at: null,
-              projects_id: BigInt(projects_id),
-            },
-          },
-        },
-      },
-    });
 
     // -------------------------------------------------------------------------
     // Stats de tarefas de sprint do projeto
@@ -184,13 +102,13 @@ export class ReportsService {
         })
       : 0;
 
-    // Tarefas pendentes (status 1 = Pendente)
+    // Tarefas em aberto (status 1 = Pendente, 2 = Em Andamento)
     const pendingTasks = sprintIdsBigInt.length > 0
       ? await db.sprints_tasks.count({
           where: {
             deleted_at: null,
             sprints_id: { in: sprintIdsBigInt },
-            sprints_tasks_statuses_id: BigInt(1),
+            sprints_tasks_statuses_id: { in: [BigInt(1), BigInt(2)] },
           },
         })
       : 0;
@@ -225,14 +143,13 @@ export class ReportsService {
     }
 
     // -------------------------------------------------------------------------
-    // Progresso da sprint: (trackersInstalled / trackersTotal) * 100
+    // Progresso da sprint: tarefas concluídas / total de tarefas
     // -------------------------------------------------------------------------
 
-    const trackersTotalCount = Number(trackersTotal[0]?.count || 0);
-    const trackersInstalledCount = trackersInstalled.length;
+    const totalSprintTasks = completedTasks + pendingTasks;
     const sprintProgress =
-      trackersTotalCount > 0
-        ? Math.round((trackersInstalledCount / trackersTotalCount) * 100)
+      totalSprintTasks > 0
+        ? Math.round((completedTasks / totalSprintTasks) * 100)
         : 0;
 
     // -------------------------------------------------------------------------
@@ -244,9 +161,10 @@ export class ReportsService {
       where: {
         deleted_at: null,
         projects_id: BigInt(projects_id),
+        sprints_statuses_id: BigInt(2), // Status Ativa
       },
       orderBy: { created_at: 'desc' },
-      select: { id: true },
+      select: { id: true, start_date: true, end_date: true },
     });
 
     let burndown: Array<{ date: string; ideal: number; actual: number }> = [];
@@ -267,12 +185,6 @@ export class ReportsService {
     }
 
     return {
-      // Campos existentes (logica de trackers mantida intacta)
-      trackers_total: trackersTotalCount,
-      trackers_installed: trackersInstalled,
-      modules_total: modulesTotal,
-      modules_installed: modulesInstalled,
-      // Novos campos computados
       totalProjects,
       activeProjects,
       completedTasks,

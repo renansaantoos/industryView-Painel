@@ -116,7 +116,7 @@ export async function getAllProjectBacklogs(projectId: number): Promise<ProjectB
 }
 
 export async function queryAllProjectBacklogIds(params: {
-  projects_id: number;
+  projects_id?: number;
   sprints_id?: number;
   search?: string;
   page?: number;

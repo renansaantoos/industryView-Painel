@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,6 +26,8 @@ class ConcluirBatchModalWidget extends StatefulWidget {
 
 class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
   late List<TextEditingController> _controllers;
+  late List<String?> _errorTexts;
+  late List<Timer?> _debounceTimers;
   bool _isLoading = false;
 
   bool _isOfflineResponse(ApiCallResponse? response) {
@@ -53,18 +56,42 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
   void initState() {
     super.initState();
     final tasks = AppState().tasksfinish;
+    _errorTexts = List.filled(tasks.length, null);
+    _debounceTimers = List.filled(tasks.length, null);
     _controllers = List.generate(tasks.length, (i) {
       final qty = tasks[i].quantityAssigned;
-      return TextEditingController(
+      final ctrl = TextEditingController(
         text: qty.truncateToDouble() == qty
             ? qty.toInt().toString()
             : qty.toString(),
       );
+      ctrl.addListener(() {
+        _debounceTimers[i]?.cancel();
+        final val = double.tryParse(ctrl.text);
+        final maxQty = AppState().tasksfinish[i].quantityAssigned;
+        if (val != null && val > maxQty) {
+          _debounceTimers[i] = Timer(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              setState(() {
+                _errorTexts[i] = 'Valor não pode ser maior que ${maxQty.truncateToDouble() == maxQty ? maxQty.toInt() : maxQty}';
+              });
+            }
+          });
+        } else {
+          if (_errorTexts[i] != null) {
+            setState(() => _errorTexts[i] = null);
+          }
+        }
+      });
+      return ctrl;
     });
   }
 
   @override
   void dispose() {
+    for (final t in _debounceTimers) {
+      t?.cancel();
+    }
     for (final c in _controllers) {
       c.dispose();
     }
@@ -72,6 +99,23 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
   }
 
   Future<void> _onConfirm() async {
+    // Validar que nenhum valor excede o designado
+    bool hasError = false;
+    for (var i = 0; i < AppState().tasksfinish.length && i < _controllers.length; i++) {
+      final finishItem = AppState().tasksfinish[i];
+      final qty = double.tryParse(_controllers[i].text) ?? finishItem.quantityAssigned;
+      if (qty > finishItem.quantityAssigned) {
+        _debounceTimers[i]?.cancel();
+        final maxQty = finishItem.quantityAssigned;
+        _errorTexts[i] = 'Valor não pode ser maior que ${maxQty.truncateToDouble() == maxQty ? maxQty.toInt() : maxQty}';
+        hasError = true;
+      }
+    }
+    if (hasError) {
+      setState(() {});
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     // Atualizar quantityDone em cada task do taskslist com o valor digitado
@@ -295,14 +339,19 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8.0),
-                                  borderSide: BorderSide(color: AppTheme.of(context).alternate),
+                                  borderSide: BorderSide(color: _errorTexts[index] != null ? AppTheme.of(context).error : AppTheme.of(context).alternate),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8.0),
                                   borderSide: BorderSide(
-                                    color: AppTheme.of(context).primary,
+                                    color: _errorTexts[index] != null ? AppTheme.of(context).error : AppTheme.of(context).primary,
                                     width: 2.0,
                                   ),
+                                ),
+                                errorText: _errorTexts[index],
+                                errorStyle: GoogleFonts.lexend(
+                                  color: AppTheme.of(context).error,
+                                  fontSize: 11.0,
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12.0,

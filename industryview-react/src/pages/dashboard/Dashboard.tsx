@@ -308,12 +308,12 @@ export default function Dashboard() {
 
   const installationData = [
     { name: t('dashboard.completed', 'Concluídas'), value: stats.completedTasks },
-    { name: t('dashboard.pending', 'Pendentes'), value: stats.pendingTasks },
+    { name: t('dashboard.pending', 'Em Aberto'), value: stats.pendingTasks },
   ];
 
   const taskDistribution = [
     { name: t('dashboard.completed', 'Concluídas'), value: stats.completedTasks, color: C.success },
-    { name: t('dashboard.pending', 'Pendentes'), value: stats.pendingTasks, color: C.warning },
+    { name: t('dashboard.pending', 'Em Aberto'), value: stats.pendingTasks, color: C.warning },
   ].filter(d => d.value > 0);
 
   const safetySeverityData = recordToChartData(safetyStats?.by_severity);

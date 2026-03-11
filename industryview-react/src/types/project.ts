@@ -79,6 +79,7 @@ export interface ProjectBacklog {
   name: string;
   description?: string;
   projectsId: number;
+  projectName?: string;
   status?: string;
   priority?: number;
   checked?: boolean;

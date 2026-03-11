@@ -743,7 +743,11 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                         ),
                       ),
                       Expanded(
-                        child: Padding(
+                        child: AppState().loading
+                          ? const Center(
+                              child: CircularProgressIndicator(),
+                            )
+                          : Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.max,

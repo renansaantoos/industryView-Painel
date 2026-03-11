@@ -61,6 +61,8 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
   List _allSprintConcluidas = []; // Todas as concluídas da sprint (para card de progresso)
   List _semSucesso = [];
   List _inspecao = [];
+  // Lista unificada para "Tarefas Realizadas": concluídas + inspeção + sem sucesso do schedule
+  List<Map<String, dynamic>> _tarefasRealizadas = [];
   String _sprintTitle = '';
   List<dynamic> _uniqueWorkers = [];
 
@@ -201,19 +203,40 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
         }
       }
 
-      if (scheduleTaskIds.isNotEmpty) {
-        // Filtrar concluídas: somente as vinculadas ao schedule ativo
-        _concluidas = allSprintConcluidas.where((task) {
+      // Helper para filtrar tarefas pelo schedule ativo
+      List _filterBySchedule(List tasks) {
+        if (scheduleTaskIds.isEmpty) return [];
+        return tasks.where((task) {
           final taskId = getJsonField(task, r'''$.id''');
           return taskId != null && scheduleTaskIds.contains(taskId is int ? taskId : int.tryParse(taskId.toString()));
         }).toList();
+      }
+
+      if (scheduleTaskIds.isNotEmpty) {
+        _concluidas = _filterBySchedule(allSprintConcluidas);
       } else {
-        // Se nenhuma tarefa vinculada ao schedule, lista vazia (schedule recém-criado)
         _concluidas = [];
       }
 
+      // Filtrar inspeção e sem sucesso pelo schedule ativo
+      final scheduleInspecao = _filterBySchedule(_inspecao);
+      final scheduleSemSucesso = _filterBySchedule(_semSucesso);
+
+      // Montar lista unificada de "Tarefas Realizadas"
+      // Ordem: Realizadas (aguardando inspeção) → Inspeção Realizada → Sem Sucesso
+      _tarefasRealizadas = [];
+      for (final task in scheduleInspecao) {
+        _tarefasRealizadas.add({'task': task, 'tipo': 'inspecao'});
+      }
+      for (final task in _concluidas) {
+        _tarefasRealizadas.add({'task': task, 'tipo': 'concluida'});
+      }
+      for (final task in scheduleSemSucesso) {
+        _tarefasRealizadas.add({'task': task, 'tipo': 'sem_sucesso'});
+      }
+
       if (kDebugMode) {
-        print('RDO: Sprint concluídas=${allSprintConcluidas.length}, Schedule tasks=$scheduleTaskIds, Filtered concluídas=${_concluidas.length}');
+        print('RDO: Sprint concluídas=${allSprintConcluidas.length}, Schedule tasks=$scheduleTaskIds, Filtered concluídas=${_concluidas.length}, inspecao=${scheduleInspecao.length}, semSucesso=${scheduleSemSucesso.length}');
       }
     } catch (e) {
       if (kDebugMode) print('RDO: Erro extrair sprint: $e');
@@ -519,7 +542,7 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
                                           theme,
                                           'Tarefas Realizadas',
                                           Icons.task_alt_rounded,
-                                          badge: _concluidas.length,
+                                          badge: _tarefasRealizadas.length,
                                         ),
                                         const SizedBox(height: 10),
                                         _buildTasksCard(theme),
@@ -948,14 +971,31 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
 
   // ─── Tasks card ─────────────────────────────────────────────────────────────
 
+  // Retorna ícone, cor e label baseado no tipo da tarefa
+  // - inspecao: tarefa foi realizada pelo líder, aguardando inspeção
+  // - concluida: inspeção aprovada
+  // - sem_sucesso: tarefa marcada sem sucesso
+  ({IconData icon, Color color, String label}) _taskTypeInfo(String tipo) {
+    switch (tipo) {
+      case 'inspecao':
+        return (icon: Icons.build_circle_outlined, color: const Color(0xFF2563EB), label: 'Realizada');
+      case 'sem_sucesso':
+        return (icon: Icons.cancel_outlined, color: const Color(0xFFEF4444), label: 'Sem Sucesso');
+      default: // concluida = inspeção foi aprovada
+        return (icon: Icons.verified_rounded, color: _kGreen, label: 'Inspeção Realizada');
+    }
+  }
+
   Widget _buildTasksCard(AppTheme theme) {
-    if (_concluidas.isEmpty) {
+    if (_tarefasRealizadas.isEmpty) {
       return _buildEmptyCard(
         theme,
         icon: Icons.task_alt_rounded,
-        message: 'Nenhuma tarefa concluída hoje',
+        message: 'Nenhuma tarefa realizada hoje',
       );
     }
+
+    final leaderName = AppState().user.name;
 
     return Container(
       decoration: BoxDecoration(
@@ -976,7 +1016,7 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
-          itemCount: _concluidas.length,
+          itemCount: _tarefasRealizadas.length,
           separatorBuilder: (_, __) => Divider(
             height: 1,
             indent: 56,
@@ -984,7 +1024,10 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
             color: theme.alternate,
           ),
           itemBuilder: (context, i) {
-            final task = _concluidas[i];
+            final entry = _tarefasRealizadas[i];
+            final task = entry['task'];
+            final tipo = entry['tipo'] as String;
+            final info = _taskTypeInfo(tipo);
             final title = (getJsonField(task, r'''$.projects_backlogs.description''') ??
                     getJsonField(task, r'''$.projects_backlogs.tasks_template.description''') ??
                     getJsonField(task, r'''$.title'''))
@@ -994,17 +1037,18 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: _kGreen.withValues(alpha: 0.12),
+                      color: info.color.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: _kGreen,
+                    child: Icon(
+                      info.icon,
+                      color: info.color,
                       size: 16,
                     ),
                   ),
@@ -1022,6 +1066,46 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            // Tag do tipo
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: info.color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                info.label,
+                                style: GoogleFonts.lexend(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: info.color,
+                                ),
+                              ),
+                            ),
+                            if (leaderName.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.person_outline_rounded,
+                                size: 11,
+                                color: theme.secondaryText,
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  leaderName,
+                                  style: GoogleFonts.lexend(
+                                    fontSize: 11,
+                                    color: theme.secondaryText,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         if (team.isNotEmpty) ...[
                           const SizedBox(height: 2),
@@ -1374,6 +1458,7 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       context: context,
       allowPhoto: true,
       allowVideo: false,
+      multiImage: true,
       maxWidth: 1200,
       imageQuality: 85,
       backgroundColor: bgColor,
@@ -1532,18 +1617,22 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
 
     try {
       final token = currentAuthenticationToken;
+      if (kDebugMode) print('RDO Finalize: Starting with ${_model.selectedPhotos.length} photos, scheduleId=${AppState().user.sheduleId}');
 
       // Upload photos
-      for (final photo in _model.selectedPhotos) {
+      for (var i = 0; i < _model.selectedPhotos.length; i++) {
+        final photo = _model.selectedPhotos[i];
+        if (kDebugMode) print('RDO Finalize: Uploading photo ${i + 1}/${_model.selectedPhotos.length}');
         final r = await ProjectsGroup.addImagensCall.call(
           content: photo,
           scheduleId: AppState().user.sheduleId,
           token: token,
         );
+        if (kDebugMode) print('RDO Finalize: Photo ${i + 1} upload result: succeeded=${r.succeeded}, status=${r.statusCode}, body=${r.jsonBody}');
         if (!r.succeeded) {
           if (mounted) {
             messenger.showSnackBar(SnackBar(
-              content: const Text('Erro ao enviar fotos.'),
+              content: Text('Erro ao enviar foto ${i + 1}: status ${r.statusCode}'),
               backgroundColor: errorColor,
             ));
           }
@@ -1558,6 +1647,8 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       final tempMax =
           double.tryParse(_model.tempMaxController.text.replaceAll(',', '.')) ??
               0.0;
+
+      if (kDebugMode) print('RDO Finalize: Creating daily report - projectId=${AppState().user.projectId}, date=$rdoDate, shift=${_model.selectedShift}');
 
       // Create daily report
       final createResult = await DailyReportsGroup.createDailyReportCall.call(
@@ -1575,10 +1666,12 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
         token: token,
       );
 
+      if (kDebugMode) print('RDO Finalize: createDailyReport result: succeeded=${createResult.succeeded}, status=${createResult.statusCode}, body=${createResult.jsonBody}');
+
       if (!createResult.succeeded) {
         if (mounted) {
           messenger.showSnackBar(SnackBar(
-            content: const Text('Erro ao criar RDO.'),
+            content: Text('Erro ao criar RDO: ${getJsonField(createResult.jsonBody, r'$.message') ?? 'status ${createResult.statusCode}'}'),
             backgroundColor: errorColor,
           ));
         }

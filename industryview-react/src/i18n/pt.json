@@ -243,7 +243,7 @@
     "totalProjects": "Total de Projetos",
     "activeProjects": "Projetos Ativos",
     "completedTasks": "Tarefas Concluídas",
-    "pendingTasks": "Tarefas Pendentes",
+    "pendingTasks": "Tarefas em Aberto",
     "teamMembers": "Membros da Equipe",
     "sprintProgress": "Progresso da Sprint",
     "burndownChart": "Gráfico Burndown",
