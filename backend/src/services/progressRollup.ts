@@ -233,17 +233,24 @@ export class ProgressRollupService {
    * Baseado na proporcao de sprint_tasks com status Concluida (4)
    */
   static async updateSprintProgress(sprintId: number): Promise<void> {
-    const [counts] = await db.$queryRaw<{ total: bigint; done: bigint }[]>`
+    const [counts] = await db.$queryRaw<{ total: bigint; done_weighted: number }[]>`
       SELECT
         COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}) AS done
+        SUM(
+          CASE
+            WHEN quantity_assigned IS NULL OR quantity_assigned = 0 THEN
+              CASE WHEN sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA} THEN 1.0 ELSE 0.0 END
+            ELSE
+              LEAST(COALESCE(quantity_done, 0)::float / quantity_assigned::float, 1.0)
+          END
+        ) AS done_weighted
       FROM sprints_tasks
       WHERE sprints_id = ${BigInt(sprintId)} AND deleted_at IS NULL
     `;
 
     const total = Number(counts?.total ?? 0);
-    const done = Number(counts?.done ?? 0);
-    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+    const doneWeighted = Number(counts?.done_weighted ?? 0);
+    const progress = total > 0 ? Math.round((doneWeighted / total) * 100) : 0;
 
     await db.sprints.update({
       where: { id: BigInt(sprintId) },
