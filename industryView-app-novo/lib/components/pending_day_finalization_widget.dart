@@ -164,29 +164,27 @@ class _PendingDayFinalizationWidgetState
     try {
       final token = currentAuthenticationToken;
 
-      // TODO: Descomentar quando GCP Storage billing estiver regularizado
-      // for (int i = 0; i < _selectedPhotos.length; i++) {
-      //   final photo = _selectedPhotos[i];
-      //   if (kDebugMode) {
-      //     print('PendingFinalization: Uploading photo ${i + 1}/${_selectedPhotos.length} '
-      //         'name=${photo.name}, bytes=${photo.bytes?.length ?? 0}, scheduleId=${widget.scheduleId}');
-      //   }
-      //   final r = await ProjectsGroup.addImagensCall.call(
-      //     content: photo,
-      //     scheduleId: widget.scheduleId,
-      //     token: token,
-      //   );
-      //   if (!r.succeeded) {
-      //     if (mounted) {
-      //       messenger.showSnackBar(SnackBar(
-      //         content: Text('Erro ao enviar foto ${i + 1}. Status: ${r.statusCode}'),
-      //         backgroundColor: errorColor,
-      //       ));
-      //     }
-      //     return;
-      //   }
-      // }
-      if (kDebugMode) print('PendingFinalization: Upload de fotos desabilitado (aguardando GCP billing)');
+      for (int i = 0; i < _selectedPhotos.length; i++) {
+        final photo = _selectedPhotos[i];
+        if (kDebugMode) {
+          print('PendingFinalization: Uploading photo ${i + 1}/${_selectedPhotos.length} '
+              'name=${photo.name}, bytes=${photo.bytes?.length ?? 0}, scheduleId=${widget.scheduleId}');
+        }
+        final r = await ProjectsGroup.addImagensCall.call(
+          content: photo,
+          scheduleId: widget.scheduleId,
+          token: token,
+        );
+        if (!r.succeeded) {
+          if (mounted) {
+            messenger.showSnackBar(SnackBar(
+              content: Text('Erro ao enviar foto ${i + 1}. Status: ${r.statusCode}'),
+              backgroundColor: errorColor,
+            ));
+          }
+          return;
+        }
+      }
 
       final createResult = await DailyReportsGroup.createDailyReportCall.call(
         projectsId: AppState().user.projectId,

@@ -16,15 +16,35 @@ class StorageService {
 
   constructor() {
     if (config.storage.type === 'gcp') {
-      const credPath = path.resolve(config.storage.gcp.credentials || './gcp-storage-key.json');
-      if (!fs.existsSync(credPath)) {
-        console.warn(`[StorageService] GCP credentials not found at ${credPath}, falling back to local storage`);
-        return;
-      }
-      this.gcpStorage = new GCPStorage({
+      const credValue = config.storage.gcp.credentials || './gcp-storage-key.json';
+
+      // Try to parse as JSON string (for Railway/env var deployment)
+      let gcpOptions: ConstructorParameters<typeof GCPStorage>[0] = {
         projectId: config.storage.gcp.projectId,
-        keyFilename: credPath,
-      });
+      };
+
+      if (credValue.trim().startsWith('{')) {
+        // Credentials passed as JSON string (e.g. Railway env var)
+        try {
+          const credentials = JSON.parse(credValue);
+          gcpOptions.credentials = credentials;
+          console.log('[StorageService] GCP credentials loaded from environment variable (JSON)');
+        } catch (e) {
+          console.warn('[StorageService] Failed to parse GCP_CREDENTIALS JSON, falling back to local storage');
+          return;
+        }
+      } else {
+        // Credentials passed as file path
+        const credPath = path.resolve(credValue);
+        if (!fs.existsSync(credPath)) {
+          console.warn(`[StorageService] GCP credentials not found at ${credPath}, falling back to local storage`);
+          return;
+        }
+        gcpOptions.keyFilename = credPath;
+        console.log(`[StorageService] GCP credentials loaded from file: ${credPath}`);
+      }
+
+      this.gcpStorage = new GCPStorage(gcpOptions);
       this.gcpBucket = config.storage.gcp.bucketName || null;
       console.log(`[StorageService] GCP Storage initialized - bucket: ${this.gcpBucket}`);
     } else {
