@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { staggerParent, tableRowVariants } from '../../lib/motion';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +38,7 @@ export default function SafetyDDS() {
   // ── List state ────────────────────────────────────────────────────────────
   const [records, setRecords] = useState<DdsRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -52,10 +53,15 @@ export default function SafetyDDS() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTopic, setCreateTopic] = useState('');
   const [createDescription, setCreateDescription] = useState('');
-  const [createTeamsId, setCreateTeamsId] = useState<number | undefined>(undefined);
+  const [createTeamsIds, setCreateTeamsIds] = useState<number[]>([]);
   const [createDate, setCreateDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [createLoading, setCreateLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<{ topic?: string; date?: string; project?: string }>({});
+
+  // ── Incident selection in create modal ───────────────────────────────────
+  const [incidentOptions, setIncidentOptions] = useState<Array<{ id: number; label: string }>>([]);
+  const [createIncidentId, setCreateIncidentId] = useState<number | undefined>(undefined);
+  const [incidentsLoading, setIncidentsLoading] = useState(false);
 
   // ── Projects for dropdown ─────────────────────────────────────────────────
   const [createProjectId, setCreateProjectId] = useState<number | undefined>(undefined);
@@ -74,6 +80,11 @@ export default function SafetyDDS() {
   const [addParticipantDdsId, setAddParticipantDdsId] = useState<number | null>(null);
   const [participantUserId, setParticipantUserId] = useState<number | undefined>(undefined);
   const [participantLoading, setParticipantLoading] = useState(false);
+  const [participantBulkLoading, setParticipantBulkLoading] = useState(false);
+
+  // ── Participant team filter ───────────────────────────────────────────────
+  const [participantTeamFilter, setParticipantTeamFilter] = useState<number | undefined>(undefined);
+  const [teamMemberIds, setTeamMemberIds] = useState<number[]>([]);
 
   // ── Sign participation modal ──────────────────────────────────────────────
   const [signDdsId, setSignDdsId] = useState<number | null>(null);
@@ -101,6 +112,8 @@ export default function SafetyDDS() {
   }, []);
 
   const loadRecords = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const data = await safetyApi.listDdsRecords({
@@ -117,6 +130,7 @@ export default function SafetyDDS() {
       showToast(t('common.errorLoading'), 'error');
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   }, [projectsInfo, user?.companyId, page, perPage, showToast, t]);
 
@@ -162,14 +176,38 @@ export default function SafetyDDS() {
 
   useEffect(() => {
     const isOpen = showCreateModal || editTarget !== null;
-    if (!isOpen || teamOptions.length > 0) return;
+    if (!isOpen) return;
+    if (teamOptions.length > 0) return;
     setTeamsLoading(true);
     teamsApi
       .queryAllTeams({ per_page: 100 })
       .then((data) => setTeamOptions(Array.isArray(data) ? data : data.items || []))
       .catch((err) => console.error('Failed to load teams for DDS modal:', err))
       .finally(() => setTeamsLoading(false));
-  }, [showCreateModal, editTarget]);
+  }, [showCreateModal, editTarget, teamOptions.length]);
+
+  // Load incidents when createProjectId changes while the create modal is open
+  useEffect(() => {
+    if (!showCreateModal) return;
+    if (!createProjectId) {
+      setIncidentOptions([]);
+      return;
+    }
+    setIncidentsLoading(true);
+    safetyApi
+      .listIncidents({ projects_id: createProjectId, per_page: 50 })
+      .then((data) => {
+        const items = Array.isArray(data) ? data : data.items || [];
+        setIncidentOptions(
+          items.map((inc) => ({
+            id: inc.id,
+            label: (inc as unknown as { title?: string }).title || inc.category || String(inc.id),
+          })),
+        );
+      })
+      .catch((err) => console.error('Failed to load incidents for DDS modal:', err))
+      .finally(() => setIncidentsLoading(false));
+  }, [showCreateModal, createProjectId]);
 
   // Load employees once when either participant or sign modal opens
   useEffect(() => {
@@ -182,6 +220,26 @@ export default function SafetyDDS() {
       .catch((err) => console.error('Failed to load employees for DDS modal:', err))
       .finally(() => setEmployeesLoading(false));
   }, [addParticipantDdsId, signDdsId]);
+
+  // Load team members when participantTeamFilter changes in the add participant modal
+  useEffect(() => {
+    if (participantTeamFilter === undefined) {
+      setTeamMemberIds([]);
+      return;
+    }
+    projectsApi
+      .queryAllTeamMembers(participantTeamFilter)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data as unknown as { items?: unknown[] })?.items || [];
+        const ids = list.map((m) => {
+          const item = m as Record<string, unknown>;
+          const users = item.users as Record<string, unknown> | undefined;
+          return Number(users?.id ?? item.users_id ?? item.usersId);
+        });
+        setTeamMemberIds(ids.filter(Boolean));
+      })
+      .catch((err) => console.error('Failed to load team members for participant filter:', err));
+  }, [participantTeamFilter]);
 
   const handleToggleExpand = useCallback(
     async (ddsId: number) => {
@@ -216,14 +274,18 @@ export default function SafetyDDS() {
     setCreateErrors({});
     setCreateLoading(true);
 
-    const selectedTeam = teamOptions.find((t) => t.id === createTeamsId);
+    const teamNames = createTeamsIds
+      .map((id) => teamOptions.find((t) => t.id === id)?.name)
+      .filter(Boolean)
+      .join(', ');
 
     try {
       await safetyApi.createDdsRecord({
         topic: createTopic.trim(),
         content: createDescription.trim() || undefined,
-        team: selectedTeam?.name || undefined,
-        teams_id: createTeamsId ?? undefined,
+        team: teamNames || undefined,
+        teams_id: createTeamsIds[0] ?? undefined,
+        safety_incidents_id: createIncidentId,
         dds_date: createDate,
         conducted_by: user?.id,
         projects_id: createProjectId,
@@ -231,7 +293,8 @@ export default function SafetyDDS() {
       });
       setCreateTopic('');
       setCreateDescription('');
-      setCreateTeamsId(undefined);
+      setCreateTeamsIds([]);
+      setCreateIncidentId(undefined);
       setCreateProjectId(undefined);
       setCreateDate(new Date().toISOString().split('T')[0]);
       setCreateErrors({});
@@ -256,12 +319,13 @@ export default function SafetyDDS() {
       });
       // Refresh the expanded row participants
       const full = await safetyApi.getDdsRecord(addParticipantDdsId);
-      const count = full.participants?.length ?? full.participants_count ?? full.participants_count ?? 0;
+      const count = full.participants?.length ?? full.participants_count ?? 0;
       setRecords((prev) =>
         prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
       );
       setParticipantUserId(undefined);
       setAddParticipantDdsId(null);
+      setParticipantTeamFilter(undefined);
       showToast(t('dds.participantAdded'), 'success');
       loadStats();
     } catch (err) {
@@ -269,6 +333,33 @@ export default function SafetyDDS() {
       showToast(t('common.errorSaving'), 'error');
     } finally {
       setParticipantLoading(false);
+    }
+  };
+
+  const handleAddMultipleParticipants = async (userIds: number[]) => {
+    if (!addParticipantDdsId || userIds.length === 0) return;
+    setParticipantBulkLoading(true);
+    try {
+      await Promise.all(
+        userIds.map((uid) =>
+          safetyApi.addDdsParticipant(addParticipantDdsId, { users_id: uid }).catch((err) => {
+            console.error(`Failed to add participant ${uid}:`, err);
+          }),
+        ),
+      );
+      // Refresh participants list
+      const full = await safetyApi.getDdsRecord(addParticipantDdsId);
+      const count = full.participants?.length ?? full.participants_count ?? 0;
+      setRecords((prev) =>
+        prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
+      );
+      showToast(t('dds.participantAdded'), 'success');
+      loadStats();
+    } catch (err) {
+      console.error('Failed to bulk add participants:', err);
+      showToast(t('common.errorSaving'), 'error');
+    } finally {
+      setParticipantBulkLoading(false);
     }
   };
 
@@ -352,6 +443,16 @@ export default function SafetyDDS() {
     }
   };
 
+  // ── Derived: filtered employee list for participant modal ─────────────────
+  const filteredEmployeeOptions = (() => {
+    const currentRecord = records.find((r) => r.id === addParticipantDdsId);
+    const existingIds = (currentRecord?.participants || []).map((p: any) => Number(p.users_id));
+    const base = participantTeamFilter !== undefined
+      ? employeeOptions.filter((emp) => teamMemberIds.includes(emp.id))
+      : employeeOptions;
+    return base.filter((emp) => !existingIds.includes(emp.id));
+  })();
+
   // ── Stats card definitions ────────────────────────────────────────────────
   const statCards = [
     {
@@ -376,6 +477,8 @@ export default function SafetyDDS() {
       color: 'var(--color-warning)',
     },
   ];
+
+  const allTeamIdsSelected = teamOptions.length > 0 && createTeamsIds.length === teamOptions.length;
 
   return (
     <div>
@@ -647,7 +750,8 @@ export default function SafetyDDS() {
           onClick={() => {
             setShowCreateModal(false);
             setCreateErrors({});
-            setCreateTeamsId(undefined);
+            setCreateTeamsIds([]);
+            setCreateIncidentId(undefined);
             setCreateProjectId(undefined);
           }}
         >
@@ -710,37 +814,117 @@ export default function SafetyDDS() {
                   style={{ resize: 'vertical' }}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label>{t('dds.team')}</label>
-                  <SearchableSelect
-                    options={teamOptions.map((team) => ({ value: team.id, label: team.name }))}
-                    value={createTeamsId}
-                    onChange={(val) => setCreateTeamsId(val !== undefined ? Number(val) : undefined)}
-                    placeholder={teamsLoading ? t('common.loading') : t('dds.teamPlaceholder')}
-                    searchPlaceholder={t('common.search')}
-                    allowClear
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div className="input-group">
-                  <label>{t('dds.date')} *</label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={createDate}
-                    onChange={(e) => {
-                      setCreateDate(e.target.value);
-                      if (createErrors.date) setCreateErrors((prev) => ({ ...prev, date: undefined }));
-                    }}
-                    style={createErrors.date ? { borderColor: 'var(--color-error)' } : undefined}
-                  />
-                  {createErrors.date && (
-                    <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
-                      {createErrors.date}
-                    </span>
+
+              {/* Incident selection */}
+              <div className="input-group">
+                <label>{t('dds.incident', 'Incidente relacionado')}</label>
+                <SearchableSelect
+                  options={incidentOptions.map((inc) => ({ value: inc.id, label: inc.label }))}
+                  value={createIncidentId}
+                  onChange={(val) => setCreateIncidentId(val !== undefined ? Number(val) : undefined)}
+                  placeholder={
+                    !createProjectId
+                      ? t('dds.selectProjectFirst', 'Selecione um projeto primeiro')
+                      : incidentsLoading
+                        ? t('common.loading')
+                        : t('dds.incidentPlaceholder', 'Selecionar incidente (opcional)')
+                  }
+                  searchPlaceholder={t('common.search')}
+                  allowClear
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              {/* Multi-team selection */}
+              <div className="input-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>{t('dds.teams', 'Equipes')}</label>
+                  {teamOptions.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '11px', padding: '2px 8px' }}
+                      onClick={() => {
+                        if (allTeamIdsSelected) {
+                          setCreateTeamsIds([]);
+                        } else {
+                          setCreateTeamsIds(teamOptions.map((t) => t.id));
+                        }
+                      }}
+                    >
+                      {allTeamIdsSelected
+                        ? t('dds.deselectAll', 'Desmarcar todas')
+                        : t('dds.selectAll', 'Selecionar todas')}
+                    </button>
                   )}
                 </div>
+                {teamsLoading ? (
+                  <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                    {t('common.loading')}
+                  </p>
+                ) : teamOptions.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)', fontStyle: 'italic' }}>
+                    {t('dds.noTeams', 'Nenhuma equipe disponível')}
+                  </p>
+                ) : (
+                  <div
+                    style={{
+                      maxHeight: '160px',
+                      overflowY: 'auto',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '6px',
+                      padding: '4px 0',
+                    }}
+                  >
+                    {teamOptions.map((team) => (
+                      <label
+                        key={team.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          color: 'var(--color-primary-text)',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={createTeamsIds.includes(team.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCreateTeamsIds((prev) => [...prev, team.id]);
+                            } else {
+                              setCreateTeamsIds((prev) => prev.filter((id) => id !== team.id));
+                            }
+                          }}
+                          style={{ accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+                        />
+                        {team.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="input-group">
+                <label>{t('dds.date')} *</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={createDate}
+                  onChange={(e) => {
+                    setCreateDate(e.target.value);
+                    if (createErrors.date) setCreateErrors((prev) => ({ ...prev, date: undefined }));
+                  }}
+                  style={createErrors.date ? { borderColor: 'var(--color-error)' } : undefined}
+                />
+                {createErrors.date && (
+                  <span style={{ fontSize: '12px', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>
+                    {createErrors.date}
+                  </span>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
@@ -749,7 +933,8 @@ export default function SafetyDDS() {
                 onClick={() => {
                   setShowCreateModal(false);
                   setCreateErrors({});
-                  setCreateTeamsId(undefined);
+                  setCreateTeamsIds([]);
+                  setCreateIncidentId(undefined);
                   setCreateProjectId(undefined);
                 }}
               >
@@ -769,35 +954,76 @@ export default function SafetyDDS() {
 
       {/* Add Participant Modal */}
       {addParticipantDdsId !== null && (
-        <div className="modal-backdrop" onClick={() => { setAddParticipantDdsId(null); setParticipantUserId(undefined); }}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setAddParticipantDdsId(null);
+            setParticipantUserId(undefined);
+            setParticipantTeamFilter(undefined);
+          }}
+        >
           <div
             className="modal-content"
-            style={{ padding: '24px', width: '380px' }}
+            style={{ padding: '24px', width: '420px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>
-              {t('dds.addParticipant')}
+              {t('dds.addEmployee', 'Adicionar Funcionário')}
             </h3>
-            <div className="input-group">
-              <label>{t('dds.collaborator')} *</label>
+
+            {/* Team filter */}
+            <div className="input-group" style={{ marginBottom: '12px' }}>
+              <label>{t('dds.filterByTeam', 'Filtrar por equipe')}</label>
               <SearchableSelect
-                options={employeeOptions
-                  .filter((emp) => {
-                    const currentRecord = records.find((r) => r.id === addParticipantDdsId);
-                    const existingIds = (currentRecord?.participants || []).map((p: any) => Number(p.users_id));
-                    return !existingIds.includes(emp.id);
-                  })
-                  .map((emp) => ({ value: emp.id, label: emp.name }))}
+                options={teamOptions.map((team) => ({ value: team.id, label: team.name }))}
+                value={participantTeamFilter}
+                onChange={(val) => {
+                  setParticipantTeamFilter(val !== undefined ? Number(val) : undefined);
+                  setParticipantUserId(undefined);
+                }}
+                placeholder={t('dds.allTeams', 'Todas as equipes')}
+                searchPlaceholder={t('common.search')}
+                allowClear
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div className="input-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ margin: 0 }}>{t('dds.employee', 'Funcionário')} *</label>
+                {filteredEmployeeOptions.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '11px', padding: '2px 8px' }}
+                    disabled={participantBulkLoading}
+                    onClick={() => handleAddMultipleParticipants(filteredEmployeeOptions.map((e) => e.id))}
+                  >
+                    {participantBulkLoading
+                      ? <span className="spinner" style={{ width: '12px', height: '12px' }} />
+                      : t('dds.selectAll', 'Selecionar todos')}
+                  </button>
+                )}
+              </div>
+              <SearchableSelect
+                options={filteredEmployeeOptions.map((emp) => ({ value: emp.id, label: emp.name }))}
                 value={participantUserId}
                 onChange={(val) => setParticipantUserId(val !== undefined ? Number(val) : undefined)}
-                placeholder={employeesLoading ? t('common.loading') : t('dds.collaboratorPlaceholder')}
+                placeholder={employeesLoading ? t('common.loading') : t('dds.employeePlaceholder', 'Selecionar funcionário')}
                 searchPlaceholder={t('common.search')}
                 allowClear
                 style={{ width: '100%' }}
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => { setAddParticipantDdsId(null); setParticipantUserId(undefined); }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setAddParticipantDdsId(null);
+                  setParticipantUserId(undefined);
+                  setParticipantTeamFilter(undefined);
+                }}
+              >
                 {t('common.cancel')}
               </button>
               <button

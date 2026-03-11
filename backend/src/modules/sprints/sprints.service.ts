@@ -106,20 +106,20 @@ export class SprintsService {
       ...sprintsConcluida.map(s => s.id),
     ];
 
-    const inspectionGroups = allSprintIds.length > 0
-      ? await db.sprints_tasks.groupBy({
-          by: ['sprints_id'],
-          where: {
-            sprints_id: { in: allSprintIds },
-            quality_status_id: BigInt(1),
-            deleted_at: null,
-          },
-          _count: { id: true },
-        })
+    const inspectionGroups: any[] = allSprintIds.length > 0
+      ? await db.$queryRawUnsafe(
+          `SELECT sprints_id, COUNT(*)::int AS _count
+           FROM sprints_tasks
+           WHERE sprints_id = ANY($1::bigint[])
+             AND quality_status_id = 1
+             AND deleted_at IS NULL
+           GROUP BY sprints_id`,
+          allSprintIds.map(Number)
+        )
       : [];
 
     const inspectionCountMap = new Map(
-      inspectionGroups.map(g => [g.sprints_id?.toString(), g._count.id])
+      inspectionGroups.map((g: any) => [g.sprints_id?.toString(), Number(g._count ?? 0)])
     );
 
     const withInspection = (items: typeof sprintsAtiva) =>
