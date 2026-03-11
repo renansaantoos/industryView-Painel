@@ -37,7 +37,7 @@ export default function ConfirmModal({
           animate="animate"
           exit="exit"
           onClick={onCancel}
-          style={{ animation: 'none' }}
+          style={{ animation: 'none', zIndex: 1100 }}
         >
           <motion.div
             className="modal-content"
