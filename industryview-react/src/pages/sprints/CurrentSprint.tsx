@@ -707,8 +707,7 @@ export default function CurrentSprint() {
   // ── Derived stats ────────────────────────────────────────────────────────────
 
   const totalTasks = pendentes.length + emAndamento.length + concluidas.length + semSucesso.length + inspecao.length;
-  const doneTasks = concluidas.length + inspecao.length + semSucesso.length;
-  const completionPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  const completionPct = sprint?.progress_percentage ?? 0;
 
   if (loading) return <LoadingSpinner fullPage />;
 
