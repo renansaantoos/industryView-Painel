@@ -9,6 +9,7 @@ import { AgentsService } from './agents.service';
 import { InterpretingAgentService } from './interpreting-agent.service';
 import { ResponseGeneratorService } from './response-generator.service';
 import { WeightCalculatorAgentService } from './weight-calculator-agent.service';
+import { ScheduleManagerAgentService } from './schedule-manager-agent.service';
 import { db } from '../../config/database';
 import { ChatService } from './chat.service';
 import {
@@ -20,6 +21,8 @@ import {
   calculateWeightsSchema,
   applyWeightsSchema,
   chatMessageSchema,
+  generateRCCSchema,
+  scheduleAnalysisSchema,
 } from './agents.schema';
 
 /**
@@ -180,6 +183,38 @@ export class AgentsController {
       // @ts-ignore - company_id vem do usuario autenticado
       const companyId = req.user?.companyId;
       const result = await ChatService.processMessage(input, companyId);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ===========================================================================
+  // Schedule Manager Agent
+  // ===========================================================================
+
+  /**
+   * Gera Relatorio de Cronograma Critico (RCC)
+   * Route: POST /api/v1/agents/schedule-manager/rcc
+   */
+  static async generateRCC(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = generateRCCSchema.parse(req.body);
+      const result = await ScheduleManagerAgentService.generateRCC(input.project_id);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Executa analise especifica do Schedule Manager
+   * Route: POST /api/v1/agents/schedule-manager/analysis
+   */
+  static async scheduleAnalysis(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = scheduleAnalysisSchema.parse(req.body);
+      const result = await ScheduleManagerAgentService.runAnalysis(input.project_id, input.analysis_type);
       res.json(result);
     } catch (error) {
       next(error);

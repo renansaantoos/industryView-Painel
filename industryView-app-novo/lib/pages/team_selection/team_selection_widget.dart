@@ -1,10 +1,13 @@
 import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_requests/api_calls.dart';
 import '/backend/schema/structs/index.dart';
+import '/components/pending_day_finalization_widget.dart';
 import '/core/theme/app_theme.dart';
 import '/core/utils/app_utils.dart';
 import '/core/navigation/nav.dart';
 import '/index.dart';
+import '/pages/project_selection/project_selection_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -82,7 +85,15 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
 
       if (!mounted) return;
 
-      // Navegar para PageCheckQrcode via GoRouter (replace toda a stack)
+      // Verificar se há RDO pendente para este projeto+equipe
+      final navigatedToPending = await _checkAndNavigatePendingRdo(
+        projectId: widget.projectId,
+        teamsId: team.id,
+      );
+
+      if (navigatedToPending || !mounted) return;
+
+      // Sem RDO pendente — ir para QR code
       context.goNamedAuth(
         PageCheckQrcodeWidget.routeName,
         context.mounted,
@@ -98,6 +109,97 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
       if (mounted) {
         setState(() => _isSelecting = false);
       }
+    }
+  }
+
+  /// Verifica se há RDO pendente para o projeto+equipe selecionados.
+  /// Se houver, navega direto para a tela de finalização e retorna true.
+  Future<bool> _checkAndNavigatePendingRdo({
+    required int projectId,
+    required int teamsId,
+  }) async {
+    try {
+      final token = currentAuthenticationToken;
+      if (token == null || token.isEmpty) return false;
+
+      final pendingResp = await ProjectsGroup.getPendingSchedulesCall
+          .call(token: token);
+
+      if (!pendingResp.succeeded) return false;
+
+      final hasPend = ProjectsGroup.getPendingSchedulesCall
+          .hasPending(pendingResp.jsonBody) ?? false;
+      if (!hasPend) return false;
+
+      final pendList = ProjectsGroup.getPendingSchedulesCall
+          .pendingSchedules(pendingResp.jsonBody);
+      if (pendList == null || pendList.isEmpty) return false;
+
+      // Filtrar por projeto+equipe selecionados
+      final match = pendList.cast<Map<String, dynamic>>().where((p) {
+        final pId = p['projects_id'] as int?;
+        final tId = p['teams_id'] as int?;
+        return pId == projectId && tId == teamsId;
+      }).toList();
+
+      if (match.isEmpty) return false;
+
+      final fp = match.first;
+      if (kDebugMode) {
+        print('=== PENDING RDO FOUND for project=$projectId team=$teamsId ===');
+        print('scheduleId: ${fp['schedule_id']}, date: ${fp['schedule_date']}');
+      }
+
+      if (!mounted) return false;
+
+      final result = await Navigator.push<dynamic>(
+        context,
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => PendingDayFinalizationWidget(
+            scheduleId: (fp['schedule_id'] as int?) ?? 0,
+            scheduleDate: fp['schedule_date']?.toString() ?? '',
+            projectName: fp['project_name']?.toString(),
+            teamName: fp['team_name']?.toString(),
+            workers: fp['workers'] as List<dynamic>?,
+            tasks: fp['tasks'] as List<dynamic>?,
+          ),
+        ),
+      );
+
+      if (!mounted) return true;
+
+      if (result == 'back_to_projects') {
+        // Voltar para seleção de projetos
+        context.goNamedAuth(
+          ProjectSelectionWidget.routeName,
+          context.mounted,
+          extra: <String, dynamic>{
+            kTransitionInfoKey: TransitionInfo(
+              hasTransition: true,
+              transitionType: PageTransitionType.fade,
+            ),
+          },
+        );
+        return true;
+      }
+
+      // Após finalizar RDO, ir para QR code
+      context.goNamedAuth(
+        PageCheckQrcodeWidget.routeName,
+        context.mounted,
+        extra: <String, dynamic>{
+          kTransitionInfoKey: TransitionInfo(
+            hasTransition: true,
+            transitionType: PageTransitionType.fade,
+          ),
+          'skipProjectCheck': true,
+        },
+      );
+      return true;
+    } catch (e) {
+      if (kDebugMode) print('=== PENDING CHECK ERROR: $e ===');
+      return false;
     }
   }
 

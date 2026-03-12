@@ -2,9 +2,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Bot, Send, Sparkles, Shield, CalendarRange, Users, CheckCircle } from 'lucide-react';
+import { Bot, Send, Sparkles, Shield, CalendarRange, Users, CheckCircle, BarChart2, FolderOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { sendChatMessage, type ChatResponse } from '../../services/api/agents';
+import { queryAllProjects } from '../../services/api/projects';
 import PageHeader from '../../components/common/PageHeader';
 import { useAppState } from '../../contexts/AppStateContext';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
@@ -19,7 +20,7 @@ interface Message {
   timestamp: Date;
 }
 
-type DomainFilter = 'all' | 'executive' | 'safety' | 'planning' | 'workforce' | 'quality';
+type DomainFilter = 'all' | 'executive' | 'safety' | 'planning' | 'workforce' | 'quality' | 'schedule_manager';
 
 const DOMAIN_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   executive: { label: 'Executivo', icon: <Sparkles size={16} />, color: 'var(--color-primary)' },
@@ -27,6 +28,7 @@ const DOMAIN_CONFIG: Record<string, { label: string; icon: React.ReactNode; colo
   planning: { label: 'Planejamento', icon: <CalendarRange size={16} />, color: 'var(--color-tertiary)' },
   workforce: { label: 'Equipes', icon: <Users size={16} />, color: 'var(--color-success)' },
   quality: { label: 'Qualidade', icon: <CheckCircle size={16} />, color: 'var(--color-warning)' },
+  schedule_manager: { label: 'Gerente Cronograma', icon: <BarChart2 size={16} />, color: '#8B5CF6' },
 };
 
 const SUGGESTED_QUESTIONS = [
@@ -35,6 +37,8 @@ const SUGGESTED_QUESTIONS = [
   { text: 'Quais tarefas estao atrasadas?', domain: 'planning' as const },
   { text: 'Qual equipe tem mais tarefas pendentes?', domain: 'workforce' as const },
   { text: 'Resumo de nao-conformidades', domain: 'quality' as const },
+  { text: 'Gere um RCC do projeto', domain: 'schedule_manager' as const },
+  { text: 'Quem esta ocioso?', domain: 'schedule_manager' as const },
 ];
 
 export default function AiAssistant() {
@@ -44,12 +48,26 @@ export default function AiAssistant() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [domainFilter, setDomainFilter] = useState<DomainFilter>('all');
+  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setNavBarSelection(50); // Unique index for AI assistant
+    loadProjects();
   }, []);
+
+  const loadProjects = async () => {
+    try {
+      const data = await queryAllProjects({ per_page: 100 });
+      const opts = data.items.map((p: any) => ({ id: p.id, name: p.name }));
+      setProjects(opts);
+      if (opts.length === 1) setSelectedProjectId(opts[0].id);
+    } catch {
+      // silently fail
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,8 +89,10 @@ export default function AiAssistant() {
     setLoading(true);
 
     try {
-      const context = domainFilter !== 'all' ? { domain: domainFilter as ChatResponse['domain'] } : undefined;
-      const response = await sendChatMessage({ message: msgText, context });
+      const context: Record<string, any> = {};
+      if (domainFilter !== 'all') context.domain = domainFilter;
+      if (selectedProjectId) context.project_id = selectedProjectId;
+      const response = await sendChatMessage({ message: msgText, context: Object.keys(context).length > 0 ? context : undefined });
 
       const assistantMsg: Message = {
         id: `assistant-${Date.now()}`,
@@ -114,8 +134,8 @@ export default function AiAssistant() {
         subtitle="Converse com a IA sobre projetos, seguranca, planejamento, equipes e qualidade"
       />
 
-      {/* Domain filter pills */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Domain filter pills + project selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           onClick={() => setDomainFilter('all')}
           style={{
@@ -157,6 +177,30 @@ export default function AiAssistant() {
             {cfg.label}
           </button>
         ))}
+
+        {/* Project selector */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <FolderOpen size={14} style={{ color: 'var(--color-secondary-text)' }} />
+          <select
+            value={selectedProjectId ?? ''}
+            onChange={(e) => setSelectedProjectId(e.target.value ? Number(e.target.value) : null)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-alternate)',
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-primary-text)',
+              fontSize: 12,
+              fontFamily: 'var(--font-family)',
+              minWidth: 180,
+            }}
+          >
+            <option value="">Todos os projetos</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Chat area */}
@@ -224,7 +268,8 @@ export default function AiAssistant() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '80%',
+                    maxWidth: msg.role === 'user' ? '70%' : '90%',
+                    width: msg.role === 'assistant' ? '90%' : undefined,
                     alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
                   }}
                 >
@@ -236,12 +281,14 @@ export default function AiAssistant() {
 
                   <div
                     style={{
-                      padding: '12px 16px',
+                      padding: msg.role === 'assistant' ? '16px 20px' : '12px 16px',
                       borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'var(--color-primary-bg)',
+                      backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'var(--color-secondary-bg)',
                       color: msg.role === 'user' ? '#fff' : 'var(--color-primary-text)',
                       fontSize: 14,
                       lineHeight: 1.6,
+                      border: msg.role === 'assistant' ? '1px solid var(--color-alternate)' : 'none',
+                      overflowX: 'auto',
                     }}
                   >
                     {msg.role === 'assistant' ? (

@@ -1,40 +1,214 @@
----
-applyTo: "**/*.xs"
----
+# IndustryView - Sistema de Agentes IA
 
-This document outlines the recommended development strategy for creating XanoScript applications using Large Language Models (LLMs) in a VSCode environment. It emphasizes a structured, phased approach to ensure clarity, modularity, and maintainability while adhering to XanoScript syntax and best practices.
+Sistema multi-agente especializado para gestao de projetos solares, powered by Anthropic Claude.
 
-You'll want to work step by step through the phases below, ensuring each is complete before moving to the next. Always reference the relevant XanoScript documentation for syntax and examples, including:
+## Arquitetura Geral
 
-1. Create or Edit Tables: `tables/` directory (see [Table Guideline](./docs/table_guideline.md) and [Table Examples](./docs/table_examples.md)). It's recommended to create tables without cross reference because Xano would reject the creation of table if the table it references does not exist yet. You can then add the relationships after all tables have been created. You can push all your changes invoking the `push_all_changes_to_xano` tool.
-2. Create or Edit Functions: `functions/` directory (see [Function Guideline](./docs/function_guideline.md) and [Function Examples](./docs/function_examples.md)). When defining inputs for functions, refer to the [Input Guideline](./docs/input_guideline.md) for proper syntax and best practices.
-3. Create or Edit API Endpoints: `apis/` directory (see [API Query Guideline](./docs/api_query_guideline.md) and [API Query Examples](./docs/api_query_examples.md)). When defining inputs for API endpoints, refer to the [Input Guideline](./docs/input_guideline.md) for proper syntax and best practices.
-4. Create or Edit Scheduled Tasks: `tasks/` directory (see [Task Guideline](./docs/task_guideline.md) and [Task Examples](./docs/task_examples.md))
-5. Ensure Xano backend is in sync with VSCode by pushing changes
-6. When writing queries for database operations, refer to the [Database Query Guideline](./docs/db_query_guideline.md) for proper syntax and best practices.
+```
+Mensagem do Usuario
+    |
+    v
+POST /api/v1/agents/chat
+    |
+    v
+[1] Agent Router (Claude Haiku - temp 0.1)
+    Classifica dominio: executive | safety | planning | workforce | quality | general
+    |
+    v
+[2] Agente Especializado (Claude Sonnet - temp 0.6)
+    a) Interpreta mensagem -> JSON estruturado (intent + filtros)
+    b) Busca dados no banco (Prisma/PostgreSQL)
+    c) Gera resposta humanizada em Markdown (temp 0.7-0.9)
+    |
+    v
+[3] Resposta
+    { response, domain, confidence, metadata: { agent, processing_time_ms } }
+```
 
-## AI Agent Development
+## Modelos Claude Utilizados
 
-When developing AI agents, follow these steps:
+| Modelo | Uso | Temperatura | Max Tokens |
+|--------|-----|-------------|------------|
+| claude-sonnet-4-20250514 | Agentes principais (interpretacao, resposta) | 0.3-0.9 | 2000 |
+| claude-haiku-4-5-20251001 | Router (classificacao rapida) | 0.1 | 200 |
 
-1. **Define Tools**: Specify any tools the agent can use, ensuring they are defined in the `tools/` directory (see [Tool Guideline](./docs/tool_guideline.md) and [Tool Examples](./docs/tool_examples.md)).
-2. **Define the Agent**: Create a new agent in the `agents/` directory using the XanoScript syntax (see [Agent Guideline](./docs/agent_guideline.md) and [Agent Examples](./docs/agent_examples.md)).
+Configuracao em variaveis de ambiente:
+- `ANTHROPIC_API_KEY` - chave da API
+- `CLAUDE_MODEL` - modelo principal (Sonnet 4)
+- `CLAUDE_ROUTER_MODEL` - modelo do router (Haiku 4.5)
+- `CLAUDE_MAX_TOKENS` - limite de tokens (default 2000)
 
-## AI MCP Server Development
+## Claude Client (`backend/src/services/claude-client.ts`)
 
-When developing an MCP server (Model Context Protocol) to expose your tools to external clients and AI models, follow these steps:
+Dois metodos principais:
 
-1. **Define Tools**: Ensure the tools you want to expose are defined in the `tools/` directory (see [Tool Guideline](./docs/tool_guideline.md) and [Tool Examples](./docs/tool_examples.md)).
-2. **Define the MCP Server**: Create a new MCP server in the `mcp_servers/` directory using the XanoScript syntax (see [MCP Server Guideline](./docs/mcp_server_guideline.md) and [MCP Server Examples](./docs/mcp_server_examples.md)).
+- **`claudeJsonCompletion<T>()`** - Respostas JSON estruturadas. Usa prefill trick (envia `{` como mensagem do assistente). Temp 0.6.
+- **`claudeTextCompletion()`** - Respostas texto/Markdown livre. Temp 0.7.
 
-## Frontend Building
+## Agentes Especializados
 
-Prior to building the frontend, ensure that all the changes have been pushed to the Xano backend (you should ask the user to confirm this). You should first proceed by retrieving the latest API specifications by invoking the `get_xano_api_specifications` tool. This will ensure that your frontend is aligned with the most recent backend configurations. You can then proceed to create or edit static assets in the `static/` directory, see [Frontend Guide](./docs/frontend_guideline.md).
+### Agent Router (`agent-router.service.ts`)
+Classificador de intencao usando Claude Haiku (rapido e barato).
 
-## Additional Guidelines
+**Dominios:**
+1. `executive` - Status de projetos, KPIs, progresso, contagem de trackers
+2. `safety` - Incidentes, treinamentos, DDS, permissoes de trabalho, EPIs, saude
+3. `planning` - Progresso de sprints, tarefas atrasadas, backlog, previsoes, caminho critico
+4. `workforce` - Equipes, headcount, alocacao, carga de trabalho
+5. `quality` - Nao-conformidades, checklists, regras de ouro, compliance
+6. `general` - Saudacoes, perguntas genericas (fallback)
 
-- **Xanoscript Syntax**: Adhere strictly to XanoScript syntax rules. You can use comments with the `//` symbol, a comment needs to be on it's own line and outside a statement. Refer to the [Xano Tips and Tricks](./docs/tips_and_tricks.md) for details.
-- **Expression**: Xano offers a rich set of expressions for data manipulation. Refer to the [Expression Lexicon](./docs/expression_guideline.md) for details. Avoid chaining too many expressions in a single line for readability, instead break them into intermediate variables.
-- **Xano Statements**: Familiarize yourself with the available statements in XanoScript by consulting the [Function Lexicon](./docs/functions.md). Use control flow statements like `if`, `foreach`, and `try_catch` to manage logic effectively.
-- **User Management**: Most Xano workspaces come with a built-in user auth and user table, avoid recreating these, the user table can be extended with the necessary columns and the the built-in auth functions can be customized accordingly.
-- **Building from Loveable**: If the project is being built from a Loveable-generated website, follow the specific strategy outlined in the [Building from Loveable Guide](./docs/build_from_lovable.md).
+**Output:** `{ domain, confidence (0-1), reasoning }`
+
+### Executive Agent (`executive-agent.service.ts`)
+Visao executiva de projetos.
+
+**Intents:** `project_status`, `delayed_projects`, `project_progress`, `tracker_count`, `project_summary`, `team_overview`
+
+**Tabelas:** projects, fields, sections, rows, rows_trackers, sprints, sprints_tasks
+
+**Capacidades:**
+- Contar trackers instalados por projeto
+- Identificar projetos atrasados (conclusao < 100%)
+- Resumo de projetos com responsavel, datas, localizacao
+
+### Safety Agent (`safety-agent.service.ts`)
+Seguranca do trabalho e SSMA.
+
+**Intents:** `incidents`, `trainings`, `dds`, `work_permits`, `ppe`, `health`, `environmental`, `safety_summary`
+
+**Tabelas:** safety_incidents, worker_trainings, dds_records, work_permits, ppe_deliveries, worker_health_records, environmental_licenses
+
+**Capacidades:**
+- Listar incidentes por severidade, data, status
+- Rastrear vencimento de treinamentos
+- Monitorar DDS (dialogos diarios de seguranca)
+- Gerenciar permissoes de trabalho
+- Rastrear entregas de EPI
+- Monitorar saude ocupacional
+- Rastrear licencas ambientais
+
+### Planning Agent (`planning-agent.service.ts`)
+Planejamento e cronograma de projetos.
+
+**Intents:** `sprint_progress`, `delayed_tasks`, `backlog_status`, `schedule_forecast`, `critical_path`, `planning_summary`
+
+**Tabelas:** sprints, sprints_tasks, projects_backlogs, schedule_baselines, sprints_tasks_statuses
+
+**Capacidades:**
+- Progresso percentual de sprints
+- Listar tarefas atrasadas por sprint/equipe
+- Status de distribuicao do backlog
+- Previsao de datas de conclusao
+- Identificar tarefas no caminho critico
+
+### Workforce Agent (`workforce-agent.service.ts`)
+Gestao de equipes e forca de trabalho.
+
+**Intents:** `team_overview`, `team_workload`, `employee_allocation`, `daily_headcount`, `workforce_summary`
+
+**Tabelas:** teams, teams_members, workforce_daily_log, users, sprints_tasks
+
+**Capacidades:**
+- Visao geral de equipes e membros
+- Analise de carga de trabalho (pendente vs concluido)
+- Headcount diario com check-in/check-out
+- Alocacao de funcionarios entre projetos
+
+### Quality Agent (`quality-agent.service.ts`)
+Qualidade e compliance.
+
+**Intents:** `non_conformances`, `checklists`, `golden_rules`, `quality_summary`
+
+**Tabelas:** non_conformances, checklist_responses, golden_rules, task_golden_rules
+
+**Capacidades:**
+- Rastrear nao-conformidades (numero NC, severidade, status)
+- Monitorar compliance de checklists
+- Rastrear regras de ouro e violacoes
+- Metricas de qualidade
+
+### Weight Calculator Agent (`weight-calculator-agent.service.ts`)
+Calculo de pesos relativos para subtarefas.
+
+**Input:** Lista de subtarefas com descricao, quantidade, unidade, disciplina
+**Output:** Array de pesos (soma = 1.0) com justificativa
+**Temperatura:** 0.4 (conservador/deterministico)
+**Criterios:** Esforco, complexidade, quantidade, tipo de unidade, dificuldade tecnica, impacto no cronograma
+
+## Fluxo Legado (Interpreting + Response Generator)
+
+```
+POST /api/v1/agents/projects/search
+    |
+    v
+[1] InterpretingAgent.interpret() - Converte pergunta em query estruturada
+[2] searchProjects() / searchDelayedTasks() - Busca no banco
+[3] ResponseGeneratorService.generate() - Humaniza resposta em Markdown
+[4] createAgentDashboardLog() - Loga interacao (opcional)
+```
+
+### Interpreting Agent (`interpreting-agent.service.ts`)
+Converte linguagem natural em queries de banco. Temp 0.6.
+
+**Tipos de query:**
+1. `is_about_projects` - Queries campo/operador/valor (ILIKE, =, >, <, >=, <=)
+2. `is_about_delayed_tasks` - Tarefas atrasadas de sprints concluidos
+3. `is_about_structure` - Estrutura hierarquica (fields/sections/rows/trackers)
+
+### Response Generator (`response-generator.service.ts`)
+Transforma JSON tecnico em Markdown humanizado. Temp 0.9.
+
+## Rotas da API
+
+| Endpoint | Metodo | Descricao |
+|----------|--------|-----------|
+| `/agents/chat` | POST | Chat unificado com roteamento |
+| `/agents/projects/search` | POST | Busca de projetos (legado) |
+| `/agents/relatorios-evolucao` | GET | Relatorio de tarefas atrasadas |
+| `/agents/interpret` | POST | Testar InterpretingAgent |
+| `/agents/generate-response` | POST | Testar ResponseGenerator |
+| `/agents/logs` | GET/POST | Listar/criar logs de interacao |
+| `/agents/logs/{log_id}` | GET/DELETE | Gerenciar logs especificos |
+| `/agents/calculate-weights` | POST | Calculo IA de pesos de subtarefas |
+| `/agents/apply-weights` | POST | Salvar pesos e propagar rollup |
+
+## Validacao (Zod - `agents.schema.ts`)
+
+- `chatMessageSchema` - requer campo `message` (string)
+- `projectsAgentSearchSchema` - requer campo `question` (string)
+- `calculateWeightsSchema` - requer campo `projects_backlogs_id`
+
+## Padroes Comuns
+
+- Todas as respostas em **Portugues**
+- Formato de data brasileiro: **DD/MM/YYYY**
+- Markdown com tabelas e numeros em **negrito**
+- Multi-tenancy: filtragem por `company_id` do usuario autenticado
+- Soft deletes: queries filtram `deleted_at: null`
+- BigInt handling para IDs do PostgreSQL
+- Logging via `logger.error()` para debug
+- Fallback para dominio `general` em caso de erro no router
+
+## Arquivos Principais
+
+```
+backend/src/
+├── services/
+│   └── claude-client.ts              # SDK Anthropic wrapper
+└── modules/agents/
+    ├── agent-router.service.ts       # Classificador de intencao (Haiku)
+    ├── chat.service.ts               # Orquestrador do chat unificado
+    ├── executive-agent.service.ts    # Agente executivo
+    ├── safety-agent.service.ts       # Agente de seguranca
+    ├── planning-agent.service.ts     # Agente de planejamento
+    ├── workforce-agent.service.ts    # Agente de forca de trabalho
+    ├── quality-agent.service.ts      # Agente de qualidade
+    ├── interpreting-agent.service.ts # Agente interpretador (legado)
+    ├── response-generator.service.ts # Gerador de respostas (legado)
+    ├── weight-calculator-agent.service.ts # Calculador de pesos
+    ├── agents.service.ts             # Servico principal com metodos de banco
+    ├── agents.controller.ts          # Handlers HTTP
+    ├── agents.routes.ts              # Definicao de rotas + Swagger
+    └── agents.schema.ts              # Schemas Zod de validacao
+```

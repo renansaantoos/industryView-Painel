@@ -115,7 +115,30 @@
     "audit": "Auditoria",
     "goldenRules": "Regras de Ouro",
     "checklists": "Checklists",
-    "clients": "Clientes"
+    "clients": "Clientes",
+    "scheduleManager": "Gerente de Cronograma"
+  },
+  "scheduleManager": {
+    "title": "Gerente de Cronograma IA",
+    "subtitle": "Análise inteligente de produtividade, efetivo, clima e cronograma",
+    "selectProject": "Selecione um projeto primeiro.",
+    "selectProjectWarning": "Selecione um projeto no menu lateral para utilizar o Gerente de Cronograma.",
+    "rccTitle": "Relatório de Cronograma Crítico (RCC)",
+    "rccDescription": "Análise completa cruzando produtividade, efetivo, clima, tarefas sem sucesso, áreas e caminho crítico.",
+    "rccError": "Erro ao gerar RCC. Tente novamente.",
+    "generateRCC": "Gerar RCC",
+    "generating": "Gerando...",
+    "exportPdf": "Exportar PDF",
+    "productivity": "Produtividade",
+    "workforce": "Força de Trabalho",
+    "weatherImpact": "Impacto Climático",
+    "failedTasks": "Tarefas Sem Sucesso",
+    "areaProgress": "Progresso por Área",
+    "proactiveInsights": "Insights Proativos",
+    "analyze": "Analisar",
+    "analyzing": "Analisando...",
+    "collapse": "Recolher",
+    "expand": "Expandir"
   },
   "clients": {
     "title": "Clientes",

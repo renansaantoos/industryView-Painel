@@ -72,6 +72,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   LOG_FORMAT: z.enum(['json', 'pretty']).default('pretty'),
 
+  // OpenWeatherMap
+  OPENWEATHERMAP_API_KEY: z.string().optional(),
+  OPENWEATHERMAP_UNITS: z.enum(['metric', 'imperial', 'standard']).default('metric'),
+
   // Timezone
   TZ: z.string().default('America/Sao_Paulo'),
 });
@@ -186,6 +190,10 @@ export const config = {
   cors: {
     origin: parseCorsOrigin(env.CORS_ORIGIN),
     credentials: env.CORS_CREDENTIALS,
+  },
+  weather: {
+    apiKey: env.OPENWEATHERMAP_API_KEY,
+    units: env.OPENWEATHERMAP_UNITS,
   },
   logging: {
     level: env.LOG_LEVEL,

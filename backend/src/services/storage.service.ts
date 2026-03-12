@@ -75,8 +75,12 @@ class StorageService {
       },
     });
 
-    await blob.makePublic();
-    const fileUrl = `https://storage.googleapis.com/${this.gcpBucket}/${filename}`;
+    // Generate a signed URL (valid for 7 days) instead of makePublic
+    // This works with uniform bucket-level access and org policies that block allUsers
+    const [signedUrl] = await blob.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     // Remove temp file if multer saved to disk
     if (file.path && fs.existsSync(file.path)) {
@@ -84,11 +88,27 @@ class StorageService {
     }
 
     return {
-      file_url: fileUrl,
+      file_url: signedUrl,
       file_name: file.originalname,
       file_type: file.mimetype,
       file_size: file.size,
     };
+  }
+
+  /**
+   * Generates a fresh signed URL for an existing GCP file.
+   * Use this to refresh expired URLs.
+   */
+  async getSignedUrl(filePath: string, expiresInMs: number = 7 * 24 * 60 * 60 * 1000): Promise<string | null> {
+    if (!this.gcpStorage || !this.gcpBucket) return null;
+    const blob = this.gcpStorage.bucket(this.gcpBucket).file(filePath);
+    const [exists] = await blob.exists();
+    if (!exists) return null;
+    const [signedUrl] = await blob.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + expiresInMs,
+    });
+    return signedUrl;
   }
 
   private async uploadToLocal(file: Express.Multer.File, folder: string): Promise<UploadResult> {
