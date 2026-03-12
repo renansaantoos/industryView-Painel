@@ -9,6 +9,7 @@ import type { CreateProjectRequest, CepResponse, ProjectStatus, ProjectWorkSitua
 import PageHeader from '../../components/common/PageHeader';
 import SearchableSelect from '../../components/common/SearchableSelect';
 import { ClientFormModal, maskCNPJ } from '../../components/clients/ClientFormModal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { staggerParent, fadeUpChild } from '../../lib/motion';
 import {
   Save,
@@ -19,6 +20,7 @@ import {
   MapPin,
   Users,
   Plus,
+  AlertTriangle,
   X,
 } from 'lucide-react';
 
@@ -89,8 +91,15 @@ export default function CreateProject() {
   // Toast
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showInspectionConfirmModal, setShowInspectionConfirmModal] = useState(false);
+  const [pendingProjectData, setPendingProjectData] = useState<CreateProjectRequest | null>(null);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<CreateProjectRequest>();
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<CreateProjectRequest>({
+    defaultValues: {
+      is_inspection: true,
+    },
+  });
+  const isInspectionEnabled = watch('is_inspection');
 
   // ── Toast ────────────────────────────────────────────────────────────────
 
@@ -228,6 +237,19 @@ export default function CreateProject() {
 
   // ── Form submission ───────────────────────────────────────────────────────
 
+  const submitProject = async (payload: CreateProjectRequest) => {
+    setLoading(true);
+    setError('');
+    try {
+      await projectsApi.addProject(payload);
+      navigate('/projetos');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onSubmit = async (data: CreateProjectRequest) => {
     // Validate required client
     if (!selectedClientId) {
@@ -245,22 +267,30 @@ export default function CreateProject() {
     }
     setUnitError(false);
 
-    setLoading(true);
-    setError('');
-    try {
-      await projectsApi.addProject({
-        ...data,
-        projects_statuses_id: selectedStatusId,
-        projects_works_situations_id: selectedWorkSituationId,
-        client_id: selectedClientId,
-        client_unit_id: selectedUnitId,
-      });
-      navigate('/projetos');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
-    } finally {
-      setLoading(false);
+    const payload: CreateProjectRequest = {
+      ...data,
+      is_inspection: data.is_inspection ?? true,
+      projects_statuses_id: selectedStatusId,
+      projects_works_situations_id: selectedWorkSituationId,
+      client_id: selectedClientId,
+      client_unit_id: selectedUnitId,
+    };
+
+    if (data.is_inspection === false) {
+      setPendingProjectData(payload);
+      setShowInspectionConfirmModal(true);
+      return;
     }
+
+    await submitProject(payload);
+  };
+
+  const handleConfirmInspectionInactive = async () => {
+    if (!pendingProjectData) return;
+    const payload = pendingProjectData;
+    setShowInspectionConfirmModal(false);
+    setPendingProjectData(null);
+    await submitProject(payload);
   };
 
   // ── CEP lookup ────────────────────────────────────────────────────────────
@@ -795,6 +825,89 @@ export default function CreateProject() {
           </motion.div>
         </motion.div>
 
+        <div style={{ marginBottom: '14px' }}>
+          <div
+            style={{
+              marginTop: '14px',
+              borderRadius: '8px',
+              border: '1px solid rgba(217, 119, 6, 0.35)',
+              background: 'rgba(217, 119, 6, 0.08)',
+              color: 'var(--color-warning, #D97706)',
+              fontSize: '12px',
+              fontWeight: 500,
+              padding: '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <AlertTriangle size={14} />
+            <span>
+              Opção de inspeção: alterar essa configuração não é recomendada e é irreversível após o cadastro do projeto.
+            </span>
+          </div>
+          <div
+            style={{
+              marginTop: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              border: '1px solid var(--color-alternate)',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              background: 'var(--color-bg)',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary-text)' }}>
+                Inspeção do projeto
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                Define o fluxo padrão de inspeção para o projeto.
+              </div>
+            </div>
+            <label
+              style={{
+                position: 'relative',
+                width: '46px',
+                height: '26px',
+                display: 'inline-block',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              title={isInspectionEnabled ? 'Inspeção ativada' : 'Inspeção desativada'}
+            >
+              <input
+                type="checkbox"
+                {...register('is_inspection')}
+                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: isInspectionEnabled ? 'var(--color-primary)' : 'var(--color-alternate)',
+                  borderRadius: '999px',
+                  transition: 'all 0.2s ease',
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '3px',
+                  left: isInspectionEnabled ? '23px' : '3px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  transition: 'all 0.2s ease',
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingBottom: '32px' }}>
           <Link to="/projetos" className="btn btn-secondary">
             {t('common.cancel')}
@@ -810,6 +923,24 @@ export default function CreateProject() {
         isOpen={showClientModal}
         onClose={() => setShowClientModal(false)}
         onSave={handleNewClientSaved}
+      />
+
+      <ConfirmModal
+        isOpen={showInspectionConfirmModal}
+        title="Confirmar inspeção inativa"
+        message="Você está criando o projeto com a opção de inspeção inativa. Essa opção é irreversível após a criação do projeto. Deseja continuar?"
+        confirmLabel={loading ? 'Criando...' : 'Confirmar e criar projeto'}
+        cancelLabel="Revisar opção"
+        variant="warning"
+        onCancel={() => {
+          if (loading) return;
+          setShowInspectionConfirmModal(false);
+          setPendingProjectData(null);
+        }}
+        onConfirm={() => {
+          if (loading) return;
+          handleConfirmInspectionInactive();
+        }}
       />
 
       {/* Toast notification */}

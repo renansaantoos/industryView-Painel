@@ -59,6 +59,8 @@ export default function SprintList() {
   const [createSprintErrors, setCreateSprintErrors] = useState<Record<string, string | undefined>>({});
   const [modalLoading, setModalLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleteTaskCount, setDeleteTaskCount] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadSprints = useCallback(async () => {
     if (!projectsInfo) return;
@@ -123,16 +125,31 @@ export default function SprintList() {
     }
   };
 
+  const handleDeleteClick = async (sprint: Sprint) => {
+    setDeleteTaskCount(null);
+    setDeleteConfirm(sprint.id);
+    try {
+      const count = await sprintsApi.getSprintTaskCount(sprint.id);
+      setDeleteTaskCount(count);
+    } catch {
+      setDeleteTaskCount(0);
+    }
+  };
+
   const handleDeleteSprint = async (id: number) => {
+    setDeletingId(id);
+    setDeleteConfirm(null);
     try {
       await sprintsApi.deleteSprint(id);
       loadSprints();
-      showToast('Sprint excluída com sucesso.');
+      showToast('Sprint excluída permanentemente.');
     } catch (err) {
       console.error('Failed to delete sprint:', err);
       showToast('Erro ao excluir sprint.', 'error');
+    } finally {
+      setDeletingId(null);
+      setDeleteTaskCount(null);
     }
-    setDeleteConfirm(null);
   };
 
   const getCategoryLabel = (key: CategoryKey): string => {
@@ -220,9 +237,12 @@ export default function SprintList() {
           <button
             className="btn btn-icon"
             title={t('common.delete')}
-            onClick={() => setDeleteConfirm(sprint.id)}
+            disabled={deletingId === sprint.id}
+            onClick={() => handleDeleteClick(sprint)}
           >
-            <Trash2 size={16} color="var(--color-error)" />
+            {deletingId === sprint.id
+              ? <span className="spinner" style={{ width: 14, height: 14 }} />
+              : <Trash2 size={16} color="var(--color-error)" />}
           </button>
         )}
       </div>
@@ -445,10 +465,20 @@ export default function SprintList() {
       {/* Delete Confirm */}
       {deleteConfirm !== null && (
         <ConfirmModal
-          title={t('common.confirmDelete')}
-          message={t('sprints.confirmDelete')}
+          isOpen
+          title="Excluir sprint permanentemente"
+          message={
+            deleteTaskCount === null
+              ? 'Carregando informações da sprint...'
+              : deleteTaskCount > 0
+              ? `Esta sprint possui ${deleteTaskCount} tarefa${deleteTaskCount !== 1 ? 's' : ''}. Todos os vínculos (tarefas, apontamentos e histórico) serão removidos permanentemente. Essa ação não pode ser desfeita.`
+              : 'Todos os vínculos desta sprint serão removidos permanentemente. Essa ação não pode ser desfeita.'
+          }
+          confirmLabel="Excluir permanentemente"
+          cancelLabel="Cancelar"
+          variant="danger"
           onConfirm={() => handleDeleteSprint(deleteConfirm)}
-          onCancel={() => setDeleteConfirm(null)}
+          onCancel={() => { setDeleteConfirm(null); setDeleteTaskCount(null); }}
         />
       )}
 

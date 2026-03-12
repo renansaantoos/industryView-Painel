@@ -38,6 +38,8 @@ export interface ProjectInfo {
   destination: string;
   projectWorkType: string;
   resultingWorkArea: string;
+  /** Indicates if the project is configured to use inspection workflow */
+  is_inspection?: boolean | null;
   lastTeamCreated?: LastTeamCreated;
   url: string;
   fileName: string;
@@ -150,6 +152,8 @@ export interface CreateProjectRequest {
   destination?: string;
   project_work_type?: string;
   resulting_work_area?: string;
+  /** Indicates whether the project should use inspection workflow by default */
+  is_inspection?: boolean;
   /** ID of the associated client (foreign key to clients table) */
   client_id?: number;
   /** ID of the client unit (filial/matriz) associated with this project */

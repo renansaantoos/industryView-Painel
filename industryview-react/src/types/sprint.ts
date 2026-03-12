@@ -94,6 +94,9 @@ export interface SprintTask {
   projectsBacklogs?: SprintTaskBacklog;
   subtasks?: SprintSubtask;
   sprints_tasks_statuses?: { id: number; name: string };
+  quality_status_id?: number | null;
+  is_reproved?: boolean;
+  reproved_count?: number;
   // Legacy compat
   quantity?: number;
   status?: number;

@@ -212,6 +212,7 @@ export default function CurrentSprint() {
   const [concluidas, setConcluidas] = useState<SprintTask[]>([]);
   const [semSucesso, setSemSucesso] = useState<SprintTask[]>([]);
   const [inspecao, setInspecao] = useState<SprintTask[]>([]);
+  const [isInspection, setIsInspection] = useState<boolean>(true);
 
   // Support data
   const [teams, setTeams] = useState<Team[]>([]);
@@ -278,17 +279,19 @@ export default function CurrentSprint() {
     if (!sprintId || !projectsInfo) return;
     setLoading(true);
     try {
-      const [sprintData, panel, burndownData] = await Promise.all([
+      const [sprintData, panel, burndownData, projectData] = await Promise.all([
         sprintsApi.getSprint(sprintId),
         sprintsApi.queryAllSprintTasks({
           projects_id: projectsInfo.id,
           sprints_id: sprintId,
         }),
         sprintsApi.getSprintChartData({ sprints_id: sprintId }).catch(() => []),
+        projectsApi.getProject(projectsInfo.id).catch(() => null),
       ]);
 
       setSprint(sprintData);
       populateCategories(panel as SprintPanelResponse);
+      setIsInspection(projectData?.is_inspection ?? true);
       setBulkSelectedIds(new Set());
 
       if (Array.isArray(burndownData)) {
@@ -767,9 +770,11 @@ export default function CurrentSprint() {
           <span style={{ color: 'var(--color-primary)' }}>
             {t('sprints.taskInProgress')}: {emAndamento.length}
           </span>
-          <span style={{ color: 'var(--color-warning, #ca8a04)' }}>
-            {t('sprints.taskInspection')}: {inspecao.length}
-          </span>
+          {isInspection && (
+            <span style={{ color: 'var(--color-warning, #ca8a04)' }}>
+              {t('sprints.taskInspection')}: {inspecao.length}
+            </span>
+          )}
           <span style={{ color: 'var(--color-success)' }}>
             {t('sprints.taskDone')}: {concluidas.length}
           </span>
@@ -904,16 +909,18 @@ export default function CurrentSprint() {
             )}
           />
 
-          <KanbanColumn
-            title={t('sprints.taskInspection')}
-            tasks={inspecao}
-            color="var(--color-warning, #ca8a04)"
-            icon={<Shield size={16} />}
-            emptyLabel={t('sprints.noTasks')}
-            onViewDetail={(task) => setDetailTask(task)}
-            transitionLoading={transitionLoading}
-            isInspection
-          />
+          {isInspection && (
+            <KanbanColumn
+              title={t('sprints.taskInspection')}
+              tasks={inspecao}
+              color="var(--color-warning, #ca8a04)"
+              icon={<Shield size={16} />}
+              emptyLabel={t('sprints.noTasks')}
+              onViewDetail={(task) => setDetailTask(task)}
+              transitionLoading={transitionLoading}
+              isInspection
+            />
+          )}
 
           <KanbanColumn
             title={t('sprints.taskDone')}
@@ -1760,11 +1767,18 @@ function TaskCard({ task, onDelete, onViewDetail, renderActions, isInspection, s
       </div>
 
       {/* Schedule status badge */}
-      {scheduleStatus && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '8px', marginTop: '5px', backgroundColor: scheduleStatus.bgColor, color: scheduleStatus.color }}>
-          {scheduleStatus.label}
-        </span>
-      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '5px' }}>
+        {scheduleStatus && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '8px', backgroundColor: scheduleStatus.bgColor, color: scheduleStatus.color }}>
+            {scheduleStatus.label}
+          </span>
+        )}
+        {(task.is_reproved || (a.is_reproved)) && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', backgroundColor: 'rgba(220,38,38,0.10)', color: 'var(--color-error, #DC2626)' }}>
+            Reprovado {(task.reproved_count ?? a.reproved_count ?? 0) > 1 ? `(${task.reproved_count ?? a.reproved_count}x)` : ''}
+          </span>
+        )}
+      </div>
 
       {/* Info line: discipline · unity · equipment */}
       {(discipline || unityName || equipType) && (
@@ -1928,6 +1942,18 @@ function TaskDetailsModal({ task, onClose, t, teams = [], onTaskUpdated }: TaskD
   const [editTeamId, setEditTeamId] = useState<string>(currentTeamId ? String(currentTeamId) : '');
   const [editQty, setEditQty] = useState<string>(qtyAssigned != null ? String(qtyAssigned) : '');
   const [saving, setSaving] = useState(false);
+
+  // ── Histórico de movimentos ──
+  const [history, setHistory] = useState<Awaited<ReturnType<typeof sprintsApi.getTaskHistory>>>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    setHistoryLoading(true);
+    sprintsApi.getTaskHistory(task.id)
+      .then(setHistory)
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [task.id]);
 
   const hasChanges = isPending && (
     editSchedule !== (scheduledFor ? scheduledFor.slice(0, 10) : '') ||
@@ -2213,7 +2239,67 @@ function TaskDetailsModal({ task, onClose, t, teams = [], onTaskUpdated }: TaskD
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+          {/* ── Histórico de movimentos ── */}
+          <div style={{ marginTop: '16px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-secondary-text)', marginBottom: '8px' }}>
+              Histórico de movimentos
+            </p>
+            {historyLoading ? (
+              <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>Carregando...</p>
+            ) : history.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>Nenhum movimento registrado.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {history.map((entry) => {
+                  const isInspectionMove = entry.changed_field === 'quality_status_id';
+                  const isStatusMove = entry.changed_field === 'sprints_tasks_statuses_id';
+                  const isReproved = isInspectionMove && entry.new_value !== '2';
+                  const isApproved = isInspectionMove && entry.new_value === '2';
+                  const label = isApproved
+                    ? 'Inspeção aprovada'
+                    : isReproved
+                    ? 'Inspeção reprovada'
+                    : isStatusMove
+                    ? `Status alterado (${entry.old_value} → ${entry.new_value})`
+                    : entry.changed_field ?? 'Alteração';
+
+                  return (
+                    <div
+                      key={entry.id}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-alternate)',
+                        backgroundColor: isApproved
+                          ? 'rgba(34,197,94,0.06)'
+                          : isReproved
+                          ? 'rgba(220,38,38,0.06)'
+                          : 'var(--color-bg)',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 600, color: isApproved ? 'var(--color-success)' : isReproved ? 'var(--color-error)' : 'var(--color-primary-text)' }}>
+                          {label}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-secondary-text)', whiteSpace: 'nowrap' }}>
+                          {new Date(entry.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {entry.users?.name && (
+                        <p style={{ margin: '2px 0 0', color: 'var(--color-secondary-text)' }}>por {entry.users.name}</p>
+                      )}
+                      {entry.observation && (
+                        <p style={{ margin: '4px 0 0', fontStyle: 'italic', color: 'var(--color-secondary-text)' }}>"{entry.observation}"</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
             <button className="btn btn-secondary" onClick={onClose}>
               {t('common.close')}
             </button>

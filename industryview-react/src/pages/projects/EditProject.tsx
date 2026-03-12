@@ -43,9 +43,11 @@ function formatDateForInput(val: unknown): string {
 export default function EditProject() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { projectsInfo } = useAppState();
+  const { projectsInfo, setProjectsInfo } = useAppState();
   const [loading, setLoading] = useState(false);
+  const [loadingProject, setLoadingProject] = useState(true);
   const [error, setError] = useState('');
+  const [currentProject, setCurrentProject] = useState<any | null>(null);
 
   // Dropdowns
   const [statuses, setStatuses] = useState<ProjectStatus[]>([]);
@@ -71,15 +73,45 @@ export default function EditProject() {
   // ── Data loading ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!projectsInfo) {
+    loadDropdowns();
+    loadClients();
+  }, []);
+
+  useEffect(() => {
+    const projectId = Number((projectsInfo as any)?.id);
+    if (!projectId) {
       navigate('/projetos');
       return;
     }
-    loadDropdowns();
-    loadClients();
+
+    let mounted = true;
+    setLoadingProject(true);
+    projectsApi.getProject(projectId)
+      .then((project) => {
+        if (!mounted) return;
+        const p = project as any;
+        setCurrentProject(p);
+        setProjectsInfo(p);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError(t('common.error'));
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoadingProject(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [projectsInfo?.id, navigate, setProjectsInfo, t]);
+
+  useEffect(() => {
+    if (!currentProject) return;
 
     // API returns snake_case keys — access them via cast
-    const p = projectsInfo as any;
+    const p = currentProject as any;
     reset({
       name: p.name,
       registration_number: p.registration_number,
@@ -118,7 +150,7 @@ export default function EditProject() {
       setSelectedUnitId(Number(p.client_unit_id));
     }
     // (se client_unit_id não vier da API, o match por CNPJ no carregamento das unidades resolve)
-  }, [projectsInfo]);
+  }, [currentProject, reset]);
 
   // After clients load, resolve the pre-selected client object for the summary card
   useEffect(() => {
@@ -149,8 +181,8 @@ export default function EditProject() {
         setClientUnits(list);
 
         // Se não há unit_id salvo, tenta achar a filial pelo CNPJ do projeto
-        if (!selectedUnitId && projectsInfo) {
-          const projectCnpj = ((projectsInfo as any).cnpj ?? '').replace(/\D/g, '');
+        if (!selectedUnitId && currentProject) {
+          const projectCnpj = ((currentProject as any).cnpj ?? '').replace(/\D/g, '');
           if (projectCnpj) {
             const matched = list.find((u) => (u.cnpj ?? '').replace(/\D/g, '') === projectCnpj);
             if (matched) setSelectedUnitId(matched.id);
@@ -159,7 +191,7 @@ export default function EditProject() {
       })
       .catch(() => setClientUnits([]))
       .finally(() => setUnitsLoading(false));
-  }, [selectedClientId]);
+  }, [selectedClientId, selectedUnitId, currentProject]);
 
   const loadDropdowns = async () => {
     try {
@@ -236,7 +268,7 @@ export default function EditProject() {
   // ── Form submission ───────────────────────────────────────────────────────
 
   const onSubmit = async (data: CreateProjectRequest) => {
-    if (!projectsInfo) return;
+    if (!currentProject?.id) return;
 
     // Validate required unit (filial/matriz)
     if (!selectedUnitId) {
@@ -248,7 +280,7 @@ export default function EditProject() {
     setLoading(true);
     setError('');
     try {
-      await projectsApi.editProject(projectsInfo.id, {
+      await projectsApi.editProject(currentProject.id, {
         ...data,
         projects_statuses_id: selectedStatusId,
         projects_works_situations_id: selectedWorkSituationId,
@@ -280,7 +312,7 @@ export default function EditProject() {
 
   // ── Early return ─────────────────────────────────────────────────────────
 
-  if (!projectsInfo) return <LoadingSpinner fullPage />;
+  if (loadingProject || !currentProject) return <LoadingSpinner fullPage />;
 
   // ── Styles ────────────────────────────────────────────────────────────────
 
@@ -338,7 +370,7 @@ export default function EditProject() {
     <div>
       <PageHeader
         title={t('projects.editProject')}
-        breadcrumb={`${t('projects.title')} / ${projectsInfo.name}`}
+        breadcrumb={`${t('projects.title')} / ${currentProject.name}`}
         actions={
           <Link to="/projetos" className="btn btn-secondary">
             <ArrowLeft size={18} /> {t('common.back')}

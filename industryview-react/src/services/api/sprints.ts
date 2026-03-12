@@ -49,6 +49,25 @@ export async function deleteSprint(sprintId: number): Promise<void> {
   await apiClient.delete(`${SPRINTS_BASE}/${sprintId}`);
 }
 
+export async function getSprintTaskCount(sprintId: number): Promise<number> {
+  const response = await apiClient.get(`${SPRINTS_BASE}/${sprintId}/task-count`);
+  return response.data.task_count ?? 0;
+}
+
+export async function getTaskHistory(taskId: number): Promise<{
+  id: number;
+  changed_field: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  observation: string | null;
+  date: string | null;
+  created_at: string;
+  users: { id: number; name: string } | null;
+}[]> {
+  const response = await apiClient.get(`${SPRINTS_BASE}/tasks/${taskId}/history`);
+  return response.data;
+}
+
 // === Sprint Statuses ===
 
 export async function queryAllSprintStatuses(): Promise<SprintStatus[]> {
