@@ -63,8 +63,10 @@ export default function SafetyDDS() {
 
   // ── Create modal participant tab ──────────────────────────────────────────
   const [createParticipantMode, setCreateParticipantMode] = useState<'teams' | 'employees'>('teams');
-  const [createSelectedEmployeeIds, setCreateSelectedEmployeeIds] = useState<Set<number>>(new Set());
+  const [createSelectedEmployeeIds, setCreateSelectedEmployeeIds] = useState<number[]>([]);
   const [createEmployeeSearch, setCreateEmployeeSearch] = useState('');
+  const [createEmployeesDropdownOpen, setCreateEmployeesDropdownOpen] = useState(false);
+  const createEmployeesDropdownRef = useRef<HTMLDivElement>(null);
 
   // ── Incident selection in create modal ───────────────────────────────────
   const [incidentOptions, setIncidentOptions] = useState<Array<{ id: number; label: string }>>([]);
@@ -106,8 +108,10 @@ export default function SafetyDDS() {
 
   // ── Edit modal participant tab ────────────────────────────────────────────
   const [editParticipantMode, setEditParticipantMode] = useState<'teams' | 'employees'>('teams');
-  const [editSelectedEmployeeIds, setEditSelectedEmployeeIds] = useState<Set<number>>(new Set());
+  const [editSelectedEmployeeIds, setEditSelectedEmployeeIds] = useState<number[]>([]);
   const [editEmployeeSearch, setEditEmployeeSearch] = useState('');
+  const [editEmployeesDropdownOpen, setEditEmployeesDropdownOpen] = useState(false);
+  const editEmployeesDropdownRef = useRef<HTMLDivElement>(null);
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -283,7 +287,7 @@ export default function SafetyDDS() {
       });
 
       // Bulk-add selected employees as participants
-      if (createSelectedEmployeeIds.size > 0 && (created as unknown as { id?: number })?.id) {
+      if (createSelectedEmployeeIds.length > 0 && (created as unknown as { id?: number })?.id) {
         const createdId = (created as unknown as { id: number }).id;
         const userIds = [...createSelectedEmployeeIds];
         const chunkSize = 10;
@@ -305,7 +309,7 @@ export default function SafetyDDS() {
       setCreateDate(new Date().toISOString().split('T')[0]);
       setCreateErrors({});
       setCreateParticipantMode('teams');
-      setCreateSelectedEmployeeIds(new Set());
+      setCreateSelectedEmployeeIds([]);
       setCreateEmployeeSearch('');
       setShowCreateModal(false);
       showToast(t('dds.createSuccess'), 'success');
@@ -419,7 +423,7 @@ export default function SafetyDDS() {
       });
 
       // Bulk-add selected employees as participants
-      if (editSelectedEmployeeIds.size > 0 && editTarget.id) {
+      if (editSelectedEmployeeIds.length > 0 && editTarget.id) {
         const userIds = [...editSelectedEmployeeIds];
         const chunkSize = 10;
         for (let i = 0; i < userIds.length; i += chunkSize) {
@@ -434,7 +438,7 @@ export default function SafetyDDS() {
 
       setEditTarget(null);
       setEditParticipantMode('teams');
-      setEditSelectedEmployeeIds(new Set());
+      setEditSelectedEmployeeIds([]);
       setEditEmployeeSearch('');
       showToast(t('dds.editSuccess', 'DDS atualizado com sucesso.'), 'success');
       loadRecords();
@@ -517,6 +521,30 @@ export default function SafetyDDS() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [teamsDropdownOpen]);
+
+  // Close create-employees dropdown when clicking outside
+  useEffect(() => {
+    if (!createEmployeesDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (createEmployeesDropdownRef.current && !createEmployeesDropdownRef.current.contains(e.target as Node)) {
+        setCreateEmployeesDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [createEmployeesDropdownOpen]);
+
+  // Close edit-employees dropdown when clicking outside
+  useEffect(() => {
+    if (!editEmployeesDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (editEmployeesDropdownRef.current && !editEmployeesDropdownRef.current.contains(e.target as Node)) {
+        setEditEmployeesDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [editEmployeesDropdownOpen]);
 
   // ── Shared style helpers ──────────────────────────────────────────────────
   const participantTabStyle = (active: boolean): React.CSSProperties => ({
@@ -829,7 +857,7 @@ export default function SafetyDDS() {
             setCreateIncidentId(undefined);
             setCreateProjectId(undefined);
             setCreateParticipantMode('teams');
-            setCreateSelectedEmployeeIds(new Set());
+            setCreateSelectedEmployeeIds([]);
             setCreateEmployeeSearch('');
           }}
         >
@@ -1096,84 +1124,101 @@ export default function SafetyDDS() {
                     )}
                   </div>
                 ) : (
-                  /* Employees checklist */
-                  <>
-                    <input
-                      className="input-field"
-                      placeholder="Buscar funcionário..."
-                      value={createEmployeeSearch}
-                      onChange={(e) => setCreateEmployeeSearch(e.target.value)}
-                      style={{ fontSize: '13px', width: '100%', marginBottom: '8px' }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                        {filteredCreateEmployeeOptions.length} funcionário(s) disponível(is)
-                      </span>
-                      {filteredCreateEmployeeOptions.length > 0 && (
+                  /* Employees chip dropdown — same pattern as Equipes */
+                  <div ref={createEmployeesDropdownRef}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+                      {employeeOptions.length > 0 && (
                         <button
                           type="button"
                           className="btn btn-secondary"
                           style={{ fontSize: '11px', padding: '2px 8px' }}
                           onClick={() => {
-                            const allSelected = filteredCreateEmployeeOptions.every((e) => createSelectedEmployeeIds.has(e.id));
-                            if (allSelected) {
-                              setCreateSelectedEmployeeIds((prev) => {
-                                const next = new Set(prev);
-                                filteredCreateEmployeeOptions.forEach((e) => next.delete(e.id));
-                                return next;
-                              });
+                            if (createSelectedEmployeeIds.length === employeeOptions.length) {
+                              setCreateSelectedEmployeeIds([]);
                             } else {
-                              setCreateSelectedEmployeeIds((prev) => {
-                                const next = new Set(prev);
-                                filteredCreateEmployeeOptions.forEach((e) => next.add(e.id));
-                                return next;
-                              });
+                              setCreateSelectedEmployeeIds(employeeOptions.map((e) => e.id));
                             }
                           }}
                         >
-                          {filteredCreateEmployeeOptions.every((e) => createSelectedEmployeeIds.has(e.id))
+                          {createSelectedEmployeeIds.length === employeeOptions.length && employeeOptions.length > 0
                             ? 'Desmarcar todos'
                             : 'Selecionar todos'}
                         </button>
                       )}
                     </div>
-                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
-                      {employeesLoading ? (
-                        <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
-                          <LoadingSpinner />
-                        </div>
-                      ) : filteredCreateEmployeeOptions.length === 0 ? (
-                        <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
-                          {t('common.noData')}
-                        </p>
+
+                    {/* Chip trigger */}
+                    <div
+                      className="input-field"
+                      onClick={() => setCreateEmployeesDropdownOpen((v) => !v)}
+                      style={{ cursor: 'pointer', display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '38px', alignItems: 'center', padding: '4px 8px', userSelect: 'none' }}
+                    >
+                      {createSelectedEmployeeIds.length === 0 ? (
+                        <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                          {employeesLoading ? t('common.loading') : 'Selecionar funcionários...'}
+                        </span>
                       ) : (
-                        filteredCreateEmployeeOptions.map((emp) => {
-                          const isSelected = createSelectedEmployeeIds.has(emp.id);
+                        createSelectedEmployeeIds.map((id) => {
+                          const emp = employeeOptions.find((e) => e.id === id);
                           return (
-                            <div
-                              key={emp.id}
-                              onClick={() => {
-                                setCreateSelectedEmployeeIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (isSelected) next.delete(emp.id);
-                                  else next.add(emp.id);
-                                  return next;
-                                });
-                              }}
-                              style={checklistRowStyle(isSelected)}
-                              onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
-                            >
-                              <div style={checkboxStyle(isSelected)}>
-                                {isSelected && <X size={10} color="#fff" />}
-                              </div>
-                              {emp.name}
-                            </div>
+                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'var(--color-primary)', color: '#fff', fontSize: '12px', fontWeight: 500 }}>
+                              {emp?.name ?? id}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setCreateSelectedEmployeeIds((prev) => prev.filter((eid) => eid !== id)); }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex', alignItems: 'center', opacity: 0.8 }}
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
                           );
                         })
                       )}
+                      <ChevronDown size={14} style={{ marginLeft: 'auto', color: 'var(--color-secondary-text)', flexShrink: 0 }} />
                     </div>
-                  </>
+
+                    {/* Dropdown */}
+                    {createEmployeesDropdownOpen && (
+                      <div style={{ backgroundColor: 'var(--color-card-bg)', border: '1px solid var(--color-border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: '2px' }}>
+                        <div style={{ padding: '6px' }}>
+                          <input
+                            className="input-field"
+                            placeholder="Buscar funcionário..."
+                            value={createEmployeeSearch}
+                            onChange={(e) => setCreateEmployeeSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: '12px', padding: '4px 8px' }}
+                            autoFocus
+                          />
+                        </div>
+                        <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                          {filteredCreateEmployeeOptions.length === 0 ? (
+                            <p style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                              Nenhum funcionário encontrado
+                            </p>
+                          ) : (
+                            filteredCreateEmployeeOptions.map((emp) => {
+                              const isSelected = createSelectedEmployeeIds.includes(emp.id);
+                              return (
+                                <div
+                                  key={emp.id}
+                                  onClick={() => setCreateSelectedEmployeeIds((prev) => isSelected ? prev.filter((id) => id !== emp.id) : [...prev, emp.id])}
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent', color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)', fontWeight: isSelected ? 600 : 400 }}
+                                  onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
+                                >
+                                  <div style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0, border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {isSelected && <X size={8} color="#fff" />}
+                                  </div>
+                                  {emp.name}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -1206,7 +1251,7 @@ export default function SafetyDDS() {
                   setCreateIncidentId(undefined);
                   setCreateProjectId(undefined);
                   setCreateParticipantMode('teams');
-                  setCreateSelectedEmployeeIds(new Set());
+                  setCreateSelectedEmployeeIds([]);
                   setCreateEmployeeSearch('');
                 }}
               >
@@ -1412,7 +1457,7 @@ export default function SafetyDDS() {
           onClick={() => {
             setEditTarget(null);
             setEditParticipantMode('teams');
-            setEditSelectedEmployeeIds(new Set());
+            setEditSelectedEmployeeIds([]);
             setEditEmployeeSearch('');
           }}
         >
@@ -1492,84 +1537,101 @@ export default function SafetyDDS() {
                     style={{ width: '100%' }}
                   />
                 ) : (
-                  /* Employees checklist */
-                  <>
-                    <input
-                      className="input-field"
-                      placeholder="Buscar funcionário..."
-                      value={editEmployeeSearch}
-                      onChange={(e) => setEditEmployeeSearch(e.target.value)}
-                      style={{ fontSize: '13px', width: '100%', marginBottom: '8px' }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                        {filteredEditEmployeeOptions.length} funcionário(s) disponível(is)
-                      </span>
-                      {filteredEditEmployeeOptions.length > 0 && (
+                  /* Employees chip dropdown — same pattern as Equipes */
+                  <div ref={editEmployeesDropdownRef}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+                      {employeeOptions.length > 0 && (
                         <button
                           type="button"
                           className="btn btn-secondary"
                           style={{ fontSize: '11px', padding: '2px 8px' }}
                           onClick={() => {
-                            const allSelected = filteredEditEmployeeOptions.every((e) => editSelectedEmployeeIds.has(e.id));
-                            if (allSelected) {
-                              setEditSelectedEmployeeIds((prev) => {
-                                const next = new Set(prev);
-                                filteredEditEmployeeOptions.forEach((e) => next.delete(e.id));
-                                return next;
-                              });
+                            if (editSelectedEmployeeIds.length === employeeOptions.length) {
+                              setEditSelectedEmployeeIds([]);
                             } else {
-                              setEditSelectedEmployeeIds((prev) => {
-                                const next = new Set(prev);
-                                filteredEditEmployeeOptions.forEach((e) => next.add(e.id));
-                                return next;
-                              });
+                              setEditSelectedEmployeeIds(employeeOptions.map((e) => e.id));
                             }
                           }}
                         >
-                          {filteredEditEmployeeOptions.every((e) => editSelectedEmployeeIds.has(e.id))
+                          {editSelectedEmployeeIds.length === employeeOptions.length && employeeOptions.length > 0
                             ? 'Desmarcar todos'
                             : 'Selecionar todos'}
                         </button>
                       )}
                     </div>
-                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
-                      {employeesLoading ? (
-                        <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
-                          <LoadingSpinner />
-                        </div>
-                      ) : filteredEditEmployeeOptions.length === 0 ? (
-                        <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
-                          {t('common.noData')}
-                        </p>
+
+                    {/* Chip trigger */}
+                    <div
+                      className="input-field"
+                      onClick={() => setEditEmployeesDropdownOpen((v) => !v)}
+                      style={{ cursor: 'pointer', display: 'flex', flexWrap: 'wrap', gap: '4px', minHeight: '38px', alignItems: 'center', padding: '4px 8px', userSelect: 'none' }}
+                    >
+                      {editSelectedEmployeeIds.length === 0 ? (
+                        <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                          {employeesLoading ? t('common.loading') : 'Selecionar funcionários...'}
+                        </span>
                       ) : (
-                        filteredEditEmployeeOptions.map((emp) => {
-                          const isSelected = editSelectedEmployeeIds.has(emp.id);
+                        editSelectedEmployeeIds.map((id) => {
+                          const emp = employeeOptions.find((e) => e.id === id);
                           return (
-                            <div
-                              key={emp.id}
-                              onClick={() => {
-                                setEditSelectedEmployeeIds((prev) => {
-                                  const next = new Set(prev);
-                                  if (isSelected) next.delete(emp.id);
-                                  else next.add(emp.id);
-                                  return next;
-                                });
-                              }}
-                              style={checklistRowStyle(isSelected)}
-                              onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
-                            >
-                              <div style={checkboxStyle(isSelected)}>
-                                {isSelected && <X size={10} color="#fff" />}
-                              </div>
-                              {emp.name}
-                            </div>
+                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'var(--color-primary)', color: '#fff', fontSize: '12px', fontWeight: 500 }}>
+                              {emp?.name ?? id}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setEditSelectedEmployeeIds((prev) => prev.filter((eid) => eid !== id)); }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex', alignItems: 'center', opacity: 0.8 }}
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
                           );
                         })
                       )}
+                      <ChevronDown size={14} style={{ marginLeft: 'auto', color: 'var(--color-secondary-text)', flexShrink: 0 }} />
                     </div>
-                  </>
+
+                    {/* Dropdown */}
+                    {editEmployeesDropdownOpen && (
+                      <div style={{ backgroundColor: 'var(--color-card-bg)', border: '1px solid var(--color-border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', marginTop: '2px' }}>
+                        <div style={{ padding: '6px' }}>
+                          <input
+                            className="input-field"
+                            placeholder="Buscar funcionário..."
+                            value={editEmployeeSearch}
+                            onChange={(e) => setEditEmployeeSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: '12px', padding: '4px 8px' }}
+                            autoFocus
+                          />
+                        </div>
+                        <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                          {filteredEditEmployeeOptions.length === 0 ? (
+                            <p style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                              Nenhum funcionário encontrado
+                            </p>
+                          ) : (
+                            filteredEditEmployeeOptions.map((emp) => {
+                              const isSelected = editSelectedEmployeeIds.includes(emp.id);
+                              return (
+                                <div
+                                  key={emp.id}
+                                  onClick={() => setEditSelectedEmployeeIds((prev) => isSelected ? prev.filter((id) => id !== emp.id) : [...prev, emp.id])}
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent', color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)', fontWeight: isSelected ? 600 : 400 }}
+                                  onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
+                                >
+                                  <div style={{ width: 14, height: 14, borderRadius: 3, flexShrink: 0, border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {isSelected && <X size={8} color="#fff" />}
+                                  </div>
+                                  {emp.name}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -1579,7 +1641,7 @@ export default function SafetyDDS() {
                 onClick={() => {
                   setEditTarget(null);
                   setEditParticipantMode('teams');
-                  setEditSelectedEmployeeIds(new Set());
+                  setEditSelectedEmployeeIds([]);
                   setEditEmployeeSearch('');
                 }}
               >
