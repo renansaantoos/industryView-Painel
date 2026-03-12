@@ -61,6 +61,11 @@ export default function SafetyDDS() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<{ topic?: string; date?: string; project?: string }>({});
 
+  // ── Create modal participant tab ──────────────────────────────────────────
+  const [createParticipantMode, setCreateParticipantMode] = useState<'teams' | 'employees'>('teams');
+  const [createSelectedEmployeeIds, setCreateSelectedEmployeeIds] = useState<Set<number>>(new Set());
+  const [createEmployeeSearch, setCreateEmployeeSearch] = useState('');
+
   // ── Incident selection in create modal ───────────────────────────────────
   const [incidentOptions, setIncidentOptions] = useState<Array<{ id: number; label: string }>>([]);
   const [createIncidentId, setCreateIncidentId] = useState<number | undefined>(undefined);
@@ -86,11 +91,6 @@ export default function SafetyDDS() {
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<Set<number>>(new Set());
   const [participantSearch, setParticipantSearch] = useState('');
 
-  // ── Participant mode tabs ─────────────────────────────────────────────────
-  const [participantMode, setParticipantMode] = useState<'teams' | 'employees'>('employees');
-  const [selectedTeamIdsForAdd, setSelectedTeamIdsForAdd] = useState<Set<number>>(new Set());
-  const [teamAddSearch, setTeamAddSearch] = useState('');
-
   // ── Sign participation modal ──────────────────────────────────────────────
   const [signDdsId, setSignDdsId] = useState<number | null>(null);
   const [signUserId, setSignUserId] = useState<number | undefined>(undefined);
@@ -103,6 +103,11 @@ export default function SafetyDDS() {
   const [editDate, setEditDate] = useState('');
   const [editTeamsId, setEditTeamsId] = useState<number | undefined>(undefined);
   const [editLoading, setEditLoading] = useState(false);
+
+  // ── Edit modal participant tab ────────────────────────────────────────────
+  const [editParticipantMode, setEditParticipantMode] = useState<'teams' | 'employees'>('teams');
+  const [editSelectedEmployeeIds, setEditSelectedEmployeeIds] = useState<Set<number>>(new Set());
+  const [editEmployeeSearch, setEditEmployeeSearch] = useState('');
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -214,9 +219,9 @@ export default function SafetyDDS() {
       .finally(() => setIncidentsLoading(false));
   }, [showCreateModal, createProjectId]);
 
-  // Load employees once when either participant or sign modal opens
+  // Load employees once when any modal that needs them opens
   useEffect(() => {
-    const isAnyModalOpen = addParticipantDdsId !== null || signDdsId !== null;
+    const isAnyModalOpen = addParticipantDdsId !== null || signDdsId !== null || showCreateModal || editTarget !== null;
     if (!isAnyModalOpen || employeeOptions.length > 0) return;
     setEmployeesLoading(true);
     usersApi
@@ -224,7 +229,7 @@ export default function SafetyDDS() {
       .then((data) => setEmployeeOptions(data ?? []))
       .catch((err) => console.error('Failed to load employees for DDS modal:', err))
       .finally(() => setEmployeesLoading(false));
-  }, [addParticipantDdsId, signDdsId]);
+  }, [addParticipantDdsId, signDdsId, showCreateModal, editTarget]);
 
   const handleToggleExpand = useCallback(
     async (ddsId: number) => {
@@ -265,7 +270,7 @@ export default function SafetyDDS() {
       .join(', ');
 
     try {
-      await safetyApi.createDdsRecord({
+      const created = await safetyApi.createDdsRecord({
         topic: createTopic.trim(),
         content: createDescription.trim() || undefined,
         team: teamNames || undefined,
@@ -276,6 +281,22 @@ export default function SafetyDDS() {
         projects_id: createProjectId,
         company_id: user?.companyId,
       });
+
+      // Bulk-add selected employees as participants
+      if (createSelectedEmployeeIds.size > 0 && (created as unknown as { id?: number })?.id) {
+        const createdId = (created as unknown as { id: number }).id;
+        const userIds = [...createSelectedEmployeeIds];
+        const chunkSize = 10;
+        for (let i = 0; i < userIds.length; i += chunkSize) {
+          const chunk = userIds.slice(i, i + chunkSize);
+          await Promise.allSettled(
+            chunk.map((uid) =>
+              safetyApi.addDdsParticipant(createdId, { users_id: uid }).catch(() => {}),
+            ),
+          );
+        }
+      }
+
       setCreateTopic('');
       setCreateDescription('');
       setCreateTeamsIds([]);
@@ -283,6 +304,9 @@ export default function SafetyDDS() {
       setCreateProjectId(undefined);
       setCreateDate(new Date().toISOString().split('T')[0]);
       setCreateErrors({});
+      setCreateParticipantMode('teams');
+      setCreateSelectedEmployeeIds(new Set());
+      setCreateEmployeeSearch('');
       setShowCreateModal(false);
       showToast(t('dds.createSuccess'), 'success');
       loadRecords();
@@ -327,65 +351,6 @@ export default function SafetyDDS() {
       loadStats();
     } catch (err) {
       console.error('Failed to bulk add participants:', err);
-      showToast(t('common.errorSaving'), 'error');
-    } finally {
-      setParticipantBulkLoading(false);
-      setParticipantBulkProgress(0);
-    }
-  };
-
-  const handleAddTeamParticipants = async () => {
-    if (!addParticipantDdsId || selectedTeamIdsForAdd.size === 0) return;
-    setParticipantBulkLoading(true);
-    setParticipantBulkProgress(0);
-    const chunkSize = 10;
-    let done = 0;
-    try {
-      // Load all members of selected teams
-      const allUserIds = new Set<number>();
-      for (const teamId of selectedTeamIdsForAdd) {
-        const data = await projectsApi.queryAllTeamMembers(teamId);
-        const list = Array.isArray(data) ? data : (data as unknown as { items?: unknown[] })?.items || [];
-        list.forEach((m) => {
-          const item = m as Record<string, unknown>;
-          const users = item.users as Record<string, unknown> | undefined;
-          const uid = Number(users?.id ?? item.users_id ?? item.usersId);
-          if (uid) allUserIds.add(uid);
-        });
-      }
-      // Exclude existing participants
-      const currentRecord = records.find((r) => r.id === addParticipantDdsId);
-      const existingIds = new Set((currentRecord?.participants || []).map((p: any) => Number(p.users_id)));
-      const userIds = [...allUserIds].filter((id) => !existingIds.has(id));
-
-      if (userIds.length === 0) {
-        showToast('Todos os membros já são participantes.', 'success');
-        return;
-      }
-
-      for (let i = 0; i < userIds.length; i += chunkSize) {
-        const chunk = userIds.slice(i, i + chunkSize);
-        await Promise.allSettled(
-          chunk.map((uid) =>
-            safetyApi.addDdsParticipant(addParticipantDdsId, { users_id: uid }).catch((err) => {
-              console.error(`Failed to add participant ${uid}:`, err);
-            }),
-          ),
-        );
-        done += chunk.length;
-        setParticipantBulkProgress(Math.round((done / userIds.length) * 100));
-      }
-      const full = await safetyApi.getDdsRecord(addParticipantDdsId);
-      const count = full.participants?.length ?? full.participants_count ?? 0;
-      setRecords((prev) =>
-        prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
-      );
-      setSelectedTeamIdsForAdd(new Set());
-      setAddParticipantDdsId(null);
-      showToast(t('dds.participantAdded'), 'success');
-      loadStats();
-    } catch (err) {
-      console.error('Failed to add team participants:', err);
       showToast(t('common.errorSaving'), 'error');
     } finally {
       setParticipantBulkLoading(false);
@@ -452,7 +417,25 @@ export default function SafetyDDS() {
         dds_date: editDate || undefined,
         teams_id: editTeamsId ?? null,
       });
+
+      // Bulk-add selected employees as participants
+      if (editSelectedEmployeeIds.size > 0 && editTarget.id) {
+        const userIds = [...editSelectedEmployeeIds];
+        const chunkSize = 10;
+        for (let i = 0; i < userIds.length; i += chunkSize) {
+          const chunk = userIds.slice(i, i + chunkSize);
+          await Promise.allSettled(
+            chunk.map((uid) =>
+              safetyApi.addDdsParticipant(editTarget.id, { users_id: uid }).catch(() => {}),
+            ),
+          );
+        }
+      }
+
       setEditTarget(null);
+      setEditParticipantMode('teams');
+      setEditSelectedEmployeeIds(new Set());
+      setEditEmployeeSearch('');
       showToast(t('dds.editSuccess', 'DDS atualizado com sucesso.'), 'success');
       loadRecords();
       loadStats();
@@ -482,9 +465,14 @@ export default function SafetyDDS() {
       .filter((emp) => !participantSearch || emp.name.toLowerCase().includes(participantSearch.toLowerCase()));
   })();
 
-  // ── Derived: filtered teams for participant modal ─────────────────────────
-  const filteredTeamsForAdd = teamOptions.filter(
-    (t) => !teamAddSearch || t.name.toLowerCase().includes(teamAddSearch.toLowerCase()),
+  // ── Derived: filtered employees for create modal ──────────────────────────
+  const filteredCreateEmployeeOptions = employeeOptions.filter(
+    (emp) => !createEmployeeSearch || emp.name.toLowerCase().includes(createEmployeeSearch.toLowerCase()),
+  );
+
+  // ── Derived: filtered employees for edit modal ────────────────────────────
+  const filteredEditEmployeeOptions = employeeOptions.filter(
+    (emp) => !editEmployeeSearch || emp.name.toLowerCase().includes(editEmployeeSearch.toLowerCase()),
   );
 
   // ── Stats card definitions ────────────────────────────────────────────────
@@ -529,6 +517,43 @@ export default function SafetyDDS() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [teamsDropdownOpen]);
+
+  // ── Shared style helpers ──────────────────────────────────────────────────
+  const participantTabStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '8px 0',
+    fontSize: '13px',
+    fontWeight: active ? 600 : 400,
+    border: 'none',
+    cursor: 'pointer',
+    backgroundColor: active ? 'var(--color-primary)' : 'transparent',
+    color: active ? '#fff' : 'var(--color-secondary-text)',
+    transition: 'background 0.15s',
+  });
+
+  const checkboxStyle = (selected: boolean): React.CSSProperties => ({
+    width: 16,
+    height: 16,
+    borderRadius: 3,
+    flexShrink: 0,
+    border: `2px solid ${selected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+    backgroundColor: selected ? 'var(--color-primary)' : 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  });
+
+  const checklistRowStyle = (selected: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 12px',
+    cursor: 'pointer',
+    backgroundColor: selected ? 'var(--color-primary)15' : 'transparent',
+    borderBottom: '1px solid var(--color-alternate)',
+    fontSize: '13px',
+    color: selected ? 'var(--color-primary)' : 'var(--color-primary-text)',
+  });
 
   return (
     <div>
@@ -803,6 +828,9 @@ export default function SafetyDDS() {
             setCreateTeamsIds([]);
             setCreateIncidentId(undefined);
             setCreateProjectId(undefined);
+            setCreateParticipantMode('teams');
+            setCreateSelectedEmployeeIds(new Set());
+            setCreateEmployeeSearch('');
           }}
         >
           <div
@@ -885,162 +913,267 @@ export default function SafetyDDS() {
                 />
               </div>
 
-              {/* Multi-team selection */}
-              <div className="input-group" ref={teamsDropdownRef}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ margin: 0 }}>{t('dds.teams', 'Equipes')}</label>
-                  {teamOptions.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ fontSize: '11px', padding: '2px 8px' }}
-                      onClick={() => {
-                        if (allTeamIdsSelected) {
-                          setCreateTeamsIds([]);
-                        } else {
-                          setCreateTeamsIds(teamOptions.map((tm) => tm.id));
-                        }
-                      }}
-                    >
-                      {allTeamIdsSelected ? 'Desmarcar todas' : 'Selecionar todas'}
-                    </button>
-                  )}
+              {/* Equipes / Funcionários tab section */}
+              <div className="input-group">
+                <label style={{ marginBottom: '6px', display: 'block' }}>
+                  {createParticipantMode === 'teams' ? t('dds.teams', 'Equipes') : 'Funcionários'}
+                </label>
+
+                {/* Tab toggle */}
+                <div style={{ display: 'flex', marginBottom: '10px', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCreateParticipantMode('teams')}
+                    style={participantTabStyle(createParticipantMode === 'teams')}
+                  >
+                    Equipes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateParticipantMode('employees')}
+                    style={participantTabStyle(createParticipantMode === 'employees')}
+                  >
+                    Funcionários
+                  </button>
                 </div>
 
-                {/* Trigger input with chips */}
-                <div
-                  className="input-field"
-                  onClick={() => setTeamsDropdownOpen((v) => !v)}
-                  style={{
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '4px',
-                    minHeight: '38px',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    userSelect: 'none',
-                  }}
-                >
-                  {createTeamsIds.length === 0 ? (
-                    <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
-                      {teamsLoading ? t('common.loading') : 'Selecionar equipes...'}
-                    </span>
-                  ) : (
-                    createTeamsIds.map((id) => {
-                      const team = teamOptions.find((tm) => tm.id === id);
-                      return (
-                        <span
-                          key={id}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            backgroundColor: 'var(--color-primary)',
-                            color: '#fff',
-                            fontSize: '12px',
-                            fontWeight: 500,
+                {createParticipantMode === 'teams' ? (
+                  /* Teams multi-select (existing chip dropdown) */
+                  <div ref={teamsDropdownRef}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+                      {teamOptions.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '11px', padding: '2px 8px' }}
+                          onClick={() => {
+                            if (allTeamIdsSelected) {
+                              setCreateTeamsIds([]);
+                            } else {
+                              setCreateTeamsIds(teamOptions.map((tm) => tm.id));
+                            }
                           }}
                         >
-                          {team?.name ?? id}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCreateTeamsIds((prev) => prev.filter((tid) => tid !== id));
-                            }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: 'inherit',
-                              padding: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              opacity: 0.8,
-                            }}
-                          >
-                            <X size={11} />
-                          </button>
-                        </span>
-                      );
-                    })
-                  )}
-                  <ChevronDown
-                    size={14}
-                    style={{ marginLeft: 'auto', color: 'var(--color-secondary-text)', flexShrink: 0 }}
-                  />
-                </div>
+                          {allTeamIdsSelected ? 'Desmarcar todas' : 'Selecionar todas'}
+                        </button>
+                      )}
+                    </div>
 
-                {/* Dropdown */}
-                {teamsDropdownOpen && (
-                  <div
-                    style={{
-                      backgroundColor: 'var(--color-card-bg)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '6px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                      marginTop: '2px',
-                    }}
-                  >
-                    <div style={{ padding: '6px' }}>
-                      <input
-                        className="input-field"
-                        placeholder="Buscar equipe..."
-                        value={teamsSearch}
-                        onChange={(e) => setTeamsSearch(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: '12px', padding: '4px 8px' }}
-                        autoFocus
+                    {/* Trigger input with chips */}
+                    <div
+                      className="input-field"
+                      onClick={() => setTeamsDropdownOpen((v) => !v)}
+                      style={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '4px',
+                        minHeight: '38px',
+                        alignItems: 'center',
+                        padding: '4px 8px',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {createTeamsIds.length === 0 ? (
+                        <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                          {teamsLoading ? t('common.loading') : 'Selecionar equipes...'}
+                        </span>
+                      ) : (
+                        createTeamsIds.map((id) => {
+                          const team = teamOptions.find((tm) => tm.id === id);
+                          return (
+                            <span
+                              key={id}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: 'var(--color-primary)',
+                                color: '#fff',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {team?.name ?? id}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCreateTeamsIds((prev) => prev.filter((tid) => tid !== id));
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  color: 'inherit',
+                                  padding: 0,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  opacity: 0.8,
+                                }}
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
+                          );
+                        })
+                      )}
+                      <ChevronDown
+                        size={14}
+                        style={{ marginLeft: 'auto', color: 'var(--color-secondary-text)', flexShrink: 0 }}
                       />
                     </div>
-                    <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                      {filteredTeamOptions.length === 0 ? (
-                        <p style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                          Nenhuma equipe encontrada
+
+                    {/* Dropdown */}
+                    {teamsDropdownOpen && (
+                      <div
+                        style={{
+                          backgroundColor: 'var(--color-card-bg)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '6px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          marginTop: '2px',
+                        }}
+                      >
+                        <div style={{ padding: '6px' }}>
+                          <input
+                            className="input-field"
+                            placeholder="Buscar equipe..."
+                            value={teamsSearch}
+                            onChange={(e) => setTeamsSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ fontSize: '12px', padding: '4px 8px' }}
+                            autoFocus
+                          />
+                        </div>
+                        <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                          {filteredTeamOptions.length === 0 ? (
+                            <p style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                              Nenhuma equipe encontrada
+                            </p>
+                          ) : (
+                            filteredTeamOptions.map((team) => {
+                              const isSelected = createTeamsIds.includes(team.id);
+                              return (
+                                <div
+                                  key={team.id}
+                                  onClick={() => {
+                                    setCreateTeamsIds((prev) =>
+                                      isSelected ? prev.filter((id) => id !== team.id) : [...prev, team.id]
+                                    );
+                                  }}
+                                  style={{
+                                    padding: '8px 12px',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent',
+                                    color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
+                                    fontWeight: isSelected ? 600 : 400,
+                                  }}
+                                  onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
+                                >
+                                  <div style={{
+                                    width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                                    border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                    backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  }}>
+                                    {isSelected && <X size={8} color="#fff" />}
+                                  </div>
+                                  {team.name}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Employees checklist */
+                  <>
+                    <input
+                      className="input-field"
+                      placeholder="Buscar funcionário..."
+                      value={createEmployeeSearch}
+                      onChange={(e) => setCreateEmployeeSearch(e.target.value)}
+                      style={{ fontSize: '13px', width: '100%', marginBottom: '8px' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                        {filteredCreateEmployeeOptions.length} funcionário(s) disponível(is)
+                      </span>
+                      {filteredCreateEmployeeOptions.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '11px', padding: '2px 8px' }}
+                          onClick={() => {
+                            const allSelected = filteredCreateEmployeeOptions.every((e) => createSelectedEmployeeIds.has(e.id));
+                            if (allSelected) {
+                              setCreateSelectedEmployeeIds((prev) => {
+                                const next = new Set(prev);
+                                filteredCreateEmployeeOptions.forEach((e) => next.delete(e.id));
+                                return next;
+                              });
+                            } else {
+                              setCreateSelectedEmployeeIds((prev) => {
+                                const next = new Set(prev);
+                                filteredCreateEmployeeOptions.forEach((e) => next.add(e.id));
+                                return next;
+                              });
+                            }
+                          }}
+                        >
+                          {filteredCreateEmployeeOptions.every((e) => createSelectedEmployeeIds.has(e.id))
+                            ? 'Desmarcar todos'
+                            : 'Selecionar todos'}
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
+                      {employeesLoading ? (
+                        <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
+                          <LoadingSpinner />
+                        </div>
+                      ) : filteredCreateEmployeeOptions.length === 0 ? (
+                        <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                          {t('common.noData')}
                         </p>
                       ) : (
-                        filteredTeamOptions.map((team) => {
-                          const isSelected = createTeamsIds.includes(team.id);
+                        filteredCreateEmployeeOptions.map((emp) => {
+                          const isSelected = createSelectedEmployeeIds.has(emp.id);
                           return (
                             <div
-                              key={team.id}
+                              key={emp.id}
                               onClick={() => {
-                                setCreateTeamsIds((prev) =>
-                                  isSelected ? prev.filter((id) => id !== team.id) : [...prev, team.id]
-                                );
+                                setCreateSelectedEmployeeIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (isSelected) next.delete(emp.id);
+                                  else next.add(emp.id);
+                                  return next;
+                                });
                               }}
-                              style={{
-                                padding: '8px 12px',
-                                cursor: 'pointer',
-                                fontSize: '13px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent',
-                                color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
-                                fontWeight: isSelected ? 600 : 400,
-                              }}
+                              style={checklistRowStyle(isSelected)}
                               onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
                               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
                             >
-                              <div style={{
-                                width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                                border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              }}>
-                                {isSelected && <X size={8} color="#fff" />}
+                              <div style={checkboxStyle(isSelected)}>
+                                {isSelected && <X size={10} color="#fff" />}
                               </div>
-                              {team.name}
+                              {emp.name}
                             </div>
                           );
                         })
                       )}
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -1072,6 +1205,9 @@ export default function SafetyDDS() {
                   setCreateTeamsIds([]);
                   setCreateIncidentId(undefined);
                   setCreateProjectId(undefined);
+                  setCreateParticipantMode('teams');
+                  setCreateSelectedEmployeeIds(new Set());
+                  setCreateEmployeeSearch('');
                 }}
               >
                 {t('common.cancel')}
@@ -1097,9 +1233,6 @@ export default function SafetyDDS() {
             setAddParticipantDdsId(null);
             setSelectedParticipantIds(new Set());
             setParticipantSearch('');
-            setSelectedTeamIdsForAdd(new Set());
-            setTeamAddSearch('');
-            setParticipantMode('employees');
           }}
         >
           <div
@@ -1111,229 +1244,88 @@ export default function SafetyDDS() {
               Adicionar Participante
             </h3>
 
-            {/* Tab buttons */}
-            <div style={{ display: 'flex', gap: '0', marginBottom: '16px', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden' }}>
-              {(['teams', 'employees'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => {
-                    setParticipantMode(mode);
-                    setSelectedParticipantIds(new Set());
-                    setSelectedTeamIdsForAdd(new Set());
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '8px 0',
-                    fontSize: '13px',
-                    fontWeight: participantMode === mode ? 600 : 400,
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: participantMode === mode ? 'var(--color-primary)' : 'transparent',
-                    color: participantMode === mode ? '#fff' : 'var(--color-secondary-text)',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {mode === 'teams' ? 'Equipes' : 'Funcionários'}
-                </button>
-              ))}
+            {/* Employee name search */}
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                className="input-field"
+                placeholder="Buscar funcionário..."
+                value={participantSearch}
+                onChange={(e) => setParticipantSearch(e.target.value)}
+                style={{ fontSize: '13px', width: '100%' }}
+              />
             </div>
 
-            {participantMode === 'teams' ? (
-              <>
-                {/* Team search */}
-                <div style={{ marginBottom: '10px' }}>
-                  <input
-                    className="input-field"
-                    placeholder="Buscar equipe..."
-                    value={teamAddSearch}
-                    onChange={(e) => setTeamAddSearch(e.target.value)}
-                    style={{ fontSize: '13px', width: '100%' }}
-                  />
-                </div>
+            {/* Select all header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                {filteredEmployeeOptions.length} funcionário(s) disponível(is)
+              </span>
+              {filteredEmployeeOptions.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '2px 8px' }}
+                  onClick={() => {
+                    const allSelected = filteredEmployeeOptions.every((e) => selectedParticipantIds.has(e.id));
+                    if (allSelected) {
+                      setSelectedParticipantIds((prev) => {
+                        const next = new Set(prev);
+                        filteredEmployeeOptions.forEach((e) => next.delete(e.id));
+                        return next;
+                      });
+                    } else {
+                      setSelectedParticipantIds((prev) => {
+                        const next = new Set(prev);
+                        filteredEmployeeOptions.forEach((e) => next.add(e.id));
+                        return next;
+                      });
+                    }
+                  }}
+                >
+                  {filteredEmployeeOptions.every((e) => selectedParticipantIds.has(e.id))
+                    ? 'Desmarcar todos'
+                    : 'Selecionar todos'}
+                </button>
+              )}
+            </div>
 
-                {/* Select all header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                    {filteredTeamsForAdd.length} equipe(s)
-                  </span>
-                  {filteredTeamsForAdd.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ fontSize: '11px', padding: '2px 8px' }}
+            {/* Employee checklist */}
+            <div style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', marginBottom: '16px' }}>
+              {employeesLoading ? (
+                <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
+                  <LoadingSpinner />
+                </div>
+              ) : filteredEmployeeOptions.length === 0 ? (
+                <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                  {t('common.noData')}
+                </p>
+              ) : (
+                filteredEmployeeOptions.map((emp) => {
+                  const isSelected = selectedParticipantIds.has(emp.id);
+                  return (
+                    <div
+                      key={emp.id}
                       onClick={() => {
-                        const allSelected = filteredTeamsForAdd.every((t) => selectedTeamIdsForAdd.has(t.id));
-                        if (allSelected) {
-                          setSelectedTeamIdsForAdd((prev) => {
-                            const next = new Set(prev);
-                            filteredTeamsForAdd.forEach((t) => next.delete(t.id));
-                            return next;
-                          });
-                        } else {
-                          setSelectedTeamIdsForAdd((prev) => {
-                            const next = new Set(prev);
-                            filteredTeamsForAdd.forEach((t) => next.add(t.id));
-                            return next;
-                          });
-                        }
+                        setSelectedParticipantIds((prev) => {
+                          const next = new Set(prev);
+                          if (isSelected) next.delete(emp.id);
+                          else next.add(emp.id);
+                          return next;
+                        });
                       }}
+                      style={checklistRowStyle(isSelected)}
+                      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
                     >
-                      {filteredTeamsForAdd.length > 0 && filteredTeamsForAdd.every((t) => selectedTeamIdsForAdd.has(t.id))
-                        ? 'Desmarcar todas'
-                        : 'Selecionar todas'}
-                    </button>
-                  )}
-                </div>
-
-                {/* Team checklist */}
-                <div style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', marginBottom: '16px' }}>
-                  {teamsLoading ? (
-                    <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
-                      <LoadingSpinner />
+                      <div style={checkboxStyle(isSelected)}>
+                        {isSelected && <X size={10} color="#fff" />}
+                      </div>
+                      {emp.name}
                     </div>
-                  ) : filteredTeamsForAdd.length === 0 ? (
-                    <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
-                      {t('common.noData')}
-                    </p>
-                  ) : (
-                    filteredTeamsForAdd.map((team) => {
-                      const isSelected = selectedTeamIdsForAdd.has(team.id);
-                      return (
-                        <div
-                          key={team.id}
-                          onClick={() => {
-                            setSelectedTeamIdsForAdd((prev) => {
-                              const next = new Set(prev);
-                              if (isSelected) next.delete(team.id);
-                              else next.add(team.id);
-                              return next;
-                            });
-                          }}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            padding: '8px 12px', cursor: 'pointer',
-                            backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent',
-                            borderBottom: '1px solid var(--color-alternate)',
-                            fontSize: '13px',
-                            color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
-                          }}
-                          onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
-                        >
-                          <div style={{
-                            width: 16, height: 16, borderRadius: 3, flexShrink: 0,
-                            border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                            backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            {isSelected && <X size={10} color="#fff" />}
-                          </div>
-                          {team.name}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Employee name search */}
-                <div style={{ marginBottom: '10px' }}>
-                  <input
-                    className="input-field"
-                    placeholder="Buscar funcionário..."
-                    value={participantSearch}
-                    onChange={(e) => setParticipantSearch(e.target.value)}
-                    style={{ fontSize: '13px', width: '100%' }}
-                  />
-                </div>
-
-                {/* Select all header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                    {filteredEmployeeOptions.length} funcionário(s) disponível(is)
-                  </span>
-                  {filteredEmployeeOptions.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ fontSize: '11px', padding: '2px 8px' }}
-                      onClick={() => {
-                        const allSelected = filteredEmployeeOptions.every((e) => selectedParticipantIds.has(e.id));
-                        if (allSelected) {
-                          setSelectedParticipantIds((prev) => {
-                            const next = new Set(prev);
-                            filteredEmployeeOptions.forEach((e) => next.delete(e.id));
-                            return next;
-                          });
-                        } else {
-                          setSelectedParticipantIds((prev) => {
-                            const next = new Set(prev);
-                            filteredEmployeeOptions.forEach((e) => next.add(e.id));
-                            return next;
-                          });
-                        }
-                      }}
-                    >
-                      {filteredEmployeeOptions.length > 0 && filteredEmployeeOptions.every((e) => selectedParticipantIds.has(e.id))
-                        ? 'Desmarcar todos'
-                        : 'Selecionar todos'}
-                    </button>
-                  )}
-                </div>
-
-                {/* Employee checklist */}
-                <div style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', marginBottom: '16px' }}>
-                  {employeesLoading ? (
-                    <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
-                      <LoadingSpinner />
-                    </div>
-                  ) : filteredEmployeeOptions.length === 0 ? (
-                    <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
-                      {t('common.noData')}
-                    </p>
-                  ) : (
-                    filteredEmployeeOptions.map((emp) => {
-                      const isSelected = selectedParticipantIds.has(emp.id);
-                      return (
-                        <div
-                          key={emp.id}
-                          onClick={() => {
-                            setSelectedParticipantIds((prev) => {
-                              const next = new Set(prev);
-                              if (isSelected) next.delete(emp.id);
-                              else next.add(emp.id);
-                              return next;
-                            });
-                          }}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            padding: '8px 12px', cursor: 'pointer',
-                            backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent',
-                            borderBottom: '1px solid var(--color-alternate)',
-                            fontSize: '13px',
-                            color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
-                          }}
-                          onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
-                        >
-                          <div style={{
-                            width: 16, height: 16, borderRadius: 3, flexShrink: 0,
-                            border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                            backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            {isSelected && <X size={10} color="#fff" />}
-                          </div>
-                          {emp.name}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </>
-            )}
+                  );
+                })
+              )}
+            </div>
 
             {/* Progress bar during bulk add */}
             {participantBulkLoading && (
@@ -1356,26 +1348,18 @@ export default function SafetyDDS() {
                   setAddParticipantDdsId(null);
                   setSelectedParticipantIds(new Set());
                   setParticipantSearch('');
-                  setSelectedTeamIdsForAdd(new Set());
-                  setTeamAddSearch('');
-                  setParticipantMode('employees');
                 }}
               >
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
-                disabled={participantBulkLoading || (participantMode === 'teams' ? selectedTeamIdsForAdd.size === 0 : selectedParticipantIds.size === 0)}
-                onClick={() => {
-                  if (participantMode === 'teams') handleAddTeamParticipants();
-                  else handleAddMultipleParticipants([...selectedParticipantIds]);
-                }}
+                disabled={participantBulkLoading || selectedParticipantIds.size === 0}
+                onClick={() => handleAddMultipleParticipants([...selectedParticipantIds])}
               >
                 {participantBulkLoading
                   ? <span className="spinner" />
-                  : participantMode === 'teams'
-                    ? `${t('common.add')}${selectedTeamIdsForAdd.size > 0 ? ` (${selectedTeamIdsForAdd.size} equipe${selectedTeamIdsForAdd.size > 1 ? 's' : ''})` : ''}`
-                    : `${t('common.add')}${selectedParticipantIds.size > 0 ? ` (${selectedParticipantIds.size})` : ''}`}
+                  : `${t('common.add')}${selectedParticipantIds.size > 0 ? ` (${selectedParticipantIds.size})` : ''}`}
               </button>
             </div>
           </div>
@@ -1423,7 +1407,15 @@ export default function SafetyDDS() {
 
       {/* Edit DDS Modal */}
       {editTarget && (
-        <div className="modal-backdrop" onClick={() => setEditTarget(null)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setEditTarget(null);
+            setEditParticipantMode('teams');
+            setEditSelectedEmployeeIds(new Set());
+            setEditEmployeeSearch('');
+          }}
+        >
           <div
             className="modal-content"
             style={{ padding: '24px', width: '480px' }}
@@ -1454,9 +1446,42 @@ export default function SafetyDDS() {
                   style={{ resize: 'vertical' }}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label>{t('dds.team')}</label>
+              <div className="input-group">
+                <label>{t('dds.date')} *</label>
+                <input
+                  type="date"
+                  className="input-field"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                />
+              </div>
+
+              {/* Equipes / Funcionários tab section */}
+              <div className="input-group">
+                <label style={{ marginBottom: '6px', display: 'block' }}>
+                  {editParticipantMode === 'teams' ? t('dds.team') : 'Adicionar Funcionários'}
+                </label>
+
+                {/* Tab toggle */}
+                <div style={{ display: 'flex', marginBottom: '10px', border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditParticipantMode('teams')}
+                    style={participantTabStyle(editParticipantMode === 'teams')}
+                  >
+                    Equipes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditParticipantMode('employees')}
+                    style={participantTabStyle(editParticipantMode === 'employees')}
+                  >
+                    Funcionários
+                  </button>
+                </div>
+
+                {editParticipantMode === 'teams' ? (
+                  /* Single team SearchableSelect (unchanged) */
                   <SearchableSelect
                     options={teamOptions.map((team) => ({ value: team.id, label: team.name }))}
                     value={editTeamsId}
@@ -1466,20 +1491,98 @@ export default function SafetyDDS() {
                     allowClear
                     style={{ width: '100%' }}
                   />
-                </div>
-                <div className="input-group">
-                  <label>{t('dds.date')} *</label>
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                  />
-                </div>
+                ) : (
+                  /* Employees checklist */
+                  <>
+                    <input
+                      className="input-field"
+                      placeholder="Buscar funcionário..."
+                      value={editEmployeeSearch}
+                      onChange={(e) => setEditEmployeeSearch(e.target.value)}
+                      style={{ fontSize: '13px', width: '100%', marginBottom: '8px' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                        {filteredEditEmployeeOptions.length} funcionário(s) disponível(is)
+                      </span>
+                      {filteredEditEmployeeOptions.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ fontSize: '11px', padding: '2px 8px' }}
+                          onClick={() => {
+                            const allSelected = filteredEditEmployeeOptions.every((e) => editSelectedEmployeeIds.has(e.id));
+                            if (allSelected) {
+                              setEditSelectedEmployeeIds((prev) => {
+                                const next = new Set(prev);
+                                filteredEditEmployeeOptions.forEach((e) => next.delete(e.id));
+                                return next;
+                              });
+                            } else {
+                              setEditSelectedEmployeeIds((prev) => {
+                                const next = new Set(prev);
+                                filteredEditEmployeeOptions.forEach((e) => next.add(e.id));
+                                return next;
+                              });
+                            }
+                          }}
+                        >
+                          {filteredEditEmployeeOptions.every((e) => editSelectedEmployeeIds.has(e.id))
+                            ? 'Desmarcar todos'
+                            : 'Selecionar todos'}
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px' }}>
+                      {employeesLoading ? (
+                        <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
+                          <LoadingSpinner />
+                        </div>
+                      ) : filteredEditEmployeeOptions.length === 0 ? (
+                        <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                          {t('common.noData')}
+                        </p>
+                      ) : (
+                        filteredEditEmployeeOptions.map((emp) => {
+                          const isSelected = editSelectedEmployeeIds.has(emp.id);
+                          return (
+                            <div
+                              key={emp.id}
+                              onClick={() => {
+                                setEditSelectedEmployeeIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (isSelected) next.delete(emp.id);
+                                  else next.add(emp.id);
+                                  return next;
+                                });
+                              }}
+                              style={checklistRowStyle(isSelected)}
+                              onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
+                            >
+                              <div style={checkboxStyle(isSelected)}>
+                                {isSelected && <X size={10} color="#fff" />}
+                              </div>
+                              {emp.name}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setEditTarget(null)}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setEditTarget(null);
+                  setEditParticipantMode('teams');
+                  setEditSelectedEmployeeIds(new Set());
+                  setEditEmployeeSearch('');
+                }}
+              >
                 {t('common.cancel')}
               </button>
               <button
