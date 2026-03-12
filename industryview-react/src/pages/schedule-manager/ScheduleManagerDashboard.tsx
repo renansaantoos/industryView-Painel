@@ -26,7 +26,7 @@ interface ProjectOption {
 
 const ANALYSIS_CARDS: { title: string; description: string; icon: React.ReactNode; color: string; analysisType: AnalysisType }[] = [
   { title: 'Produtividade', description: 'Analise de produtividade geral', icon: <BarChart2 size={20} />, color: '#3B82F6', analysisType: 'productivity' },
-  { title: 'Forca de Trabalho', description: 'Alocacao e ociosidade', icon: <Users size={20} />, color: '#10B981', analysisType: 'workforce' },
+  { title: 'Força de Trabalho', description: 'Alocação e ociosidade', icon: <Users size={20} />, color: '#10B981', analysisType: 'workforce' },
   { title: 'Clima', description: 'Impacto climatico no cronograma', icon: <CloudRain size={20} />, color: '#6366F1', analysisType: 'weather' },
   { title: 'Tarefas Falhas', description: 'Tarefas atrasadas ou com problemas', icon: <AlertTriangle size={20} />, color: '#EF4444', analysisType: 'failed_tasks' },
   { title: 'Progresso por Area', description: 'Avanco por area do projeto', icon: <Map size={20} />, color: '#F59E0B', analysisType: 'area_progress' },

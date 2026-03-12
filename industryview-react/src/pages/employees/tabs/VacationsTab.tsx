@@ -55,24 +55,24 @@ const LICENCAS_INFO: {
 }[] = [
     {
       tipo: 'licenca_medica',
-      label: 'Licenca Medica',
-      duracao: 'Ate 15 dias (empresa) / 16+ dias (INSS)',
+      label: 'Licença Médica',
+      duracao: 'Até 15 dias (empresa) / 16+ dias (INSS)',
       quemPaga: 'Empresa ate 15d, INSS apos',
       icon: Heart,
       color: '#E74C3C',
     },
     {
       tipo: 'licenca_maternidade',
-      label: 'Licenca Maternidade',
-      duracao: '120 dias (pode ser 180 com Empresa Cidada)',
+      label: 'Licença Maternidade',
+      duracao: '120 dias (pode ser 180 com Empresa Cidadã)',
       quemPaga: 'INSS (empresa adianta)',
       icon: Baby,
       color: '#E91E90',
     },
     {
       tipo: 'licenca_paternidade',
-      label: 'Licenca Paternidade',
-      duracao: '5 dias (pode ser 20 com Empresa Cidada)',
+      label: 'Licença Paternidade',
+      duracao: '5 dias (pode ser 20 com Empresa Cidadã)',
       quemPaga: 'Empresa',
       icon: Baby,
       color: '#2980B9',
@@ -345,7 +345,7 @@ function VacationFormModal({
       return;
     }
     if (isEndBeforeStart(form.data_inicio, form.data_fim)) {
-      setError('A data de fim nao pode ser menor que a data de inicio.');
+      setError('A data de fim não pode ser menor que a data de início.');
       return;
     }
     if (form.tipo === 'ferias' && form.dias_total < 5) {
@@ -357,7 +357,7 @@ function VacationFormModal({
       form.periodo_aquisitivo_fim &&
       form.periodo_aquisitivo_fim < form.periodo_aquisitivo_inicio
     ) {
-      setError('Periodo aquisitivo fim nao pode ser menor que o inicio.');
+      setError('Período aquisitivo fim não pode ser menor que o início.');
       return;
     }
     setSaving(true);
@@ -421,7 +421,7 @@ function VacationFormModal({
             style={{ width: '520px', maxWidth: '95vw', padding: '28px' }}
           >
             <h3 style={{ marginBottom: '16px' }}>
-              {editTarget ? 'Editar Solicitacao' : 'Nova Solicitacao'}
+              {editTarget ? 'Editar Solicitação' : 'Nova Solicitação'}
             </h3>
 
             {/* ── Saldo disponivel info bar ── */}
@@ -1008,7 +1008,7 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
     setIsFormOpen(false);
     fetchVacations();
     fetchBalance();
-    showToast(editTarget ? 'Solicitacao atualizada com sucesso.' : 'Solicitacao registrada com sucesso.');
+    showToast(editTarget ? 'Solicitação atualizada com sucesso.' : 'Solicitação registrada com sucesso.');
   }
 
   async function handleApprove(vacation: EmployeeVacation, status: 'aprovado' | 'cancelado') {
@@ -1017,9 +1017,9 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
       await employeesApi.approveVacation(vacation.id, status);
       fetchVacations();
       fetchBalance();
-      showToast(status === 'aprovado' ? 'Solicitacao aprovada com sucesso.' : 'Solicitacao cancelada com sucesso.');
+      showToast(status === 'aprovado' ? 'Solicitação aprovada com sucesso.' : 'Solicitação cancelada com sucesso.');
     } catch {
-      showToast('Erro ao atualizar status da solicitacao.', 'error');
+      showToast('Erro ao atualizar status da solicitação.', 'error');
     } finally {
       setApprovingId(null);
     }
@@ -1033,9 +1033,9 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
       setDeleteTarget(null);
       fetchVacations();
       fetchBalance();
-      showToast('Solicitacao excluida com sucesso.');
+      showToast('Solicitação excluída com sucesso.');
     } catch {
-      showToast('Erro ao excluir solicitacao.', 'error');
+      showToast('Erro ao excluir solicitação.', 'error');
     } finally {
       setDeleting(false);
     }
@@ -1100,7 +1100,7 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
 
         <button className="btn btn-primary" onClick={openCreateModal}>
           <Plus size={16} style={{ marginRight: '6px' }} />
-          Nova Solicitacao
+          Nova Solicitação
         </button>
       </div>
 
@@ -1240,7 +1240,7 @@ export default function VacationsTab({ usersId }: VacationsTabProps) {
       <ConfirmModal
         isOpen={!!deleteTarget}
         title="Excluir Solicitacao"
-        message={`Deseja excluir a solicitacao de ${deleteTarget ? (TIPO_LABELS[deleteTarget.tipo] ?? deleteTarget.tipo) : ''} de ${deleteTarget ? formatDate(deleteTarget.data_inicio) : ''} a ${deleteTarget ? formatDate(deleteTarget.data_fim) : ''}? Esta acao nao pode ser desfeita.`}
+        message={`Deseja excluir a solicitacao de ${deleteTarget ? (TIPO_LABELS[deleteTarget.tipo] ?? deleteTarget.tipo) : ''} de ${deleteTarget ? formatDate(deleteTarget.data_inicio) : ''} a ${deleteTarget ? formatDate(deleteTarget.data_fim) : ''}? Esta ação não pode ser desfeita.`}
         confirmLabel={deleting ? 'Excluindo...' : 'Excluir'}
         variant="danger"
         onConfirm={handleDelete}

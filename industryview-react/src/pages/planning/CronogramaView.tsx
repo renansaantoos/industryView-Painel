@@ -204,7 +204,7 @@ function WbsRow({ item, isExpanded, onToggle }: WbsRowProps) {
   const statusColor =
     percentComplete >= 100 ? '#22c55e' : percentComplete > 0 ? '#3b82f6' : 'var(--color-secondary-text)';
   const statusLabel =
-    percentComplete >= 100 ? 'Concluido' : percentComplete > 0 ? 'Em andamento' : 'Nao iniciado';
+    percentComplete >= 100 ? 'Concluído' : percentComplete > 0 ? 'Em andamento' : 'Não iniciado';
   const isParent = item.has_children;
 
   return (

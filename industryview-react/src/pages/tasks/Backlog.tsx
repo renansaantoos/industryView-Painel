@@ -1948,7 +1948,7 @@ function SubtaskPanel({
                     </span>
                     {isOver && (
                       <span style={{ fontSize: '12px', color: 'var(--color-error)' }}>
-                        ({t('backlog.weightSumExceeds', 'A soma nao pode ultrapassar 1')})
+                        ({t('backlog.weightSumExceeds', 'A soma não pode ultrapassar 1')})
                       </span>
                     )}
                   </div>

@@ -106,13 +106,13 @@ const CONDITION_STYLES: Record<string, React.CSSProperties> = {
 
 const MOVEMENT_LABELS: Record<string, string> = {
   entrada: 'Entrada',
-  saida: 'Saida',
-  transferencia: 'Transferencia',
-  atribuicao_funcionario: 'Atribuicao Funcionario',
-  atribuicao_equipe: 'Atribuicao Equipe',
-  atribuicao_projeto: 'Atribuicao Projeto',
-  devolucao: 'Devolucao',
-  atribuicao_kit: 'Atribuicao Kit',
+  saida: 'Saída',
+  transferencia: 'Transferência',
+  atribuicao_funcionario: 'Atribuição Funcionário',
+  atribuicao_equipe: 'Atribuição Equipe',
+  atribuicao_projeto: 'Atribuição Projeto',
+  devolucao: 'Devolução',
+  atribuicao_kit: 'Atribuição Kit',
 };
 
 /* =========================================
@@ -767,7 +767,7 @@ export default function ToolsManagement() {
           quantity: qty,
           notes: movForm.notes || undefined,
         });
-        showToast('Ferramenta atribuida ao funcionario', 'success');
+        showToast('Ferramenta atribuída ao funcionário', 'success');
       } else if (showMovModal === 'assign-team') {
         await toolsApi.assignTeam({
           tool_id: toolId,
@@ -1407,7 +1407,7 @@ export default function ToolsManagement() {
                                         </td>
                                         <td style={{ fontSize: '12px' }}>
                                           {tool.assigned_user?.name || tool.assigned_team?.name || (
-                                            <span style={{ color: 'var(--color-secondary-text)' }}>Nao atribuido</span>
+                                            <span style={{ color: 'var(--color-secondary-text)' }}>Não atribuído</span>
                                           )}
                                         </td>
                                         <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
@@ -1893,7 +1893,7 @@ export default function ToolsManagement() {
         <div className="modal-backdrop" onClick={() => { setShowMovModal(null); setMovForm({}); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', width: '95%', padding: '24px' }}>
             <h3>
-              {showMovModal === 'assign-employee' && 'Atribuir a Funcionario'}
+              {showMovModal === 'assign-employee' && 'Atribuir a Funcionário'}
               {showMovModal === 'assign-team' && 'Atribuir a Equipe'}
               {showMovModal === 'assign-project' && 'Atribuir a Projeto'}
               {showMovModal === 'return' && 'Devolver Ferramenta'}
@@ -1936,7 +1936,7 @@ export default function ToolsManagement() {
                 )}
               </div>
               {showMovModal === 'assign-employee' && (
-                <div className="input-group"><label>Funcionario *</label><SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionario..." /></div>
+                <div className="input-group"><label>Funcionário *</label><SearchableSelect options={userOptions} value={movForm.user_id ? parseInt(movForm.user_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, user_id: v ? String(v) : '' })} placeholder="Selecione funcionário..." /></div>
               )}
               {showMovModal === 'assign-team' && (
                 <div className="input-group"><label>Equipe *</label><SearchableSelect options={teamOptions} value={movForm.team_id ? parseInt(movForm.team_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, team_id: v ? String(v) : '' })} placeholder="Selecione equipe..." /></div>

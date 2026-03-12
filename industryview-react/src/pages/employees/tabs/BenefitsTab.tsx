@@ -38,10 +38,10 @@ interface ToastState {
 
 const TIPO_LABELS: Record<BenefitTipo, string> = {
   vt: 'Vale Transporte',
-  vr: 'Vale Refeicao',
-  va: 'Vale Alimentacao',
-  plano_saude: 'Plano de Saude',
-  plano_odonto: 'Plano Odontologico',
+  vr: 'Vale Refeição',
+  va: 'Vale Alimentação',
+  plano_saude: 'Plano de Saúde',
+  plano_odonto: 'Plano Odontológico',
   seguro_vida: 'Seguro de Vida',
   outro: 'Outro',
 };

@@ -254,7 +254,7 @@ export default function SafetyIncidents() {
 
   const statusLabel: Record<Status, string> = {
     registrado: t('safety.registered', 'Registrado'),
-    em_investigacao: t('safety.investigating', 'Em Investigacao'),
+    em_investigacao: t('safety.investigating', 'Em Investigação'),
     investigado: t('safety.investigated', 'Investigado'),
     encerrado: t('safety.closed', 'Encerrado'),
   };
@@ -1098,7 +1098,7 @@ export default function SafetyIncidents() {
                                 {incident.involved_user_id && (
                                   <div>
                                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-secondary-text)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                      {t('safety.involvedUser', 'Funcionario Envolvido')}
+                                      {t('safety.involvedUser', 'Funcionário Envolvido')}
                                     </div>
                                     <p style={{ fontSize: '13px', color: 'var(--color-primary-text)' }}>
                                       {allUsers.find(u => u.id === incident.involved_user_id)?.name || `ID ${incident.involved_user_id}`}
@@ -1375,7 +1375,7 @@ export default function SafetyIncidents() {
 
                     {/* Involved user (optional) */}
                     <div className="input-group">
-                      <label>{t('safety.involvedUser', 'Funcionario Envolvido')}</label>
+                      <label>{t('safety.involvedUser', 'Funcionário Envolvido')}</label>
                       <SearchableSelect
                         options={allUsers.map((u) => ({ value: u.id, label: u.name }))}
                         value={formInvolvedUserId || undefined}

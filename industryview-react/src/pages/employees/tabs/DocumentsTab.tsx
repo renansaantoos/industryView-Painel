@@ -241,11 +241,11 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
       return;
     }
     if (form.data_emissao && form.data_emissao > getTodayIsoDate()) {
-      setFormError('Data de emissao nao pode ser futura.');
+      setFormError('Data de emissão não pode ser futura.');
       return;
     }
     if (form.data_emissao && form.data_validade && form.data_validade < form.data_emissao) {
-      setFormError('Data de validade nao pode ser menor que a data de emissao.');
+      setFormError('Data de validade não pode ser menor que a data de emissão.');
       return;
     }
 

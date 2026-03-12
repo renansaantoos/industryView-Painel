@@ -119,10 +119,10 @@ function branchToForm(branch: CompanyBranch): FormState {
 type Tab = 'identificacao' | 'contato' | 'endereco' | 'responsavel';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'identificacao', label: 'Identificacao' },
+  { key: 'identificacao', label: 'Identificação' },
   { key: 'contato', label: 'Contato' },
-  { key: 'endereco', label: 'Endereco' },
-  { key: 'responsavel', label: 'Responsavel' },
+  { key: 'endereco', label: 'Endereço' },
+  { key: 'responsavel', label: 'Responsável' },
 ];
 
 // Map fields to their tabs

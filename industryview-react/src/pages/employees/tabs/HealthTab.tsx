@@ -54,9 +54,9 @@ const EMPTY_FORM: HealthFormData = {
 
 const EXAM_TYPE_LABELS: Record<string, string> = {
   admissional:      'Admissional',
-  periodico:        'Periodico',
+  periodico:        'Periódico',
   retorno_trabalho: 'Retorno ao Trabalho',
-  mudanca_funcao:   'Mudanca de Funcao',
+  mudanca_funcao:   'Mudança de Função',
   demissional:      'Demissional',
 };
 
@@ -269,7 +269,7 @@ export default function HealthTab({ usersId }: HealthTabProps) {
 
     const errors: string[] = [];
     if (!form.exam_type) errors.push('Tipo de Exame');
-    if (!form.exam_date) errors.push('Data de Realizacao');
+    if (!form.exam_date) errors.push('Data de Realização');
     if (!form.result) errors.push('Resultado');
 
     if (errors.length > 0) {
@@ -563,7 +563,7 @@ export default function HealthTab({ usersId }: HealthTabProps) {
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div className="input-group" style={{ flex: 1 }}>
                     <label>
-                      Data de Realizacao <span style={{ color: '#dc2626' }}>*</span>
+                      Data de Realização <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <input
                       type="date"

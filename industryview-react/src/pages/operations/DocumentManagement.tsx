@@ -37,8 +37,8 @@ interface ToastState {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DOC_STATUS_MAP: Record<string, { bg: string; color: string; label: string }> = {
-  em_elaboracao: { bg: 'var(--color-alternate)',   color: 'var(--color-secondary-text)', label: 'Em Elaboracao' },
-  em_revisao:    { bg: 'var(--color-status-02)',   color: 'var(--color-warning)',         label: 'Em Revisao' },
+  em_elaboracao: { bg: 'var(--color-alternate)',   color: 'var(--color-secondary-text)', label: 'Em Elaboração' },
+  em_revisao:    { bg: 'var(--color-status-02)',   color: 'var(--color-warning)',         label: 'Em Revisão' },
   aprovado:      { bg: 'var(--color-status-04)',   color: 'var(--color-success)',         label: 'Aprovado' },
   obsoleto:      { bg: 'var(--color-status-01)',   color: 'var(--color-error)',           label: 'Obsoleto' },
 };
@@ -261,7 +261,7 @@ export default function DocumentManagement() {
 
   const handleSubmit = async () => {
     if (!user?.id) {
-      setModalError('Usuario nao autenticado. Faca login novamente.');
+      setModalError('Usuário não autenticado. Faça login novamente.');
       return;
     }
 
@@ -649,7 +649,7 @@ export default function DocumentManagement() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    {['N. Documento', 'Titulo', 'Tipo', 'Criado por', 'Acao'].map((col) => (
+                    {['N. Documento', 'Título', 'Tipo', 'Criado por', 'Ação'].map((col) => (
                       <th
                         key={col}
                         style={{

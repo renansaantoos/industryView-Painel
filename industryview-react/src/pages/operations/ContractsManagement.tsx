@@ -464,7 +464,7 @@ export default function ContractsManagement() {
       });
       resetClaimModal();
       loadClaims();
-      showToast('Reivindicacao criada com sucesso.');
+      showToast('Reivindicação criada com sucesso.');
     } catch (err) {
       console.error('Failed to create claim:', err);
       showToast('Erro ao criar reivindicação.', 'error');
@@ -502,7 +502,7 @@ export default function ContractsManagement() {
       });
       setClosingClaimId(null);
       loadClaims();
-      showToast('Reivindicacao encerrada com sucesso.');
+      showToast('Reivindicação encerrada com sucesso.');
     } catch (err) {
       console.error('Failed to close claim:', err);
       showToast('Erro ao encerrar reivindicação.', 'error');
@@ -555,7 +555,7 @@ export default function ContractsManagement() {
             </button>
           ) : (
             <button className="btn btn-primary" onClick={() => openCreateClaim()}>
-              <Plus size={18} /> Nova Reivindicacao
+              <Plus size={18} /> Nova Reivindicação
             </button>
           )
         }
@@ -718,7 +718,7 @@ export default function ContractsManagement() {
               message="Nenhuma reivindicação encontrada."
               action={
                 <button className="btn btn-primary" onClick={() => openCreateClaim()}>
-                  <Plus size={18} /> Nova Reivindicacao
+                  <Plus size={18} /> Nova Reivindicação
                 </button>
               }
             />
@@ -1053,7 +1053,7 @@ export default function ContractsManagement() {
       {showCreateClaim && (
         <div className="modal-backdrop" onClick={() => resetClaimModal()}>
           <div className="modal-content" style={{ padding: '24px', width: '480px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: '20px' }}>Nova Reivindicacao</h3>
+            <h3 style={{ marginBottom: '20px' }}>Nova Reivindicação</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
                 <label>Projeto *</label>
@@ -1135,7 +1135,7 @@ export default function ContractsManagement() {
       {closingClaimId !== null && (
         <div className="modal-backdrop" onClick={() => setClosingClaimId(null)}>
           <div className="modal-content" style={{ padding: '24px', width: '480px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: '20px' }}>Encerrar Reivindicacao</h3>
+            <h3 style={{ marginBottom: '20px' }}>Encerrar Reivindicação</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
                 <label>Resolucao *</label>

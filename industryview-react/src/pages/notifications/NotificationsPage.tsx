@@ -384,7 +384,7 @@ export default function NotificationsPage() {
       {deleteConfirm !== null && (
         <ConfirmModal
           title={t('common.confirmDelete')}
-          message={t('common.confirmDeleteMessage', 'Tem certeza que deseja excluir esta notificacao?')}
+          message={t('common.confirmDeleteMessage', 'Tem certeza que deseja excluir esta notificação?')}
           onConfirm={() => handleDelete(deleteConfirm)}
           onCancel={() => setDeleteConfirm(null)}
         />

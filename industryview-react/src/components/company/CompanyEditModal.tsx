@@ -50,10 +50,10 @@ const REGIME_OPTIONS: { value: RegimeTributario; label: string }[] = [
 type Tab = 'identificacao' | 'contato' | 'endereco' | 'responsavel';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'identificacao', label: 'Identificacao' },
+  { key: 'identificacao', label: 'Identificação' },
   { key: 'contato', label: 'Contato' },
-  { key: 'endereco', label: 'Endereco' },
-  { key: 'responsavel', label: 'Responsavel Legal' },
+  { key: 'endereco', label: 'Endereço' },
+  { key: 'responsavel', label: 'Responsável Legal' },
 ];
 
 function formatCpfMask(value: string): string {

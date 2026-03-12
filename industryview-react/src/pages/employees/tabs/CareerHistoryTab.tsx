@@ -246,7 +246,7 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
     setTouched({ tipo: true, data_efetivacao: true });
     const errors: string[] = [];
     if (!form.tipo) errors.push('Tipo');
-    if (!form.data_efetivacao) errors.push('Data de Efetivacao');
+    if (!form.data_efetivacao) errors.push('Data de Efetivação');
     if (errors.length > 0) {
       showToast(`Preencha os campos obrigatorios: ${errors.join(', ')}`, 'error');
       return;
@@ -530,7 +530,7 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
                     )}
                   </div>
                   <div className="input-group" style={{ flex: 1 }}>
-                    <label>Data de Efetivacao <span style={{ color: '#dc2626' }}>*</span></label>
+                    <label>Data de Efetivação <span style={{ color: '#dc2626' }}>*</span></label>
                     <input
                       type="date"
                       className="input-field"
