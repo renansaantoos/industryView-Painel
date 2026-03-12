@@ -238,10 +238,14 @@ export class ProgressRollupService {
         COUNT(*) AS total,
         SUM(
           CASE
-            WHEN quantity_assigned IS NULL OR quantity_assigned = 0 THEN
-              CASE WHEN sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA} THEN 1.0 ELSE 0.0 END
-            ELSE
-              LEAST(COALESCE(quantity_done, 0)::float / quantity_assigned::float, 1.0)
+            WHEN sprints_tasks_statuses_id = ${SPRINT_TASK_STATUS.CONCLUIDA}
+              AND (quality_status_id IS NULL OR quality_status_id <> 1)
+            THEN
+              CASE
+                WHEN quantity_assigned IS NULL OR quantity_assigned = 0 THEN 1.0
+                ELSE LEAST(COALESCE(quantity_done, 0)::float / quantity_assigned::float, 1.0)
+              END
+            ELSE 0.0
           END
         ) AS done_weighted
       FROM sprints_tasks
