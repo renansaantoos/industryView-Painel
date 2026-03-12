@@ -855,7 +855,7 @@ export default function SafetyDDS() {
               </div>
 
               {/* Multi-team selection */}
-              <div className="input-group" ref={teamsDropdownRef} style={{ position: 'relative' }}>
+              <div className="input-group" ref={teamsDropdownRef}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ margin: 0 }}>{t('dds.teams', 'Equipes')}</label>
                   {teamOptions.length > 0 && (
@@ -947,11 +947,6 @@ export default function SafetyDDS() {
                 {teamsDropdownOpen && (
                   <div
                     style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      zIndex: 200,
                       backgroundColor: 'var(--color-card-bg)',
                       border: '1px solid var(--color-border)',
                       borderRadius: '6px',
