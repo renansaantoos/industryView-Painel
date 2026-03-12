@@ -93,6 +93,7 @@ export const createProjectSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
     z.number().int().nullable().optional()
   ),
+  is_inspection: z.boolean().optional(),
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
@@ -173,6 +174,7 @@ export const updateProjectSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
     z.number().int().nullable().optional()
   ),
+  is_inspection: z.boolean().optional(),
 });
 
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;

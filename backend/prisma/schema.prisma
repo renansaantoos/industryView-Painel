@@ -529,6 +529,7 @@ model projects {
   company_id                   BigInt?
   client_id                    BigInt?
   client_unit_id               BigInt?
+  is_inspection               Boolean                    @default(true)
   created_at                   DateTime                   @default(now()) @db.Timestamptz(6)
   updated_at                   DateTime                   @default(now()) @updatedAt @db.Timestamptz(6)
   deleted_at                   DateTime?                  @db.Timestamptz(6)
@@ -1009,6 +1010,8 @@ model sprints_tasks {
   teams_id                  BigInt?
   sprints_tasks_statuses_id BigInt?
   quality_status_id         BigInt?
+  is_reproved               Boolean                  @default(false)
+  reproved_count            Int                      @default(0)
   scheduled_for             DateTime?                @db.Date
   executed_at               DateTime?                @db.Date
   assigned_user_id          BigInt?
@@ -1049,6 +1052,7 @@ model sprint_task_change_log {
   changed_field    String?
   old_value        String?
   new_value        String?
+  observation      String?
   date             DateTime?      @db.Date
   created_at       DateTime       @default(now()) @db.Timestamptz(6)
   sprints_tasks    sprints_tasks? @relation(fields: [sprints_tasks_id], references: [id], onDelete: Cascade, onUpdate: NoAction)

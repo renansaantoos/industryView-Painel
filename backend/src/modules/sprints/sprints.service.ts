@@ -246,30 +246,49 @@ export class SprintsService {
   }
 
   /**
-   * Remove sprint (soft delete)
-   * Equivalente a: query sprints/{sprints_id} verb=DELETE do Xano (endpoint 510)
+   * Remove sprint (hard delete irreversivel)
+   * Nullifica sprints_id em schedule e schedule_baselines antes de deletar,
+   * pois essas relacoes sao nullable sem cascade. As sprints_tasks e seus
+   * dependentes (sprint_task_change_log, schedule_sprints_tasks) sao removidos
+   * automaticamente via onDelete: Cascade no schema Prisma.
    */
   static async delete(sprintId: number) {
     const existing = await db.sprints.findFirst({
-      where: {
-        id: sprintId,
-        deleted_at: null,
-      },
+      where: { id: sprintId, deleted_at: null },
+      include: { _count: { select: { sprints_tasks: true } } },
     });
 
     if (!existing) {
       throw new NotFoundError('Sprint nao encontrada.');
     }
 
-    await db.sprints.update({
-      where: { id: sprintId },
-      data: {
-        deleted_at: new Date(),
-        updated_at: new Date(),
-      },
-    });
+    const tasksRemoved = (existing as any)._count?.sprints_tasks ?? 0;
 
-    return { message: 'Sprint removida com sucesso' };
+    await db.$transaction([
+      db.schedule.updateMany({
+        where: { sprints_id: BigInt(sprintId) },
+        data: { sprints_id: null },
+      }),
+      db.schedule_baselines.updateMany({
+        where: { sprints_id: BigInt(sprintId) },
+        data: { sprints_id: null },
+      }),
+      db.sprints.delete({
+        where: { id: sprintId },
+      }),
+    ]);
+
+    return { message: 'Sprint removida com sucesso', tasks_removed: tasksRemoved };
+  }
+
+  /**
+   * Conta tarefas ativas de uma sprint
+   * Usado pelo frontend para exibir o total no modal de confirmacao de exclusao
+   */
+  static async getTaskCount(sprintId: number): Promise<number> {
+    return db.sprints_tasks.count({
+      where: { sprints_id: sprintId, deleted_at: null },
+    });
   }
 
   /**
@@ -1165,42 +1184,69 @@ export class SprintsService {
    * Atualiza inspecao
    * Equivalente a: query update_inspection verb=POST do Xano (endpoint 669)
    */
-  static async updateInspection(input: UpdateInspectionInput) {
+  static async updateInspection(input: UpdateInspectionInput, userId?: number) {
     const task = await db.sprints_tasks.findFirst({
-      where: {
-        id: input.sprints_tasks_id,
-        deleted_at: null,
-      },
-      include: {
-        projects_backlogs: true,
-      },
+      where: { id: input.sprints_tasks_id, deleted_at: null },
+      include: { projects_backlogs: true },
     });
 
-    if (!task) {
-      throw new NotFoundError('Tarefa nao encontrada.');
-    }
+    if (!task) throw new NotFoundError('Tarefa nao encontrada.');
 
-    // Atualiza quality_status na propria tarefa (nao no backlog - evita afetar outras tarefas)
+    const isRejected = input.quality_status_id !== 2;
+    const oldQualityStatusId = task.quality_status_id ? Number(task.quality_status_id) : null;
+
     const qualityUpdateData: any = {
       quality_status_id: input.quality_status_id,
       updated_at: new Date(),
     };
-    // Se rejeitado (quality_status_id != 2), volta status da tarefa para pendente
-    if (input.quality_status_id !== 2) {
+
+    if (isRejected) {
       qualityUpdateData.sprints_tasks_statuses_id = 1;
+      qualityUpdateData.is_reproved = true;
+      qualityUpdateData.reproved_count = { increment: 1 };
+    } else {
+      qualityUpdateData.is_reproved = false;
     }
+
     await db.sprints_tasks.update({
       where: { id: input.sprints_tasks_id },
       data: qualityUpdateData,
     });
 
-    // Se aprovado (quality_status_id === 2), dispara rollup de progresso
-    if (input.quality_status_id === 2) {
+    // Registra no historico de movimentos
+    await (db.sprint_task_change_log as any).create({
+      data: {
+        sprints_tasks_id: input.sprints_tasks_id,
+        users_id: userId ? BigInt(userId) : null,
+        changed_field: 'quality_status_id',
+        old_value: oldQualityStatusId != null ? String(oldQualityStatusId) : null,
+        new_value: String(input.quality_status_id),
+        observation: input.observation ?? null,
+        date: new Date(),
+      },
+    });
+
+    if (!isRejected) {
       const { ProgressRollupService } = await import('../../services/progressRollup');
       await ProgressRollupService.rollupFromSprintTask(Number(input.sprints_tasks_id));
     }
 
-    return { message: 'Inspecao atualizada com sucesso' };
+    return {
+      message: isRejected ? 'Inspecao reprovada' : 'Inspecao aprovada',
+      is_rejected: isRejected,
+    };
+  }
+
+  /**
+   * Busca historico de movimentos de uma tarefa
+   */
+  static async getTaskChangeLog(taskId: number) {
+    const logs = await (db.sprint_task_change_log as any).findMany({
+      where: { sprints_tasks_id: taskId },
+      include: { users: { select: { id: true, name: true } } },
+      orderBy: { created_at: 'desc' },
+    });
+    return logs;
   }
 
   /**

@@ -225,6 +225,8 @@ router.delete(
  */
 router.get('/tasks/statuses', authenticate, SprintsController.listTaskStatuses);
 
+router.get('/tasks/:task_id/history', authenticate, SprintsController.getTaskHistory);
+
 /**
  * @swagger
  * /api/sprints/tasks/statuses:
@@ -578,6 +580,22 @@ router.delete(
 // =============================================================================
 // SPRINT BY ID (param routes must come last)
 // =============================================================================
+
+/**
+ * @swagger
+ * /api/sprints/{sprints_id}/task-count:
+ *   get:
+ *     summary: Conta tarefas ativas da sprint (para modal de confirmacao de exclusao)
+ *     tags: [Sprints]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get(
+  '/:sprints_id/task-count',
+  authenticate,
+  validateParams(sprintParamsSchema),
+  SprintsController.getTaskCount
+);
 
 /**
  * @swagger

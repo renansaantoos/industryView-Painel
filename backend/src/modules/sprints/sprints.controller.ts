@@ -109,8 +109,7 @@ export class SprintsController {
 
   /**
    * DELETE /sprints/:sprints_id
-   * Remove sprint
-   * Equivalente a: query sprints/{sprints_id} verb=DELETE do Xano (endpoint 510)
+   * Remove sprint (hard delete irreversivel)
    */
   static async delete(
     req: Request,
@@ -121,9 +120,27 @@ export class SprintsController {
       const sprintId = parseInt(req.params.sprints_id, 10);
       const result = await SprintsService.delete(sprintId);
 
-      logger.info({ sprintId }, 'Sprint deleted');
+      logger.info({ sprintId, tasksRemoved: result.tasks_removed }, 'Sprint hard-deleted');
 
       res.status(200).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /sprints/:sprints_id/task-count
+   * Conta tarefas ativas da sprint para exibir no modal de confirmacao de exclusao
+   */
+  static async getTaskCount(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const sprintId = parseInt(req.params.sprints_id, 10);
+      const count = await SprintsService.getTaskCount(sprintId);
+      res.status(200).json({ task_count: count });
     } catch (error) {
       next(error);
     }
@@ -594,12 +611,29 @@ export class SprintsController {
    * Equivalente a: query update_inspection verb=POST do Xano (endpoint 669)
    */
   static async updateInspection(
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
-      const result = await SprintsService.updateInspection(req.body);
+      const result = await SprintsService.updateInspection(req.body, req.user?.id);
+      res.status(200).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /sprints/tasks/:task_id/history
+   */
+  static async getTaskHistory(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.task_id, 10);
+      const result = await SprintsService.getTaskChangeLog(taskId);
       res.status(200).json(serializeBigInt(result));
     } catch (error) {
       next(error);
