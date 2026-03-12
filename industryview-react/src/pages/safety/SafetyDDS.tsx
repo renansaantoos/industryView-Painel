@@ -54,6 +54,9 @@ export default function SafetyDDS() {
   const [createTopic, setCreateTopic] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [createTeamsIds, setCreateTeamsIds] = useState<number[]>([]);
+  const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
+  const [teamsSearch, setTeamsSearch] = useState('');
+  const teamsDropdownRef = useRef<HTMLDivElement>(null);
   const [createDate, setCreateDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [createLoading, setCreateLoading] = useState(false);
   const [createErrors, setCreateErrors] = useState<{ topic?: string; date?: string; project?: string }>({});
@@ -480,6 +483,22 @@ export default function SafetyDDS() {
 
   const allTeamIdsSelected = teamOptions.length > 0 && createTeamsIds.length === teamOptions.length;
 
+  const filteredTeamOptions = teamOptions.filter((t) =>
+    t.name.toLowerCase().includes(teamsSearch.toLowerCase())
+  );
+
+  // Close teams dropdown when clicking outside
+  useEffect(() => {
+    if (!teamsDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (teamsDropdownRef.current && !teamsDropdownRef.current.contains(e.target as Node)) {
+        setTeamsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [teamsDropdownOpen]);
+
   return (
     <div>
       <PageHeader
@@ -836,7 +855,7 @@ export default function SafetyDDS() {
               </div>
 
               {/* Multi-team selection */}
-              <div className="input-group">
+              <div className="input-group" ref={teamsDropdownRef} style={{ position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ margin: 0 }}>{t('dds.teams', 'Equipes')}</label>
                   {teamOptions.length > 0 && (
@@ -848,37 +867,154 @@ export default function SafetyDDS() {
                         if (allTeamIdsSelected) {
                           setCreateTeamsIds([]);
                         } else {
-                          setCreateTeamsIds(teamOptions.map((t) => t.id));
+                          setCreateTeamsIds(teamOptions.map((tm) => tm.id));
                         }
                       }}
                     >
-                      {allTeamIdsSelected
-                        ? t('dds.deselectAll', 'Desmarcar todas')
-                        : t('dds.selectAll', 'Selecionar todas')}
+                      {allTeamIdsSelected ? 'Desmarcar todas' : 'Selecionar todas'}
                     </button>
                   )}
                 </div>
-                <select
-                  multiple
+
+                {/* Trigger input with chips */}
+                <div
                   className="input-field"
-                  style={{ height: '120px', padding: '4px' }}
-                  value={createTeamsIds.map(String)}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
-                    setCreateTeamsIds(selected);
+                  onClick={() => setTeamsDropdownOpen((v) => !v)}
+                  style={{
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '4px',
+                    minHeight: '38px',
+                    alignItems: 'center',
+                    padding: '4px 8px',
+                    userSelect: 'none',
                   }}
-                  disabled={teamsLoading}
                 >
-                  {teamOptions.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
-                    </option>
-                  ))}
-                </select>
-                {createTeamsIds.length > 0 && (
-                  <p style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
-                    {createTeamsIds.length} equipe{createTeamsIds.length !== 1 ? 's' : ''} selecionada{createTeamsIds.length !== 1 ? 's' : ''}
-                  </p>
+                  {createTeamsIds.length === 0 ? (
+                    <span style={{ color: 'var(--color-secondary-text)', fontSize: '13px' }}>
+                      {teamsLoading ? t('common.loading') : 'Selecionar equipes...'}
+                    </span>
+                  ) : (
+                    createTeamsIds.map((id) => {
+                      const team = teamOptions.find((tm) => tm.id === id);
+                      return (
+                        <span
+                          key={id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--color-primary)',
+                            color: '#fff',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {team?.name ?? id}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateTeamsIds((prev) => prev.filter((tid) => tid !== id));
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: 'inherit',
+                              padding: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              opacity: 0.8,
+                            }}
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      );
+                    })
+                  )}
+                  <ChevronDown
+                    size={14}
+                    style={{ marginLeft: 'auto', color: 'var(--color-secondary-text)', flexShrink: 0 }}
+                  />
+                </div>
+
+                {/* Dropdown */}
+                {teamsDropdownOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 200,
+                      backgroundColor: 'var(--color-card-bg)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '6px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    <div style={{ padding: '6px' }}>
+                      <input
+                        className="input-field"
+                        placeholder="Buscar equipe..."
+                        value={teamsSearch}
+                        onChange={(e) => setTeamsSearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                        autoFocus
+                      />
+                    </div>
+                    <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                      {filteredTeamOptions.length === 0 ? (
+                        <p style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                          Nenhuma equipe encontrada
+                        </p>
+                      ) : (
+                        filteredTeamOptions.map((team) => {
+                          const isSelected = createTeamsIds.includes(team.id);
+                          return (
+                            <div
+                              key={team.id}
+                              onClick={() => {
+                                setCreateTeamsIds((prev) =>
+                                  isSelected ? prev.filter((id) => id !== team.id) : [...prev, team.id]
+                                );
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent',
+                                color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
+                                fontWeight: isSelected ? 600 : 400,
+                              }}
+                              onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)'; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent'; }}
+                            >
+                              <div style={{
+                                width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                                border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                {isSelected && <X size={8} color="#fff" />}
+                              </div>
+                              {team.name}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
