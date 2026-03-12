@@ -914,7 +914,7 @@ export default function Settings() {
                   <tr>
                     <th>Nome</th>
                     <th>Filial / Matriz</th>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
@@ -995,13 +995,13 @@ export default function Settings() {
               )}
             </div>
             <div className="input-group" style={{ marginTop: '12px' }}>
-              <label>Descricao</label>
+              <label>Descrição</label>
               <textarea
                 className="input-field"
                 rows={3}
                 value={deptForm.description}
                 onChange={(e) => setDeptForm((p) => ({ ...p, description: e.target.value }))}
-                placeholder="Descricao opcional do departamento..."
+                placeholder="Descrição opcional do departamento..."
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>

@@ -94,10 +94,10 @@ export default function DailyReport() {
       `Projeto: ${projectsInfo?.name || ''}`,
       `Clima: ${report.weather || '-'}`,
       '',
-      'Descricao:',
+      'Descrição:',
       report.description || '-',
       '',
-      'Observacoes:',
+      'Observações:',
       report.observations || '-',
     ].join('\n');
     generateSimplePdf(`RDO - ${formatDate(report.date || '')}`, content);

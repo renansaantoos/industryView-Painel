@@ -22,7 +22,7 @@ interface HeaderMapping {
 
 const SYSTEM_FIELDS = [
   { key: 'name', label: 'Nome da Tarefa' },
-  { key: 'description', label: 'Descricao' },
+  { key: 'description', label: 'Descrição' },
   { key: 'quantity', label: 'Quantidade' },
   { key: 'unity', label: 'Unidade' },
   { key: 'discipline', label: 'Disciplina' },

@@ -281,8 +281,8 @@ export default function ContractsManagement() {
   const handleCreateMeasurement = async () => {
     const errors: Record<string, string> = {};
     if (!selectedProjectId) errors.project = 'Selecione um projeto';
-    if (!measurementTitle.trim()) errors.title = 'Titulo e obrigatorio';
-    if (!measurementDate) errors.measurement_date = 'Data da medicao e obrigatoria';
+    if (!measurementTitle.trim()) errors.title = 'Título é obrigatório';
+    if (!measurementDate) errors.measurement_date = 'Data da medição é obrigatória';
     const validItems = measurementItems.filter(i => i.description.trim());
     if (validItems.length === 0) errors.items = 'Pelo menos um item e obrigatorio';
     validItems.forEach((item, idx) => {
@@ -316,7 +316,7 @@ export default function ContractsManagement() {
       showToast('Medicao criada com sucesso.');
     } catch (err) {
       console.error('Failed to create measurement:', err);
-      showToast('Erro ao criar medicao.', 'error');
+      showToast('Erro ao criar medição.', 'error');
     } finally {
       setMeasurementModalLoading(false);
     }
@@ -364,7 +364,7 @@ export default function ContractsManagement() {
       showToast('Medicao submetida com sucesso.');
     } catch (err) {
       console.error('Failed to submit measurement:', err);
-      showToast('Erro ao submeter medicao.', 'error');
+      showToast('Erro ao submeter medição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -378,7 +378,7 @@ export default function ContractsManagement() {
       showToast('Medicao aprovada com sucesso.');
     } catch (err) {
       console.error('Failed to approve measurement:', err);
-      showToast('Erro ao aprovar medicao.', 'error');
+      showToast('Erro ao aprovar medição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -397,7 +397,7 @@ export default function ContractsManagement() {
       showToast('Medicao rejeitada.');
     } catch (err) {
       console.error('Failed to reject measurement:', err);
-      showToast('Erro ao rejeitar medicao.', 'error');
+      showToast('Erro ao rejeitar medição.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -445,8 +445,8 @@ export default function ContractsManagement() {
   const handleCreateClaim = async () => {
     const errors: Record<string, string> = {};
     if (!selectedProjectId) errors.project = 'Selecione um projeto';
-    if (!claimTitle.trim()) errors.title = 'Titulo e obrigatorio';
-    if (!claimDescription.trim()) errors.description = 'Descricao e obrigatoria';
+    if (!claimTitle.trim()) errors.title = 'Título é obrigatório';
+    if (!claimDescription.trim()) errors.description = 'Descrição é obrigatória';
 
     if (Object.keys(errors).length > 0) {
       setClaimErrors(errors);
@@ -467,7 +467,7 @@ export default function ContractsManagement() {
       showToast('Reivindicacao criada com sucesso.');
     } catch (err) {
       console.error('Failed to create claim:', err);
-      showToast('Erro ao criar reivindicacao.', 'error');
+      showToast('Erro ao criar reivindicação.', 'error');
     } finally {
       setClaimModalLoading(false);
     }
@@ -505,7 +505,7 @@ export default function ContractsManagement() {
       showToast('Reivindicacao encerrada com sucesso.');
     } catch (err) {
       console.error('Failed to close claim:', err);
-      showToast('Erro ao encerrar reivindicacao.', 'error');
+      showToast('Erro ao encerrar reivindicação.', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -518,7 +518,7 @@ export default function ContractsManagement() {
     <table style={{ width: '100%', fontSize: '13px' }}>
       <thead>
         <tr style={{ backgroundColor: 'var(--color-alternate)' }}>
-          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descricao</th>
+          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descrição</th>
           <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Unidade</th>
           <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Quantidade</th>
           <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Preco Unit.</th>
@@ -546,7 +546,7 @@ export default function ContractsManagement() {
     <div>
       <PageHeader
         title="Contratos"
-        subtitle="Gestao de medicoes e reivindicacoes contratuais"
+        subtitle="Gestão de medições e reivindicações contratuais"
         breadcrumb={projectsInfo ? `${projectsInfo.name} / Contratos` : 'Contratos'}
         actions={
           activeTab === 'measurements' ? (
@@ -605,7 +605,7 @@ export default function ContractsManagement() {
             <LoadingSpinner />
           ) : measurements.length === 0 ? (
             <EmptyState
-              message="Nenhuma medicao encontrada."
+              message="Nenhuma medição encontrada."
               action={
                 <button className="btn btn-primary" onClick={() => openCreateMeasurement()}>
                   <Plus size={18} /> Nova Medicao
@@ -619,7 +619,7 @@ export default function ContractsManagement() {
                   <tr>
                     <th>N Medicao</th>
                     <th>Periodo</th>
-                    <th>Observacoes</th>
+                    <th>Observações</th>
                     <th>Valor Total</th>
                     <th>Status</th>
                     <th>Acoes</th>
@@ -715,7 +715,7 @@ export default function ContractsManagement() {
             <LoadingSpinner />
           ) : claims.length === 0 ? (
             <EmptyState
-              message="Nenhuma reivindicacao encontrada."
+              message="Nenhuma reivindicação encontrada."
               action={
                 <button className="btn btn-primary" onClick={() => openCreateClaim()}>
                   <Plus size={18} /> Nova Reivindicacao
@@ -787,7 +787,7 @@ export default function ContractsManagement() {
                           <td colSpan={7} style={{ padding: '0', backgroundColor: 'var(--color-primary-bg)' }}>
                             <div style={{ padding: '16px 24px', borderTop: '2px solid var(--color-primary)' }}>
                               <p style={{ fontWeight: 600, marginBottom: '4px', fontSize: '13px', color: 'var(--color-primary-text)' }}>
-                                Descricao
+                                Descrição
                               </p>
                               <p style={{ marginBottom: '16px', fontSize: '13px' }}>{claim.description}</p>
                               <p style={{ fontWeight: 600, marginBottom: '12px', fontSize: '13px', color: 'var(--color-primary-text)' }}>
@@ -800,7 +800,7 @@ export default function ContractsManagement() {
                                   <thead>
                                     <tr style={{ backgroundColor: 'var(--color-alternate)' }}>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Arquivo</th>
-                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descricao</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descrição</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Tipo</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Data</th>
                                     </tr>
@@ -877,7 +877,7 @@ export default function ContractsManagement() {
                   style={measurementErrors.title ? errorBorder : undefined}
                   value={measurementTitle}
                   onChange={(e) => { setMeasurementTitle(e.target.value); setMeasurementErrors(prev => { const n = { ...prev }; delete n.title; return n; }); }}
-                  placeholder="Ex: Medicao 1 - Fundacao"
+                  placeholder="Ex: Medição 1 - Fundação"
                 />
                 {measurementErrors.title && <span style={errorText}>{measurementErrors.title}</span>}
               </div>
@@ -919,13 +919,13 @@ export default function ContractsManagement() {
               </div>
 
               <div className="input-group">
-                <label>Observacoes</label>
+                <label>Observações</label>
                 <textarea
                   className="input-field"
                   rows={2}
                   value={measurementNotes}
                   onChange={(e) => setMeasurementNotes(e.target.value)}
-                  placeholder="Observacoes sobre a medicao..."
+                  placeholder="Observações sobre a medição..."
                   style={{ resize: 'vertical' }}
                 />
               </div>
@@ -946,7 +946,7 @@ export default function ContractsManagement() {
                       <div>
                         <input
                           className="input-field"
-                          placeholder="Descricao do item"
+                          placeholder="Descrição do item"
                           value={item.description}
                           onChange={(e) => updateItem(idx, 'description', e.target.value)}
                           style={{ fontSize: '13px' }}
@@ -1027,7 +1027,7 @@ export default function ContractsManagement() {
                 rows={3}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Descreva o motivo da rejeicao..."
+                placeholder="Descreva o motivo da rejeição..."
                 style={{ resize: 'vertical' }}
               />
             </div>
@@ -1077,19 +1077,19 @@ export default function ContractsManagement() {
                   style={claimErrors.title ? errorBorder : undefined}
                   value={claimTitle}
                   onChange={(e) => { setClaimTitle(e.target.value); setClaimErrors(prev => { const n = { ...prev }; delete n.title; return n; }); }}
-                  placeholder="Titulo da reivindicacao"
+                  placeholder="Título da reivindicação"
                 />
                 {claimErrors.title && <span style={errorText}>{claimErrors.title}</span>}
               </div>
               <div className="input-group">
-                <label>Descricao *</label>
+                <label>Descrição *</label>
                 <textarea
                   className="input-field"
                   rows={3}
                   style={claimErrors.description ? errorBorder : undefined}
                   value={claimDescription}
                   onChange={(e) => { setClaimDescription(e.target.value); setClaimErrors(prev => { const n = { ...prev }; delete n.description; return n; }); }}
-                  placeholder="Descricao detalhada da reivindicacao..."
+                  placeholder="Descrição detalhada da reivindicação..."
                 />
                 {claimErrors.description && <span style={errorText}>{claimErrors.description}</span>}
               </div>
@@ -1145,7 +1145,7 @@ export default function ContractsManagement() {
                   style={closeErrors.resolution ? errorBorder : undefined}
                   value={closeResolution}
                   onChange={(e) => { setCloseResolution(e.target.value); setCloseErrors(prev => { const n = { ...prev }; delete n.resolution; return n; }); }}
-                  placeholder="Descreva a resolucao da reivindicacao..."
+                  placeholder="Descreva a resolução da reivindicação..."
                 />
                 {closeErrors.resolution && <span style={errorText}>{closeErrors.resolution}</span>}
               </div>

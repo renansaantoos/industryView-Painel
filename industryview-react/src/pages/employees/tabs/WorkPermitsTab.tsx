@@ -183,7 +183,7 @@ export default function WorkPermitsTab({ usersId }: WorkPermitsTabProps) {
 
       {/* Table */}
       {permits.length === 0 ? (
-        <EmptyState message="Nenhuma permissao de trabalho registrada para este colaborador." />
+        <EmptyState message="Nenhuma permissão de trabalho registrada para este colaborador." />
       ) : (
         <div className="table-container">
           <table>

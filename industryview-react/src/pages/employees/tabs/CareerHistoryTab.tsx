@@ -456,7 +456,7 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
                     </div>
                   )}
 
-                  {/* Observacoes */}
+                  {/* Observações */}
                   {item.observacoes && (
                     <div style={{ marginTop: 6, fontSize: '13px', color: 'var(--color-secondary-text)', fontStyle: 'italic' }}>
                       {item.observacoes}
@@ -627,10 +627,10 @@ export default function CareerHistoryTab({ usersId }: CareerHistoryTabProps) {
                 </div>
 
                 <div className="input-group">
-                  <label>Observacoes</label>
+                  <label>Observações</label>
                   <textarea
                     className="input-field"
-                    placeholder="Observacoes adicionais..."
+                    placeholder="Observações adicionais..."
                     rows={3}
                     value={form.observacoes}
                     onChange={e => handleFormChange('observacoes', e.target.value)}

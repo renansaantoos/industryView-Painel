@@ -234,8 +234,8 @@ function CompanyProfile() {
   if (!company) {
     return (
       <div>
-        <PageHeader title="Empresa" subtitle="Gestao de matriz e filiais" />
-        <EmptyState message="Dados da empresa nao encontrados" />
+        <PageHeader title="Empresa" subtitle="Gestão de matriz e filiais" />
+        <EmptyState message="Dados da empresa não encontrados" />
       </div>
     );
   }

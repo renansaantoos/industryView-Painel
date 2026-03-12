@@ -369,7 +369,7 @@ export function CompanyEditModal({ isOpen = true, company, onSave, onClose }: Co
                       options={REGIME_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
                       value={form.regime_tributario || undefined}
                       onChange={(value) => setField('regime_tributario', (value as RegimeTributario) || '')}
-                      placeholder="Selecione o regime tributario"
+                      placeholder="Selecione o regime tributário"
                       searchPlaceholder="Pesquisar..."
                     />
                   </div>

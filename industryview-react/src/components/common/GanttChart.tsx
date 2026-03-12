@@ -364,7 +364,7 @@ export default function GanttChart({
               }}
             >
               <span style={{ width: `${WBS_COLUMN_WIDTH}px`, padding: '0 8px', flexShrink: 0, borderRight: '1px solid var(--color-alternate)' }}>Item</span>
-              <span style={{ flex: 1, padding: '0 12px' }}>Descricao</span>
+              <span style={{ flex: 1, padding: '0 12px' }}>Descrição</span>
             </div>
             {/* Rows */}
             {visibleRows.map((row) => (

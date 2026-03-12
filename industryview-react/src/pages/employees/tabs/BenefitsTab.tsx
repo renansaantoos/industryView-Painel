@@ -371,7 +371,7 @@ export default function BenefitsTab({ usersId }: BenefitsTabProps) {
             <thead>
               <tr>
                 <th>Tipo</th>
-                <th>Descricao</th>
+                <th>Descrição</th>
                 <th>Valor</th>
                 <th>Data Inicio</th>
                 <th>Data Fim</th>
@@ -466,11 +466,11 @@ export default function BenefitsTab({ usersId }: BenefitsTabProps) {
                 </div>
 
                 <div className="input-group">
-                  <label>Descricao</label>
+                  <label>Descrição</label>
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="Descricao do beneficio..."
+                    placeholder="Descrição do beneficio..."
                     value={form.descricao}
                     onChange={e => handleFormChange('descricao', e.target.value)}
                   />
@@ -531,10 +531,10 @@ export default function BenefitsTab({ usersId }: BenefitsTabProps) {
                 )}
 
                 <div className="input-group">
-                  <label>Observacoes</label>
+                  <label>Observações</label>
                   <textarea
                     className="input-field"
-                    placeholder="Observacoes adicionais..."
+                    placeholder="Observações adicionais..."
                     rows={3}
                     value={form.observacoes}
                     onChange={e => handleFormChange('observacoes', e.target.value)}

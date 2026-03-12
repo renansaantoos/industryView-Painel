@@ -267,10 +267,10 @@ export default function DocumentManagement() {
 
     // Validacao campo a campo
     const errors: Record<string, string> = {};
-    if (!form.document_number.trim()) errors.document_number = 'Numero do documento e obrigatorio';
-    if (!form.title.trim())           errors.title           = 'Titulo e obrigatorio';
-    if (!form.document_type)          errors.document_type   = 'Tipo de documento e obrigatorio';
-    if (!form.category)               errors.category        = 'Categoria e obrigatoria';
+    if (!form.document_number.trim()) errors.document_number = 'Número do documento é obrigatório';
+    if (!form.title.trim())           errors.title           = 'Título é obrigatório';
+    if (!form.document_type)          errors.document_type   = 'Tipo de documento é obrigatório';
+    if (!form.category)               errors.category        = 'Categoria é obrigatória';
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -368,9 +368,9 @@ export default function DocumentManagement() {
   return (
     <div>
       <PageHeader
-        title="Gestao de Documentos"
-        subtitle="Controle o ciclo de vida de documentos, revisoes e aprovacoes."
-        breadcrumb="Operacoes"
+        title="Gestão de Documentos"
+        subtitle="Controle o ciclo de vida de documentos, revisões e aprovações."
+        breadcrumb="Operações"
         actions={
           <button className="btn btn-primary" onClick={openCreateModal}>
             <Plus size={16} />
@@ -823,11 +823,11 @@ export default function DocumentManagement() {
 
               <div className="input-group">
                 <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
-                  Descricao
+                  Descrição
                 </label>
                 <textarea
                   className="input-field"
-                  placeholder="Descricao do documento..."
+                  placeholder="Descrição do documento..."
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}

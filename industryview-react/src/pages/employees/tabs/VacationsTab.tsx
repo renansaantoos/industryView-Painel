@@ -641,10 +641,10 @@ function VacationFormModal({
                 )}
               </div>
 
-              {/* Observacoes */}
+              {/* Observações */}
               <div className="input-group" style={{ marginBottom: '20px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '6px', display: 'block' }}>
-                  Observacoes
+                  Observações
                 </label>
                 <textarea
                   className="input-field"

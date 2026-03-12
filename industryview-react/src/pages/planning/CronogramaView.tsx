@@ -350,7 +350,7 @@ function WbsTable({
         <thead>
           <tr>
             <th style={{ width: '80px' }}>WBS</th>
-            <th>Descricao</th>
+            <th>Descrição</th>
             <th style={{ width: '90px' }}>Inicio Plan.</th>
             <th style={{ width: '90px' }}>Fim Plan.</th>
             <th style={{ width: '90px' }}>Inicio Real</th>
@@ -434,7 +434,7 @@ export default function CronogramaView() {
       }
       setWbsExpandedIds(rootIds);
     } catch {
-      showToast('Erro ao carregar arvore WBS', 'error');
+      showToast('Erro ao carregar árvore WBS', 'error');
     } finally {
       setWbsLoading(false);
     }
@@ -704,7 +704,7 @@ export default function CronogramaView() {
           {wbsLoading ? (
             <LoadingSpinner />
           ) : wbsItems.length === 0 ? (
-            <EmptyState message="Nenhuma tarefa encontrada. Importe o cronograma para visualizar a arvore WBS." />
+            <EmptyState message="Nenhuma tarefa encontrada. Importe o cronograma para visualizar a árvore WBS." />
           ) : (
             <WbsTable
               items={wbsItems}

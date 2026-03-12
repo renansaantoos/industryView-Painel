@@ -558,10 +558,10 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
                 )}
 
                 <div className="input-group">
-                  <label>Observacoes</label>
+                  <label>Observações</label>
                   <textarea
                     className="input-field"
-                    placeholder="Observacoes adicionais..."
+                    placeholder="Observações adicionais..."
                     rows={3}
                     value={form.observacoes}
                     onChange={e => handleFormChange('observacoes', e.target.value)}
@@ -600,8 +600,8 @@ export default function DayOffsTab({ usersId }: DayOffsTabProps) {
         title={approveTarget?.action === 'aprovado' ? 'Aprovar Folga' : 'Rejeitar Folga'}
         message={
           approveTarget?.action === 'aprovado'
-            ? 'Confirma a aprovacao desta folga?'
-            : 'Confirma a rejeicao desta folga?'
+            ? 'Confirma a aprovação desta folga?'
+            : 'Confirma a rejeição desta folga?'
         }
         confirmLabel={actionLoading ? 'Aguarde...' : approveTarget?.action === 'aprovado' ? 'Aprovar' : 'Rejeitar'}
         variant={approveTarget?.action === 'aprovado' ? 'primary' : 'danger'}

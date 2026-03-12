@@ -341,10 +341,10 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
 
     const missing: string[] = [];
     if (!form.severity) missing.push('Severidade');
-    if (!form.classification) missing.push('Classificacao');
+    if (!form.classification) missing.push('Classificação');
     if (!form.category) missing.push('Categoria');
     if (!form.incident_date) missing.push('Data');
-    if (form.description.trim().length < 10) missing.push('Descricao (min 10 caracteres)');
+    if (form.description.trim().length < 10) missing.push('Descrição (min 10 caracteres)');
     if (!editingItem && !selectedProjectId) missing.push('Projeto');
 
     if (missing.length > 0) {
@@ -388,7 +388,7 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
                 <th>Data</th>
                 <th>N Incidente</th>
                 <th>Severidade</th>
-                <th>Classificacao</th>
+                <th>Classificação</th>
                 <th>Parte do Corpo</th>
                 <th>Dias Perdidos</th>
                 <th>Status</th>
@@ -487,7 +487,7 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
                 <th>Data</th>
                 <th>N Incidente</th>
                 <th>Severidade</th>
-                <th>Classificacao</th>
+                <th>Classificação</th>
                 <th>Parte do Corpo</th>
                 <th>Dias Perdidos</th>
                 <th>Status</th>
@@ -628,7 +628,7 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
                   <FieldError show={!!touched['severity'] && !form.severity} />
                 </div>
                 <div>
-                  <FieldLabel required>Classificacao</FieldLabel>
+                  <FieldLabel required>Classificação</FieldLabel>
                   <SearchableSelect
                     options={CLASSIFICATION_OPTIONS}
                     value={form.classification || undefined}
@@ -700,7 +700,7 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="Ex: Area de medicao"
+                    placeholder="Ex: Área de medição"
                     value={form.location_description}
                     onChange={(e) => handleFormChange('location_description', e.target.value)}
                     style={{ width: '100%' }}
@@ -710,7 +710,7 @@ export default function IncidentsTab({ usersId }: IncidentsTabProps) {
 
               {/* Row 5: Descrição (full width) */}
               <div style={{ marginBottom: '14px' }}>
-                <FieldLabel required>Descricao</FieldLabel>
+                <FieldLabel required>Descrição</FieldLabel>
                 <textarea
                   className="input-field"
                   rows={3}

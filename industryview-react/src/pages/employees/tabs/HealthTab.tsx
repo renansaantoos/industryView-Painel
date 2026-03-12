@@ -660,12 +660,12 @@ export default function HealthTab({ usersId }: HealthTabProps) {
                   </div>
                 </div>
 
-                {/* Observacoes */}
+                {/* Observações */}
                 <div className="input-group">
-                  <label>Observacoes</label>
+                  <label>Observações</label>
                   <textarea
                     className="input-field"
-                    placeholder="Observacoes adicionais..."
+                    placeholder="Observações adicionais..."
                     rows={3}
                     value={form.observation}
                     onChange={(e) => handleFormChange('observation', e.target.value)}

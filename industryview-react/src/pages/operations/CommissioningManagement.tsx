@@ -320,7 +320,7 @@ export default function CommissioningManagement() {
 
   const handleSavePunch = async () => {
     const errs: Record<string, string> = {};
-    if (!punchDescription.trim()) errs.description = 'Descricao e obrigatoria';
+    if (!punchDescription.trim()) errs.description = 'Descrição é obrigatória';
     if (Object.keys(errs).length > 0) { setPunchErrors(errs); return; }
     setPunchErrors({});
     setPunchModalLoading(true);
@@ -585,7 +585,7 @@ export default function CommissioningManagement() {
                                   <thead>
                                     <tr style={{ backgroundColor: 'var(--color-alternate)' }}>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>#</th>
-                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descricao</th>
+                                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Descrição</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Prioridade</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Status</th>
                                       <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>Responsavel</th>
@@ -739,8 +739,8 @@ export default function CommissioningManagement() {
                 </div>
               )}
               <div className="input-group">
-                <label>Descricao</label>
-                <textarea className="input-field" rows={3} value={systemDescription} onChange={(e) => setSystemDescription(e.target.value)} placeholder="Descricao do sistema..." style={{ resize: 'vertical' }} />
+                <label>Descrição</label>
+                <textarea className="input-field" rows={3} value={systemDescription} onChange={(e) => setSystemDescription(e.target.value)} placeholder="Descrição do sistema..." style={{ resize: 'vertical' }} />
               </div>
               <div className="input-group">
                 <label>Data Planejada</label>
@@ -780,8 +780,8 @@ export default function CommissioningManagement() {
             <h3 style={{ marginBottom: '20px' }}>{editingPunch ? 'Editar Item' : 'Adicionar Item ao Punch List'}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div className="input-group">
-                <label>Descricao <span style={{ color: 'var(--color-error)' }}>*</span></label>
-                <input className="input-field" style={punchErrors.description ? errorBorder : undefined} value={punchDescription} onChange={(e) => { setPunchDescription(e.target.value); setPunchErrors((er) => { const { description, ...rest } = er; return rest; }); }} placeholder="Descricao do item" />
+                <label>Descrição <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                <input className="input-field" style={punchErrors.description ? errorBorder : undefined} value={punchDescription} onChange={(e) => { setPunchDescription(e.target.value); setPunchErrors((er) => { const { description, ...rest } = er; return rest; }); }} placeholder="Descrição do item" />
                 {punchErrors.description && <span style={errorText}>{punchErrors.description}</span>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

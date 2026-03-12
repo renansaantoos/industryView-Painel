@@ -531,14 +531,14 @@ export default function DocumentsTab({ usersId }: DocumentsTabProps) {
                   )}
                 </div>
 
-                {/* Descricao */}
+                {/* Descrição */}
                 <div className="input-group">
                   <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 4, display: 'block' }}>
-                    Descricao
+                    Descrição
                   </label>
                   <textarea
                     className="input-field"
-                    placeholder="Descricao opcional"
+                    placeholder="Descrição opcional"
                     rows={3}
                     value={form.descricao}
                     onChange={e => updateField('descricao', e.target.value)}

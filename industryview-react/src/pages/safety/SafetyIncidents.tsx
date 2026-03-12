@@ -367,12 +367,12 @@ export default function SafetyIncidents() {
   const validateCreateForm = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (!formProjectId) errors.project = t('safety.validation.projectRequired', 'Selecione um projeto');
-    if (!formDate) errors.date = t('safety.validation.dateRequired', 'Data do incidente e obrigatoria');
-    if (formDate && formDate > TODAY_DATE) errors.date = t('safety.validation.dateMaxToday', 'Data do incidente nao pode ser futura');
-    if (!formSeverity) errors.severity = t('safety.validation.severityRequired', 'Severidade e obrigatoria');
-    if (!formDescription.trim()) errors.description = t('safety.validation.descriptionRequired', 'Descricao e obrigatoria');
-    if (formDescription.trim().length > 0 && formDescription.trim().length < 10) errors.description = t('safety.validation.descriptionMin', 'Descricao deve ter ao menos 10 caracteres');
-    if (!formClassification) errors.classification = t('safety.validation.classificationRequired', 'Classificacao e obrigatoria');
+    if (!formDate) errors.date = t('safety.validation.dateRequired', 'Data do incidente é obrigatória');
+    if (formDate && formDate > TODAY_DATE) errors.date = t('safety.validation.dateMaxToday', 'Data do incidente não pode ser futura');
+    if (!formSeverity) errors.severity = t('safety.validation.severityRequired', 'Severidade é obrigatória');
+    if (!formDescription.trim()) errors.description = t('safety.validation.descriptionRequired', 'Descrição é obrigatória');
+    if (formDescription.trim().length > 0 && formDescription.trim().length < 10) errors.description = t('safety.validation.descriptionMin', 'Descrição deve ter ao menos 10 caracteres');
+    if (!formClassification) errors.classification = t('safety.validation.classificationRequired', 'Classificação é obrigatória');
     if (!formCategory.trim()) errors.category = t('safety.validation.categoryRequired', 'Categoria e obrigatoria');
     return errors;
   };
@@ -1291,7 +1291,7 @@ export default function SafetyIncidents() {
 
                     {/* Description */}
                     <div className="input-group">
-                      <label>{t('common.description', 'Descricao')} <span style={{ color: '#C0392B' }}>*</span></label>
+                      <label>{t('common.description', 'Descrição')} <span style={{ color: '#C0392B' }}>*</span></label>
                       <textarea
                         className="input-field"
                         rows={3}
@@ -1328,7 +1328,7 @@ export default function SafetyIncidents() {
                         )}
                       </div>
                       <div className="input-group">
-                        <label>{t('safety.classification', 'Classificacao')} <span style={{ color: '#C0392B' }}>*</span></label>
+                        <label>{t('safety.classification', 'Classificação')} <span style={{ color: '#C0392B' }}>*</span></label>
                         <SearchableSelect
                           options={[
                             { value: 'tipico', label: classificationLabel.tipico },

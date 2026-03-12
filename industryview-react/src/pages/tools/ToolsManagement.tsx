@@ -361,7 +361,7 @@ export default function ToolsManagement() {
       setMovTotalPages(Number(data.pageTotal) || 1);
       setMovTotalItems(Number(data.itemsTotal) || 0);
     } catch {
-      showToast('Erro ao carregar movimentacoes', 'error');
+      showToast('Erro ao carregar movimentações', 'error');
     } finally {
       setMovementsLoading(false);
     }
@@ -807,7 +807,7 @@ export default function ToolsManagement() {
       loadMovements();
       loadTools();
     } catch {
-      showToast('Erro na movimentacao', 'error');
+      showToast('Erro na movimentação', 'error');
     } finally {
       setMovFormLoading(false);
     }
@@ -1019,7 +1019,7 @@ export default function ToolsManagement() {
   const tabs: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
     { key: 'modelos', label: 'Modelos', icon: <Tag size={18} /> },
     { key: 'cadastro', label: 'Ferramentas', icon: <Wrench size={18} /> },
-    { key: 'movimentacoes', label: 'Movimentacoes', icon: <ArrowRightLeft size={18} /> },
+    { key: 'movimentacoes', label: 'Movimentações', icon: <ArrowRightLeft size={18} /> },
     { key: 'kits', label: 'Kits', icon: <PackagePlus size={18} /> },
     { key: 'categorias', label: 'Categorias', icon: <Tag size={18} /> },
   ];
@@ -1072,7 +1072,7 @@ export default function ToolsManagement() {
 
   return (
     <div>
-      <PageHeader title="Ferramentas" subtitle="Gerenciamento de ferramentas, movimentacoes e kits" />
+      <PageHeader title="Ferramentas" subtitle="Gerenciamento de ferramentas, movimentações e kits" />
 
       {/* Toast */}
       <AnimatePresence>
@@ -1232,10 +1232,10 @@ export default function ToolsManagement() {
               </div>
 
               <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '15px', fontWeight: 600 }}>
-                <History size={16} /> Historico de Movimentacoes
+                <History size={16} /> Histórico de Movimentações
               </h4>
               {toolMovementsLoading ? <LoadingSpinner /> : toolMovements.length === 0 ? (
-                <EmptyState message="Nenhuma movimentacao encontrada" />
+                <EmptyState message="Nenhuma movimentação encontrada" />
               ) : (
                 <div className="table-container">
                   <table>
@@ -1243,7 +1243,7 @@ export default function ToolsManagement() {
                       <tr>
                         <th>Tipo</th>
                         <th>Qtd</th>
-                        <th>Condicao</th>
+                        <th>Condição</th>
                         <th>Por</th>
                         <th>Obs</th>
                         <th>Data</th>
@@ -1370,7 +1370,7 @@ export default function ToolsManagement() {
                                   <thead>
                                     <tr>
                                       <th style={{ paddingLeft: '20px' }}>Patrimonio / Serial</th>
-                                      <th>Condicao</th>
+                                      <th>Condição</th>
                                       <th>Qtd Disp.</th>
                                       <th>Localizacao</th>
                                       <th>Atribuido a</th>
@@ -1479,7 +1479,7 @@ export default function ToolsManagement() {
           </div>
 
           {movementsLoading ? <LoadingSpinner /> : movements.length === 0 ? (
-            <EmptyState icon={<ArrowRightLeft size={48} />} title="Nenhuma movimentacao encontrada" description="Utilize os botoes acima para registrar movimentacoes" />
+            <EmptyState icon={<ArrowRightLeft size={48} />} title="Nenhuma movimentação encontrada" description="Utilize os botoes acima para registrar movimentações" />
           ) : (
             <>
               <div className="table-container">
@@ -1489,7 +1489,7 @@ export default function ToolsManagement() {
                       <th>Ferramenta</th>
                       <th>Tipo</th>
                       <th>Qtd</th>
-                      <th>Condicao</th>
+                      <th>Condição</th>
                       <th>Realizado por</th>
                       <th>Obs</th>
                       <th>Data</th>
@@ -1643,7 +1643,7 @@ export default function ToolsManagement() {
                 <thead>
                   <tr>
                     <th>Nome</th>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th style={{ textAlign: 'right' }}>Acoes</th>
                   </tr>
                 </thead>
@@ -1742,7 +1742,7 @@ export default function ToolsManagement() {
                     <input type="text" value={toolForm.serial_number} onChange={(e) => setToolForm({ ...toolForm, serial_number: e.target.value })} className="input-field" />
                   </div>
                   <div className="input-group">
-                    <label>Condicao</label>
+                    <label>Condição</label>
                     <select value={toolForm.condition} onChange={(e) => setToolForm({ ...toolForm, condition: e.target.value })} className="input-field">
                       {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
@@ -1760,7 +1760,7 @@ export default function ToolsManagement() {
                 </div>
               </div>
               <div className="input-group">
-                <label>Observacoes</label>
+                <label>Observações</label>
                 <textarea rows={3} value={toolForm.notes} onChange={(e) => setToolForm({ ...toolForm, notes: e.target.value })} className="input-field" />
               </div>
               {!editingTool && (
@@ -1801,7 +1801,7 @@ export default function ToolsManagement() {
           >
             <h3>Preencher dados das ferramentas</h3>
             <p style={{ fontSize: '13px', color: 'var(--color-secondary-text)', marginTop: '8px', marginBottom: '16px' }}>
-              Preencha os campos individuais de cada ferramenta. Campos nao preenchidos serao cadastrados sem esse dado.
+              Preencha os campos individuais de cada ferramenta. Campos não preenchidos serão cadastrados sem esse dado.
             </p>
             <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
               {bulkInstances.map((inst, idx) => (
@@ -1860,7 +1860,7 @@ export default function ToolsManagement() {
                       />
                     </div>
                     <div className="input-group" style={{ margin: 0 }}>
-                      <label style={{ fontSize: '12px' }}>Condicao</label>
+                      <label style={{ fontSize: '12px' }}>Condição</label>
                       <select
                         value={inst.condition}
                         onChange={(e) => {
@@ -1945,11 +1945,11 @@ export default function ToolsManagement() {
                 <div className="input-group"><label>Projeto *</label><SearchableSelect options={projectOptions} value={movForm.project_id ? parseInt(movForm.project_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, project_id: v ? String(v) : '' })} placeholder="Selecione projeto..." /></div>
               )}
               {showMovModal === 'return' && (<>
-                <div className="input-group"><label>Condicao</label><select value={movForm.condition || 'bom'} onChange={(e) => setMovForm({ ...movForm, condition: e.target.value })} className="input-field">{Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                <div className="input-group"><label>Condição</label><select value={movForm.condition || 'bom'} onChange={(e) => setMovForm({ ...movForm, condition: e.target.value })} className="input-field">{Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
                 <div className="input-group"><label>Filial destino</label><SearchableSelect options={branchOptions} value={movForm.to_branch_id ? parseInt(movForm.to_branch_id, 10) : undefined} onChange={(v) => setMovForm({ ...movForm, to_branch_id: v ? String(v) : '' })} placeholder="Selecione filial..." /></div>
               </>)}
               <div className="input-group"><label>Quantidade</label><input type="number" min="1" value={movForm.quantity || '1'} onChange={(e) => setMovForm({ ...movForm, quantity: e.target.value })} className="input-field" /></div>
-              <div className="input-group"><label>Observacoes</label><textarea rows={3} value={movForm.notes || ''} onChange={(e) => setMovForm({ ...movForm, notes: e.target.value })} className="input-field" /></div>
+              <div className="input-group"><label>Observações</label><textarea rows={3} value={movForm.notes || ''} onChange={(e) => setMovForm({ ...movForm, notes: e.target.value })} className="input-field" /></div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => { setShowMovModal(null); setMovForm({}); }}>Cancelar</button>
@@ -2487,7 +2487,7 @@ export default function ToolsManagement() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
               <div className="input-group"><label>Nome *</label><input type="text" value={kitForm.name} onChange={(e) => setKitForm({ ...kitForm, name: e.target.value })} className="input-field" /></div>
               <div className="input-group"><label>Cargo *</label><input type="text" value={kitForm.cargo} onChange={(e) => setKitForm({ ...kitForm, cargo: e.target.value })} placeholder="Ex: Eletricista, Encanador..." className="input-field" /></div>
-              <div className="input-group"><label>Descricao</label><textarea rows={3} value={kitForm.description} onChange={(e) => setKitForm({ ...kitForm, description: e.target.value })} className="input-field" /></div>
+              <div className="input-group"><label>Descrição</label><textarea rows={3} value={kitForm.description} onChange={(e) => setKitForm({ ...kitForm, description: e.target.value })} className="input-field" /></div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setShowKitModal(false)}>Cancelar</button>
@@ -2540,7 +2540,7 @@ export default function ToolsManagement() {
             <h3>{editingCat ? 'Editar Categoria' : 'Nova Categoria'}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
               <div className="input-group"><label>Nome *</label><input type="text" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="input-field" /></div>
-              <div className="input-group"><label>Descricao</label><textarea rows={3} value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} className="input-field" /></div>
+              <div className="input-group"><label>Descrição</label><textarea rows={3} value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} className="input-field" /></div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
               <button className="btn btn-secondary" onClick={() => setShowCatModal(false)}>Cancelar</button>
@@ -2582,7 +2582,7 @@ export default function ToolsManagement() {
                 </div>
               </div>
               <div className="input-group">
-                <label>Descricao</label>
+                <label>Descrição</label>
                 <textarea rows={3} value={modelForm.description} onChange={(e) => setModelForm({ ...modelForm, description: e.target.value })} className="input-field" />
               </div>
             </div>
@@ -2601,7 +2601,7 @@ export default function ToolsManagement() {
       <ConfirmModal isOpen={!!deleteKitConfirm} title="Excluir Kit" message={`Deseja excluir o kit "${deleteKitConfirm?.name}"?`} onConfirm={handleDeleteKit} onCancel={() => setDeleteKitConfirm(null)} />
       <ConfirmModal isOpen={!!deleteKitItemConfirm} title="Remover Modelo do Kit" message={`Deseja remover "${deleteKitItemConfirm?.model?.name}" do kit?`} onConfirm={handleDeleteKitItem} onCancel={() => setDeleteKitItemConfirm(null)} />
       <ConfirmModal isOpen={!!deleteCatConfirm} title="Excluir Categoria" message={`Deseja excluir a categoria "${deleteCatConfirm?.name}"?`} onConfirm={handleDeleteCat} onCancel={() => setDeleteCatConfirm(null)} />
-      <ConfirmModal isOpen={!!deleteModelConfirm} title="Excluir Modelo" message={`Deseja excluir o modelo "${deleteModelConfirm?.name}"? Todas as ferramentas vinculadas serao afetadas.`} onConfirm={handleDeleteModel} onCancel={() => setDeleteModelConfirm(null)} />
+      <ConfirmModal isOpen={!!deleteModelConfirm} title="Excluir Modelo" message={`Deseja excluir o modelo "${deleteModelConfirm?.name}"? Todas as ferramentas vinculadas serão afetadas.`} onConfirm={handleDeleteModel} onCancel={() => setDeleteModelConfirm(null)} />
     </div>
   );
 }

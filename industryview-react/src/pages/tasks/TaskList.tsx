@@ -644,7 +644,7 @@ export default function TaskList() {
         </div>
       </motion.div>
 
-      {/* Section 2 - Classificacao */}
+      {/* Section 2 - Classificação */}
       <motion.div variants={fadeUpChild} style={sectionStyle}>
         <div style={sectionHeaderStyle}>
           <div style={{ ...sectionIconStyle, background: '#FFF3E0' }}>
