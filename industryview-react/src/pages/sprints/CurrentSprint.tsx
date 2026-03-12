@@ -1412,16 +1412,17 @@ export default function CurrentSprint() {
               <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
                 Responsável
               </label>
-              <select
-                className="input-field"
-                value={failureResponsible}
-                onChange={(e) => setFailureResponsible(e.target.value as 'terceiros' | 'cliente' | 'empresa' | '')}
-              >
-                <option value="">Selecionar responsável</option>
-                <option value="terceiros">Terceiros</option>
-                <option value="cliente">Cliente</option>
-                <option value="empresa">Empresa</option>
-              </select>
+              <SearchableSelect
+                options={[
+                  { value: 'terceiros', label: 'Terceiros' },
+                  { value: 'cliente', label: 'Cliente' },
+                  { value: 'empresa', label: 'Empresa' },
+                ]}
+                value={failureResponsible || undefined}
+                onChange={(value) => setFailureResponsible((value as 'terceiros' | 'cliente' | 'empresa') || '')}
+                placeholder="Selecionar responsável"
+                searchPlaceholder={t('common.search')}
+              />
             </div>
 
             <div className="input-group" style={{ marginTop: '12px' }}>
