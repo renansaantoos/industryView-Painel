@@ -80,6 +80,7 @@ export interface SprintTask {
   assignedUserId?: number;
   nonExecutionReasonId?: number;
   nonExecutionObservations?: string;
+  failureResponsible?: string | null;
   criticality?: string;
   actualStartTime?: string;
   actualEndTime?: string;

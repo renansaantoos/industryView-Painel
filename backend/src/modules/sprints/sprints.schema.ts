@@ -222,6 +222,7 @@ export const updateSprintTaskSchema = z.object({
   end_date: z.string().datetime({ local: true, offset: true }).optional().nullable(),
   non_execution_reason_id: z.number().int().optional().nullable(),
   non_execution_observations: z.string().optional().nullable(),
+  failure_responsible: z.enum(['terceiros', 'cliente', 'empresa']).optional().nullable(),
 });
 
 export type UpdateSprintTaskInput = z.infer<typeof updateSprintTaskSchema>;

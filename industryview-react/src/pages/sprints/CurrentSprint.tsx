@@ -247,6 +247,7 @@ export default function CurrentSprint() {
   const [failureTask, setFailureTask] = useState<SprintTask | null>(null);
   const [failureReasonId, setFailureReasonId] = useState<number | ''>('');
   const [failureObservation, setFailureObservation] = useState('');
+  const [failureResponsible, setFailureResponsible] = useState<'terceiros' | 'cliente' | 'empresa' | ''>('');
   const [failureLoading, setFailureLoading] = useState(false);
   const [failureError, setFailureError] = useState('');
 
@@ -553,9 +554,20 @@ export default function CurrentSprint() {
 
   const handleConfirmComplete = async () => {
     if (!completeTask) return;
+
+    const qty = completeQuantity !== '' ? Number(completeQuantity) : undefined;
+
+    // Quantidade 0 → redireciona para sem sucesso
+    if (qty === 0) {
+      const taskToFail = completeTask;
+      setCompleteTask(null);
+      setCompleteQuantity('');
+      handleOpenFailureModal(taskToFail);
+      return;
+    }
+
     setCompleteLoading(true);
     try {
-      const qty = completeQuantity ? Number(completeQuantity) : undefined;
       await sprintsApi.editStatusTask(completeTask.id, {
         sprints_tasks_statuses_id: STATUS_DONE,
         quantity_done: qty,
@@ -573,6 +585,7 @@ export default function CurrentSprint() {
     setFailureTask(task);
     setFailureReasonId('');
     setFailureObservation('');
+    setFailureResponsible('');
     setFailureError('');
     if (nonExecReasons.length === 0) {
       try {
@@ -599,6 +612,7 @@ export default function CurrentSprint() {
         sprints_tasks_statuses_id: STATUS_FAILED,
         non_execution_reason_id: failureReasonId,
         non_execution_observations: failureObservation || null,
+        failure_responsible: failureResponsible || null,
       });
       setFailureTask(null);
       await loadSprintData();
@@ -1392,6 +1406,22 @@ export default function CurrentSprint() {
                 placeholder={t('sprints.failureReason')}
                 searchPlaceholder={t('common.search')}
               />
+            </div>
+
+            <div className="input-group" style={{ marginTop: '12px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 500, marginBottom: '4px', display: 'block' }}>
+                Responsável
+              </label>
+              <select
+                className="input-field"
+                value={failureResponsible}
+                onChange={(e) => setFailureResponsible(e.target.value as 'terceiros' | 'cliente' | 'empresa' | '')}
+              >
+                <option value="">Selecionar responsável</option>
+                <option value="terceiros">Terceiros</option>
+                <option value="cliente">Cliente</option>
+                <option value="empresa">Empresa</option>
+              </select>
             </div>
 
             <div className="input-group" style={{ marginTop: '12px' }}>

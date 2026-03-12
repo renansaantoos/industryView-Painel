@@ -794,6 +794,7 @@ export class SprintsService {
     if (input.quantity_done !== undefined) updateData.quantity_done = input.quantity_done;
     if (input.non_execution_reason_id !== undefined) updateData.non_execution_reason_id = input.non_execution_reason_id;
     if (input.non_execution_observations !== undefined) updateData.non_execution_observations = input.non_execution_observations;
+    if (input.failure_responsible !== undefined) updateData.failure_responsible = input.failure_responsible;
 
     return db.sprints_tasks.update({
       where: { id: taskId },

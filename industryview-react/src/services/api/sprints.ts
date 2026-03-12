@@ -150,6 +150,7 @@ export async function editSprintTask(taskId: number, data: Partial<{
   end_date: string;
   non_execution_reason_id: number | null;
   non_execution_observations: string | null;
+  failure_responsible: string | null;
 }>): Promise<SprintTask> {
   const response = await apiClient.patch(`${SPRINTS_BASE}/tasks/${taskId}`, data);
   return response.data;

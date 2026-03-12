@@ -1017,6 +1017,7 @@ model sprints_tasks {
   assigned_user_id          BigInt?
   non_execution_reason_id   BigInt?
   non_execution_observations String?
+  failure_responsible        String?
   criticality               String?                  @db.VarChar(20)
   actual_start_time         DateTime?                @db.Timestamptz(6)
   actual_end_time           DateTime?                @db.Timestamptz(6)
