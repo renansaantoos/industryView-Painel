@@ -378,20 +378,7 @@ class AppRoute {
                 )
               : builder(context, routeParams);
           final child = appStateNotifier.loading
-              ? Container(
-                  color: Colors.white,
-                  child: Center(
-                    child: Text(
-                      'IndustryView',
-                      style: TextStyle(
-                        fontSize: 48.0,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2B5EA7),
-                        letterSpacing: -1.0,
-                      ),
-                    ),
-                  ),
-                )
+              ? Container(color: Colors.white)
               : page;
 
           final transitionInfo = state.transitionInfo;

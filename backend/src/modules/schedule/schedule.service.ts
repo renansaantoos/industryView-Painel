@@ -216,81 +216,88 @@ export class ScheduleService {
       Date.UTC(nowInSP.getUTCFullYear(), nowInSP.getUTCMonth(), nowInSP.getUTCDate())
     );
 
-    const scheduleUsers = await db.schedule_user.findMany({
+    // Buscar equipes onde o usuário é LÍDER (teams_leaders)
+    const leaderTeams = await db.teams_leaders.findMany({
       where: {
         users_id: BigInt(userId),
         deleted_at: null,
-        schedule: {
-          daily_report_id: null,
-          deleted_at: null,
-          schedule_date: { lt: todayInSP },
-        },
+      },
+      select: { teams_id: true },
+    });
+
+    const teamIds = leaderTeams
+      .map(lt => lt.teams_id)
+      .filter((id): id is bigint => id !== null);
+
+    if (teamIds.length === 0) {
+      return { has_pending: false, pending_schedules: [] };
+    }
+
+    // Buscar schedules pendentes (sem RDO) de dias anteriores para essas equipes
+    const pendingRaw = await db.schedule.findMany({
+      where: {
+        teams_id: { in: teamIds },
+        daily_report_id: null,
+        deleted_at: null,
+        schedule_date: { lt: todayInSP },
       },
       include: {
-        schedule: {
+        projects: { select: { id: true, name: true } },
+        teams: { select: { id: true, name: true } },
+        schedule_user: {
+          where: { deleted_at: null },
           include: {
-            projects: { select: { id: true, name: true } },
-            teams: { select: { id: true, name: true } },
-            schedule_user: {
-              where: { deleted_at: null },
-              include: {
-                users: {
-                  select: {
-                    id: true, name: true, profile_picture: true,
-                    hr_data: { select: { cpf: true, cargo: true } },
-                  },
-                },
+            users: {
+              select: {
+                id: true, name: true, profile_picture: true,
+                hr_data: { select: { cpf: true, cargo: true } },
               },
             },
-            schedule_sprints_tasks: {
+          },
+        },
+        schedule_sprints_tasks: {
+          include: {
+            sprints_tasks: {
               include: {
-                sprints_tasks: {
-                  include: {
-                    projects_backlogs: {
-                      select: { description: true },
-                    },
-                    sprints_tasks_statuses: {
-                      select: { id: true, status: true },
-                    },
-                  },
+                projects_backlogs: {
+                  select: { description: true },
+                },
+                sprints_tasks_statuses: {
+                  select: { id: true, status: true },
                 },
               },
             },
           },
         },
       },
+      orderBy: { schedule_date: 'desc' },
     });
 
-    const pendingSchedules = scheduleUsers
-      .filter(su => su.schedule !== null)
-      .map(su => {
-        const s = su.schedule!;
-        return {
-          schedule_id: Number(s.id),
-          schedule_date: s.schedule_date
-            ? s.schedule_date.toISOString().split('T')[0]
-            : null,
-          projects_id: s.projects_id ? Number(s.projects_id) : null,
-          project_name: s.projects?.name ?? null,
-          teams_id: s.teams_id ? Number(s.teams_id) : null,
-          team_name: s.teams?.name ?? null,
-          workers: (s as any).schedule_user?.map((su2: any) => ({
-            id: Number(su2.users?.id ?? su2.users_id),
-            name: su2.users?.name ?? null,
-            image: su2.users?.profile_picture ?? null,
-            cpf: su2.users?.hr_data?.cpf ?? null,
-            cargo: su2.users?.hr_data?.cargo ?? null,
-          })) ?? [],
-          tasks: (s as any).schedule_sprints_tasks?.map((sst: any) => ({
-            id: sst.sprints_tasks ? Number(sst.sprints_tasks.id) : null,
-            description: sst.sprints_tasks?.projects_backlogs?.description ?? null,
-            status: sst.sprints_tasks?.sprints_tasks_statuses?.status ?? null,
-            status_id: sst.sprints_tasks?.sprints_tasks_statuses?.id
-              ? Number(sst.sprints_tasks.sprints_tasks_statuses.id)
-              : null,
-          })) ?? [],
-        };
-      });
+    const pendingSchedules = pendingRaw.map(s => ({
+      schedule_id: Number(s.id),
+      schedule_date: s.schedule_date
+        ? s.schedule_date.toISOString().split('T')[0]
+        : null,
+      projects_id: s.projects_id ? Number(s.projects_id) : null,
+      project_name: s.projects?.name ?? null,
+      teams_id: s.teams_id ? Number(s.teams_id) : null,
+      team_name: s.teams?.name ?? null,
+      workers: (s as any).schedule_user?.map((su2: any) => ({
+        id: Number(su2.users?.id ?? su2.users_id),
+        name: su2.users?.name ?? null,
+        image: su2.users?.profile_picture ?? null,
+        cpf: su2.users?.hr_data?.cpf ?? null,
+        cargo: su2.users?.hr_data?.cargo ?? null,
+      })) ?? [],
+      tasks: (s as any).schedule_sprints_tasks?.map((sst: any) => ({
+        id: sst.sprints_tasks ? Number(sst.sprints_tasks.id) : null,
+        description: sst.sprints_tasks?.projects_backlogs?.description ?? null,
+        status: sst.sprints_tasks?.sprints_tasks_statuses?.status ?? null,
+        status_id: sst.sprints_tasks?.sprints_tasks_statuses?.id
+          ? Number(sst.sprints_tasks.sprints_tasks_statuses.id)
+          : null,
+      })) ?? [],
+    }));
 
     return {
       has_pending: pendingSchedules.length > 0,
