@@ -81,9 +81,10 @@ export default function SafetyDDS() {
 
   // ── Add participant modal ─────────────────────────────────────────────────
   const [addParticipantDdsId, setAddParticipantDdsId] = useState<number | null>(null);
-  const [participantUserId, setParticipantUserId] = useState<number | undefined>(undefined);
-  const [participantLoading, setParticipantLoading] = useState(false);
   const [participantBulkLoading, setParticipantBulkLoading] = useState(false);
+  const [participantBulkProgress, setParticipantBulkProgress] = useState(0);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<Set<number>>(new Set());
+  const [participantSearch, setParticipantSearch] = useState('');
 
   // ── Participant team filter ───────────────────────────────────────────────
   const [participantTeamFilter, setParticipantTeamFilter] = useState<number | undefined>(undefined);
@@ -313,49 +314,35 @@ export default function SafetyDDS() {
     }
   };
 
-  const handleAddParticipant = async () => {
-    if (!addParticipantDdsId || participantUserId === undefined) return;
-    setParticipantLoading(true);
-    try {
-      await safetyApi.addDdsParticipant(addParticipantDdsId, {
-        users_id: participantUserId,
-      });
-      // Refresh the expanded row participants
-      const full = await safetyApi.getDdsRecord(addParticipantDdsId);
-      const count = full.participants?.length ?? full.participants_count ?? 0;
-      setRecords((prev) =>
-        prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
-      );
-      setParticipantUserId(undefined);
-      setAddParticipantDdsId(null);
-      setParticipantTeamFilter(undefined);
-      showToast(t('dds.participantAdded'), 'success');
-      loadStats();
-    } catch (err) {
-      console.error('Failed to add participant:', err);
-      showToast(t('common.errorSaving'), 'error');
-    } finally {
-      setParticipantLoading(false);
-    }
-  };
-
   const handleAddMultipleParticipants = async (userIds: number[]) => {
     if (!addParticipantDdsId || userIds.length === 0) return;
     setParticipantBulkLoading(true);
+    setParticipantBulkProgress(0);
+    const chunkSize = 10;
+    let done = 0;
     try {
-      await Promise.all(
-        userIds.map((uid) =>
-          safetyApi.addDdsParticipant(addParticipantDdsId, { users_id: uid }).catch((err) => {
-            console.error(`Failed to add participant ${uid}:`, err);
-          }),
-        ),
-      );
+      for (let i = 0; i < userIds.length; i += chunkSize) {
+        const chunk = userIds.slice(i, i + chunkSize);
+        await Promise.allSettled(
+          chunk.map((uid) =>
+            safetyApi.addDdsParticipant(addParticipantDdsId, { users_id: uid }).catch((err) => {
+              console.error(`Failed to add participant ${uid}:`, err);
+            }),
+          ),
+        );
+        done += chunk.length;
+        setParticipantBulkProgress(Math.round((done / userIds.length) * 100));
+      }
       // Refresh participants list
       const full = await safetyApi.getDdsRecord(addParticipantDdsId);
       const count = full.participants?.length ?? full.participants_count ?? 0;
       setRecords((prev) =>
         prev.map((r) => (r.id === addParticipantDdsId ? { ...r, participants: full.participants, participants_count: count } : r)),
       );
+      setSelectedParticipantIds(new Set());
+      setParticipantSearch('');
+      setAddParticipantDdsId(null);
+      setParticipantTeamFilter(undefined);
       showToast(t('dds.participantAdded'), 'success');
       loadStats();
     } catch (err) {
@@ -363,6 +350,7 @@ export default function SafetyDDS() {
       showToast(t('common.errorSaving'), 'error');
     } finally {
       setParticipantBulkLoading(false);
+      setParticipantBulkProgress(0);
     }
   };
 
@@ -453,7 +441,9 @@ export default function SafetyDDS() {
     const base = participantTeamFilter !== undefined
       ? employeeOptions.filter((emp) => teamMemberIds.includes(emp.id))
       : employeeOptions;
-    return base.filter((emp) => !existingIds.includes(emp.id));
+    return base
+      .filter((emp) => !existingIds.includes(emp.id))
+      .filter((emp) => !participantSearch || emp.name.toLowerCase().includes(participantSearch.toLowerCase()));
   })();
 
   // ── Stats card definitions ────────────────────────────────────────────────
@@ -1062,29 +1052,31 @@ export default function SafetyDDS() {
         <div
           className="modal-backdrop"
           onClick={() => {
+            if (participantBulkLoading) return;
             setAddParticipantDdsId(null);
-            setParticipantUserId(undefined);
             setParticipantTeamFilter(undefined);
+            setSelectedParticipantIds(new Set());
+            setParticipantSearch('');
           }}
         >
           <div
             className="modal-content"
-            style={{ padding: '24px', width: '420px' }}
+            style={{ padding: '24px', width: '500px' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
               {t('dds.addEmployee', 'Adicionar Funcionário')}
             </h3>
 
             {/* Team filter */}
-            <div className="input-group" style={{ marginBottom: '12px' }}>
+            <div className="input-group" style={{ marginBottom: '10px' }}>
               <label>{t('dds.filterByTeam', 'Filtrar por equipe')}</label>
               <SearchableSelect
                 options={teamOptions.map((team) => ({ value: team.id, label: team.name }))}
                 value={participantTeamFilter}
                 onChange={(val) => {
                   setParticipantTeamFilter(val !== undefined ? Number(val) : undefined);
-                  setParticipantUserId(undefined);
+                  setSelectedParticipantIds(new Set());
                 }}
                 placeholder={t('dds.allTeams', 'Todas as equipes')}
                 searchPlaceholder={t('common.search')}
@@ -1093,50 +1085,150 @@ export default function SafetyDDS() {
               />
             </div>
 
-            <div className="input-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ margin: 0 }}>{t('dds.employee', 'Funcionário')} *</label>
-                {filteredEmployeeOptions.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ fontSize: '11px', padding: '2px 8px' }}
-                    disabled={participantBulkLoading}
-                    onClick={() => handleAddMultipleParticipants(filteredEmployeeOptions.map((e) => e.id))}
-                  >
-                    {participantBulkLoading
-                      ? <span className="spinner" style={{ width: '12px', height: '12px' }} />
-                      : t('dds.selectAll', 'Selecionar todos')}
-                  </button>
-                )}
-              </div>
-              <SearchableSelect
-                options={filteredEmployeeOptions.map((emp) => ({ value: emp.id, label: emp.name }))}
-                value={participantUserId}
-                onChange={(val) => setParticipantUserId(val !== undefined ? Number(val) : undefined)}
-                placeholder={employeesLoading ? t('common.loading') : t('dds.employeePlaceholder', 'Selecionar funcionário')}
-                searchPlaceholder={t('common.search')}
-                allowClear
-                style={{ width: '100%' }}
+            {/* Name search */}
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                className="input-field"
+                placeholder={t('dds.searchEmployee', 'Buscar funcionário...')}
+                value={participantSearch}
+                onChange={(e) => setParticipantSearch(e.target.value)}
+                style={{ fontSize: '13px', width: '100%' }}
               />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+
+            {/* Select all / count header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
+                {filteredEmployeeOptions.length} funcionário(s) disponível(is)
+              </span>
+              {filteredEmployeeOptions.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '2px 8px' }}
+                  onClick={() => {
+                    const allSelected = filteredEmployeeOptions.every((e) => selectedParticipantIds.has(e.id));
+                    if (allSelected) {
+                      setSelectedParticipantIds((prev) => {
+                        const next = new Set(prev);
+                        filteredEmployeeOptions.forEach((e) => next.delete(e.id));
+                        return next;
+                      });
+                    } else {
+                      setSelectedParticipantIds((prev) => {
+                        const next = new Set(prev);
+                        filteredEmployeeOptions.forEach((e) => next.add(e.id));
+                        return next;
+                      });
+                    }
+                  }}
+                >
+                  {filteredEmployeeOptions.length > 0 && filteredEmployeeOptions.every((e) => selectedParticipantIds.has(e.id))
+                    ? 'Desmarcar todos'
+                    : 'Selecionar todos'}
+                </button>
+              )}
+            </div>
+
+            {/* Scrollable employee checklist */}
+            <div
+              style={{
+                maxHeight: '280px',
+                overflowY: 'auto',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                marginBottom: '16px',
+              }}
+            >
+              {employeesLoading ? (
+                <div style={{ padding: '24px', display: 'flex', justifyContent: 'center' }}>
+                  <LoadingSpinner />
+                </div>
+              ) : filteredEmployeeOptions.length === 0 ? (
+                <p style={{ padding: '16px', fontSize: '13px', color: 'var(--color-secondary-text)', textAlign: 'center' }}>
+                  {t('common.noData')}
+                </p>
+              ) : (
+                filteredEmployeeOptions.map((emp) => {
+                  const isSelected = selectedParticipantIds.has(emp.id);
+                  return (
+                    <div
+                      key={emp.id}
+                      onClick={() => {
+                        setSelectedParticipantIds((prev) => {
+                          const next = new Set(prev);
+                          if (isSelected) next.delete(emp.id);
+                          else next.add(emp.id);
+                          return next;
+                        });
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        backgroundColor: isSelected ? 'var(--color-primary)15' : 'transparent',
+                        borderBottom: '1px solid var(--color-alternate)',
+                        fontSize: '13px',
+                        color: isSelected ? 'var(--color-primary)' : 'var(--color-primary-text)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--color-alternate)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? 'var(--color-primary)15' : 'transparent';
+                      }}
+                    >
+                      <div style={{
+                        width: 16, height: 16, borderRadius: 3, flexShrink: 0,
+                        border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isSelected && <X size={10} color="#fff" />}
+                      </div>
+                      {emp.name}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Progress bar during bulk add */}
+            {participantBulkLoading && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-secondary-text)', marginBottom: '4px' }}>
+                  <span>Adicionando funcionários...</span>
+                  <span>{participantBulkProgress}%</span>
+                </div>
+                <div style={{ height: '4px', backgroundColor: 'var(--color-alternate)', borderRadius: '2px' }}>
+                  <div style={{ height: '100%', width: `${participantBulkProgress}%`, backgroundColor: 'var(--color-primary)', borderRadius: '2px', transition: 'width 0.3s ease' }} />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
               <button
                 className="btn btn-secondary"
+                disabled={participantBulkLoading}
                 onClick={() => {
                   setAddParticipantDdsId(null);
-                  setParticipantUserId(undefined);
-                  setParticipantTeamFilter(undefined);
+                        setParticipantTeamFilter(undefined);
+                  setSelectedParticipantIds(new Set());
+                  setParticipantSearch('');
                 }}
               >
                 {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
-                onClick={handleAddParticipant}
-                disabled={participantLoading || participantUserId === undefined}
+                onClick={() => handleAddMultipleParticipants([...selectedParticipantIds])}
+                disabled={participantBulkLoading || selectedParticipantIds.size === 0}
               >
-                {participantLoading ? <span className="spinner" /> : t('common.add')}
+                {participantBulkLoading
+                  ? <span className="spinner" />
+                  : `${t('common.add')}${selectedParticipantIds.size > 0 ? ` (${selectedParticipantIds.size})` : ''}`}
               </button>
             </div>
           </div>
