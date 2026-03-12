@@ -143,7 +143,7 @@ function StackedBarChartRenderer({ chart }: { chart: ChartConfig }) {
 }
 
 function PieChartRenderer({ chart }: { chart: ChartConfig }) {
-  const total = chart.data.reduce((sum, d) => sum + d.value, 0);
+  const total = chart.data.reduce((sum, d) => sum + (d.value ?? 0), 0);
   return (
     <ChartWrapper title={chart.title}>
       <ResponsiveContainer>
