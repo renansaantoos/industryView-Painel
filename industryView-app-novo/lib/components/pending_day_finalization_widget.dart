@@ -357,6 +357,22 @@ class _PendingDayFinalizationWidgetState
                   padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 4.0),
                   child: Row(
                     children: [
+                      GestureDetector(
+                        onTap: () {
+                          // Pop do modal e sinalizar que quer voltar para projetos
+                          Navigator.of(context, rootNavigator: true).pop('back_to_projects');
+                        },
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Container(
                         width: 36,
                         height: 36,

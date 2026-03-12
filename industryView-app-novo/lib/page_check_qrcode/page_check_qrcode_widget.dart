@@ -167,13 +167,9 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
           print('====================');
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // VERIFICAÇÃO DE PENDÊNCIAS DE DIAS ANTERIORES.
-        // Se o usuário tem schedules de dias anteriores sem RDO,
-        // obriga a finalizar ANTES de poder iniciar uma nova sessão.
-        // Quando vindo do DailyHub, ele já tratou as pendências.
-        // ═══════════════════════════════════════════════════════════════
-        if (!widget.fromDailyHub) {
+        // Verificação de RDO pendente: se chegou aqui sem passar pela seleção
+        // (ex: hot restart, login direto), redirecionar para seleção de projetos
+        if (!widget.fromDailyHub && !widget.skipProjectCheck) {
           try {
             final pendingResp = await ProjectsGroup
                 .getPendingSchedulesCall
@@ -185,72 +181,20 @@ class _PageCheckQrcodeWidgetState extends State<PageCheckQrcodeWidget> {
                   .hasPending(pendingResp.jsonBody) ?? false;
 
               if (hasPend && mounted) {
-                // Multi-projeto: DailyHub cuida das pendências
-                final allProjects = meCall.allProjectIds(tokenJson);
-                if (allProjects.length > 1) {
-                  AppState().updateUserStruct(
-                    (e) => e
-                      ..token = valueOrDefault<String>(currentAuthenticationToken, AppState().user.token)
-                      ..id = valueOrDefault<int>(meCall.id(tokenJson), AppState().user.id)
-                      ..name = valueOrDefault<String>(meCall.name(tokenJson), AppState().user.name)
-                      ..email = valueOrDefault<String>(meCall.email(tokenJson), AppState().user.email)
-                      ..phone = valueOrDefault<String>(meCall.phone(tokenJson), AppState().user.phone)
-                      ..companyId = valueOrDefault<int>(meCall.companyID(tokenJson), AppState().user.companyId),
-                  );
-                  AppState().update(() {});
-                  AppState().loading = false;
-                  safeSetState(() {});
-                  if (!mounted) return;
-                  context.goNamedAuth(
-                    DailyHubWidget.routeName,
-                    context.mounted,
-                    extra: <String, dynamic>{
-                      kTransitionInfoKey: TransitionInfo(
-                        hasTransition: true,
-                        transitionType: PageTransitionType.fade,
-                      ),
-                    },
-                  );
-                  return;
-                }
-
-                // Single-project: tratar pendência inline
-                final pendList = ProjectsGroup
-                    .getPendingSchedulesCall
-                    .pendingSchedules(pendingResp.jsonBody);
-                final fp = (pendList?.isNotEmpty == true) ? pendList!.first : null;
-                if (fp != null) {
-                  final pDate = fp['schedule_date']?.toString() ?? '';
-                  final pId = (fp['schedule_id'] as int?) ?? 0;
-                  final pProject = fp['project_name']?.toString();
-                  final pTeam = fp['team_name']?.toString();
-                  final pWorkers = fp['workers'] as List<dynamic>?;
-                  final pTasks = fp['tasks'] as List<dynamic>?;
-
-                  AppState().loading = false;
-                  safeSetState(() {});
-
-                  if (kDebugMode) {
-                    print('=== PENDING SCHEDULE FOUND ===');
-                    print('scheduleId: $pId, date: $pDate, project: $pProject');
-                  }
-
-                  await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(
-                      fullscreenDialog: true,
-                      builder: (_) => PendingDayFinalizationWidget(
-                        scheduleId: pId,
-                        scheduleDate: pDate,
-                        projectName: pProject,
-                        teamName: pTeam,
-                        workers: pWorkers,
-                        tasks: pTasks,
-                      ),
+                // Redirecionar para seleção de projetos (que fará a verificação por projeto+equipe)
+                AppState().loading = false;
+                safeSetState(() {});
+                context.goNamedAuth(
+                  ProjectSelectionWidget.routeName,
+                  context.mounted,
+                  extra: <String, dynamic>{
+                    kTransitionInfoKey: TransitionInfo(
+                      hasTransition: true,
+                      transitionType: PageTransitionType.fade,
                     ),
-                  );
-                  // Após finalizar, continua o fluxo normal
-                }
+                  },
+                );
+                return;
               }
             }
           } catch (e) {

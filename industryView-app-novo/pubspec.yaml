@@ -132,7 +132,7 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   web:
     generate: true
-  image_path: 'assets/images/app_launcher_icon.png'
+  image_path: 'assets/icon/app_icon.png'
 
 
 # For information on the generic Dart part of this file, see the
@@ -151,6 +151,7 @@ flutter:
     - .env
     - assets/fonts/
     - assets/images/
+    - assets/icon/
     - assets/videos/
     - assets/audios/
     - assets/rive_animations/
