@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { UserInfo } from '../types';
 import { authApi } from '../services';
+import { gtagLogin, gtagSignup, gtagLogout } from '../utils/gtag';
 
 interface AuthContextValue {
   /** Whether auth state is still loading */
@@ -119,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         plan: data.user.company?.status_payment_id || 0,
       };
       persistUser(userInfo);
+      gtagLogin();
     } else {
       throw new Error(result.message || 'Login failed');
     }
@@ -153,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         plan: data.user.company?.status_payment_id || 0,
       };
       persistUser(userInfo);
+      gtagSignup();
     } else {
       throw new Error(result.message || 'Signup failed');
     }
@@ -160,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Logout */
   const logout = useCallback(() => {
+    gtagLogout();
     persistToken('');
     persistUser(null);
     localStorage.removeItem('ff_projectsInfo');
