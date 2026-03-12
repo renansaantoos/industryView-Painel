@@ -346,6 +346,69 @@ router.delete('/logs/:log_id', authenticate, AgentsController.deleteAgentDashboa
 router.post('/chat', authenticate, AgentsController.chat);
 
 // ===========================================================================
+// Schedule Manager Agent Routes
+// ===========================================================================
+
+/**
+ * @swagger
+ * /api/v1/agents/schedule-manager/rcc:
+ *   post:
+ *     summary: Gera Relatorio de Cronograma Critico (RCC)
+ *     description: |
+ *       Coleta todos os dados do projeto (produtividade, efetivo, clima,
+ *       tarefas sem sucesso, areas, caminho critico) e gera um relatorio
+ *       completo com analise de IA em 2 fases.
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - project_id
+ *             properties:
+ *               project_id:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: RCC gerado com sucesso
+ */
+router.post('/schedule-manager/rcc', authenticate, AgentsController.generateRCC);
+
+/**
+ * @swagger
+ * /api/v1/agents/schedule-manager/analysis:
+ *   post:
+ *     summary: Executa analise especifica do Schedule Manager
+ *     description: Roda uma analise focada (produtividade, efetivo, clima, etc.)
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - project_id
+ *               - analysis_type
+ *             properties:
+ *               project_id:
+ *                 type: integer
+ *               analysis_type:
+ *                 type: string
+ *                 enum: [productivity, workforce, weather, failed_tasks, area_progress, proactive, overview]
+ *     responses:
+ *       200:
+ *         description: Analise executada
+ */
+router.post('/schedule-manager/analysis', authenticate, AgentsController.scheduleAnalysis);
+
+// ===========================================================================
 // Weight Calculator Agent Routes
 // ===========================================================================
 

@@ -113,7 +113,30 @@
     "audit": "Auditoria",
     "goldenRules": "Reglas de Oro",
     "checklists": "Checklists",
-    "clients": "Clientes"
+    "clients": "Clientes",
+    "scheduleManager": "Gerente de Cronograma"
+  },
+  "scheduleManager": {
+    "title": "Gerente de Cronograma IA",
+    "subtitle": "Analisis inteligente de productividad, personal, clima y cronograma",
+    "selectProject": "Seleccione un proyecto primero.",
+    "selectProjectWarning": "Seleccione un proyecto en el menu lateral para utilizar el Gerente de Cronograma.",
+    "rccTitle": "Informe de Cronograma Critico (ICC)",
+    "rccDescription": "Analisis completo cruzando productividad, personal, clima, tareas fallidas, areas y camino critico.",
+    "rccError": "Error al generar ICC. Intente nuevamente.",
+    "generateRCC": "Generar ICC",
+    "generating": "Generando...",
+    "exportPdf": "Exportar PDF",
+    "productivity": "Productividad",
+    "workforce": "Fuerza de Trabajo",
+    "weatherImpact": "Impacto Climatico",
+    "failedTasks": "Tareas Fallidas",
+    "areaProgress": "Progreso por Area",
+    "proactiveInsights": "Insights Proactivos",
+    "analyze": "Analizar",
+    "analyzing": "Analizando...",
+    "collapse": "Contraer",
+    "expand": "Expandir"
   },
   "clients": {
     "title": "Clientes",

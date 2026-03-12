@@ -8,7 +8,7 @@ import { claudeJsonCompletion } from '../../services/claude-client';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
 
-export type AgentDomain = 'executive' | 'safety' | 'planning' | 'workforce' | 'quality' | 'general';
+export type AgentDomain = 'executive' | 'safety' | 'planning' | 'workforce' | 'quality' | 'schedule_manager' | 'general';
 
 export interface RouterResult {
   domain: AgentDomain;
@@ -37,7 +37,10 @@ Analise a mensagem do usuario e classifique em um dos dominios abaixo.
 5. **quality** - Perguntas sobre qualidade, nao-conformidades, checklists, regras de ouro, compliance, auditorias.
    Exemplos: "Padrao de nao-conformidades?", "Compliance de checklists?", "Regras de ouro violadas"
 
-6. **general** - Perguntas genericas, saudacoes, ou que nao se encaixam em nenhum dominio acima.
+6. **schedule_manager** - Perguntas sobre gestao avancada de cronograma, produtividade (SPI/CPI), impacto climatico, tarefas sem sucesso, analise cruzada de dados, RCC (Relatorio de Cronograma Critico), trabalhadores ociosos, correlacao clima-produtividade, progresso por area/campo, gargalos e riscos.
+   Exemplos: "Gere um RCC", "Como esta a produtividade?", "Impacto da chuva", "Tarefas sem sucesso", "Quem esta ocioso?", "Quais os riscos?", "Area mais atrasada", "Relatorio critico"
+
+7. **general** - Perguntas genericas, saudacoes, ou que nao se encaixam em nenhum dominio acima.
    Exemplos: "Ola", "O que voce pode fazer?", "Ajuda"
 
 ## Resposta

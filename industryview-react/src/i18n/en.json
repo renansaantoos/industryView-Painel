@@ -113,7 +113,30 @@
     "audit": "Audit",
     "goldenRules": "Golden Rules",
     "checklists": "Checklists",
-    "clients": "Clients"
+    "clients": "Clients",
+    "scheduleManager": "Schedule Manager"
+  },
+  "scheduleManager": {
+    "title": "AI Schedule Manager",
+    "subtitle": "Intelligent analysis of productivity, workforce, weather and schedule",
+    "selectProject": "Select a project first.",
+    "selectProjectWarning": "Select a project in the side menu to use the Schedule Manager.",
+    "rccTitle": "Critical Schedule Report (CSR)",
+    "rccDescription": "Full analysis crossing productivity, workforce, weather, failed tasks, areas and critical path.",
+    "rccError": "Error generating CSR. Please try again.",
+    "generateRCC": "Generate CSR",
+    "generating": "Generating...",
+    "exportPdf": "Export PDF",
+    "productivity": "Productivity",
+    "workforce": "Workforce",
+    "weatherImpact": "Weather Impact",
+    "failedTasks": "Failed Tasks",
+    "areaProgress": "Area Progress",
+    "proactiveInsights": "Proactive Insights",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing...",
+    "collapse": "Collapse",
+    "expand": "Expand"
   },
   "clients": {
     "title": "Clients",

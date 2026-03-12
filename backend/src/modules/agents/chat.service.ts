@@ -9,6 +9,7 @@ import { SafetyAgentService } from './safety-agent.service';
 import { PlanningAgentService } from './planning-agent.service';
 import { WorkforceAgentService } from './workforce-agent.service';
 import { QualityAgentService } from './quality-agent.service';
+import { ScheduleManagerAgentService } from './schedule-manager-agent.service';
 import { claudeTextCompletion } from '../../services/claude-client';
 import { ChatMessageInput, ChatResponse } from './agents.schema';
 import { logger } from '../../utils/logger';
@@ -22,6 +23,7 @@ Se o usuario perguntar o que voce pode fazer, liste suas capacidades:
 - Planejamento e cronograma (sprints, tarefas, previsoes)
 - Gestao de equipes (efetivo, alocacao, carga de trabalho)
 - Qualidade e conformidade (nao-conformidades, checklists, regras de ouro)
+- Gerente de Cronograma (produtividade, RCC, impacto climatico, tarefas sem sucesso, riscos)
 `;
 
 /**
@@ -79,6 +81,11 @@ export class ChatService {
         case 'quality':
           response = await QualityAgentService.process(input.message, companyId);
           agentName = 'QualityAgent';
+          break;
+
+        case 'schedule_manager':
+          response = await ScheduleManagerAgentService.process(input.message, input.context?.project_id);
+          agentName = 'ScheduleManagerAgent';
           break;
 
         default:

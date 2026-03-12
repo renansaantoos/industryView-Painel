@@ -148,7 +148,7 @@ export const chatMessageSchema = z.object({
   message: z.string().trim().min(1, 'Mensagem e obrigatoria'),
   context: z.object({
     project_id: z.coerce.number().int().optional(),
-    domain: z.enum(['executive', 'safety', 'planning', 'workforce', 'quality', 'general']).optional(),
+    domain: z.enum(['executive', 'safety', 'planning', 'workforce', 'quality', 'schedule_manager', 'general']).optional(),
   }).optional(),
 });
 
@@ -181,3 +181,34 @@ export type InvokeGeneratorResponseAgentInput = z.infer<typeof invokeGeneratorRe
 export type ProjectsAgentSearchInput = z.infer<typeof projectsAgentSearchSchema>;
 export type CreateAgentDashboardLogInput = z.infer<typeof createAgentDashboardLogSchema>;
 export type ListAgentDashboardLogsInput = z.infer<typeof listAgentDashboardLogsSchema>;
+
+// =============================================================================
+// Schedule Manager Schemas
+// =============================================================================
+
+/**
+ * Schema para geracao de RCC
+ */
+export const generateRCCSchema = z.object({
+  project_id: z.coerce.number().int().positive('ID do projeto e obrigatorio'),
+});
+
+export type GenerateRCCInput = z.infer<typeof generateRCCSchema>;
+
+/**
+ * Schema para analise especifica do schedule manager
+ */
+export const scheduleAnalysisSchema = z.object({
+  project_id: z.coerce.number().int().positive('ID do projeto e obrigatorio'),
+  analysis_type: z.enum([
+    'productivity',
+    'workforce',
+    'weather',
+    'failed_tasks',
+    'area_progress',
+    'proactive',
+    'overview',
+  ]),
+});
+
+export type ScheduleAnalysisInput = z.infer<typeof scheduleAnalysisSchema>;

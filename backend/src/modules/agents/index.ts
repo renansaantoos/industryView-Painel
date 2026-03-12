@@ -16,4 +16,6 @@ export { PlanningAgentService } from './planning-agent.service';
 export { WorkforceAgentService } from './workforce-agent.service';
 export { QualityAgentService } from './quality-agent.service';
 export { ChatService } from './chat.service';
+export { ScheduleManagerAgentService } from './schedule-manager-agent.service';
+export { ScheduleManagerDataService } from './schedule-manager-data.service';
 export * from './agents.schema';

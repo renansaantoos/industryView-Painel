@@ -1,40 +1,196 @@
----
-applyTo: "**/*.xs"
----
+# IndustryView - Guia de Desenvolvimento
 
-This document outlines the recommended development strategy for creating XanoScript applications using Large Language Models (LLMs) in a VSCode environment. It emphasizes a structured, phased approach to ensure clarity, modularity, and maintainability while adhering to XanoScript syntax and best practices.
+Plataforma industrial de gestao de projetos solares com compliance, seguranca, qualidade e agentes de IA.
 
-You'll want to work step by step through the phases below, ensuring each is complete before moving to the next. Always reference the relevant XanoScript documentation for syntax and examples, including:
+## Estrutura do Monorepo
 
-1. Create or Edit Tables: `tables/` directory (see [Table Guideline](./docs/table_guideline.md) and [Table Examples](./docs/table_examples.md)). It's recommended to create tables without cross reference because Xano would reject the creation of table if the table it references does not exist yet. You can then add the relationships after all tables have been created. You can push all your changes invoking the `push_all_changes_to_xano` tool.
-2. Create or Edit Functions: `functions/` directory (see [Function Guideline](./docs/function_guideline.md) and [Function Examples](./docs/function_examples.md)). When defining inputs for functions, refer to the [Input Guideline](./docs/input_guideline.md) for proper syntax and best practices.
-3. Create or Edit API Endpoints: `apis/` directory (see [API Query Guideline](./docs/api_query_guideline.md) and [API Query Examples](./docs/api_query_examples.md)). When defining inputs for API endpoints, refer to the [Input Guideline](./docs/input_guideline.md) for proper syntax and best practices.
-4. Create or Edit Scheduled Tasks: `tasks/` directory (see [Task Guideline](./docs/task_guideline.md) and [Task Examples](./docs/task_examples.md))
-5. Ensure Xano backend is in sync with VSCode by pushing changes
-6. When writing queries for database operations, refer to the [Database Query Guideline](./docs/db_query_guideline.md) for proper syntax and best practices.
+```
+industryView-Painel/
+├── backend/              # API Node.js/Express + TypeScript
+├── industryview-react/   # Frontend React + Vite + TypeScript
+├── industryView-app-novo/ # App mobile Flutter/Dart
+├── deploy/               # Scripts de deploy, Nginx, Docker prod
+└── .github/workflows/    # CI/CD (GitHub Actions)
+```
 
-## AI Agent Development
+## Backend (Node.js + Express + TypeScript)
 
-When developing AI agents, follow these steps:
+### Stack Principal
+- **Runtime:** Node.js 20+
+- **Framework:** Express.js
+- **Linguagem:** TypeScript 5.9.3 (strict mode, decorators)
+- **ORM:** Prisma 5.10.0 (schema em `backend/prisma/schema.prisma`)
+- **Banco:** PostgreSQL 16
+- **Cache/Filas:** Redis 7 + Bull.js
+- **Validacao:** Zod 3.22.4
+- **Auth:** JWT (24h expiry) + bcryptjs + refresh tokens
+- **Email:** SendGrid 8.1.0
+- **Pagamentos:** Stripe 14.14.0
+- **IA:** Anthropic Claude SDK (@anthropic-ai/sdk 0.78.0) - Claude Sonnet 4 + Haiku 4.5
+- **Docs:** Swagger/OpenAPI em `/api-docs`
+- **Logs:** Pino 8.18.0
+- **Testes:** Jest 29.7.0 + Supertest
 
-1. **Define Tools**: Specify any tools the agent can use, ensuring they are defined in the `tools/` directory (see [Tool Guideline](./docs/tool_guideline.md) and [Tool Examples](./docs/tool_examples.md)).
-2. **Define the Agent**: Create a new agent in the `agents/` directory using the XanoScript syntax (see [Agent Guideline](./docs/agent_guideline.md) and [Agent Examples](./docs/agent_examples.md)).
+### Path Aliases (tsconfig.json)
+- `@/*` -> `src/*`
+- `@config/*` -> `src/config/*`
+- `@middleware/*` -> `src/middleware/*`
+- `@modules/*` -> `src/modules/*`
+- `@services/*` -> `src/services/*`
+- `@utils/*` -> `src/utils/*`
+- `@types/*` -> `src/types/*`
 
-## AI MCP Server Development
+### Modulos (`backend/src/modules/`)
+Cada modulo segue o padrao: `controller.ts`, `service.ts`, `routes.ts`, `schema.ts` (Zod).
 
-When developing an MCP server (Model Context Protocol) to expose your tools to external clients and AI models, follow these steps:
+Modulos principais: `auth`, `users`, `agents`, `projects`, `sprints`, `tasks`, `teams`, `trackers`, `inventory`, `reports`, `safety`, `quality`, `planning`, `daily-reports`, `work-permits`, `workforce`, `employees`, `notifications`, `ppe`, `contracts`, `commissioning`, `environmental`, `health`, `material-requisitions`, `audit`, `work-schedule`, `schedule-import`, `schedule`, `clients`, `holidays`, `project-calendar`, `tools`, `manufacturers`, `company`, `stripe`.
 
-1. **Define Tools**: Ensure the tools you want to expose are defined in the `tools/` directory (see [Tool Guideline](./docs/tool_guideline.md) and [Tool Examples](./docs/tool_examples.md)).
-2. **Define the MCP Server**: Create a new MCP server in the `mcp_servers/` directory using the XanoScript syntax (see [MCP Server Guideline](./docs/mcp_server_guideline.md) and [MCP Server Examples](./docs/mcp_server_examples.md)).
+### Agentes de IA (`backend/src/modules/agents/`)
+- Executive Agent (decisoes estrategicas)
+- Planning Agent (planejamento de projetos)
+- Quality Agent (garantia de qualidade)
+- Safety Agent (seguranca e compliance)
+- Workforce Agent (gestao de equipes)
+- Interpreting Agent (analise de dados)
+- Response Generator (respostas ao usuario)
+- Agent Router (roteamento entre agentes)
 
-## Frontend Building
+Servico Claude: `backend/src/services/claude-client.ts`
+- `claudeJsonCompletion<T>()` - respostas JSON estruturadas (temp 0.6)
+- `claudeTextCompletion()` - respostas markdown/texto (temp 0.7)
 
-Prior to building the frontend, ensure that all the changes have been pushed to the Xano backend (you should ask the user to confirm this). You should first proceed by retrieving the latest API specifications by invoking the `get_xano_api_specifications` tool. This will ensure that your frontend is aligned with the most recent backend configurations. You can then proceed to create or edit static assets in the `static/` directory, see [Frontend Guide](./docs/frontend_guideline.md).
+### API
+- **Base URL:** `/api/v1`
+- **Formato de erro:** `{ error: true, code: "ERROR_CODE", message: "...", payload?: {} }`
+- **Seguranca:** Helmet, CORS, rate limiting, compressao
 
-## Additional Guidelines
+### Comandos Backend
+```bash
+npm run dev              # Dev com hot reload
+npm run build            # Compilar TypeScript
+npm run start            # Rodar compilado
+npm test                 # Rodar testes Jest
+npm run lint             # ESLint
+npm run prisma:generate  # Gerar Prisma Client
+npm run prisma:migrate   # Rodar migrations
+npm run prisma:seed      # Seed do banco
+npm run prisma:studio    # Browser visual do banco
+npm run docker:up        # Subir Docker (dev)
+npm run docker:down      # Parar Docker
+```
 
-- **Xanoscript Syntax**: Adhere strictly to XanoScript syntax rules. You can use comments with the `//` symbol, a comment needs to be on it's own line and outside a statement. Refer to the [Xano Tips and Tricks](./docs/tips_and_tricks.md) for details.
-- **Expression**: Xano offers a rich set of expressions for data manipulation. Refer to the [Expression Lexicon](./docs/expression_guideline.md) for details. Avoid chaining too many expressions in a single line for readability, instead break them into intermediate variables.
-- **Xano Statements**: Familiarize yourself with the available statements in XanoScript by consulting the [Function Lexicon](./docs/functions.md). Use control flow statements like `if`, `foreach`, and `try_catch` to manage logic effectively.
-- **User Management**: Most Xano workspaces come with a built-in user auth and user table, avoid recreating these, the user table can be extended with the necessary columns and the the built-in auth functions can be customized accordingly.
-- **Building from Loveable**: If the project is being built from a Loveable-generated website, follow the specific strategy outlined in the [Building from Loveable Guide](./docs/build_from_lovable.md).
+## Frontend React (`industryview-react/`)
+
+### Stack Principal
+- **Framework:** React 19.2.0
+- **Build:** Vite 7.3.1
+- **Linguagem:** TypeScript 5.9.3
+- **Roteamento:** React Router DOM 7.13.0
+- **HTTP:** Axios 1.13.5 (client customizado com interceptors)
+- **Forms:** React Hook Form 7.71.1
+- **UI:** Lucide React (icones), Framer Motion (animacoes)
+- **Graficos:** Recharts 3.7.0
+- **Datas:** date-fns 4.1.0
+- **i18n:** i18next - en, es, pt (`src/i18n/`)
+- **PDF:** jsPDF 4.1.0
+- **CSV:** PapaParse 5.5.3
+- **Markdown:** react-markdown 10.1.0
+- **QR Code:** qrcode 1.5.4
+- **Deploy:** Vercel (`vercel.json`)
+
+### Estrutura
+```
+industryview-react/src/
+├── pages/          # Paginas (auth, dashboard, projects, sprints, employees, planning,
+│                   #   quality, operations, chat, reports, inventory, clients, company,
+│                   #   audit, import, notifications, pricing, expired)
+├── components/     # Componentes (common, navigation, clients, company, tasks)
+├── services/api/   # 30+ modulos de integracao com a API
+├── contexts/       # AuthContext, AppStateContext
+├── hooks/          # Custom hooks
+├── utils/          # Funcoes utilitarias
+└── i18n/           # Traducoes (en.json, es.json, pt.json)
+```
+
+### Comandos Frontend
+```bash
+npm run dev        # Dev server (Vite)
+npm run build      # Build de producao
+npm run lint       # ESLint
+npm run preview    # Preview do build
+```
+
+## App Mobile Flutter (`industryView-app-novo/`)
+
+### Stack Principal
+- **Framework:** Flutter SDK (Dart 3.0.0 - 4.0.0)
+- **State:** Provider 6.1.5
+- **Navegacao:** GoRouter 12.1.3
+- **HTTP:** http 1.4.0
+- **DB Local:** sqflite 2.4.0
+- **Plataformas:** Android, iOS, macOS, Web
+
+### Funcionalidades Nativas
+Camera, galeria, audio, video, file picker, QR code scanner, armazenamento local.
+
+### Estrutura
+```
+lib/
+├── main.dart       # Entry point
+├── auth/           # Autenticacao
+├── pages/          # Telas
+├── components/     # Componentes UI
+├── services/       # Logica de negocio e API
+├── database/       # SQLite local (DAOs, models)
+├── core/           # Utilitarios core
+├── widgets/        # Widgets customizados
+├── backend/        # Comunicacao com backend
+├── app_state.dart  # Estado global
+└── app_constants.dart
+```
+
+### Comandos Flutter
+```bash
+flutter pub get       # Instalar dependencias
+flutter run           # Rodar no device/emulador
+flutter build apk     # Build Android
+flutter build ipa     # Build iOS
+flutter build web     # Build web
+```
+
+## Banco de Dados (PostgreSQL + Prisma)
+
+Schema extenso com 50+ tabelas. Entidades principais: Companies, Projects, Sprints, Tasks, Subtasks, Teams, Users, Employees, DailyReports, Safety, Quality, WorkPermits, WorkSchedules, Inventory, Clients, Contractors, Contracts, Commissioning, Environmental, Health, AuditLogs, Notifications, PaymentStatus.
+
+Padroes: soft deletes (`deleted_at`), timestamps (`created_at`, `updated_at`), cascading deletes, BigInt serialization.
+
+## Deploy e Infraestrutura
+
+### Docker
+- `docker-compose.yml` - dev (PostgreSQL 16, Redis 7, app)
+- `docker-compose.prod.yml` - producao
+- `Dockerfile` - multi-stage production
+- `Dockerfile.dev` - dev com hot reload
+
+### Nginx (`deploy/nginx.conf`)
+- Reverse proxy para API (porta 3000)
+- Frontend SPA em `/var/www/industryview`
+- Gzip, cache de assets (1 ano), security headers, CORS
+- Limite de upload: 50MB
+
+### CI/CD (GitHub Actions)
+- **CI** (`ci.yml`): PR -> main: lint + testes backend, lint + build frontend (Node 20)
+- **CD** (`cd.yml`): Push -> main: deploy via SSH, migrations, health check
+
+### Script de Deploy (`deploy/deploy.sh`)
+Pull -> build frontend -> migrations -> Docker services -> health check
+
+## Convencoes de Codigo
+
+- Validacao de entrada com Zod em todo endpoint
+- Modulos seguem padrao: controller -> service -> routes -> schema
+- Frontend usa API client centralizado (`apiClient.ts`) com interceptors Axios
+- Autenticacao via JWT no header `Authorization: Bearer <token>`
+- Respostas de erro padronizadas em toda a API
+- i18n obrigatorio para textos visiveis ao usuario (3 idiomas)
+- TypeScript strict em todo o projeto

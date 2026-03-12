@@ -82,6 +82,7 @@ export default function Sidebar() {
     { key: 'inventory', label: t('nav.inventory'), icon: <Package size={18} />, path: '/estoque', selectionIndex: 9 },
     { key: 'planning', label: t('nav.planning'), icon: <BarChart3 size={18} />, path: '/planejamento', selectionIndex: 28, requireAuth: true },
     { key: 'aiAssistant', label: t('nav.aiAssistant', 'Assistente IA'), icon: <Bot size={18} />, path: '/assistente-ia', selectionIndex: 50 },
+    { key: 'scheduleManager', label: t('nav.scheduleManager', 'Gerente Cronograma'), icon: <BarChart3 size={18} />, path: '/gerente-cronograma', selectionIndex: 51 },
   ];
 
   const ssmaItems: NavItem[] = [

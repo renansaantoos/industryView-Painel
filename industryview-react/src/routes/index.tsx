@@ -71,6 +71,7 @@ import NotificationsPage from '../pages/notifications/NotificationsPage';
 import AuditLogs from '../pages/audit/AuditLogs';
 import Clients from '../pages/clients/Clients';
 import AiAssistant from '../pages/chat/AiAssistant';
+import ScheduleManagerDashboard from '../pages/schedule-manager/ScheduleManagerDashboard';
 
 import React from 'react';
 
@@ -336,6 +337,12 @@ export const router = createBrowserRouter([
       {
         path: '/assistente-ia',
         element: <AiAssistant />,
+      },
+
+      // Schedule Manager
+      {
+        path: '/gerente-cronograma',
+        element: <ScheduleManagerDashboard />,
       },
 
       // Audit
