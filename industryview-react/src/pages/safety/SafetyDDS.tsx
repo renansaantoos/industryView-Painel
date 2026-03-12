@@ -858,53 +858,27 @@ export default function SafetyDDS() {
                     </button>
                   )}
                 </div>
-                {teamsLoading ? (
-                  <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)' }}>
-                    {t('common.loading')}
+                <select
+                  multiple
+                  className="input-field"
+                  style={{ height: '120px', padding: '4px' }}
+                  value={createTeamsIds.map(String)}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions).map((o) => Number(o.value));
+                    setCreateTeamsIds(selected);
+                  }}
+                  disabled={teamsLoading}
+                >
+                  {teamOptions.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+                {createTeamsIds.length > 0 && (
+                  <p style={{ fontSize: '11px', color: 'var(--color-secondary-text)', marginTop: '4px' }}>
+                    {createTeamsIds.length} equipe{createTeamsIds.length !== 1 ? 's' : ''} selecionada{createTeamsIds.length !== 1 ? 's' : ''}
                   </p>
-                ) : teamOptions.length === 0 ? (
-                  <p style={{ fontSize: '12px', color: 'var(--color-secondary-text)', fontStyle: 'italic' }}>
-                    {t('dds.noTeams', 'Nenhuma equipe disponível')}
-                  </p>
-                ) : (
-                  <div
-                    style={{
-                      maxHeight: '160px',
-                      overflowY: 'auto',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '6px',
-                      padding: '4px 0',
-                    }}
-                  >
-                    {teamOptions.map((team) => (
-                      <label
-                        key={team.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '6px 10px',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          color: 'var(--color-primary-text)',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={createTeamsIds.includes(team.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setCreateTeamsIds((prev) => [...prev, team.id]);
-                            } else {
-                              setCreateTeamsIds((prev) => prev.filter((id) => id !== team.id));
-                            }
-                          }}
-                          style={{ accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-                        />
-                        {team.name}
-                      </label>
-                    ))}
-                  </div>
                 )}
               </div>
 
