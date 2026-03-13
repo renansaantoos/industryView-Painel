@@ -643,6 +643,12 @@ export class SprintsService {
       },
     });
 
+    // Busca is_inspection do projeto
+    const project = await db.projects.findFirst({
+      where: { id: projects_id },
+      select: { is_inspection: true },
+    });
+
     return {
       sprints_tasks_pendentes: {
         items: pendentes,
@@ -685,6 +691,7 @@ export class SprintsService {
         pageTotal: Math.ceil(totalInspecao / input.per_pageIns),
       },
       has_team_created: !!hasTeamCreated,
+      is_inspection: project?.is_inspection ?? true,
     };
   }
 
@@ -839,6 +846,15 @@ export class SprintsService {
         id: input.sprints_tasks_id,
         deleted_at: null,
       },
+      include: {
+        sprints: {
+          include: {
+            projects: {
+              select: { is_inspection: true },
+            },
+          },
+        },
+      },
     });
 
     if (!existing) {
@@ -885,11 +901,14 @@ export class SprintsService {
       });
     }
 
-    // Se concluida, marca a propria tarefa como pendente de inspecao (quality_status_id = 1)
+    // Se concluida, define quality_status conforme configuracao de inspecao do projeto:
+    // is_inspection=true -> quality_status_id=1 (pendente de inspecao)
+    // is_inspection=false -> quality_status_id=2 (aprovado, vai direto para concluida)
     if (newStatusId === SPRINT_TASK_STATUS.CONCLUIDA) {
+      const isInspection = existing.sprints?.projects?.is_inspection ?? true;
       await db.sprints_tasks.update({
         where: { id: input.sprints_tasks_id },
-        data: { quality_status_id: 1 } as any,
+        data: { quality_status_id: isInspection ? 1 : 2 } as any,
       });
     }
 
