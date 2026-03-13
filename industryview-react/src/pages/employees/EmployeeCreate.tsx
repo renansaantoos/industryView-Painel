@@ -349,8 +349,8 @@ export default function EmployeeCreate() {
     if (form.data_nascimento && form.data_nascimento > TODAY_DATE) {
       errors.data_nascimento = 'Data de nascimento não pode ser futura';
     }
-    if (form.data_admissao && form.data_admissao > '2099-12-31') {
-      errors.data_admissao = 'Data de admissão inválida';
+    if (form.data_admissao && form.data_admissao > TODAY_DATE) {
+      errors.data_admissao = 'Data de admissão não pode ser futura';
     }
 
     // ── Data demissão > data admissão ──
@@ -642,7 +642,7 @@ export default function EmployeeCreate() {
         {/* ── Dados Profissionais ────────────────────────────────────── */}
         <Section title="Dados Profissionais" isOpen={openSections.profissional} onToggle={() => toggleSection('profissional')} errorCount={countSectionErrors('profissional')}>
           <Field label="Matrícula">{textInput('matricula')}</Field>
-          <Field label="Data de Admissão" required error={fieldErrors.data_admissao}>{dateInput('data_admissao')}</Field>
+          <Field label="Data de Admissão" required error={fieldErrors.data_admissao}>{dateInput('data_admissao', TODAY_DATE)}</Field>
           <Field label="Data de Demissão" error={fieldErrors.data_demissao}>{dateInput('data_demissao')}</Field>
           <Field label="Tipo de Contrato" required error={fieldErrors.tipo_contrato}>
             {selectInput('tipo_contrato', [
