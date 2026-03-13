@@ -10,7 +10,7 @@ class FutureRequestManager<T> {
   FutureRequestManager([this.cacheLimit = 10]);
 
   final int cacheLimit;
-  Map<String, Future<T>> _requests = {};
+  final Map<String, Future<T>> _requests = {};
   Future<T> performRequest({
     String? uniqueQueryKey,
     bool? overrideCache,
@@ -42,8 +42,8 @@ class StreamRequestManager<T> {
   StreamRequestManager([this.cacheLimit = 10]);
 
   final int cacheLimit;
-  Map<String, BehaviorSubject<T>> _streamSubjects = {};
-  Map<String, StreamSubscription<T>> _requestSubscriptions = {};
+  final Map<String, BehaviorSubject<T>> _streamSubjects = {};
+  final Map<String, StreamSubscription<T>> _requestSubscriptions = {};
   Stream<T> performRequest({
     String? uniqueQueryKey,
     bool? overrideCache,

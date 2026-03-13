@@ -57,12 +57,12 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
+        padding: const EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
         child: Container(
           width: double.infinity,
-          constraints: BoxConstraints(
+          constraints: const BoxConstraints(
             maxWidth: 530.0,
           ),
           decoration: BoxDecoration(
@@ -84,13 +84,13 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                 Flexible(
                   child: Padding(
                     padding:
-                        EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 16.0),
+                        const EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 16.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 0.0, 0.0, 16.0),
                           child: Row(
                             mainAxisSize: MainAxisSize.max,
@@ -105,7 +105,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                 ),
                               ),
                               Align(
-                                alignment: AlignmentDirectional(0.0, 0.0),
+                                alignment: const AlignmentDirectional(0.0, 0.0),
                                 child: Icon(
                                   Icons.read_more,
                                   color: AppTheme.of(context).primary,
@@ -113,7 +113,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                 ),
                               ),
                               Align(
-                                alignment: AlignmentDirectional(1.0, -1.0),
+                                alignment: const AlignmentDirectional(1.0, -1.0),
                                 child: AppIconButton(
                                   borderColor:
                                       AppTheme.of(context).primary,
@@ -160,7 +160,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                               ),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 16.0, 0.0, 0.0),
                           child: Text(
                             AppLocalizations.of(context).getText(
@@ -189,7 +189,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 16.0, 0.0, 0.0),
                           child: InkWell(
                             splashColor: Colors.transparent,
@@ -271,7 +271,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                 ),
                               ),
                               child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 4.0, 0.0, 4.0),
                                 child: Icon(
                                   Icons.add_circle,
@@ -287,14 +287,14 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                             final listImgs = _model.img.toList();
 
                             return GridView.builder(
-                              padding: EdgeInsets.fromLTRB(
+                              padding: const EdgeInsets.fromLTRB(
                                 0,
                                 8.0,
                                 0,
                                 8.0,
                               ),
                               gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 3,
                                 crossAxisSpacing: 12.0,
                                 mainAxisSpacing: 12.0,
@@ -332,10 +332,10 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                       ),
                                       Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, -1.0),
+                                            const AlignmentDirectional(1.0, -1.0),
                                         child: Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   0.0, 2.0, 2.0, 0.0),
                                           child: InkWell(
                                             splashColor: Colors.transparent,
@@ -357,7 +357,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                                         100.0),
                                               ),
                                               child: Padding(
-                                                padding: EdgeInsets.all(4.0),
+                                                padding: const EdgeInsets.all(4.0),
                                                 child: Icon(
                                                   Icons.delete_forever_rounded,
                                                   color: AppTheme.of(
@@ -379,11 +379,11 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                         ),
                         Builder(
                           builder: (context) => Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 24.0, 0.0, 0.0),
                             child: AppButton(
                               onPressed: () async {
-                                var _shouldSetState = false;
+                                var shouldSetState = false;
                                 if (_model.img.length < 3) {
                                   await showDialog(
                                     context: context,
@@ -393,7 +393,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                         insetPadding: EdgeInsets.zero,
                                         backgroundColor: Colors.transparent,
                                         alignment:
-                                            AlignmentDirectional(0.0, 0.0)
+                                            const AlignmentDirectional(0.0, 0.0)
                                                 .resolve(
                                                     Directionality.of(context)),
                                         child: ModalInfoWidget(
@@ -411,7 +411,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                     },
                                   );
 
-                                  if (_shouldSetState) safeSetState(() {});
+                                  if (shouldSetState) safeSetState(() {});
                                   return;
                                 } else {
                                   _model.contador = 0;
@@ -426,7 +426,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                       token: currentAuthenticationToken,
                                     );
 
-                                    _shouldSetState = true;
+                                    shouldSetState = true;
                                     if ((_model.editImages?.succeeded ??
                                         true)) {
                                       _model.contador = _model.contador + 1;
@@ -481,11 +481,11 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
 
                                   await widget.action?.call();
                                   Navigator.pop(context);
-                                  if (_shouldSetState) safeSetState(() {});
+                                  if (shouldSetState) safeSetState(() {});
                                   return;
                                 }
 
-                                if (_shouldSetState) safeSetState(() {});
+                                if (shouldSetState) safeSetState(() {});
                               },
                               text: AppLocalizations.of(context).getText(
                                 'bfztiwah' /* Finalizar RDO */,
@@ -493,9 +493,9 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                               options: AppButtonOptions(
                                 width: double.infinity,
                                 height: 48.0,
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     20.0, 0.0, 20.0, 0.0),
-                                iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 0.0),
                                 color: AppTheme.of(context).primary,
                                 textStyle: AppTheme.of(context)
@@ -516,7 +516,7 @@ class _ConfirmdialogRDOWidgetState extends State<ConfirmdialogRDOWidget> {
                                           .fontStyle,
                                     ),
                                 elevation: 0.0,
-                                borderSide: BorderSide(
+                                borderSide: const BorderSide(
                                   color: Colors.transparent,
                                 ),
                                 borderRadius: BorderRadius.circular(14.0),

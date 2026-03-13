@@ -149,7 +149,7 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
       // Vincular tarefas ao schedule do dia
       try {
         final scheduleId = AppState().user.sheduleId;
-        if (scheduleId != null && scheduleId != 0) {
+        if (scheduleId != 0) {
           final taskIds = AppState().taskslist
               .map((t) => t.sprintsTasksId)
               .where((id) => id != 0)
@@ -183,7 +183,7 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
               elevation: 0,
               insetPadding: EdgeInsets.zero,
               backgroundColor: Colors.transparent,
-              alignment: AlignmentDirectional(0.0, 0.0)
+              alignment: const AlignmentDirectional(0.0, 0.0)
                   .resolve(Directionality.of(context)),
               child: ModalInfoWidget(
                 title: 'Erro',
@@ -204,7 +204,7 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
     final tasks = AppState().tasksfinish;
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
         child: Material(
@@ -398,7 +398,7 @@ class _ConcluirBatchModalWidgetState extends State<ConcluirBatchModalWidget> {
                         child: ElevatedButton.icon(
                           onPressed: _isLoading ? null : _onConfirm,
                           icon: _isLoading
-                              ? SizedBox(
+                              ? const SizedBox(
                                   width: 18.0,
                                   height: 18.0,
                                   child: CircularProgressIndicator(

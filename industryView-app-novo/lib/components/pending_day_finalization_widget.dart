@@ -56,10 +56,10 @@ class _PendingDayFinalizationWidgetState
   static const List<String> _shiftOptions = ['Manha', 'Tarde', 'Integral'];
 
   // Tasks from schedule_sprints_tasks (via pending endpoint)
-  List _concluidas = [];
-  List _semSucesso = [];
-  List _inspecao = [];
-  List _emAndamento = [];
+  final List _concluidas = [];
+  final List _semSucesso = [];
+  final List _inspecao = [];
+  final List _emAndamento = [];
   bool _tasksLoaded = false;
 
   @override

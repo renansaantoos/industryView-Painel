@@ -182,13 +182,11 @@ class InitialSyncService {
       );
 
       // 4) Dados do usuário e permissões
-      if (userId != null) {
-        await UserGroup.getUserIdCall.call(
-          usersId: userId,
-          bearerAuth: token,
-        );
-      }
-      await UserGroup.queryAllUsersControlSystemRecordsCall.call(
+      await UserGroup.getUserIdCall.call(
+        usersId: userId,
+        bearerAuth: token,
+      );
+          await UserGroup.queryAllUsersControlSystemRecordsCall.call(
         bearerAuth: token,
       );
       await UserGroup.queryAllUsersRolesRecordsCall.call(

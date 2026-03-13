@@ -1,13 +1,4 @@
 
-import '/backend/schema/structs/index.dart';
-import '/core/theme/app_theme.dart';
-import '/core/utils/app_utils.dart';
-import 'index.dart';
-import '/core/utils/custom_functions.dart';
-import 'package:flutter/material.dart';
-
-
-
 Future<int> actVerificaSenha(String senha) async {
   // Verifica se a senha contém espaços
   if (senha.contains(' ')) {

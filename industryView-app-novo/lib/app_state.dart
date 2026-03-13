@@ -608,7 +608,9 @@ class AppState extends ChangeNotifier {
 
   void saveCurrentToActiveContext() {
     if (_activeProjectIndex < 0 ||
-        _activeProjectIndex >= _projectContexts.length) return;
+        _activeProjectIndex >= _projectContexts.length) {
+      return;
+    }
     final ctx = _projectContexts[_activeProjectIndex];
     ctx.scheduleId = user.sheduleId;
     ctx.allIds = allIds.toList();
@@ -619,7 +621,9 @@ class AppState extends ChangeNotifier {
 
   void markActiveProjectRdoFinalized() {
     if (_activeProjectIndex < 0 ||
-        _activeProjectIndex >= _projectContexts.length) return;
+        _activeProjectIndex >= _projectContexts.length) {
+      return;
+    }
     _projectContexts[_activeProjectIndex].rdoFinalized = true;
     _persistProjectContexts();
   }

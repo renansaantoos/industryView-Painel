@@ -94,7 +94,7 @@ class _LoginWidgetState extends State<LoginWidget> {
           insetPadding: EdgeInsets.zero,
           backgroundColor: Colors.transparent,
           alignment:
-              AlignmentDirectional(0.0, 0.0).resolve(Directionality.of(context)),
+              const AlignmentDirectional(0.0, 0.0).resolve(Directionality.of(context)),
           child: GestureDetector(
             onTap: () {
               FocusScope.of(dialogContext).unfocus();
@@ -377,7 +377,7 @@ class _LoginWidgetState extends State<LoginWidget> {
           ProjectSelectionWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
             ),
@@ -485,7 +485,7 @@ class _LoginWidgetState extends State<LoginWidget> {
           PageCheckQrcodeWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
             ),
@@ -534,9 +534,9 @@ class _LoginWidgetState extends State<LoginWidget> {
             top: true,
             child: SingleChildScrollView(
             child: Align(
-              alignment: AlignmentDirectional(0.0, 0.0),
+              alignment: const AlignmentDirectional(0.0, 0.0),
               child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(30.0, 0.0, 32.0, 32.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(30.0, 0.0, 32.0, 32.0),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     minHeight: MediaQuery.of(context).size.height - 
@@ -552,7 +552,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
                             0.0, 0.0, 0.0, 24.0),
                         child: Text(
                           'IndustryView',
@@ -565,7 +565,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                       .displayMedium
                                       .fontStyle,
                                 ),
-                                color: Color(0xFF2B5EA7),
+                                color: const Color(0xFF2B5EA7),
                                 fontSize: 32.0,
                                 letterSpacing: -0.5,
                                 fontWeight: FontWeight.w800,
@@ -593,7 +593,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                         key: _formKey,
                         autovalidateMode: AutovalidateMode.disabled,
                         child: Padding(
-                          padding: EdgeInsets.all(24.0),
+                          padding: const EdgeInsets.all(24.0),
                           child: Column(
                             mainAxisSize: MainAxisSize.max,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -619,7 +619,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                     ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 4.0, 0.0, 16.0),
                                 child: Text(
                                   AppLocalizations.of(context).getText(
@@ -649,15 +649,15 @@ class _LoginWidgetState extends State<LoginWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 16.0),
-                                child: Container(
+                                child: SizedBox(
                                   width: double.infinity,
                                   child: TextFormField(
                                     controller: _emailController,
                                     focusNode: _emailFocusNode,
                                     autofocus: false,
-                                    autofillHints: [AutofillHints.email],
+                                    autofillHints: const [AutofillHints.email],
                                     obscureText: false,
                                     decoration: InputDecoration(
                                       labelText:
@@ -760,15 +760,15 @@ class _LoginWidgetState extends State<LoginWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 16.0),
-                                child: Container(
+                                child: SizedBox(
                                   width: double.infinity,
                                   child: TextFormField(
                                     controller: _passwordController,
                                     focusNode: _passwordFocusNode,
                                     autofocus: false,
-                                    autofillHints: [AutofillHints.password],
+                                    autofillHints: const [AutofillHints.password],
                                     obscureText: !_passwordVisibility,
                                     decoration: InputDecoration(
                                       labelText:
@@ -886,7 +886,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 16.0),
                                 child: InkWell(
                                   splashColor: Colors.transparent,
@@ -903,7 +903,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                             elevation: 0,
                                             insetPadding: EdgeInsets.zero,
                                             backgroundColor: Colors.transparent,
-                                            alignment: AlignmentDirectional(0.0, 0.0)
+                                            alignment: const AlignmentDirectional(0.0, 0.0)
                                                 .resolve(Directionality.of(context)),
                                             child: GestureDetector(
                                               onTap: () {
@@ -932,9 +932,9 @@ class _LoginWidgetState extends State<LoginWidget> {
                                         EsqueciSenhaWidget.routeName);
                                   },
                                   child: Container(
-                                    decoration: BoxDecoration(),
+                                    decoration: const BoxDecoration(),
                                     child: Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           8.0, 0.0, 0.0, 0.0),
                                       child: Text(
                                         AppLocalizations.of(context).getText(
@@ -980,9 +980,9 @@ class _LoginWidgetState extends State<LoginWidget> {
                                   options: AppButtonOptions(
                                     width: double.infinity,
                                     height: 48.0,
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 0.0),
-                                    iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                    iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 0.0),
                                     color: AppTheme.of(context).primary,
                                     textStyle: AppTheme.of(context)
@@ -1012,7 +1012,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                                                   .fontStyle,
                                         ),
                                     elevation: 0.0,
-                                    borderSide: BorderSide(
+                                    borderSide: const BorderSide(
                                       color: Colors.transparent,
                                       width: 1.0,
                                     ),

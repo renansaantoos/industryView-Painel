@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '/database/daos/sync_conflict_dao.dart';
 import '/database/models/sync_conflict_model.dart';
 import '/services/sync_service.dart';

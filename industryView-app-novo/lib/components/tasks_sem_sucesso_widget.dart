@@ -48,10 +48,10 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
     context.watch<AppState>();
 
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(40.0, 0.0, 40.0, 0.0),
+      padding: const EdgeInsetsDirectional.fromSTEB(40.0, 0.0, 40.0, 0.0),
       child: Container(
         width: 482.0,
-        constraints: BoxConstraints(
+        constraints: const BoxConstraints(
           maxHeight: 250.0,
         ),
         decoration: BoxDecoration(
@@ -66,7 +66,7 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
           borderRadius: BorderRadius.circular(16.0),
         ),
         child: Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(12.0, 8.0, 12.0, 8.0),
+          padding: const EdgeInsetsDirectional.fromSTEB(12.0, 8.0, 12.0, 8.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -95,8 +95,8 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                             child: Container(
                               width: 30.0,
                               height: 30.0,
-                              decoration: BoxDecoration(),
-                              alignment: AlignmentDirectional(0.0, 0.0),
+                              decoration: const BoxDecoration(),
+                              alignment: const AlignmentDirectional(0.0, 0.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.max,
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -137,8 +137,8 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                             child: Container(
                               width: 30.0,
                               height: 30.0,
-                              decoration: BoxDecoration(),
-                              alignment: AlignmentDirectional(0.0, 0.0),
+                              decoration: const BoxDecoration(),
+                              alignment: const AlignmentDirectional(0.0, 0.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.max,
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -156,13 +156,13 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                                         width: 2.0,
                                       ),
                                     ),
-                                    alignment: AlignmentDirectional(0.0, 0.0),
-                                    child: Container(
+                                    alignment: const AlignmentDirectional(0.0, 0.0),
+                                    child: SizedBox(
                                       width: 18.0,
                                       height: 18.0,
                                       child: Stack(
                                         alignment:
-                                            AlignmentDirectional(0.0, 0.0),
+                                            const AlignmentDirectional(0.0, 0.0),
                                         children: [
                                           if (_model.allcheck)
                                             Container(
@@ -194,7 +194,7 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                     ),
                     Padding(
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(8.0, 0.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(8.0, 0.0, 0.0, 0.0),
                       child: Text(
                         AppLocalizations.of(context).getText(
                           'tu8maiei' /* Selecionar todas tarefas */,
@@ -222,7 +222,7 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                 ),
               Flexible(
                 child: Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 0.0),
                   child: Builder(
                     builder: (context) {
                       final semSucesso = AppState().tasksfinish.toList();
@@ -232,7 +232,7 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                         shrinkWrap: true,
                         scrollDirection: Axis.vertical,
                         itemCount: semSucesso.length,
-                        separatorBuilder: (_, __) => SizedBox(height: 8.0),
+                        separatorBuilder: (_, __) => const SizedBox(height: 8.0),
                         itemBuilder: (context, semSucessoIndex) {
                           final semSucessoItem = semSucesso[semSucessoIndex];
                           return Row(
@@ -257,8 +257,8 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                                   child: Container(
                                     width: 30.0,
                                     height: 30.0,
-                                    decoration: BoxDecoration(),
-                                    alignment: AlignmentDirectional(0.0, 0.0),
+                                    decoration: const BoxDecoration(),
+                                    alignment: const AlignmentDirectional(0.0, 0.0),
                                     child: Column(
                                       mainAxisSize: MainAxisSize.max,
                                       mainAxisAlignment:
@@ -303,8 +303,8 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                                   child: Container(
                                     width: 30.0,
                                     height: 30.0,
-                                    decoration: BoxDecoration(),
-                                    alignment: AlignmentDirectional(0.0, 0.0),
+                                    decoration: const BoxDecoration(),
+                                    alignment: const AlignmentDirectional(0.0, 0.0),
                                     child: Column(
                                       mainAxisSize: MainAxisSize.max,
                                       mainAxisAlignment:
@@ -326,12 +326,12 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                                             ),
                                           ),
                                           alignment:
-                                              AlignmentDirectional(0.0, 0.0),
-                                          child: Container(
+                                              const AlignmentDirectional(0.0, 0.0),
+                                          child: SizedBox(
                                             width: 18.0,
                                             height: 18.0,
                                             child: Stack(
-                                              alignment: AlignmentDirectional(
+                                              alignment: const AlignmentDirectional(
                                                   0.0, 0.0),
                                               children: [
                                                 if (valueOrDefault<bool>(
@@ -368,7 +368,7 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                                 ),
                               Flexible(
                                 child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       8.0, 0.0, 0.0, 0.0),
                                   child: RichText(
                                     textScaler:
@@ -425,14 +425,14 @@ class _TasksSemSucessoWidgetState extends State<TasksSemSucessoWidget> {
                                               .getText(
                                             'n1azztlj' /*  -  */,
                                           ),
-                                          style: TextStyle(),
+                                          style: const TextStyle(),
                                         ),
                                         TextSpan(
                                           text: valueOrDefault<String>(
                                             semSucessoItem.description,
                                             'txt',
                                           ),
-                                          style: TextStyle(),
+                                          style: const TextStyle(),
                                         )
                                       ],
                                       style: AppTheme.of(context)

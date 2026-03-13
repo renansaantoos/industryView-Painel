@@ -1,12 +1,10 @@
 // Custom Functions - Business logic utilities
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import '../models/uploaded_file.dart';
 import '/backend/schema/structs/index.dart';
 import '/auth/custom_auth/auth_util.dart';
 
@@ -57,7 +55,7 @@ bool? checkDatatype(List<RdoFinalizarStruct> data) {
   // Verifique se meu campo task_id esta setado,
   // se pelo menos 1 tiver setado retorna true, se nao retorna false
   for (var item in data) {
-    if (item.tasksId != null && item.tasksId > 0) {
+    if (item.tasksId > 0) {
       return true;
     }
   }
@@ -98,8 +96,9 @@ bool checkIds(
 }
 
 bool? checkBool(List<TasksListStruct> infos) {
-  if (infos.isEmpty)
+  if (infos.isEmpty) {
     return null; // ou false, se quiser tratar lista vazia como falso
+  }
 
   // Retorna true se existir ao menos um true, senao false
   return infos.any((task) => task.check == true);

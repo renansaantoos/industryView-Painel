@@ -52,7 +52,7 @@ class _ImagensWidgetState extends State<ImagensWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
+      padding: const EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
       child: Container(
         width: MediaQuery.sizeOf(context).width * 1.0,
         height: 420.0,
@@ -68,12 +68,12 @@ class _ImagensWidgetState extends State<ImagensWidget> {
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Align(
-                alignment: AlignmentDirectional(1.0, -1.0),
+                alignment: const AlignmentDirectional(1.0, -1.0),
                 child: AppIconButton(
                   borderColor: AppTheme.of(context).primary,
                   borderRadius: 8.0,
@@ -90,7 +90,7 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                 ),
               ),
               Align(
-                alignment: AlignmentDirectional(-1.0, -1.0),
+                alignment: const AlignmentDirectional(-1.0, -1.0),
                 child: Text(
                   AppLocalizations.of(context).getText(
                     'ebebloke' /* Galeria de fotos */,
@@ -112,9 +112,9 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                 ),
               ),
               Align(
-                alignment: AlignmentDirectional(-1.0, -1.0),
+                alignment: const AlignmentDirectional(-1.0, -1.0),
                 child: Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 16.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 16.0),
                   child: Text(
                     AppLocalizations.of(context).getText(
                       'c9xelgdm' /* Veja as fotos registradas ness... */,
@@ -142,15 +142,15 @@ class _ImagensWidgetState extends State<ImagensWidget> {
               Expanded(
                 child: Builder(
                   builder: (context) {
-                    final listImages = widget!.images?.toList() ?? [];
+                    final listImages = widget.images?.toList() ?? [];
 
-                    return Container(
+                    return SizedBox(
                       width: double.infinity,
                       height: 690.0,
                       child: Stack(
                         children: [
                           Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 40.0),
                             child: PageView.builder(
                               controller: _model.pageViewController ??=
@@ -163,7 +163,7 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                                 final listImagesItem =
                                     listImages[listImagesIndex];
                                 return Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       0.0, 0.0, 0.0, 16.0),
                                   child: InkWell(
                                     splashColor: Colors.transparent,
@@ -192,8 +192,7 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                                                 listImagesItem,
                                                 r'''$.url''',
                                               )?.toString(),
-                                              'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg' +
-                                                  '$listImagesIndex',
+                                              'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg' '$listImagesIndex',
                                             ),
                                             useHeroAnimation: true,
                                           ),
@@ -206,8 +205,7 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                                           listImagesItem,
                                           r'''$.url''',
                                         )?.toString(),
-                                        'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg' +
-                                            '$listImagesIndex',
+                                        'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg' '$listImagesIndex',
                                       ),
                                       transitionOnUserGestures: true,
                                       child: ClipRRect(
@@ -233,9 +231,9 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                             ),
                           ),
                           Align(
-                            alignment: AlignmentDirectional(0.0, 1.0),
+                            alignment: const AlignmentDirectional(0.0, 1.0),
                             child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   0.0, 0.0, 0.0, 16.0),
                               child: smooth_page_indicator.SmoothPageIndicator(
                                 controller: _model.pageViewController ??=
@@ -248,7 +246,7 @@ class _ImagensWidgetState extends State<ImagensWidget> {
                                   await _model.pageViewController!
                                       .animateToPage(
                                     i,
-                                    duration: Duration(milliseconds: 500),
+                                    duration: const Duration(milliseconds: 500),
                                     curve: Curves.ease,
                                   );
                                   safeSetState(() {});

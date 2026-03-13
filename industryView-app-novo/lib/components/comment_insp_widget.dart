@@ -79,12 +79,12 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
-        padding: EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24.0),
         child: Container(
           width: double.infinity,
-          constraints: BoxConstraints(
+          constraints: const BoxConstraints(
             maxHeight: double.infinity,
           ),
           decoration: BoxDecoration(
@@ -105,12 +105,12 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                 if (_model.page == 1)
                   Padding(
                     padding:
-                        EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 24.0),
+                        const EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 24.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          decoration: BoxDecoration(),
+                          decoration: const BoxDecoration(),
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.max,
@@ -188,10 +188,10 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                                   .fontStyle,
                                         ),
                                   ),
-                                ].divide(SizedBox(height: 4.0)),
+                                ].divide(const SizedBox(height: 4.0)),
                               ),
                             ),
-                          ].divide(SizedBox(width: 12.0)),
+                          ].divide(const SizedBox(width: 12.0)),
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.max,
@@ -199,7 +199,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                           children: [
                             Expanded(
                               child: Align(
-                                alignment: AlignmentDirectional(1.0, 1.0),
+                                alignment: const AlignmentDirectional(1.0, 1.0),
                                 child: AppButton(
                                   onPressed: () async {
                                     _model.page = 2;
@@ -211,9 +211,9 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                   options: AppButtonOptions(
                                     width: 200.0,
                                     height: 48.0,
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         16.0, 0.0, 16.0, 0.0),
-                                    iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                    iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 0.0),
                                     color:
                                         AppTheme.of(context).status01,
@@ -251,7 +251,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                             ),
                             Expanded(
                               child: Align(
-                                alignment: AlignmentDirectional(1.0, 1.0),
+                                alignment: const AlignmentDirectional(1.0, 1.0),
                                 child: AppButton(
                                   onPressed: () async {
                                     var hasOfflineResponse = false;
@@ -296,11 +296,11 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                   options: AppButtonOptions(
                                     width: 200.0,
                                     height: 48.0,
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         16.0, 0.0, 16.0, 0.0),
-                                    iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                    iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 0.0),
-                                    color: Color(0xFFD6FFEB),
+                                    color: const Color(0xFFD6FFEB),
                                     textStyle: AppTheme.of(context)
                                         .labelMedium
                                         .override(
@@ -333,14 +333,14 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                 ),
                               ),
                             ),
-                          ].divide(SizedBox(width: 12.0)),
+                          ].divide(const SizedBox(width: 12.0)),
                         ),
-                      ].divide(SizedBox(height: 16.0)),
+                      ].divide(const SizedBox(height: 16.0)),
                     ),
                   ),
                 if (_model.page == 2)
                   Padding(
-                    padding: EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,13 +421,13 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                                   .fontStyle,
                                         ),
                                   ),
-                                ].divide(SizedBox(height: 4.0)),
+                                ].divide(const SizedBox(height: 4.0)),
                               ),
                             ),
-                          ].divide(SizedBox(width: 12.0)),
+                          ].divide(const SizedBox(width: 12.0)),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 24.0, 0.0, 0.0),
                           child: Row(
                             mainAxisSize: MainAxisSize.max,
@@ -435,7 +435,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                             children: [
                               Expanded(
                                 child: Align(
-                                  alignment: AlignmentDirectional(1.0, 1.0),
+                                  alignment: const AlignmentDirectional(1.0, 1.0),
                                   child: AppButton(
                                     onPressed: () async {
                                       _model.page = 3;
@@ -447,10 +447,10 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                     options: AppButtonOptions(
                                       width: 200.0,
                                       height: 48.0,
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           16.0, 0.0, 16.0, 0.0),
                                       iconPadding:
-                                          EdgeInsetsDirectional.fromSTEB(
+                                          const EdgeInsetsDirectional.fromSTEB(
                                               0.0, 0.0, 0.0, 0.0),
                                       color: AppTheme.of(context)
                                           .secondaryBackground,
@@ -492,7 +492,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                               ),
                               Expanded(
                                 child: Align(
-                                  alignment: AlignmentDirectional(1.0, 1.0),
+                                  alignment: const AlignmentDirectional(1.0, 1.0),
                                   child: AppButton(
                                     onPressed: () async {
                                       var hasOfflineResponse = false;
@@ -540,10 +540,10 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                     options: AppButtonOptions(
                                       width: 200.0,
                                       height: 48.0,
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           16.0, 0.0, 16.0, 0.0),
                                       iconPadding:
-                                          EdgeInsetsDirectional.fromSTEB(
+                                          const EdgeInsetsDirectional.fromSTEB(
                                               0.0, 0.0, 0.0, 0.0),
                                       color:
                                           AppTheme.of(context).primary,
@@ -579,7 +579,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                   ),
                                 ),
                               ),
-                            ].divide(SizedBox(width: 12.0)),
+                            ].divide(const SizedBox(width: 12.0)),
                           ),
                         ),
                       ],
@@ -587,7 +587,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                   ),
                 if (_model.page == 3)
                   Padding(
-                    padding: EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,13 +668,13 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                                   .fontStyle,
                                         ),
                                   ),
-                                ].divide(SizedBox(height: 4.0)),
+                                ].divide(const SizedBox(height: 4.0)),
                               ),
                             ),
-                          ].divide(SizedBox(width: 12.0)),
+                          ].divide(const SizedBox(width: 12.0)),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 16.0, 0.0, 0.0),
                           child: Builder(
                             builder: (context) {
@@ -687,7 +687,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                 scrollDirection: Axis.vertical,
                                 itemCount: tasksInsp.length,
                                 separatorBuilder: (_, __) =>
-                                    SizedBox(height: 8.0),
+                                    const SizedBox(height: 8.0),
                                 itemBuilder: (context, tasksInspIndex) {
                                   final tasksInspItem =
                                       tasksInsp[tasksInspIndex];
@@ -741,7 +741,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                                   .getText(
                                                 's3q5mjdd' /*   -  */,
                                               ),
-                                              style: TextStyle(),
+                                              style: const TextStyle(),
                                             ),
                                             TextSpan(
                                               text: valueOrDefault<String>(
@@ -821,7 +821,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                                         color: AppTheme.of(context)
                                             .alternate,
                                       ),
-                                    ].divide(SizedBox(height: 8.0)),
+                                    ].divide(const SizedBox(height: 8.0)),
                                   );
                                 },
                               );
@@ -829,7 +829,7 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 24.0, 0.0, 0.0),
                           child: AppButton(
                             onPressed: () async {
@@ -876,9 +876,9 @@ class _CommentInspWidgetState extends State<CommentInspWidget> {
                             options: AppButtonOptions(
                               width: double.infinity,
                               height: 48.0,
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   16.0, 0.0, 16.0, 0.0),
-                              iconPadding: EdgeInsetsDirectional.fromSTEB(
+                              iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                   0.0, 0.0, 0.0, 0.0),
                               color: AppTheme.of(context).primary,
                               textStyle: AppTheme.of(context)

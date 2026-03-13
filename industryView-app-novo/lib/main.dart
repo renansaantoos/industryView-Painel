@@ -64,13 +64,13 @@ void main() async {
   }
 
   // Quando voltar a ficar online: dispara refresh na página atual e sync em background
-  bool _wasOffline = false;
+  bool wasOffline = false;
   NetworkService.instance.listenConnection((isConnected) {
-    if (isConnected && _wasOffline) {
-      _wasOffline = false;
+    if (isConnected && wasOffline) {
+      wasOffline = false;
       AppState().signalConnectionRestored(); // refresh na página atual
     } else if (!isConnected) {
-      _wasOffline = true;
+      wasOffline = true;
     }
     if (isConnected && loggedIn && currentAuthenticationToken != null) {
       Future.microtask(() async {
@@ -92,6 +92,8 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
   // This widget is the root of your application.
   @override
   State<MyApp> createState() => _MyAppState();
@@ -126,7 +128,7 @@ class _OfflineBannerWrapper extends StatelessWidget {
 
   Widget _wrapChildWithBanner(Widget child, Widget banner, bool isOnline) {
     if (child is Scaffold) {
-      final scaffold = child as Scaffold;
+      final scaffold = child;
       final showBanner = !isOnline;
       
       final Widget? wrappedBody = showBanner
@@ -211,7 +213,7 @@ class _MyAppState extends State<MyApp> {
     );
 
     Future.delayed(
-      Duration(milliseconds: 1000),
+      const Duration(milliseconds: 1000),
       () => _appStateNotifier.stopShowingSplashImage(),
     );
   }
@@ -284,7 +286,7 @@ class _MyAppState extends State<MyApp> {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      localizationsDelegates: [
+      localizationsDelegates: const [
         AppLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

@@ -88,7 +88,7 @@ class RdoEmptyStateWidget extends StatelessWidget {
                     // Mostrar erro se necessário
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Não foi possível carregar os dados. Tente novamente.'),
+                        content: const Text('Não foi possível carregar os dados. Tente novamente.'),
                         backgroundColor: AppTheme.of(context).error,
                       ),
                     );

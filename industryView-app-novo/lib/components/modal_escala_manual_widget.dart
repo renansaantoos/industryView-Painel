@@ -59,7 +59,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 1.0),
+      alignment: const AlignmentDirectional(0.0, 1.0),
       child: Container(
         width: double.infinity,
         constraints: BoxConstraints(
@@ -67,7 +67,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
         ),
         decoration: BoxDecoration(
           color: AppTheme.of(context).secondaryBackground,
-          borderRadius: BorderRadius.only(
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(24.0),
             topRight: Radius.circular(24.0),
           ),
@@ -80,7 +80,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
           ],
         ),
         child: Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(24.0, 12.0, 24.0, 24.0),
+          padding: const EdgeInsetsDirectional.fromSTEB(24.0, 12.0, 24.0, 24.0),
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
@@ -112,9 +112,9 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                       ),
                       borderRadius: BorderRadius.circular(10.0),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.people_rounded,
-                      color: const Color(0xFF105DFB),
+                      color: Color(0xFF105DFB),
                       size: 20.0,
                     ),
                   ),
@@ -138,18 +138,18 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                           ),
                     ),
                   ),
-                ].divide(SizedBox(width: 12.0)),
+                ].divide(const SizedBox(width: 12.0)),
               ),
               Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
-                child: Container(
+                padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
+                child: SizedBox(
                   width: 600.0,
                   child: TextFormField(
                     controller: _model.textController,
                     focusNode: _model.textFieldFocusNode,
                     onChanged: (_) => EasyDebounce.debounce(
                       '_model.textController',
-                      Duration(milliseconds: 2000),
+                      const Duration(milliseconds: 2000),
                       () async {
                         safeSetState(() {
                           _model.clearNextPageCache();
@@ -238,8 +238,8 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                       filled: true,
                       fillColor: AppTheme.of(context).primaryBackground,
                       contentPadding:
-                          EdgeInsetsDirectional.fromSTEB(20.0, 14.0, 12.0, 14.0),
-                      prefixIcon: Icon(
+                          const EdgeInsetsDirectional.fromSTEB(20.0, 14.0, 12.0, 14.0),
+                      prefixIcon: const Icon(
                         Icons.search_sharp,
                       ),
                     ),
@@ -301,7 +301,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                         snapshot.data!;
 
                     return Container(
-                      decoration: BoxDecoration(),
+                      decoration: const BoxDecoration(),
                       child: Column(
                         mainAxisSize: MainAxisSize.max,
                         children: [
@@ -331,7 +331,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                     scrollDirection: Axis.vertical,
                                     itemCount: list.length,
                                     separatorBuilder: (_, __) =>
-                                        SizedBox(height: 12.0),
+                                        const SizedBox(height: 12.0),
                                     itemBuilder: (context, listIndex) {
                                       final listItem = list[listIndex];
                                       final isSelected = _model.id ==
@@ -366,7 +366,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                         ),
                                         child: Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   14.0, 10.0, 14.0, 10.0),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -417,8 +417,8 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                           color: AppTheme.of(context).primary,
                                                           borderRadius: BorderRadius.circular(6.0),
                                                         ),
-                                                        alignment: AlignmentDirectional(0.0, 0.0),
-                                                        child: Icon(
+                                                        alignment: const AlignmentDirectional(0.0, 0.0),
+                                                        child: const Icon(
                                                           Icons.check_rounded,
                                                           color: Colors.white,
                                                           size: 16.0,
@@ -433,8 +433,8 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                         color: const Color(0xFF4CAF50),
                                                         borderRadius: BorderRadius.circular(6.0),
                                                       ),
-                                                      alignment: AlignmentDirectional(0.0, 0.0),
-                                                      child: Icon(
+                                                      alignment: const AlignmentDirectional(0.0, 0.0),
+                                                      child: const Icon(
                                                         Icons.check_rounded,
                                                         color: Colors.white,
                                                         size: 16.0,
@@ -443,14 +443,14 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                 ],
                                               ),
                                               Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         10.0, 0.0, 0.0, 0.0),
                                                 child: Container(
                                                   width: 40.0,
                                                   height: 40.0,
-                                                  decoration: BoxDecoration(
-                                                    gradient: const LinearGradient(
+                                                  decoration: const BoxDecoration(
+                                                    gradient: LinearGradient(
                                                       begin: Alignment.topLeft,
                                                       end: Alignment.bottomRight,
                                                       colors: [Color(0xFFECF5FF), Color(0xFFD6EBFF)],
@@ -476,7 +476,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                 ),
                                               ),
                                               Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         8.0, 0.0, 0.0, 0.0),
                                                 child: Column(
@@ -527,11 +527,11 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                               ),
                                                         ),
                                                       ].divide(
-                                                          SizedBox(width: 4.0)),
+                                                          const SizedBox(width: 4.0)),
                                                     ),
                                                     Padding(
                                                       padding:
-                                                          EdgeInsetsDirectional
+                                                          const EdgeInsetsDirectional
                                                               .fromSTEB(
                                                                   0.0,
                                                                   4.0,
@@ -583,7 +583,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                     ),
                                                     if ((getJsonField(listItem, r'''$.users.hr_data.cpf_masked''')?.toString() ?? '').isNotEmpty)
                                                       Padding(
-                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
+                                                        padding: const EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
                                                         child: Text(
                                                           'CPF: ${getJsonField(listItem, r'''$.users.hr_data.cpf_masked''')?.toString() ?? ''}',
                                                           style: AppTheme.of(context).bodySmall.override(
@@ -601,7 +601,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                       ),
                                                     if (isAlreadyReleased)
                                                       Padding(
-                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
+                                                        padding: const EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
                                                         child: Builder(
                                                           builder: (context) {
                                                             final userId = castToType<int>(getJsonField(listItem, r'''$.users.id'''));
@@ -617,12 +617,12 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                                             return Row(
                                                               mainAxisSize: MainAxisSize.min,
                                                               children: [
-                                                                Icon(
+                                                                const Icon(
                                                                   Icons.access_time_rounded,
-                                                                  color: const Color(0xFF4CAF50),
+                                                                  color: Color(0xFF4CAF50),
                                                                   size: 12.0,
                                                                 ),
-                                                                SizedBox(width: 4.0),
+                                                                const SizedBox(width: 4.0),
                                                                 Text(
                                                                   timeText,
                                                                   style: AppTheme.of(context).bodySmall.override(
@@ -660,9 +660,9 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                     .jsonBody,
                               )!)
                             Align(
-                              alignment: AlignmentDirectional(-1.0, 0.0),
+                              alignment: const AlignmentDirectional(-1.0, 0.0),
                               child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 16.0, 0.0, 0.0),
                                 child: AppButton(
                                   onPressed: () async {
@@ -679,9 +679,9 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                                   ),
                                   options: AppButtonOptions(
                                     height: 40.0,
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         20.0, 0.0, 20.0, 0.0),
-                                    iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                    iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 0.0),
                                     color:
                                         AppTheme.of(context).status03,
@@ -728,11 +728,11 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
               ),
               Builder(
                 builder: (context) => Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                   child: AppButton(
                     onPressed: () async {
-                      var _shouldSetState = false;
-                      _shouldSetState = true;
+                      var shouldSetState = false;
+                      shouldSetState = true;
                       if (_model.id != null) {
                         AppState().update(() {
                           AppState().addToLiberaManual(_model.id!);
@@ -758,7 +758,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                               elevation: 0,
                               insetPadding: EdgeInsets.zero,
                               backgroundColor: Colors.transparent,
-                              alignment: AlignmentDirectional(0.0, 0.0)
+                              alignment: const AlignmentDirectional(0.0, 0.0)
                                   .resolve(Directionality.of(context)),
                               child: ModalSucessQrcodeWidget(
                                 text: AppLocalizations.of(context).getText(
@@ -778,7 +778,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                               elevation: 0,
                               insetPadding: EdgeInsets.zero,
                               backgroundColor: Colors.transparent,
-                              alignment: AlignmentDirectional(0.0, 0.0)
+                              alignment: const AlignmentDirectional(0.0, 0.0)
                                   .resolve(Directionality.of(context)),
                               child: ModalInfoWidget(
                                 title: AppLocalizations.of(context).getText(
@@ -795,11 +795,11 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                           },
                         );
 
-                        if (_shouldSetState) safeSetState(() {});
+                        if (shouldSetState) safeSetState(() {});
                         return;
                       }
 
-                      if (_shouldSetState) safeSetState(() {});
+                      if (shouldSetState) safeSetState(() {});
                     },
                     icon: const Icon(
                       Icons.person_add_alt_rounded,
@@ -813,9 +813,9 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                       width: double.infinity,
                       height: 48.0,
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                       iconPadding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                       color: AppTheme.of(context).primary,
                       textStyle:
                           AppTheme.of(context).labelMedium.override(
@@ -840,7 +840,7 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                 ),
               ),
               Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                 child: AppButton(
                   onPressed: () async {
                     Navigator.pop(context);
@@ -852,9 +852,9 @@ class _ModalEscalaManualWidgetState extends State<ModalEscalaManualWidget> {
                     width: double.infinity,
                     height: 48.0,
                     padding:
-                        EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                        const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                     iconPadding:
-                        EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                        const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                     color: AppTheme.of(context).primaryBackground,
                     textStyle:
                         AppTheme.of(context).labelMedium.override(

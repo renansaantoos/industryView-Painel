@@ -26,8 +26,8 @@ class RowListSubtasksWidget extends StatefulWidget {
     this.quantity,
     this.comment,
     this.subtaskID,
-  })  : this.checktasks = checktasks ?? false,
-        this.sucesso = sucesso ?? false;
+  })  : checktasks = checktasks ?? false,
+        sucesso = sucesso ?? false;
 
   final int? id;
   final String? description;
@@ -59,10 +59,10 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
     _model = createModel(context, () => RowListSubtasksModel());
 
     _model.textController1 ??= TextEditingController(
-        text: widget!.quantity != 0.0 ? widget!.quantity?.toString() : '');
+        text: widget.quantity != 0.0 ? widget.quantity?.toString() : '');
     _model.textFieldFocusNode1 ??= FocusNode();
 
-    _model.textController2 ??= TextEditingController(text: widget!.comment);
+    _model.textController2 ??= TextEditingController(text: widget.comment);
     _model.textFieldFocusNode2 ??= FocusNode();
 
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
@@ -82,7 +82,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.of(context).primaryBackground,
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(8.0),
           bottomRight: Radius.circular(8.0),
           topLeft: Radius.circular(0.0),
@@ -90,12 +90,12 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
         ),
       ),
       child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(32.0, 8.0, 32.0, 8.0),
+        padding: const EdgeInsetsDirectional.fromSTEB(32.0, 8.0, 32.0, 8.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget!.unityID != 0)
+            if (widget.unityID != 0)
               Column(
                 mainAxisSize: MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,7 +125,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                     ],
                   ),
                   Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
+                    padding: const EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
                     child: Row(
                       mainAxisSize: MainAxisSize.max,
                       children: [
@@ -133,17 +133,17 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(6.0),
                           ),
-                          child: Container(
+                          child: SizedBox(
                             width: 80.0,
                             child: TextFormField(
                               controller: _model.textController1,
                               focusNode: _model.textFieldFocusNode1,
                               onChanged: (_) => EasyDebounce.debounce(
                                 '_model.textController1',
-                                Duration(milliseconds: 2000),
+                                const Duration(milliseconds: 2000),
                                 () async {
                                   AppState().updateTaskslistAtIndex(
-                                    widget!.index!,
+                                    widget.index!,
                                     (e) => e
                                       ..quantityDone = double.tryParse(
                                           _model.textController1.text),
@@ -152,7 +152,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                                 },
                               ),
                               autofocus: false,
-                              readOnly: !widget!.checktasks,
+                              readOnly: !widget.checktasks,
                               obscureText: false,
                               decoration: InputDecoration(
                                 isDense: true,
@@ -222,7 +222,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                                     ),
                                 enabledBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
-                                    color: !widget!.checktasks
+                                    color: !widget.checktasks
                                         ? AppTheme.of(context).error
                                         : AppTheme.of(context)
                                             .alternate,
@@ -285,7 +285,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                         ),
                         Text(
                           valueOrDefault<String>(
-                            widget!.unity,
+                            widget.unity,
                             '-',
                           ),
                           style:
@@ -307,13 +307,13 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                                         .fontStyle,
                                   ),
                         ),
-                      ].divide(SizedBox(width: 8.0)),
+                      ].divide(const SizedBox(width: 8.0)),
                     ),
                   ),
-                  if (!widget!.checktasks && !widget!.sucesso)
+                  if (!widget.checktasks && !widget.sucesso)
                     Padding(
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
                       child: Text(
                         AppLocalizations.of(context).getText(
                           'sf1akum3' /* Selecione o check-box para pre... */,
@@ -339,10 +339,10 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                             ),
                       ),
                     ),
-                ].divide(SizedBox(height: 4.0)),
+                ].divide(const SizedBox(height: 4.0)),
               ),
             Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 0.0),
+              padding: const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 0.0),
               child: Text(
                 AppLocalizations.of(context).getText(
                   '3hj2jbb3' /* Comentários */,
@@ -365,7 +365,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 4.0, 0.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 4.0, 0.0, 0.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,29 +378,29 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                               valueOrDefault<double>(
                                 functions.checkFirstComment(
                                             AppState().taskslist.toList(),
-                                            widget!.index!) &&
+                                            widget.index!) &&
                                         (AppState().taskslist.length > 1)
                                     ? 8.0
                                     : 0.0,
                                 0.0,
                               ),
                               0.0),
-                          child: Container(
+                          child: SizedBox(
                             width: 200.0,
                             child: TextFormField(
                               controller: _model.textController2,
                               focusNode: _model.textFieldFocusNode2,
                               onChanged: (_) => EasyDebounce.debounce(
                                 '_model.textController2',
-                                Duration(milliseconds: 2000),
+                                const Duration(milliseconds: 2000),
                                 () async {
                                   if (functions.hasOnlyOneFirstComment(
                                           AppState().tasksfinish.toList()) ||
                                       functions.checkFirstComment(
                                           AppState().tasksfinish.toList(),
-                                          widget!.index!)) {
+                                          widget.index!)) {
                                     AppState().updateTaskslistAtIndex(
-                                      widget!.index!,
+                                      widget.index!,
                                       (e) => e
                                         ..comment = _model.textController2.text
                                         ..firstComment = false,
@@ -408,7 +408,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                                     safeSetState(() {});
                                   } else {
                                     AppState().updateTaskslistAtIndex(
-                                      widget!.index!,
+                                      widget.index!,
                                       (e) => e
                                         ..comment = _model.textController2.text
                                         ..firstComment = true,
@@ -419,7 +419,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                               ),
                               autofocus: false,
                               enabled: true,
-                              readOnly: !widget!.checktasks,
+                              readOnly: !widget.checktasks,
                               obscureText: false,
                               decoration: InputDecoration(
                                 isDense: false,
@@ -486,7 +486,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                                     ),
                                 enabledBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
-                                    color: !widget!.checktasks
+                                    color: !widget.checktasks
                                         ? AppTheme.of(context).error
                                         : AppTheme.of(context)
                                             .alternate,
@@ -549,7 +549,7 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                       ),
                       if (functions.checkFirstComment(
                               AppState().taskslist.toList(),
-                              widget!.index!) &&
+                              widget.index!) &&
                           (AppState().tasksfinish.length > 1))
                         AppIconButton(
                           borderRadius: 8.0,
@@ -571,9 +571,9 @@ class _RowListSubtasksWidgetState extends State<RowListSubtasksWidget> {
                 ),
               ],
             ),
-            if (!widget!.checktasks && !widget!.sucesso)
+            if (!widget.checktasks && !widget.sucesso)
               Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(0.0, 2.0, 0.0, 0.0),
                 child: Text(
                   AppLocalizations.of(context).getText(
                     '2fz3x0bl' /* Selecione o check-box para esc... */,

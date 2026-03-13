@@ -82,7 +82,7 @@ void main() {
 
   test('conflito 409 é detectado', () async {
     final service = SyncService.instance;
-    final response = ApiCallResponse({}, {}, 409);
+    const response = ApiCallResponse({}, {}, 409);
     final result = service.testResultFromApi(response);
     expect(result.isConflict, true);
   });

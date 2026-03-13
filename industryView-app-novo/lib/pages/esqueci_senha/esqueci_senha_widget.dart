@@ -41,7 +41,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
 
     _model.emailAddressTextController ??= TextEditingController(
         text:
-            widget!.email != null && widget!.email != '' ? widget!.email : '');
+            widget.email != null && widget.email != '' ? widget.email : '');
     _model.emailAddressFocusNode ??= FocusNode();
 
     _model.codigoTextController ??= TextEditingController();
@@ -85,9 +85,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
           top: true,
           child: SingleChildScrollView(
             child: Align(
-              alignment: AlignmentDirectional(0.0, 0.0),
+              alignment: const AlignmentDirectional(0.0, 0.0),
               child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(30.0, 0.0, 32.0, 32.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(30.0, 0.0, 32.0, 32.0),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     minHeight: MediaQuery.of(context).size.height - 
@@ -101,7 +101,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                     children: [
                       Padding(
                         padding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 16.0),
+                            const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 16.0),
                         child: Text(
                           'IndustryView',
                           style: AppTheme.of(context)
@@ -113,7 +113,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                       .displayMedium
                                       .fontStyle,
                                 ),
-                                color: Color(0xFF2B5EA7),
+                                color: const Color(0xFF2B5EA7),
                                 fontSize: 32.0,
                                 letterSpacing: -0.5,
                                 fontWeight: FontWeight.w800,
@@ -132,7 +132,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                         ),
                         child: Container(
                           width: double.infinity,
-                          constraints: BoxConstraints(
+                          constraints: const BoxConstraints(
                             maxWidth: 460.0,
                           ),
                           decoration: BoxDecoration(
@@ -141,9 +141,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                             borderRadius: BorderRadius.circular(24.0),
                           ),
                           child: Align(
-                            alignment: AlignmentDirectional(0.0, 0.0),
+                            alignment: const AlignmentDirectional(0.0, 0.0),
                             child: Padding(
-                              padding: EdgeInsets.all(24.0),
+                              padding: const EdgeInsets.all(24.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.max,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,10 +193,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                       .fontStyle,
                                             ),
                                       ),
-                                    ].divide(SizedBox(width: 12.0)),
+                                    ].divide(const SizedBox(width: 12.0)),
                                   ),
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 4.0, 0.0, 24.0),
                                     child: Text(
                                       AppLocalizations.of(context).getText(
@@ -227,14 +227,14 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                           ),
                                     ),
                                   ),
-                                  Container(
+                                  SizedBox(
                                     width: double.infinity,
                                     child: TextFormField(
                                       controller:
                                           _model.emailAddressTextController,
                                       focusNode: _model.emailAddressFocusNode,
                                       autofocus: false,
-                                      autofillHints: [AutofillHints.email],
+                                      autofillHints: const [AutofillHints.email],
                                       obscureText: false,
                                       decoration: InputDecoration(
                                         labelText:
@@ -339,7 +339,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                     ),
                                   ),
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 16.0, 0.0, 16.0),
                                     child: Text(
                                       AppLocalizations.of(context).getText(
@@ -373,7 +373,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                   Builder(
                                     builder: (context) => AppButton(
                                       onPressed: () async {
-                                        var _shouldSetState = false;
+                                        var shouldSetState = false;
                                         _model.requestCode =
                                             await SendgridValidationGroup
                                                 .apiParaMandarOCodigoDeRecuperacaoParaOEmailCall
@@ -382,13 +382,14 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                               .emailAddressTextController.text,
                                         );
 
-                                        _shouldSetState = true;
+                                        shouldSetState = true;
                                         if ((_model.requestCode?.succeeded ??
                                             true)) {
                                           _model.stepsEsqueciSenha = 1;
                                           safeSetState(() {});
-                                          if (_shouldSetState)
+                                          if (shouldSetState) {
                                             safeSetState(() {});
+                                          }
                                           return;
                                         } else {
                                           await showDialog(
@@ -399,7 +400,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                 insetPadding: EdgeInsets.zero,
                                                 backgroundColor:
                                                     Colors.transparent,
-                                                alignment: AlignmentDirectional(
+                                                alignment: const AlignmentDirectional(
                                                         0.0, 0.0)
                                                     .resolve(Directionality.of(
                                                         context)),
@@ -429,13 +430,15 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                             },
                                           );
 
-                                          if (_shouldSetState)
+                                          if (shouldSetState) {
                                             safeSetState(() {});
+                                          }
                                           return;
                                         }
 
-                                        if (_shouldSetState)
+                                        if (shouldSetState) {
                                           safeSetState(() {});
+                                        }
                                       },
                                       text: AppLocalizations.of(context).getText(
                                         'hit2ngky' /* Enviar o código */,
@@ -443,10 +446,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                       options: AppButtonOptions(
                                         width: double.infinity,
                                         height: 48.0,
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             0.0, 0.0, 0.0, 0.0),
                                         iconPadding:
-                                            EdgeInsetsDirectional.fromSTEB(
+                                            const EdgeInsetsDirectional.fromSTEB(
                                                 0.0, 0.0, 0.0, 0.0),
                                         color: AppTheme.of(context)
                                             .primary,
@@ -478,7 +481,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                       .fontStyle,
                                             ),
                                         elevation: 0.0,
-                                        borderSide: BorderSide(
+                                        borderSide: const BorderSide(
                                           color: Colors.transparent,
                                           width: 1.0,
                                         ),
@@ -502,7 +505,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                         ),
                         child: Container(
                           width: double.infinity,
-                          constraints: BoxConstraints(
+                          constraints: const BoxConstraints(
                             maxWidth: 460.0,
                           ),
                           decoration: BoxDecoration(
@@ -511,9 +514,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                             borderRadius: BorderRadius.circular(24.0),
                           ),
                           child: Align(
-                            alignment: AlignmentDirectional(0.0, 0.0),
+                            alignment: const AlignmentDirectional(0.0, 0.0),
                             child: Padding(
-                              padding: EdgeInsets.all(24.0),
+                              padding: const EdgeInsets.all(24.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.max,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,10 +566,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                       .fontStyle,
                                             ),
                                       ),
-                                    ].divide(SizedBox(width: 12.0)),
+                                    ].divide(const SizedBox(width: 12.0)),
                                   ),
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 4.0, 0.0, 16.0),
                                     child: Text(
                                       AppLocalizations.of(context).getText(
@@ -598,9 +601,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                     ),
                                   ),
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 16.0),
-                                    child: Container(
+                                    child: SizedBox(
                                       width: double.infinity,
                                       child: TextFormField(
                                         controller: _model.codigoTextController,
@@ -723,7 +726,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                   Builder(
                                     builder: (context) => AppButton(
                                       onPressed: () async {
-                                        var _shouldSetState = false;
+                                        var shouldSetState = false;
                                         _model.validateCode =
                                             await SendgridValidationGroup
                                                 .acaoDeValidarCodigoParaAAlteracaoDeSenhaCall
@@ -734,13 +737,14 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                               .emailAddressTextController.text,
                                         );
 
-                                        _shouldSetState = true;
+                                        shouldSetState = true;
                                         if ((_model.validateCode?.succeeded ??
                                             true)) {
                                           _model.stepsEsqueciSenha = 2;
                                           safeSetState(() {});
-                                          if (_shouldSetState)
+                                          if (shouldSetState) {
                                             safeSetState(() {});
+                                          }
                                           return;
                                         } else {
                                           await showDialog(
@@ -751,7 +755,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                 insetPadding: EdgeInsets.zero,
                                                 backgroundColor:
                                                     Colors.transparent,
-                                                alignment: AlignmentDirectional(
+                                                alignment: const AlignmentDirectional(
                                                         0.0, 0.0)
                                                     .resolve(Directionality.of(
                                                         context)),
@@ -781,13 +785,15 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                             },
                                           );
 
-                                          if (_shouldSetState)
+                                          if (shouldSetState) {
                                             safeSetState(() {});
+                                          }
                                           return;
                                         }
 
-                                        if (_shouldSetState)
+                                        if (shouldSetState) {
                                           safeSetState(() {});
+                                        }
                                       },
                                       text: AppLocalizations.of(context).getText(
                                         'ich2mu1s' /* Confirmar código */,
@@ -795,10 +801,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                       options: AppButtonOptions(
                                         width: double.infinity,
                                         height: 48.0,
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             0.0, 0.0, 0.0, 0.0),
                                         iconPadding:
-                                            EdgeInsetsDirectional.fromSTEB(
+                                            const EdgeInsetsDirectional.fromSTEB(
                                                 0.0, 0.0, 0.0, 0.0),
                                         color: AppTheme.of(context)
                                             .primary,
@@ -830,7 +836,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                       .fontStyle,
                                             ),
                                         elevation: 0.0,
-                                        borderSide: BorderSide(
+                                        borderSide: const BorderSide(
                                           color: Colors.transparent,
                                           width: 1.0,
                                         ),
@@ -848,7 +854,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                     if (_model.stepsEsqueciSenha == 2)
                       Padding(
                         padding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 4.0),
+                            const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 4.0),
                         child: Material(
                           color: Colors.transparent,
                           elevation: 1.0,
@@ -857,7 +863,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                           ),
                           child: Container(
                             width: double.infinity,
-                            constraints: BoxConstraints(
+                            constraints: const BoxConstraints(
                               maxWidth: 460.0,
                             ),
                             decoration: BoxDecoration(
@@ -866,9 +872,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                               borderRadius: BorderRadius.circular(24.0),
                             ),
                             child: Align(
-                              alignment: AlignmentDirectional(0.0, 0.0),
+                              alignment: const AlignmentDirectional(0.0, 0.0),
                               child: Padding(
-                                padding: EdgeInsets.all(24.0),
+                                padding: const EdgeInsets.all(24.0),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.max,
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -920,10 +926,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                         .fontStyle,
                                               ),
                                         ),
-                                      ].divide(SizedBox(width: 12.0)),
+                                      ].divide(const SizedBox(width: 12.0)),
                                     ),
                                     Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 4.0, 0.0, 16.0),
                                       child: Text(
                                         AppLocalizations.of(context).getText(
@@ -954,7 +960,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                             ),
                                       ),
                                     ),
-                                    Container(
+                                    SizedBox(
                                       width: double.infinity,
                                       child: TextFormField(
                                         controller:
@@ -962,13 +968,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                         focusNode: _model.passwordFocusNode1,
                                         onChanged: (_) => EasyDebounce.debounce(
                                           '_model.passwordTextController1',
-                                          Duration(milliseconds: 500),
+                                          const Duration(milliseconds: 500),
                                           () async {
-                                            var _shouldSetState = false;
+                                            var shouldSetState = false;
                                             if (_model.passwordTextController1
-                                                        .text !=
-                                                    null &&
-                                                _model.passwordTextController1
                                                         .text !=
                                                     '') {
                                               _model.returnAction =
@@ -977,27 +980,30 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                 _model.passwordTextController1
                                                     .text,
                                               );
-                                              _shouldSetState = true;
+                                              shouldSetState = true;
                                               _model.varReturnAction =
                                                   _model.returnAction;
                                               safeSetState(() {});
-                                              if (_shouldSetState)
+                                              if (shouldSetState) {
                                                 safeSetState(() {});
+                                              }
                                               return;
                                             } else {
                                               _model.varReturnAction = null;
                                               safeSetState(() {});
-                                              if (_shouldSetState)
+                                              if (shouldSetState) {
                                                 safeSetState(() {});
+                                              }
                                               return;
                                             }
 
-                                            if (_shouldSetState)
+                                            if (shouldSetState) {
                                               safeSetState(() {});
+                                            }
                                           },
                                         ),
                                         autofocus: false,
-                                        autofillHints: [AutofillHints.password],
+                                        autofillHints: const [AutofillHints.password],
                                         obscureText:
                                             !_model.passwordVisibility1,
                                         decoration: InputDecoration(
@@ -1132,7 +1138,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                     ),
                                     if (_model.varReturnAction != null)
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             0.0, 8.0, 0.0, 0.0),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.max,
@@ -1220,10 +1226,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                     ),
                                                   ),
                                                 ),
-                                              ].divide(SizedBox(width: 12.0)),
+                                              ].divide(const SizedBox(width: 12.0)),
                                             ),
                                             Padding(
-                                              padding: EdgeInsetsDirectional
+                                              padding: const EdgeInsetsDirectional
                                                   .fromSTEB(0.0, 4.0, 0.0, 0.0),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.max,
@@ -1423,23 +1429,23 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                                     .fontStyle,
                                                               ),
                                                     ),
-                                                ].divide(SizedBox(width: 4.0)),
+                                                ].divide(const SizedBox(width: 4.0)),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
                                     Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 24.0, 0.0, 0.0),
-                                      child: Container(
+                                      child: SizedBox(
                                         width: double.infinity,
                                         child: TextFormField(
                                           controller:
                                               _model.passwordTextController2,
                                           focusNode: _model.passwordFocusNode2,
                                           autofocus: false,
-                                          autofillHints: [
+                                          autofillHints: const [
                                             AutofillHints.password
                                           ],
                                           obscureText:
@@ -1614,7 +1620,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                             ),
                                       ),
                                     Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 16.0, 0.0, 16.0),
                                       child: Text(
                                         AppLocalizations.of(context).getText(
@@ -1648,7 +1654,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                     Builder(
                                       builder: (context) => AppButton(
                                         onPressed: () async {
-                                          var _shouldSetState = false;
+                                          var shouldSetState = false;
                                           if (_model.passwordTextController1
                                                   .text ==
                                               _model.passwordTextController2
@@ -1658,8 +1664,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                           } else {
                                             _model.erroSenha = true;
                                             safeSetState(() {});
-                                            if (_shouldSetState)
+                                            if (shouldSetState) {
                                               safeSetState(() {});
+                                            }
                                             return;
                                           }
 
@@ -1674,7 +1681,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                 .text,
                                           );
 
-                                          _shouldSetState = true;
+                                          shouldSetState = true;
                                           if ((_model.resetPass?.succeeded ??
                                               true)) {
                                             context.pushNamed(
@@ -1689,8 +1696,9 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                               }.withoutNulls,
                                             );
 
-                                            if (_shouldSetState)
+                                            if (shouldSetState) {
                                               safeSetState(() {});
+                                            }
                                             return;
                                           } else {
                                             await showDialog(
@@ -1702,7 +1710,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                   backgroundColor:
                                                       Colors.transparent,
                                                   alignment:
-                                                      AlignmentDirectional(
+                                                      const AlignmentDirectional(
                                                               0.0, 0.0)
                                                           .resolve(
                                                               Directionality.of(
@@ -1734,13 +1742,15 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                               },
                                             );
 
-                                            if (_shouldSetState)
+                                            if (shouldSetState) {
                                               safeSetState(() {});
+                                            }
                                             return;
                                           }
 
-                                          if (_shouldSetState)
+                                          if (shouldSetState) {
                                             safeSetState(() {});
+                                          }
                                         },
                                         text:
                                             AppLocalizations.of(context).getText(
@@ -1750,10 +1760,10 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                           width: double.infinity,
                                           height: 48.0,
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   0.0, 0.0, 0.0, 0.0),
                                           iconPadding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   0.0, 0.0, 0.0, 0.0),
                                           color: AppTheme.of(context)
                                               .primary,
@@ -1788,7 +1798,7 @@ class _EsqueciSenhaWidgetState extends State<EsqueciSenhaWidget> {
                                                         .fontStyle,
                                               ),
                                           elevation: 0.0,
-                                          borderSide: BorderSide(
+                                          borderSide: const BorderSide(
                                             color: Colors.transparent,
                                             width: 1.0,
                                           ),

@@ -102,13 +102,13 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
               wrapWithModel(
                 model: _model.navBarModel,
                 updateCallback: () => safeSetState(() {}),
-                child: NavBarWidget(
+                child: const NavBarWidget(
                   page: 2,
                 ),
               ),
               Padding(
                 padding:
-                    EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 72.0),
+                    const EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 72.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,7 +116,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                     const OfflineBannerWidget(),
                     if ((functions
                                 .returnNumberJsonList(getJsonField(
-                                  widget!.item,
+                                  widget.item,
                                   r'''$.images''',
                                   true,
                                 ))
@@ -124,14 +124,14 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                             '0') &&
                         (functions
                                 .returnNumberJsonList(getJsonField(
-                                  widget!.item,
+                                  widget.item,
                                   r'''$.images''',
                                   true,
                                 ))
                                 .toString() !=
                             '1'))
                       Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
                             0.0, 16.0, 0.0, 16.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.max,
@@ -181,10 +181,10 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                         ),
                                   ),
                                 ),
-                              ].divide(SizedBox(width: 12.0)),
+                              ].divide(const SizedBox(width: 12.0)),
                             ),
                             Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   0.0, 8.0, 0.0, 0.0),
                               child: Text(
                                 AppLocalizations.of(context).getText(
@@ -214,12 +214,12 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                               ),
                             ),
                             Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   0.0, 8.0, 0.0, 0.0),
                               child: Builder(
                                 builder: (context) {
                                   final listImages = getJsonField(
-                                    widget!.item,
+                                    widget.item,
                                     r'''$.images''',
                                   ).toList();
                                   final limitedImages =
@@ -230,7 +230,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                   if (isOffline && limitedImages.isEmpty) {
                                     return Container(
                                       width: double.infinity,
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           12.0, 10.0, 12.0, 10.0),
                                       decoration: BoxDecoration(
                                         color: AppTheme.of(context)
@@ -338,13 +338,13 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                 ),
                                               );
                                             },
-                                          ).divide(SizedBox(width: 8.0)),
+                                          ).divide(const SizedBox(width: 8.0)),
                                         ),
                                       ),
                                       if (valueOrDefault<int>(
                                             functions.returnNumberJsonList(
                                               getJsonField(
-                                                widget!.item,
+                                                widget.item,
                                                 r'''$.images''',
                                                 true,
                                               ),
@@ -360,7 +360,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                             highlightColor: Colors.transparent,
                                             onTap: () async {
                                               await showDialog(
-                                                barrierColor: Color(0x7F000000),
+                                                barrierColor: const Color(0x7F000000),
                                                 context: context,
                                                 builder: (dialogContext) {
                                                   return Dialog(
@@ -369,7 +369,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                     backgroundColor:
                                                         Colors.transparent,
                                                     alignment:
-                                                        AlignmentDirectional(
+                                                        const AlignmentDirectional(
                                                                 0.0, 0.0)
                                                             .resolve(
                                                                 Directionality.of(
@@ -385,7 +385,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                       },
                                                       child: ImagensWidget(
                                                         images: getJsonField(
-                                                          widget!.item,
+                                                          widget.item,
                                                           r'''$.images''',
                                                           true,
                                                         ),
@@ -410,14 +410,14 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                 ),
                                               ),
                                               alignment:
-                                                  AlignmentDirectional(0.0, 0.0),
+                                                  const AlignmentDirectional(0.0, 0.0),
                                               child: Text(
                                                 valueOrDefault<String>(
                                                   'Ver +${(valueOrDefault<int>(
                                                         functions
                                                             .returnNumberJsonList(
                                                                 getJsonField(
-                                                          widget!.item,
+                                                          widget.item,
                                                           r'''$.images''',
                                                           true,
                                                         )),
@@ -465,19 +465,19 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                             ),
                                           ),
                                         ),
-                                    ].divide(SizedBox(width: 8.0)),
+                                    ].divide(const SizedBox(width: 8.0)),
                                   );
                                 },
                               ),
                             ),
-                          ].divide(SizedBox(height: 0.0)),
+                          ].divide(const SizedBox(height: 0.0)),
                         ),
                       ),
                     Expanded(
                       child: Column(
                         children: [
                           Align(
-                            alignment: Alignment(0.0, 0),
+                            alignment: const Alignment(0.0, 0),
                             child: AppTabBar(
                               useToggleButtonStyle: true,
                               labelStyle: AppTheme.of(context)
@@ -533,7 +533,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                               borderWidth: 1.0,
                               borderRadius: 12.0,
                               elevation: 0.0,
-                              buttonMargin: EdgeInsetsDirectional.fromSTEB(
+                              buttonMargin: const EdgeInsetsDirectional.fromSTEB(
                                   8.0, 0.0, 8.0, 0.0),
                               tabs: [
                                 Tab(
@@ -561,7 +561,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                   children: [
                                     if (functions
                                             .returnNumberJsonList(getJsonField(
-                                              widget!.item,
+                                              widget.item,
                                               r'''$.sprints_tasks_id''',
                                               true,
                                             ))
@@ -570,9 +570,9 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                       Builder(
                                         builder: (context) {
                                           final listRows =
-                                              widget!.list?.toList() ?? [];
+                                              widget.list?.toList() ?? [];
                                           if (listRows.isEmpty) {
-                                            return EmptyWidget();
+                                            return const EmptyWidget();
                                           }
 
                                           return ListView.builder(
@@ -612,7 +612,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                         ),
                                                       ),
                                                       child: Padding(
-                                                        padding: EdgeInsets.all(
+                                                        padding: const EdgeInsets.all(
                                                             12.0),
                                                         child: Column(
                                                           mainAxisSize:
@@ -623,7 +623,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                           children: [
                                                             Padding(
                                                               padding:
-                                                                  EdgeInsetsDirectional
+                                                                  const EdgeInsetsDirectional
                                                                       .fromSTEB(
                                                                           0.0,
                                                                           0.0,
@@ -705,7 +705,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                   ),
                                                                 ),
                                                                 child: Padding(
-                                                                  padding: EdgeInsetsDirectional
+                                                                  padding: const EdgeInsetsDirectional
                                                                       .fromSTEB(
                                                                           12.0,
                                                                           4.0,
@@ -896,7 +896,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                 ))
                                                               Padding(
                                                                 padding:
-                                                                    EdgeInsetsDirectional
+                                                                    const EdgeInsetsDirectional
                                                                         .fromSTEB(
                                                                             0.0,
                                                                             8.0,
@@ -938,12 +938,12 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                   AppTheme.of(context).secondaryBackground,
                                                                                   AppTheme.of(context).primaryBackground
                                                                                 ],
-                                                                                stops: [
+                                                                                stops: const [
                                                                                   0.0,
                                                                                   1.0
                                                                                 ],
-                                                                                begin: AlignmentDirectional(-1.0, 0.0),
-                                                                                end: AlignmentDirectional(1.0, 0),
+                                                                                begin: const AlignmentDirectional(-1.0, 0.0),
+                                                                                end: const AlignmentDirectional(1.0, 0),
                                                                               ),
                                                                               borderRadius: BorderRadius.circular(8.0),
                                                                               border: Border.all(
@@ -952,7 +952,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                             ),
                                                                             child:
                                                                                 Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
                                                                               child: RichText(
                                                                                 textScaler: MediaQuery.of(context).textScaler,
                                                                                 text: TextSpan(
@@ -992,7 +992,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                           ),
                                                                                     )
                                                                                   ],
-                                                                                  style: TextStyle(),
+                                                                                  style: const TextStyle(),
                                                                                 ),
                                                                               ),
                                                                             ),
@@ -1021,12 +1021,12 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                   AppTheme.of(context).secondaryBackground,
                                                                                   AppTheme.of(context).primaryBackground
                                                                                 ],
-                                                                                stops: [
+                                                                                stops: const [
                                                                                   0.0,
                                                                                   1.0
                                                                                 ],
-                                                                                begin: AlignmentDirectional(-1.0, 0.0),
-                                                                                end: AlignmentDirectional(1.0, 0),
+                                                                                begin: const AlignmentDirectional(-1.0, 0.0),
+                                                                                end: const AlignmentDirectional(1.0, 0),
                                                                               ),
                                                                               borderRadius: BorderRadius.circular(8.0),
                                                                               border: Border.all(
@@ -1035,7 +1035,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                             ),
                                                                             child:
                                                                                 Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
                                                                               child: RichText(
                                                                                 textScaler: MediaQuery.of(context).textScaler,
                                                                                 text: TextSpan(
@@ -1075,7 +1075,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                           ),
                                                                                     )
                                                                                   ],
-                                                                                  style: TextStyle(),
+                                                                                  style: const TextStyle(),
                                                                                 ),
                                                                               ),
                                                                             ),
@@ -1104,12 +1104,12 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                   AppTheme.of(context).secondaryBackground,
                                                                                   AppTheme.of(context).primaryBackground
                                                                                 ],
-                                                                                stops: [
+                                                                                stops: const [
                                                                                   0.0,
                                                                                   1.0
                                                                                 ],
-                                                                                begin: AlignmentDirectional(-1.0, 0.0),
-                                                                                end: AlignmentDirectional(1.0, 0),
+                                                                                begin: const AlignmentDirectional(-1.0, 0.0),
+                                                                                end: const AlignmentDirectional(1.0, 0),
                                                                               ),
                                                                               borderRadius: BorderRadius.circular(8.0),
                                                                               border: Border.all(
@@ -1118,7 +1118,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                             ),
                                                                             child:
                                                                                 Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
                                                                               child: RichText(
                                                                                 textScaler: MediaQuery.of(context).textScaler,
                                                                                 text: TextSpan(
@@ -1158,7 +1158,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                           ),
                                                                                     )
                                                                                   ],
-                                                                                  style: TextStyle(),
+                                                                                  style: const TextStyle(),
                                                                                 ),
                                                                               ),
                                                                             ),
@@ -1187,12 +1187,12 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                   AppTheme.of(context).secondaryBackground,
                                                                                   AppTheme.of(context).primaryBackground
                                                                                 ],
-                                                                                stops: [
+                                                                                stops: const [
                                                                                   0.0,
                                                                                   1.0
                                                                                 ],
-                                                                                begin: AlignmentDirectional(-1.0, 0.0),
-                                                                                end: AlignmentDirectional(1.0, 0),
+                                                                                begin: const AlignmentDirectional(-1.0, 0.0),
+                                                                                end: const AlignmentDirectional(1.0, 0),
                                                                               ),
                                                                               borderRadius: BorderRadius.circular(8.0),
                                                                               border: Border.all(
@@ -1201,7 +1201,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                             ),
                                                                             child:
                                                                                 Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(12.0, 4.0, 12.0, 4.0),
                                                                               child: RichText(
                                                                                 textScaler: MediaQuery.of(context).textScaler,
                                                                                 text: TextSpan(
@@ -1241,7 +1241,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                                           ),
                                                                                     )
                                                                                   ],
-                                                                                  style: TextStyle(),
+                                                                                  style: const TextStyle(),
                                                                                 ),
                                                                               ),
                                                                             ),
@@ -1264,14 +1264,14 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                             AppTheme.of(context).secondaryBackground,
                                                                             AppTheme.of(context).primaryBackground
                                                                           ],
-                                                                          stops: [
+                                                                          stops: const [
                                                                             0.0,
                                                                             1.0
                                                                           ],
-                                                                          begin: AlignmentDirectional(
+                                                                          begin: const AlignmentDirectional(
                                                                               -1.0,
                                                                               0.0),
-                                                                          end: AlignmentDirectional(
+                                                                          end: const AlignmentDirectional(
                                                                               1.0,
                                                                               0),
                                                                         ),
@@ -1285,7 +1285,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                       ),
                                                                       child:
                                                                           Padding(
-                                                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                                                             12.0,
                                                                             4.0,
                                                                             12.0,
@@ -1333,7 +1333,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                               )
                                                                             ],
                                                                             style:
-                                                                                TextStyle(),
+                                                                                const TextStyle(),
                                                                           ),
                                                                         ),
                                                                       ),
@@ -1343,7 +1343,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                               ),
                                                             Padding(
                                                               padding:
-                                                                  EdgeInsetsDirectional
+                                                                  const EdgeInsetsDirectional
                                                                       .fromSTEB(
                                                                           0.0,
                                                                           8.0,
@@ -1352,7 +1352,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                               child: Container(
                                                                 decoration:
                                                                     BoxDecoration(
-                                                                  color: Color(
+                                                                  color: const Color(
                                                                       0x1A028F58),
                                                                   borderRadius:
                                                                       BorderRadius
@@ -1371,7 +1371,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                           .min,
                                                                   children: [
                                                                     Padding(
-                                                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                                                           12.0,
                                                                           4.0,
                                                                           12.0,
@@ -1407,9 +1407,9 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                   ),
                                                 ]
                                                     .divide(
-                                                        SizedBox(height: 8.0))
+                                                        const SizedBox(height: 8.0))
                                                     .addToStart(
-                                                        SizedBox(height: 8.0)),
+                                                        const SizedBox(height: 8.0)),
                                               );
                                             },
                                           );
@@ -1417,7 +1417,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                       ),
                                     if (functions
                                             .returnNumberJsonList(getJsonField(
-                                              widget!.item,
+                                              widget.item,
                                               r'''$.sprints_tasks_id''',
                                               true,
                                             ))
@@ -1427,14 +1427,14 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                         model: _model.emptyModel,
                                         updateCallback: () =>
                                             safeSetState(() {}),
-                                        child: EmptyWidget(),
+                                        child: const EmptyWidget(),
                                       ),
                                   ],
                                 ),
                                 Builder(
                                   builder: (context) {
                                     final listUsers = getJsonField(
-                                      widget!.item,
+                                      widget.item,
                                       r'''$.schedule_user_of_schedule''',
                                     ).toList();
 
@@ -1448,7 +1448,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                             listUsers[listUsersIndex];
                                         return Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   0.0, 8.0, 0.0, 0.0),
                                           child: Container(
                                             width: MediaQuery.sizeOf(context)
@@ -1462,10 +1462,10 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                   AppTheme.of(context)
                                                       .primaryBackground
                                                 ],
-                                                stops: [0.0, 1.0],
-                                                begin: AlignmentDirectional(
+                                                stops: const [0.0, 1.0],
+                                                begin: const AlignmentDirectional(
                                                     -1.0, 0.0),
-                                                end: AlignmentDirectional(
+                                                end: const AlignmentDirectional(
                                                     1.0, 0),
                                               ),
                                               borderRadius:
@@ -1477,7 +1477,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                               ),
                                             ),
                                             child: Padding(
-                                              padding: EdgeInsetsDirectional
+                                              padding: const EdgeInsetsDirectional
                                                   .fromSTEB(
                                                       12.0, 8.0, 12.0, 8.0),
                                               child: Row(
@@ -1485,7 +1485,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                 children: [
                                                   Stack(
                                                     alignment:
-                                                        AlignmentDirectional(
+                                                        const AlignmentDirectional(
                                                             1.0, 1.0),
                                                     children: [
                                                       ClipRRect(
@@ -1510,7 +1510,7 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                   ),
                                                   Padding(
                                                     padding:
-                                                        EdgeInsetsDirectional
+                                                        const EdgeInsetsDirectional
                                                             .fromSTEB(8.0, 0.0,
                                                                 0.0, 0.0),
                                                     child: Column(
@@ -1561,12 +1561,12 @@ class _Rdo2WidgetState extends State<Rdo2Widget> with TickerProviderStateMixin {
                                                                         .fontStyle,
                                                                   ),
                                                             ),
-                                                          ].divide(SizedBox(
+                                                          ].divide(const SizedBox(
                                                               width: 4.0)),
                                                         ),
                                                         Padding(
                                                           padding:
-                                                              EdgeInsetsDirectional
+                                                              const EdgeInsetsDirectional
                                                                   .fromSTEB(
                                                                       0.0,
                                                                       4.0,

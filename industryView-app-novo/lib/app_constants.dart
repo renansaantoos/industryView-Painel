@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'core/utils/app_utils.dart';
-
 abstract class AppConstants {
   static const int zero = 0;
   static const int um = 1;

@@ -42,9 +42,7 @@ class RdoPrefetchService {
       final teamsId = AppState().user.teamsId;
       final sprintsId = AppState().user.sprint.id;
 
-      if (projectsId == null || projectsId == 0 ||
-          teamsId == null || teamsId == 0 ||
-          sprintsId == null || sprintsId == 0) {
+      if (projectsId == 0 || teamsId == 0 || sprintsId == 0) {
         if (kDebugMode) {
           print('RdoPrefetchService: user/project/team/sprint ainda não preenchidos, pulando');
         }

@@ -86,14 +86,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) =>
-          appStateNotifier.loggedIn ? PageCheckQrcodeWidget() : LoginWidget(),
+          appStateNotifier.loggedIn ? const PageCheckQrcodeWidget() : const LoginWidget(),
       routes: [
         AppRoute(
           name: '_initialize',
           path: '/',
           builder: (context, _) => appStateNotifier.loggedIn
-              ? PageCheckQrcodeWidget()
-              : LoginWidget(),
+              ? const PageCheckQrcodeWidget()
+              : const LoginWidget(),
         ),
         AppRoute(
           name: LoginWidget.routeName,
@@ -108,19 +108,19 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         AppRoute(
           name: HomePageTarefasWidget.routeName,
           path: HomePageTarefasWidget.routePath,
-          builder: (context, params) => HomePageTarefasWidget(),
+          builder: (context, params) => const HomePageTarefasWidget(),
         ),
         AppRoute(
           name: RdoWidget.routeName,
           path: RdoWidget.routePath,
           requireAuth: true,
-          builder: (context, params) => RdoWidget(),
+          builder: (context, params) => const RdoWidget(),
         ),
         AppRoute(
           name: EscalaWidget.routeName,
           path: EscalaWidget.routePath,
           requireAuth: true,
-          builder: (context, params) => EscalaWidget(),
+          builder: (context, params) => const EscalaWidget(),
         ),
         AppRoute(
           name: Rdo2Widget.routeName,
@@ -187,13 +187,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: DailyHubWidget.routeName,
           path: DailyHubWidget.routePath,
           requireAuth: true,
-          builder: (context, params) => DailyHubWidget(),
+          builder: (context, params) => const DailyHubWidget(),
         ),
         AppRoute(
           name: SyncConflictsWidget.routeName,
           path: SyncConflictsWidget.routePath,
           requireAuth: true,
-          builder: (context, params) => SyncConflictsWidget(),
+          builder: (context, params) => const SyncConflictsWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );
@@ -421,7 +421,7 @@ class TransitionInfo {
   final Duration duration;
   final Alignment? alignment;
 
-  static TransitionInfo appDefault() => TransitionInfo(hasTransition: false);
+  static TransitionInfo appDefault() => const TransitionInfo(hasTransition: false);
 }
 
 class RootPageContext {

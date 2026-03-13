@@ -55,13 +55,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: AlignmentDirectional(0.0, 1.0),
+      alignment: const AlignmentDirectional(0.0, 1.0),
       child: Container(
         width: double.infinity,
         height: 60.0,
         decoration: BoxDecoration(
           color: AppTheme.of(context).secondaryBackground,
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               blurRadius: 8.0,
               color: Color(0x12000000),
@@ -70,7 +70,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
           ],
         ),
         child: Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(24.0, 4.0, 24.0, 4.0),
+          padding: const EdgeInsetsDirectional.fromSTEB(24.0, 4.0, 24.0, 4.0),
           child: Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -83,13 +83,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                     buttonSize: 44.0,
                     icon: Icon(
                       Icons.task,
-                      color: widget!.page == 1
+                      color: widget.page == 1
                           ? AppTheme.of(context).primary
                           : AppTheme.of(context).secondaryText,
-                      size: widget!.page == 1 ? 24.0 : 22.0,
+                      size: widget.page == 1 ? 24.0 : 22.0,
                     ),
                     onPressed: () async {
-                      if (widget!.page == 1) {
+                      if (widget.page == 1) {
                         return;
                       }
 
@@ -102,7 +102,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                       context.pushNamed(
                         HomePageTarefasWidget.routeName,
                         extra: <String, dynamic>{
-                          kTransitionInfoKey: TransitionInfo(
+                          kTransitionInfoKey: const TransitionInfo(
                             hasTransition: true,
                             transitionType: PageTransitionType.fade,
                             duration: Duration(milliseconds: 250),
@@ -116,7 +116,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                   // Active tab indicator
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: widget!.page == 1 ? 20 : 0,
+                    width: widget.page == 1 ? 20 : 0,
                     height: 3,
                     margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
@@ -134,13 +134,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                     buttonSize: 44.0,
                     icon: Icon(
                       Icons.read_more,
-                      color: widget!.page == 2
+                      color: widget.page == 2
                           ? AppTheme.of(context).primary
                           : AppTheme.of(context).secondaryText,
-                      size: widget!.page == 2 ? 24.0 : 22.0,
+                      size: widget.page == 2 ? 24.0 : 22.0,
                     ),
                     onPressed: () async {
-                      if (widget!.page == 2) {
+                      if (widget.page == 2) {
                         return;
                       }
 
@@ -153,7 +153,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                       context.pushNamed(
                         RdoWidget.routeName,
                         extra: <String, dynamic>{
-                          kTransitionInfoKey: TransitionInfo(
+                          kTransitionInfoKey: const TransitionInfo(
                             hasTransition: true,
                             transitionType: PageTransitionType.fade,
                             duration: Duration(milliseconds: 250),
@@ -167,7 +167,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                   // Active tab indicator
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: widget!.page == 2 ? 20 : 0,
+                    width: widget.page == 2 ? 20 : 0,
                     height: 3,
                     margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
@@ -185,13 +185,13 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                     buttonSize: 44.0,
                     icon: Icon(
                       Icons.group,
-                      color: widget!.page == 3
+                      color: widget.page == 3
                           ? AppTheme.of(context).primary
                           : AppTheme.of(context).secondaryText,
-                      size: widget!.page == 3 ? 24.0 : 22.0,
+                      size: widget.page == 3 ? 24.0 : 22.0,
                     ),
                     onPressed: () async {
-                      if (widget!.page == 3) {
+                      if (widget.page == 3) {
                         return;
                       }
 
@@ -204,7 +204,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                       context.pushNamed(
                         EscalaWidget.routeName,
                         extra: <String, dynamic>{
-                          kTransitionInfoKey: TransitionInfo(
+                          kTransitionInfoKey: const TransitionInfo(
                             hasTransition: true,
                             transitionType: PageTransitionType.fade,
                             duration: Duration(milliseconds: 250),
@@ -218,7 +218,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                   // Active tab indicator
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: widget!.page == 3 ? 20 : 0,
+                    width: widget.page == 3 ? 20 : 0,
                     height: 3,
                     margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
@@ -232,7 +232,7 @@ class _NavBarWidgetState extends State<NavBarWidget> {
                 showText: false,
                 size: 18.0,
               ),
-            ].divide(SizedBox(width: 24.0)),
+            ].divide(const SizedBox(width: 24.0)),
           ),
         ),
       ),

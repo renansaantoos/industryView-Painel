@@ -111,7 +111,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
   Future<void> _linkTaskToSchedule(int taskId) async {
     try {
       final scheduleId = AppState().user.sheduleId;
-      if (scheduleId == null || scheduleId == 0) return;
+      if (scheduleId == 0) return;
       await ProjectsGroup.linkTasksToScheduleCall.call(
         token: currentAuthenticationToken,
         scheduleId: scheduleId,
@@ -406,7 +406,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
           ),
           alignment: Alignment.center,
           child: isChecked
-              ? Icon(Icons.check, size: 14.0, color: const Color(0xFF3B6EC8))
+              ? const Icon(Icons.check, size: 14.0, color: Color(0xFF3B6EC8))
               : null,
         ),
       ),
@@ -436,14 +436,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                 elevation: 0,
                 insetPadding: EdgeInsets.zero,
                 backgroundColor: Colors.transparent,
-                alignment: AlignmentDirectional(0.0, 0.0)
+                alignment: const AlignmentDirectional(0.0, 0.0)
                     .resolve(Directionality.of(context)),
                 child: GestureDetector(
                   onTap: () {
                     FocusScope.of(dialogContext).unfocus();
                     FocusManager.instance.primaryFocus?.unfocus();
                   },
-                  child: ModalInfoWidget(
+                  child: const ModalInfoWidget(
                     title: 'Atenção',
                     description:
                         'Conclua todas as etapas de cravação de estacas para finalizar esta tarefa.',
@@ -542,7 +542,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
       } catch (_) {}
     }
 
-    TasksListStruct _buildTaskStruct() {
+    TasksListStruct buildTaskStruct() {
       return TasksListStruct(
         sprintsTasksId: taskId,
         sprintsTasksStatusesId: 3,
@@ -598,7 +598,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                   ),
                 ),
               ),
-              _buildCheckbox(context, item, taskId, _buildTaskStruct),
+              _buildCheckbox(context, item, taskId, buildTaskStruct),
             ],
           ),
         ),
@@ -713,7 +713,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.groups_outlined, size: 13.0, color: const Color(0xFF7C3AED)),
+                      const Icon(Icons.groups_outlined, size: 13.0, color: Color(0xFF7C3AED)),
                       const SizedBox(width: 4.0),
                       Text(
                         teamName,
@@ -792,10 +792,10 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                     context.mounted,
                     extra: <String, dynamic>{
                       'item': item,
-                      kTransitionInfoKey: TransitionInfo(
+                      kTransitionInfoKey: const TransitionInfo(
                         hasTransition: true,
                         transitionType: PageTransitionType.fade,
-                        duration: const Duration(milliseconds: 250),
+                        duration: Duration(milliseconds: 250),
                       ),
                     },
                   );
@@ -872,7 +872,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                         );
                         // Vincular tarefa ao schedule do dia
                         _linkTaskToSchedule(taskId);
-                        if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
+                        if (getJsonField(result.jsonBody, r'''$.offline''') == true) {
                           AppState().update(() {
                             final current = AppState().offlineMaskedTasksIds.toList();
                             if (!current.contains(taskId)) {
@@ -906,14 +906,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                             elevation: 0,
                             insetPadding: EdgeInsets.zero,
                             backgroundColor: Colors.transparent,
-                            alignment: AlignmentDirectional(0.0, 0.0)
+                            alignment: const AlignmentDirectional(0.0, 0.0)
                                 .resolve(Directionality.of(context)),
                             child: GestureDetector(
                               onTap: () {
                                 FocusScope.of(dialogContext).unfocus();
                                 FocusManager.instance.primaryFocus?.unfocus();
                               },
-                              child: ModalInfoWidget(
+                              child: const ModalInfoWidget(
                                 title: 'Atenção',
                                 description:
                                     'Conclua todas as etapas de cravação de estacas para finalizar esta tarefa.',
@@ -941,7 +941,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                       });
                       try {
                       AppState().tasksfinish = [];
-                      AppState().tasksfinish = [_buildTaskStruct()];
+                      AppState().tasksfinish = [buildTaskStruct()];
                       safeSetState(() {});
                       await showDialog(
                         barrierColor: const Color(0x80000000),
@@ -951,7 +951,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                             elevation: 0,
                             insetPadding: EdgeInsets.zero,
                             backgroundColor: Colors.transparent,
-                            alignment: AlignmentDirectional(0.0, 0.0)
+                            alignment: const AlignmentDirectional(0.0, 0.0)
                                 .resolve(Directionality.of(context)),
                             child: GestureDetector(
                               onTap: () {
@@ -1056,7 +1056,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                       );
                       // Vincular tarefa ao schedule do dia
                       _linkTaskToSchedule(taskId);
-                      if (getJsonField(result?.jsonBody, r'''$.offline''') == true) {
+                      if (getJsonField(result.jsonBody, r'''$.offline''') == true) {
                         AppState().update(() {
                           final current = AppState().offlineMaskedTasksIds.toList();
                           if (!current.contains(taskId)) {
@@ -1081,14 +1081,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                     return;
                   }
                   await showDialog(
-                    barrierColor: Color(0x80000000),
+                    barrierColor: const Color(0x80000000),
                     context: context,
                     builder: (dialogContext) {
                       return Dialog(
                         elevation: 0,
                         insetPadding: EdgeInsets.zero,
                         backgroundColor: Colors.transparent,
-                        alignment: AlignmentDirectional(0.0, 0.0)
+                        alignment: const AlignmentDirectional(0.0, 0.0)
                             .resolve(Directionality.of(context)),
                         child: GestureDetector(
                           onTap: () {
@@ -1180,7 +1180,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
       });
 
       // Verificar se ainda tem schedule ativo — se não, voltar para seleção
-      if (AppState().user.sheduleId == 0 || AppState().user.sheduleId == null) {
+      if (AppState().user.sheduleId == 0) {
         AppState().loading = false;
         safeSetState(() {});
 
@@ -1188,7 +1188,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
           PageCheckQrcodeWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
               duration: Duration(milliseconds: 250),
@@ -1275,6 +1275,29 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
         final homePageTarefasQueryAllSprintsTasksRecordResponse =
             snapshot.data!;
 
+        // Atualiza isInspection com base no campo is_inspection do projeto
+        final bool newIsInspection = SprintsGroup
+                .queryAllSprintsTasksRecordCall
+                .projectIsInspection(
+                  homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody,
+                ) ??
+            true;
+        if (_model.isInspection != newIsInspection) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _model.isInspection = newIsInspection;
+              final oldController = _model.tabBarController;
+              _model.tabBarController = TabController(
+                vsync: this,
+                length: newIsInspection ? 2 : 1,
+                initialIndex: 0,
+              )..addListener(() => safeSetState(() {}));
+              oldController?.dispose();
+              safeSetState(() {});
+            }
+          });
+        }
+
         return GestureDetector(
           onTap: () {
             FocusScope.of(context).unfocus();
@@ -1286,7 +1309,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
               key: scaffoldKey,
               backgroundColor: const Color(0xFFF5F7FA),
               appBar: PreferredSize(
-                preferredSize: Size.fromHeight(85.0),
+                preferredSize: const Size.fromHeight(85.0),
                 child: AppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
@@ -1296,7 +1319,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                     statusBarIconBrightness: Brightness.light,
                     statusBarBrightness: Brightness.dark,
                   ),
-                  actions: [],
+                  actions: const [],
                   flexibleSpace: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -1308,7 +1331,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                     child: FlexibleSpaceBar(
                     title: Padding(
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 4.0),
+                          const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 4.0),
                       child: Row(
                         mainAxisSize: MainAxisSize.max,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1321,7 +1344,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                               children: [
                               Builder(
                                 builder: (context) => Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       0.0, 0.0, 12.0, 0.0),
                                   child: InkWell(
                                     splashColor: Colors.transparent,
@@ -1330,14 +1353,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                     highlightColor: Colors.transparent,
                                     onTap: () async {
                                       showDialog(
-                                        barrierColor: Color(0x80000000),
+                                        barrierColor: const Color(0x80000000),
                                         context: context,
                                         builder: (dialogContext) {
                                           return Dialog(
                                             elevation: 0,
                                             insetPadding: EdgeInsets.zero,
                                             backgroundColor: Colors.transparent,
-                                            alignment: AlignmentDirectional(
+                                            alignment: const AlignmentDirectional(
                                                     -1.0, -1.0)
                                                 .resolve(
                                                     Directionality.of(context)),
@@ -1349,7 +1372,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                     .instance.primaryFocus
                                                     ?.unfocus();
                                               },
-                                              child: LogoutWidget(),
+                                              child: const LogoutWidget(),
                                             ),
                                           );
                                         },
@@ -1457,10 +1480,10 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                         PageCheckQrcodeWidget.routeName,
                                         context.mounted,
                                         extra: <String, dynamic>{
-                                          kTransitionInfoKey: TransitionInfo(
+                                          kTransitionInfoKey: const TransitionInfo(
                                             hasTransition: true,
                                             transitionType: PageTransitionType.fade,
-                                            duration: const Duration(milliseconds: 250),
+                                            duration: Duration(milliseconds: 250),
                                           ),
                                         },
                                       );
@@ -1482,10 +1505,10 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                       ProjectSelectionWidget.routeName,
                                       context.mounted,
                                       extra: <String, dynamic>{
-                                        kTransitionInfoKey: TransitionInfo(
+                                        kTransitionInfoKey: const TransitionInfo(
                                           hasTransition: true,
                                           transitionType: PageTransitionType.fade,
-                                          duration: const Duration(milliseconds: 250),
+                                          duration: Duration(milliseconds: 250),
                                         ),
                                       },
                                     );
@@ -1527,7 +1550,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                     borderColor: Colors.white.withOpacity(0.25),
                                     borderWidth: 1.0,
                                     borderRadius: 10.0,
-                                    margin: EdgeInsetsDirectional.fromSTEB(
+                                    margin: const EdgeInsetsDirectional.fromSTEB(
                                         4.0, 0.0, 0.0, 0.0),
                                     hidesUnderline: true,
                                     isOverButton: false,
@@ -1550,7 +1573,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                 child: Stack(
                   children: [
                     Align(
-                      alignment: AlignmentDirectional(0.0, 1.0),
+                      alignment: const AlignmentDirectional(0.0, 1.0),
                       child: wrapWithModel(
                         model: _model.navBarModel,
                         updateCallback: () => safeSetState(() {}),
@@ -1581,14 +1604,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                     ),
                     Padding(
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 16.0),
+                          const EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 16.0),
                       child: Column(
                         mainAxisSize: MainAxisSize.max,
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   0.0, 0.0, 0.0, 64.0),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -1652,7 +1675,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                               ProjectSelectionWidget.routeName,
                                               context.mounted,
                                               extra: <String, dynamic>{
-                                                kTransitionInfoKey: TransitionInfo(
+                                                kTransitionInfoKey: const TransitionInfo(
                                                   hasTransition: true,
                                                   transitionType: PageTransitionType.fade,
                                                 ),
@@ -1693,15 +1716,15 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                   ),
                                   Builder(
                                     builder: (context) {
-                                      final _resp = homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody;
-                                      final _api = SprintsGroup.queryAllSprintsTasksRecordCall;
-                                      final _pendCount = _api.pendentes(_resp)?.length ?? 0;
-                                      final _andCount = _api.nOandamento(_resp)?.length ?? 0;
-                                      final _concCount = _api.nOconcluidas(_resp)?.length ?? 0;
-                                      final _semSucCount = _api.nOsemSucesso(_resp)?.length ?? 0;
-                                      final _inspCount = _api.yESandamento(_resp)?.length ?? 0;
-                                      final totalTasks = _pendCount + _andCount + _concCount + _semSucCount + _inspCount;
-                                      final doneTasks = _concCount + _inspCount + _semSucCount;
+                                      final resp = homePageTarefasQueryAllSprintsTasksRecordResponse.jsonBody;
+                                      final api = SprintsGroup.queryAllSprintsTasksRecordCall;
+                                      final pendCount = api.pendentes(resp)?.length ?? 0;
+                                      final andCount = api.nOandamento(resp)?.length ?? 0;
+                                      final concCount = api.nOconcluidas(resp)?.length ?? 0;
+                                      final semSucCount = api.nOsemSucesso(resp)?.length ?? 0;
+                                      final inspCount = api.yESandamento(resp)?.length ?? 0;
+                                      final totalTasks = pendCount + andCount + concCount + semSucCount + inspCount;
+                                      final doneTasks = concCount;
                                       return GestureDetector(
                                         onTap: () {
                                           _model.sprintExpanded = !_model.sprintExpanded;
@@ -1924,10 +1947,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                           'Em Andamento: $emAndamentoCount',
                                                                           style: GoogleFonts.lexend(fontSize: 11, color: AppTheme.of(context).primary),
                                                                         ),
-                                                                        Text(
-                                                                          'Inspeção: $inspecaoCount',
-                                                                          style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFFCA8A04)),
-                                                                        ),
+                                                                        if (_model.isInspection)
+                                                                          Text(
+                                                                            'Inspeção: $inspecaoCount',
+                                                                            style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFFCA8A04)),
+                                                                          ),
                                                                         Text(
                                                                           'Concluída: $concluidasCount',
                                                                           style: GoogleFonts.lexend(fontSize: 11, color: const Color(0xFF16A34A)),
@@ -1953,7 +1977,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                     },
                                   ),
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 10.0, 0.0, 0.0),
                                     child: InkWell(
                                       splashColor: Colors.transparent,
@@ -2033,14 +2057,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                     child: !_model.filtros
                                         ? const SizedBox.shrink()
                                         : Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 8.0, 0.0, 8.0),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.max,
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Container(
+                                          SizedBox(
                                             width: double.infinity,
                                             child: TextFormField(
                                                     controller:
@@ -2173,13 +2197,13 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                   context)
                                                               .primaryBackground,
                                                       contentPadding:
-                                                          EdgeInsetsDirectional
+                                                          const EdgeInsetsDirectional
                                                               .fromSTEB(
                                                                   20.0,
                                                                   0.0,
                                                                   0.0,
                                                                   0.0),
-                                                      prefixIcon: Icon(
+                                                      prefixIcon: const Icon(
                                                         Icons.search_sharp,
                                                       ),
                                                     ),
@@ -2215,7 +2239,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                         .asValidator(context),
                                                   ),
                                                 ),
-                                          SizedBox(height: 10.0),
+                                          const SizedBox(height: 10.0),
                                           InkWell(
                                             splashColor: Colors.transparent,
                                             focusColor: Colors.transparent,
@@ -2229,7 +2253,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                             },
                                             child: Container(
                                               height: 40.0,
-                                              padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                                              padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                                               decoration: BoxDecoration(
                                                 color: !_model.semSucesso
                                                     ? AppTheme.of(context).primaryBackground
@@ -2241,7 +2265,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       : AppTheme.of(context).error,
                                                 ),
                                               ),
-                                              alignment: AlignmentDirectional(0.0, 0.0),
+                                              alignment: const AlignmentDirectional(0.0, 0.0),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
@@ -2254,7 +2278,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                         ? AppTheme.of(context).secondaryText
                                                         : AppTheme.of(context).error,
                                                   ),
-                                                  SizedBox(width: 6.0),
+                                                  const SizedBox(width: 6.0),
                                                   Text(
                                                     AppLocalizations.of(context).getText(
                                                       'ln1ovg5a' /* Tarefa "Sem sucesso" */,
@@ -2284,10 +2308,10 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                   ),
                                   Expanded(
                                     child: Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 0.0, 0.0, 16.0),
                                       child: Container(
-                                        decoration: BoxDecoration(),
+                                        decoration: const BoxDecoration(),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.max,
                                           children: [
@@ -2370,7 +2394,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       child: Container(
                                                         width: 30.0,
                                                         height: 30.0,
-                                                        alignment: AlignmentDirectional(0.0, 0.0),
+                                                        alignment: const AlignmentDirectional(0.0, 0.0),
                                                         child: Container(
                                                           width: 18.0,
                                                           height: 18.0,
@@ -2400,7 +2424,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       child: Container(
                                                         width: 30.0,
                                                         height: 30.0,
-                                                        alignment: AlignmentDirectional(0.0, 0.0),
+                                                        alignment: const AlignmentDirectional(0.0, 0.0),
                                                         child: Container(
                                                           width: 18.0,
                                                           height: 18.0,
@@ -2412,9 +2436,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                               width: 2.0,
                                                             ),
                                                           ),
-                                                          alignment: AlignmentDirectional(0.0, 0.0),
+                                                          alignment: const AlignmentDirectional(0.0, 0.0),
                                                           child: Stack(
-                                                            alignment: AlignmentDirectional(0.0, 0.0),
+                                                            alignment: const AlignmentDirectional(0.0, 0.0),
                                                             children: [
                                                               if (!_model.allCheck)
                                                                 FaIcon(
@@ -2443,7 +2467,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                 children: [
                                                   Align(
                                                     alignment:
-                                                        Alignment(0.0, 0),
+                                                        const Alignment(0.0, 0),
                                                     child:
                                                         AppTabBar(
                                                       useToggleButtonStyle:
@@ -2480,7 +2504,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       borderRadius: 12.0,
                                                       elevation: 0.0,
                                                       buttonMargin:
-                                                          EdgeInsetsDirectional
+                                                          const EdgeInsetsDirectional
                                                               .fromSTEB(
                                                                   6.0,
                                                                   0.0,
@@ -2494,13 +2518,14 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                             'pv86xn2h' /* Tarefas */,
                                                           ),
                                                         ),
-                                                        Tab(
-                                                          text: AppLocalizations
-                                                                  .of(context)
-                                                              .getText(
-                                                            'esu4od55' /* Inspeções */,
+                                                        if (_model.isInspection)
+                                                          Tab(
+                                                            text: AppLocalizations
+                                                                    .of(context)
+                                                                .getText(
+                                                              'esu4od55' /* Inspeções */,
+                                                            ),
                                                           ),
-                                                        ),
                                                       ],
                                                       controller: _model
                                                           .tabBarController,
@@ -2533,7 +2558,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       children: [
                                                         Padding(
                                                           padding:
-                                                              EdgeInsetsDirectional
+                                                              const EdgeInsetsDirectional
                                                                   .fromSTEB(
                                                                       0.0,
                                                                       8.0,
@@ -2560,11 +2585,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                           [];
                                                                       if (listaSemSucesso
                                                                           .isEmpty) {
-                                                                        return Container(
+                                                                        return SizedBox(
                                                                           width:
                                                                               double.infinity,
                                                                           child:
-                                                                              EmptyWidget(),
+                                                                              const EmptyWidget(),
                                                                         );
                                                                       }
 
@@ -2600,7 +2625,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                               return const SizedBox.shrink();
                                                                             }
                                                                             return Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
                                                                               child: Column(
                                                                                 mainAxisSize: MainAxisSize.max,
                                                                                 children: [
@@ -2627,7 +2652,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                         ),
                                                                                       ),
                                                                                       child: Padding(
-                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
+                                                                                        padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
                                                                                         child: Column(
                                                                                           mainAxisSize: MainAxisSize.min,
                                                                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2639,8 +2664,8 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                 ) && getJsonField(listaSemSucessoItem, r'''$.subtasks_id''') != null)
                                                                                               Container(
                                                                                                 width: double.infinity,
-                                                                                                decoration: BoxDecoration(
-                                                                                                  gradient: const LinearGradient(
+                                                                                                decoration: const BoxDecoration(
+                                                                                                  gradient: LinearGradient(
                                                                                                     begin: Alignment.topLeft,
                                                                                                     end: Alignment.bottomRight,
                                                                                                     colors: [Color(0xFF3B6EC8), Color(0xFF487EDA)],
@@ -2653,7 +2678,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                                 child: Padding(
-                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
+                                                                                                  padding: const EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
                                                                                                   child: Row(
                                                                                                     children: [
                                                                                                       Expanded(
@@ -2691,9 +2716,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                       ),
                                                                                                       // Checkbox no header azul
                                                                                                       Builder(builder: (ctx) {
-                                                                                                        final _tid = castToType<int>(getJsonField(listaSemSucessoItem, r'''$.id''')) ?? 0;
-                                                                                                        final _checked = functions.checkIds(AppState().taskslist.toList(), _tid);
-                                                                                                        return _buildHeaderCheckbox(ctx, listaSemSucessoItem, _tid, _checked);
+                                                                                                        final tid = castToType<int>(getJsonField(listaSemSucessoItem, r'''$.id''')) ?? 0;
+                                                                                                        final checked = functions.checkIds(AppState().taskslist.toList(), tid);
+                                                                                                        return _buildHeaderCheckbox(ctx, listaSemSucessoItem, tid, checked);
                                                                                                       }),
                                                                                                     ],
                                                                                                   ),
@@ -2705,7 +2730,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                       ),
                                                                                     ),
                                                                                   ),
-                                                                                ].divide(SizedBox(height: 8.0)),
+                                                                                ].divide(const SizedBox(height: 8.0)),
                                                                               ),
                                                                             );
                                                                           },
@@ -2730,11 +2755,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                           [];
                                                                       if (listaAndamento
                                                                           .isEmpty) {
-                                                                        return Container(
+                                                                        return SizedBox(
                                                                           width:
                                                                               double.infinity,
                                                                           child:
-                                                                              EmptyWidget(),
+                                                                              const EmptyWidget(),
                                                                         );
                                                                       }
 
@@ -2771,7 +2796,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                               return const SizedBox.shrink();
                                                                             }
                                                                             return Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
                                                                               child: Column(
                                                                                 mainAxisSize: MainAxisSize.max,
                                                                                 children: [
@@ -2798,7 +2823,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                         ),
                                                                                       ),
                                                                                       child: Padding(
-                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
+                                                                                        padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
                                                                                         child: Column(
                                                                                           mainAxisSize: MainAxisSize.min,
                                                                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2807,8 +2832,8 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                 AppConstants.zero != getJsonField(listaAndamentoItem, r'''$.subtasks_id'''))
                                                                                               Container(
                                                                                                 width: double.infinity,
-                                                                                                decoration: BoxDecoration(
-                                                                                                  gradient: const LinearGradient(
+                                                                                                decoration: const BoxDecoration(
+                                                                                                  gradient: LinearGradient(
                                                                                                     begin: Alignment.topLeft,
                                                                                                     end: Alignment.bottomRight,
                                                                                                     colors: [Color(0xFF3B6EC8), Color(0xFF487EDA)],
@@ -2821,7 +2846,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                                 child: Padding(
-                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
+                                                                                                  padding: const EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
                                                                                                   child: Row(
                                                                                                     children: [
                                                                                                       Expanded(
@@ -2859,9 +2884,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                       ),
                                                                                                       // Checkbox no header azul
                                                                                                       Builder(builder: (ctx) {
-                                                                                                        final _tid = castToType<int>(getJsonField(listaAndamentoItem, r'''$.id''')) ?? 0;
-                                                                                                        final _checked = functions.checkIds(AppState().taskslist.toList(), _tid);
-                                                                                                        return _buildHeaderCheckbox(ctx, listaAndamentoItem, _tid, _checked);
+                                                                                                        final tid = castToType<int>(getJsonField(listaAndamentoItem, r'''$.id''')) ?? 0;
+                                                                                                        final checked = functions.checkIds(AppState().taskslist.toList(), tid);
+                                                                                                        return _buildHeaderCheckbox(ctx, listaAndamentoItem, tid, checked);
                                                                                                       }),
                                                                                                     ],
                                                                                                   ),
@@ -2873,7 +2898,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                       ),
                                                                                     ),
                                                                                   ),
-                                                                                ].divide(SizedBox(height: 8.0)),
+                                                                                ].divide(const SizedBox(height: 8.0)),
                                                                               ),
                                                                             );
                                                                           },
@@ -2891,12 +2916,12 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                   _model.page)
                                                                 Align(
                                                                   alignment:
-                                                                      AlignmentDirectional(
+                                                                      const AlignmentDirectional(
                                                                           -1.0,
                                                                           0.0),
                                                                   child:
                                                                       Padding(
-                                                                    padding: EdgeInsetsDirectional
+                                                                    padding: const EdgeInsetsDirectional
                                                                         .fromSTEB(
                                                                             0.0,
                                                                             12.0,
@@ -2932,12 +2957,12 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                           AppButtonOptions(
                                                                         height:
                                                                             30.0,
-                                                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                                                             16.0,
                                                                             0.0,
                                                                             16.0,
                                                                             0.0),
-                                                                        iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                                                        iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                                                             0.0,
                                                                             0.0,
                                                                             0.0,
@@ -2972,9 +2997,10 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                             ],
                                                           ),
                                                         ),
-                                                        Padding(
+                                                        if (_model.isInspection)
+                                                          Padding(
                                                           padding:
-                                                              EdgeInsetsDirectional
+                                                              const EdgeInsetsDirectional
                                                                   .fromSTEB(
                                                                       0.0,
                                                                       8.0,
@@ -3001,11 +3027,11 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                           [];
                                                                       if (listaAndamento
                                                                           .isEmpty) {
-                                                                        return Container(
+                                                                        return SizedBox(
                                                                           width:
                                                                               double.infinity,
                                                                           child:
-                                                                              EmptyWidget(),
+                                                                              const EmptyWidget(),
                                                                         );
                                                                       }
 
@@ -3042,7 +3068,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                               return const SizedBox.shrink();
                                                                             }
                                                                             return Padding(
-                                                                              padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
+                                                                              padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 12.0),
                                                                               child: Column(
                                                                                 mainAxisSize: MainAxisSize.max,
                                                                                 children: [
@@ -3069,7 +3095,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                         ),
                                                                                       ),
                                                                                       child: Padding(
-                                                                                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
+                                                                                        padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 8.0),
                                                                                         child: Column(
                                                                                           mainAxisSize: MainAxisSize.min,
                                                                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3079,8 +3105,8 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                 AppConstants.zero != getJsonField(listaAndamentoItem, r'''$.subtasks_id'''))
                                                                                               Container(
                                                                                                 width: double.infinity,
-                                                                                                decoration: BoxDecoration(
-                                                                                                  gradient: const LinearGradient(
+                                                                                                decoration: const BoxDecoration(
+                                                                                                  gradient: LinearGradient(
                                                                                                     begin: Alignment.topLeft,
                                                                                                     end: Alignment.bottomRight,
                                                                                                     colors: [Color(0xFF3B6EC8), Color(0xFF487EDA)],
@@ -3093,7 +3119,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                 ),
                                                                                                 child: Padding(
-                                                                                                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
+                                                                                                  padding: const EdgeInsetsDirectional.fromSTEB(10.0, 6.0, 6.0, 6.0),
                                                                                                   child: Row(
                                                                                                     children: [
                                                                                                       Expanded(
@@ -3127,9 +3153,9 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                                   ),
                                                                                                       ),
                                                                                                       Builder(builder: (ctx) {
-                                                                                                        final _tid = castToType<int>(getJsonField(listaAndamentoItem, r'''$.id''')) ?? 0;
-                                                                                                        final _checked = functions.checkIds(AppState().taskslist.toList(), _tid);
-                                                                                                        return _buildHeaderCheckbox(ctx, listaAndamentoItem, _tid, _checked);
+                                                                                                        final tid = castToType<int>(getJsonField(listaAndamentoItem, r'''$.id''')) ?? 0;
+                                                                                                        final checked = functions.checkIds(AppState().taskslist.toList(), tid);
+                                                                                                        return _buildHeaderCheckbox(ctx, listaAndamentoItem, tid, checked);
                                                                                                       }),
                                                                                                     ],
                                                                                                   ),
@@ -3142,7 +3168,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                                       ),
                                                                                     ),
                                                                                   ),
-                                                                                ].divide(SizedBox(height: 8.0)),
+                                                                                ].divide(const SizedBox(height: 8.0)),
                                                                               ),
                                                                             );
                                                                           },
@@ -3160,12 +3186,12 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                   _model.page)
                                                                 Align(
                                                                   alignment:
-                                                                      AlignmentDirectional(
+                                                                      const AlignmentDirectional(
                                                                           -1.0,
                                                                           0.0),
                                                                   child:
                                                                       Padding(
-                                                                    padding: EdgeInsetsDirectional
+                                                                    padding: const EdgeInsetsDirectional
                                                                         .fromSTEB(
                                                                             0.0,
                                                                             12.0,
@@ -3201,12 +3227,12 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                                           AppButtonOptions(
                                                                         height:
                                                                             30.0,
-                                                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                                                             16.0,
                                                                             0.0,
                                                                             16.0,
                                                                             0.0),
-                                                                        iconPadding: EdgeInsetsDirectional.fromSTEB(
+                                                                        iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                                                             0.0,
                                                                             0.0,
                                                                             0.0,
@@ -3275,7 +3301,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       safeSetState(() {});
                                                       await showDialog(
                                                         barrierColor:
-                                                            Color(0x80000000),
+                                                            const Color(0x80000000),
                                                         barrierDismissible: false,
                                                         context: context,
                                                         builder: (dialogContext) {
@@ -3286,7 +3312,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                             backgroundColor:
                                                                 Colors.transparent,
                                                             alignment:
-                                                                AlignmentDirectional(
+                                                                const AlignmentDirectional(
                                                                         0.0, 0.0)
                                                                     .resolve(
                                                                         Directionality.of(
@@ -3319,15 +3345,15 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       );
                                                     },
                                               text: 'Concluir',
-                                              icon: Icon(Icons.check_circle_outline, size: 18.0, color: Colors.white),
+                                              icon: const Icon(Icons.check_circle_outline, size: 18.0, color: Colors.white),
                                               options: AppButtonOptions(
                                                 width: double.infinity,
                                                 height: 48.0,
                                                 padding:
-                                                    EdgeInsetsDirectional.fromSTEB(
+                                                    const EdgeInsetsDirectional.fromSTEB(
                                                         8.0, 0.0, 8.0, 0.0),
                                                 iconPadding:
-                                                    EdgeInsetsDirectional.fromSTEB(
+                                                    const EdgeInsetsDirectional.fromSTEB(
                                                         0.0, 0.0, 4.0, 0.0),
                                                 color: AppTheme.of(context)
                                                     .primary,
@@ -3371,7 +3397,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                               ),
                                             ),
                                           ),
-                                          SizedBox(width: 8.0),
+                                          const SizedBox(width: 8.0),
                                           // Botao Sem Sucesso selecionadas
                                           Expanded(
                                             child: AppButton(
@@ -3400,7 +3426,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       if (selectedItems.isEmpty) return;
                                                       await showDialog(
                                                         barrierColor:
-                                                            Color(0x80000000),
+                                                            const Color(0x80000000),
                                                         context: context,
                                                         builder: (dialogContext) {
                                                           return Dialog(
@@ -3410,7 +3436,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                             backgroundColor:
                                                                 Colors.transparent,
                                                             alignment:
-                                                                AlignmentDirectional(
+                                                                const AlignmentDirectional(
                                                                         0.0, 0.0)
                                                                     .resolve(
                                                                         Directionality.of(
@@ -3444,15 +3470,15 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                       );
                                                     },
                                               text: 'Sem Sucesso',
-                                              icon: Icon(Icons.cancel_outlined, size: 18.0, color: Colors.white),
+                                              icon: const Icon(Icons.cancel_outlined, size: 18.0, color: Colors.white),
                                               options: AppButtonOptions(
                                                 width: double.infinity,
                                                 height: 48.0,
                                                 padding:
-                                                    EdgeInsetsDirectional.fromSTEB(
+                                                    const EdgeInsetsDirectional.fromSTEB(
                                                         8.0, 0.0, 8.0, 0.0),
                                                 iconPadding:
-                                                    EdgeInsetsDirectional.fromSTEB(
+                                                    const EdgeInsetsDirectional.fromSTEB(
                                                         0.0, 0.0, 4.0, 0.0),
                                                 color: const Color(0xFFDC2626),
                                                 textStyle: AppTheme.of(
@@ -3491,10 +3517,10 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                         ],
                                       ),
                                     ),
-                                  if (_model.tabBarCurrentIndex == 1)
+                                  if (_model.isInspection && _model.tabBarCurrentIndex == 1)
                                     Builder(
                                       builder: (context) => Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             0.0, 8.0, 0.0, 0.0),
                                         child: Row(
                                           children: [
@@ -3518,7 +3544,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                               backgroundColor:
                                                                   Colors.transparent,
                                                               alignment:
-                                                                  AlignmentDirectional(
+                                                                  const AlignmentDirectional(
                                                                           0.0, 0.0)
                                                                       .resolve(
                                                                           Directionality.of(
@@ -3552,15 +3578,15 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                         );
                                                       },
                                                 text: 'Aprovado',
-                                                icon: Icon(Icons.check_circle_outline, size: 18.0, color: Colors.white),
+                                                icon: const Icon(Icons.check_circle_outline, size: 18.0, color: Colors.white),
                                                 options: AppButtonOptions(
                                                   width: double.infinity,
                                                   height: 48.0,
                                                   padding:
-                                                      EdgeInsetsDirectional.fromSTEB(
+                                                      const EdgeInsetsDirectional.fromSTEB(
                                                           8.0, 0.0, 8.0, 0.0),
                                                   iconPadding:
-                                                      EdgeInsetsDirectional.fromSTEB(
+                                                      const EdgeInsetsDirectional.fromSTEB(
                                                           0.0, 0.0, 4.0, 0.0),
                                                   color: AppTheme.of(context)
                                                       .primary,
@@ -3604,7 +3630,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(width: 8.0),
+                                            const SizedBox(width: 8.0),
                                             // Botão Reprovado (inspeção)
                                             Expanded(
                                               child: AppButton(
@@ -3632,7 +3658,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                         if (selectedItems.isEmpty) return;
                                                         await showDialog(
                                                           barrierColor:
-                                                              Color(0x80000000),
+                                                              const Color(0x80000000),
                                                           context: context,
                                                           builder: (dialogContext) {
                                                             return Dialog(
@@ -3642,7 +3668,7 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                               backgroundColor:
                                                                   Colors.transparent,
                                                               alignment:
-                                                                  AlignmentDirectional(
+                                                                  const AlignmentDirectional(
                                                                           0.0, 0.0)
                                                                       .resolve(
                                                                           Directionality.of(
@@ -3676,15 +3702,15 @@ class _HomePageTarefasWidgetState extends State<HomePageTarefasWidget>
                                                         );
                                                       },
                                                 text: 'Reprovado',
-                                                icon: Icon(Icons.cancel_outlined, size: 18.0, color: Colors.white),
+                                                icon: const Icon(Icons.cancel_outlined, size: 18.0, color: Colors.white),
                                                 options: AppButtonOptions(
                                                   width: double.infinity,
                                                   height: 48.0,
                                                   padding:
-                                                      EdgeInsetsDirectional.fromSTEB(
+                                                      const EdgeInsetsDirectional.fromSTEB(
                                                           8.0, 0.0, 8.0, 0.0),
                                                   iconPadding:
-                                                      EdgeInsetsDirectional.fromSTEB(
+                                                      const EdgeInsetsDirectional.fromSTEB(
                                                           0.0, 0.0, 4.0, 0.0),
                                                   color: const Color(0xFFDC2626),
                                                   textStyle: AppTheme.of(

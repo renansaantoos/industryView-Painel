@@ -46,7 +46,7 @@ class _LogoutWidgetState extends State<LogoutWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(24.0, 80.0, 0.0, 0.0),
+      padding: const EdgeInsetsDirectional.fromSTEB(24.0, 80.0, 0.0, 0.0),
       child: Container(
         width: 280.0,
         decoration: BoxDecoration(
@@ -61,7 +61,7 @@ class _LogoutWidgetState extends State<LogoutWidget> {
           borderRadius: BorderRadius.circular(16.0),
         ),
         child: Padding(
-          padding: EdgeInsets.all(28.0),
+          padding: const EdgeInsets.all(28.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -139,9 +139,9 @@ class _LogoutWidgetState extends State<LogoutWidget> {
                 options: AppButtonOptions(
                   width: double.infinity,
                   height: 48.0,
-                  padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                   iconPadding:
-                      EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                      const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                   color: AppTheme.of(context).error,
                   textStyle: AppTheme.of(context).bodyMedium.override(
                         font: GoogleFonts.lexend(
@@ -157,7 +157,7 @@ class _LogoutWidgetState extends State<LogoutWidget> {
                             AppTheme.of(context).bodyMedium.fontStyle,
                       ),
                   elevation: 0.0,
-                  borderSide: BorderSide(
+                  borderSide: const BorderSide(
                     color: Colors.transparent,
                     width: 1.0,
                   ),

@@ -50,7 +50,7 @@ class _ModalSucessQrcodeWidgetState extends State<ModalSucessQrcodeWidget> {
           .then((_) => _model.soundPlayer!.play());
 
       await Future.delayed(
-        Duration(
+        const Duration(
           milliseconds: 1500,
         ),
       );
@@ -70,7 +70,7 @@ class _ModalSucessQrcodeWidgetState extends State<ModalSucessQrcodeWidget> {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Container(
         width: 260.0,
         decoration: BoxDecoration(
@@ -85,7 +85,7 @@ class _ModalSucessQrcodeWidgetState extends State<ModalSucessQrcodeWidget> {
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(28.0),
+          padding: const EdgeInsets.all(28.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,

@@ -49,7 +49,7 @@ class _EmptyWidgetState extends State<EmptyWidget> {
         color: AppTheme.of(context).secondaryBackground,
       ),
       child: Padding(
-        padding: EdgeInsets.all(23.0),
+        padding: const EdgeInsets.all(23.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

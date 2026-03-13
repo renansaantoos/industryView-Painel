@@ -16,7 +16,6 @@ import '../database/models/sprint_task_model.dart';
 import '../database/models/sprint_model.dart';
 import '../database/models/schedule_model.dart';
 import '../database/models/id_map_model.dart';
-import '../database/models/sync_metadata_model.dart';
 import 'network_service.dart';
 import 'token_validator.dart';
 import '../backend/api_requests/api_calls.dart';

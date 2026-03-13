@@ -230,19 +230,21 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
         if (!mounted) return;
 
         // Verificar se há RDO pendente para este projeto+equipe
-        final navigatedToPending = await _checkAndNavigatePendingRdo(
-          projectId: project.id,
-          teamsId: teamsId!,
-        );
+        // Só verifica se o usuário tem equipe atribuída
+        if (teamsId != null) {
+          final navigatedToPending = await _checkAndNavigatePendingRdo(
+            projectId: project.id,
+            teamsId: teamsId,
+          );
+          if (navigatedToPending || !mounted) return;
+        }
 
-        if (navigatedToPending || !mounted) return;
-
-        // Sem RDO pendente — ir para QR code
+        // Sem RDO pendente (ou sem equipe) — ir para QR code
         context.pushNamedAuth(
           PageCheckQrcodeWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
             ),
@@ -338,7 +340,7 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
         PageCheckQrcodeWidget.routeName,
         context.mounted,
         extra: <String, dynamic>{
-          kTransitionInfoKey: TransitionInfo(
+          kTransitionInfoKey: const TransitionInfo(
             hasTransition: true,
             transitionType: PageTransitionType.fade,
           ),
@@ -399,16 +401,16 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
                 )
               : SingleChildScrollView(
                   child: Align(
-                    alignment: AlignmentDirectional(0.0, 0.0),
+                    alignment: const AlignmentDirectional(0.0, 0.0),
                     child: Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
                           30.0, 0.0, 32.0, 32.0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 24.0),
                             child: Text(
                               'IndustryView',
@@ -465,7 +467,7 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
                                     ),
                                   ),
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 4.0, 0.0, 16.0),
                                     child: Text(
                                       AppLocalizations.of(context)
@@ -494,7 +496,7 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
                                   ),
                                   if (_projects.isEmpty)
                                     Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 16.0, 0.0, 0.0),
                                       child: Center(
                                         child: Text(
@@ -525,7 +527,7 @@ class _ProjectSelectionWidgetState extends State<ProjectSelectionWidget> {
                                       final project = _projects[index];
                                       return Padding(
                                         padding:
-                                            EdgeInsetsDirectional.fromSTEB(
+                                            const EdgeInsetsDirectional.fromSTEB(
                                                 0.0, 0.0, 0.0, 8.0),
                                         child: _buildProjectCard(
                                             project, theme),

@@ -204,7 +204,7 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       }
 
       // Helper para filtrar tarefas pelo schedule ativo
-      List _filterBySchedule(List tasks) {
+      List filterBySchedule(List tasks) {
         if (scheduleTaskIds.isEmpty) return [];
         return tasks.where((task) {
           final taskId = getJsonField(task, r'''$.id''');
@@ -213,14 +213,14 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
       }
 
       if (scheduleTaskIds.isNotEmpty) {
-        _concluidas = _filterBySchedule(allSprintConcluidas);
+        _concluidas = filterBySchedule(allSprintConcluidas);
       } else {
         _concluidas = [];
       }
 
       // Filtrar inspeção e sem sucesso pelo schedule ativo
-      final scheduleInspecao = _filterBySchedule(_inspecao);
-      final scheduleSemSucesso = _filterBySchedule(_semSucesso);
+      final scheduleInspecao = filterBySchedule(_inspecao);
+      final scheduleSemSucesso = filterBySchedule(_semSucesso);
 
       // Montar lista unificada de "Tarefas Realizadas"
       // Ordem: Realizadas (aguardando inspeção) → Inspeção Realizada → Sem Sucesso
@@ -342,7 +342,7 @@ class _RdoWidgetState extends State<RdoWidget> with TickerProviderStateMixin {
                                               FocusScope.of(dialogContext).unfocus();
                                               FocusManager.instance.primaryFocus?.unfocus();
                                             },
-                                            child: LogoutWidget(),
+                                            child: const LogoutWidget(),
                                           ),
                                         );
                                       },

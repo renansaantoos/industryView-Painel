@@ -170,7 +170,7 @@ dynamic deserializeParam<T>(
         return null;
       }
       return paramValues
-          .where((p) => p is String)
+          .whereType<String>()
           .map((p) => p as String)
           .map((p) => deserializeParam<T>(
                 p,

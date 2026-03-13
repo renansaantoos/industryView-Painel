@@ -50,6 +50,8 @@ class HomePageTarefasModel extends PageModel<HomePageTarefasWidget> {
 
   bool sprintExpanded = false;
 
+  bool isInspection = true;
+
   ///  State fields for stateful widgets in this page.
 
   // Stores action output result for [Backend Call - API (Get the record belonging to the authentication token)] action in HomePage-Tarefas widget.
@@ -144,7 +146,7 @@ class HomePageTarefasModel extends PageModel<HomePageTarefasWidget> {
   }) async {
     final stopwatch = Stopwatch()..start();
     while (true) {
-      await Future.delayed(Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 50));
       final timeElapsed = stopwatch.elapsedMilliseconds;
       final requestComplete = apiRequestCompleted;
       if (timeElapsed > maxWait || (requestComplete && timeElapsed > minWait)) {

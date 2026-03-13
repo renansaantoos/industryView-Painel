@@ -111,7 +111,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
             ),
           ],
           title: Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 0.0, 0.0),
+            padding: const EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 0.0, 0.0),
             child: Row(
               mainAxisSize: MainAxisSize.max,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -135,7 +135,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
                 Text(
                   'COD: ${valueOrDefault<String>(
                     getJsonField(
-                      widget!.item,
+                      widget.item,
                       r'''$.id''',
                     )?.toString(),
                     ' - ',
@@ -166,7 +166,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
                     color: AppTheme.of(context).secondaryBackground,
                   ),
                 ),
-              ].divide(SizedBox(width: 12.0)),
+              ].divide(const SizedBox(width: 12.0)),
             ),
           ),
           centerTitle: false,
@@ -610,7 +610,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
     if (!_isTaskActionable()) return null;
 
     return Container(
-      padding: EdgeInsetsDirectional.fromSTEB(24.0, 12.0, 24.0, 24.0),
+      padding: const EdgeInsetsDirectional.fromSTEB(24.0, 12.0, 24.0, 24.0),
       decoration: BoxDecoration(
         color: AppTheme.of(context).secondaryBackground,
         boxShadow: [
@@ -631,12 +631,12 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
                 onPressed: _model.isActionLoading
                     ? null
                     : () => _handleSuccess(context),
-                icon: Icon(Icons.check_circle_outline, size: 20.0),
-                label: Text('Concluir'),
+                icon: const Icon(Icons.check_circle_outline, size: 20.0),
+                label: const Text('Concluir'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.of(context).success,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 14.0),
+                  padding: const EdgeInsets.symmetric(vertical: 14.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
@@ -648,19 +648,19 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
                 ),
               ),
             ),
-            SizedBox(width: 12.0),
+            const SizedBox(width: 12.0),
             // Botão Sem Sucesso
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _model.isActionLoading
                     ? null
                     : () => _handleFailure(context),
-                icon: Icon(Icons.cancel_outlined, size: 20.0),
-                label: Text('Sem Sucesso'),
+                icon: const Icon(Icons.cancel_outlined, size: 20.0),
+                label: const Text('Sem Sucesso'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.of(context).error,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 14.0),
+                  padding: const EdgeInsets.symmetric(vertical: 14.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
@@ -884,7 +884,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
                     Navigator.pop(dialogContext, qty);
                   },
                   icon: const Icon(Icons.check_circle_outline, size: 18.0),
-                  label: Text('Confirmar'),
+                  label: const Text('Confirmar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primary,
                     foregroundColor: Colors.white,
@@ -925,7 +925,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
       // Vincular tarefa ao schedule do dia
       try {
         final scheduleId = AppState().user.sheduleId;
-        if (scheduleId != null && scheduleId != 0 && taskId != null && taskId != 0) {
+        if (scheduleId != 0 && taskId != null && taskId != 0) {
           ProjectsGroup.linkTasksToScheduleCall.call(
             token: currentAuthenticationToken,
             scheduleId: scheduleId,
@@ -938,7 +938,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Tarefa concluída com sucesso!'),
+            content: const Text('Tarefa concluída com sucesso!'),
             backgroundColor: AppTheme.of(context).success,
           ),
         );
@@ -948,7 +948,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao atualizar status. Tente novamente.'),
+            content: const Text('Erro ao atualizar status. Tente novamente.'),
             backgroundColor: AppTheme.of(context).error,
           ),
         );
@@ -981,7 +981,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
           elevation: 0,
           insetPadding: EdgeInsets.zero,
           backgroundColor: Colors.transparent,
-          alignment: AlignmentDirectional(0.0, 0.0)
+          alignment: const AlignmentDirectional(0.0, 0.0)
               .resolve(Directionality.of(context)),
           child: ModalCommentWidget(
             projectsBacklogsId: projectsBacklogsId,
@@ -1000,7 +1000,7 @@ class _DetalhesDaTarefaWidgetState extends State<DetalhesDaTarefaWidget> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Tarefa marcada como sem sucesso.'),
+            content: const Text('Tarefa marcada como sem sucesso.'),
             backgroundColor: AppTheme.of(context).error,
           ),
         );

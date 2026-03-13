@@ -1,7 +1,5 @@
 import '/backend/api_requests/api_calls.dart';
-import '/core/theme/app_theme.dart';
 import '/core/utils/app_utils.dart';
-import 'dart:ui';
 import 'modal_comment_widget.dart' show ModalCommentWidget;
 import 'package:flutter/material.dart';
 

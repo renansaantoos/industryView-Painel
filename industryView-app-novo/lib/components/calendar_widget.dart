@@ -50,7 +50,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Container(
         width: 300.0,
         decoration: BoxDecoration(
@@ -67,7 +67,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 330.0,
               child: custom_widgets.CalendarCustom(
@@ -77,7 +77,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
               ),
             ),
             Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(24.0, 16.0, 24.0, 24.0),
+              padding: const EdgeInsetsDirectional.fromSTEB(24.0, 16.0, 24.0, 24.0),
               child: Row(
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -92,9 +92,9 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                     options: AppButtonOptions(
                       height: 48.0,
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                       iconPadding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                       color: AppTheme.of(context).secondaryBackground,
                       textStyle:
                           AppTheme.of(context).titleSmall.override(
@@ -137,9 +137,9 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                       width: 100.0,
                       height: 48.0,
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                       iconPadding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                       color: AppTheme.of(context).primary,
                       textStyle:
                           AppTheme.of(context).titleSmall.override(
@@ -164,7 +164,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                       borderRadius: BorderRadius.circular(14.0),
                     ),
                   ),
-                ].divide(SizedBox(width: 12.0)),
+                ].divide(const SizedBox(width: 12.0)),
               ),
             ),
           ],

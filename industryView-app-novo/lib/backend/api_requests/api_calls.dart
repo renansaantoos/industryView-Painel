@@ -12,14 +12,14 @@ export 'api_manager.dart' show ApiCallResponse;
 
 const _kPrivateApiFunctionName = 'privateApiCall';
 final _kPainelBaseUrl =
-    (dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1').replaceAll(RegExp(r'/$'), '');
+    (dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1')
+        .replaceAll(RegExp(r'/$'), '');
 
 /// Start Authentication Group Code
 
 class AuthenticationGroup {
   static String getBaseUrl() => _kPainelBaseUrl;
-  static Map<String, String> headers = {
-  };
+  static Map<String, String> headers = {};
   static LoginAndRetrieveAnAuthenticationTokenCall
       loginAndRetrieveAnAuthenticationTokenCall =
       LoginAndRetrieveAnAuthenticationTokenCall();
@@ -46,10 +46,9 @@ class LoginAndRetrieveAnAuthenticationTokenCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Login and retrieve an authentication token',
-      apiUrl: '${baseUrl}/auth/login',
+      apiUrl: '$baseUrl/auth/login',
       callType: ApiCallType.POST,
-      headers: {
-      },
+      headers: {},
       params: {},
       body: apiRequestBody,
       bodyType: BodyType.JSON,
@@ -59,7 +58,8 @@ class LoginAndRetrieveAnAuthenticationTokenCall {
       cache: false,
       isStreamingApi: false,
       alwaysAllowBody: false,
-      useOfflineWrapper: false, // Desabilitar para login - não faz sentido usar cache offline
+      useOfflineWrapper:
+          false, // Desabilitar para login - não faz sentido usar cache offline
     );
   }
 
@@ -81,10 +81,10 @@ class GetTheRecordBelongingToTheAuthenticationTokenCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get the record belonging to the authentication token',
-      apiUrl: '${baseUrl}/auth/me/app',
+      apiUrl: '$baseUrl/auth/me/app',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -93,7 +93,8 @@ class GetTheRecordBelongingToTheAuthenticationTokenCall {
       cache: false,
       isStreamingApi: false,
       alwaysAllowBody: false,
-      useOfflineWrapper: false, // Desabilitar para login - obrigatório ter internet
+      useOfflineWrapper:
+          false, // Desabilitar para login - obrigatório ter internet
     );
   }
 
@@ -144,10 +145,13 @@ class GetTheRecordBelongingToTheAuthenticationTokenCall {
   int? sprintId(dynamic response) => null;
   int? projectId(dynamic response) {
     // Tenta $.projects[0] primeiro, depois $.teams.leader[0].projects_id
-    final fromProjects = castToType<int>(getJsonField(response, r'''$.projects[0]'''));
+    final fromProjects =
+        castToType<int>(getJsonField(response, r'''$.projects[0]'''));
     if (fromProjects != null) return fromProjects;
-    return castToType<int>(getJsonField(response, r'''$.teams.leader[0].projects_id'''));
+    return castToType<int>(
+        getJsonField(response, r'''$.teams.leader[0].projects_id'''));
   }
+
   String? spritnTitle(dynamic response) => null;
   String? sprintObjective(dynamic response) => null;
   int? sprintDtStart(dynamic response) => null;
@@ -221,10 +225,9 @@ class SignupAndRetrieveAnAuthenticationTokenCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Signup and retrieve an authentication token',
-      apiUrl: '${baseUrl}/auth/signup',
+      apiUrl: '$baseUrl/auth/signup',
       callType: ApiCallType.POST,
-      headers: {
-      },
+      headers: {},
       params: {},
       bodyType: BodyType.MULTIPART,
       returnBody: true,
@@ -245,10 +248,10 @@ class DailyLoginCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'daily login',
-      apiUrl: '${baseUrl}/auth/daily-login',
+      apiUrl: '$baseUrl/auth/daily-login',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       bodyType: BodyType.NONE,
@@ -268,8 +271,7 @@ class DailyLoginCall {
 
 class UserGroup {
   static String getBaseUrl() => _kPainelBaseUrl;
-  static Map<String, String> headers = {
-  };
+  static Map<String, String> headers = {};
   static ChangePasswordCall changePasswordCall = ChangePasswordCall();
   static DeleteUserCall deleteUserCall = DeleteUserCall();
   static GetUserIdCall getUserIdCall = GetUserIdCall();
@@ -331,17 +333,17 @@ class ChangePasswordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "users_id": 0,
   "password": ""
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'change password',
-      apiUrl: '${baseUrl}/users/change-password',
+      apiUrl: '$baseUrl/users/change-password',
       callType: ApiCallType.PUT,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -365,10 +367,10 @@ class DeleteUserCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'delete user',
-      apiUrl: '${baseUrl}/users/${usersId}',
+      apiUrl: '$baseUrl/users/$usersId',
       callType: ApiCallType.DELETE,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -390,10 +392,10 @@ class GetUserIdCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'get user id',
-      apiUrl: '${baseUrl}/users/${usersId}',
+      apiUrl: '$baseUrl/users/$usersId',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -465,10 +467,10 @@ class EditUserIdCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'edit user id',
-      apiUrl: '${baseUrl}/users/${usersId}',
+      apiUrl: '$baseUrl/users/$usersId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {
         'name': name,
@@ -503,10 +505,10 @@ class GetUserZeroCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'get user zero',
-      apiUrl: '${baseUrl}/users/users_0',
+      apiUrl: '$baseUrl/users/users_0',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {
         'page': page,
@@ -532,10 +534,10 @@ class DeleteUsersControlSystemRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Delete users_control_system record.',
-      apiUrl: '${baseUrl}/users/control-system/${usersControlSystemId}',
+      apiUrl: '$baseUrl/users/control-system/$usersControlSystemId',
       callType: ApiCallType.DELETE,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -557,10 +559,10 @@ class GetUsersControlSystemRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get users_control_system record',
-      apiUrl: '${baseUrl}/users/control-system/${usersControlSystemId}',
+      apiUrl: '$baseUrl/users/control-system/$usersControlSystemId',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -580,7 +582,7 @@ class EditUsersControlSystemRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -588,10 +590,10 @@ class EditUsersControlSystemRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Edit users_control_system record',
-      apiUrl: '${baseUrl}/users/control-system/${usersControlSystemId}',
+      apiUrl: '$baseUrl/users/control-system/$usersControlSystemId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -614,10 +616,10 @@ class QueryAllUsersControlSystemRecordsCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Query all users_control_system records',
-      apiUrl: '${baseUrl}/users/control-system',
+      apiUrl: '$baseUrl/users/control-system',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -636,7 +638,7 @@ class AddUsersControlSystemRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -644,10 +646,10 @@ class AddUsersControlSystemRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add users_control_system record',
-      apiUrl: '${baseUrl}/users/control-system',
+      apiUrl: '$baseUrl/users/control-system',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -674,10 +676,10 @@ class ApiQueBuscaUsuariosQuePodemSerLideresDeEquipeCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'api que busca usuários que podem ser líderes de equipe',
-      apiUrl: '${baseUrl}/users/search-for-team',
+      apiUrl: '$baseUrl/users/search-for-team',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {
         'projects_id': projectsId,
@@ -701,7 +703,7 @@ class UserListCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "page": 0,
   "per_page": 0,
@@ -712,10 +714,10 @@ class UserListCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'user list',
-      apiUrl: '${baseUrl}/users/list',
+      apiUrl: '$baseUrl/users/list',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -739,10 +741,10 @@ class DeleteUsersPermissionsRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Delete users_permissions record.',
-      apiUrl: '${baseUrl}/users/permissions/${usersPermissionsId}',
+      apiUrl: '$baseUrl/users/permissions/$usersPermissionsId',
       callType: ApiCallType.DELETE,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -764,10 +766,10 @@ class GetUsersPermissionsRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get users_permissions record',
-      apiUrl: '${baseUrl}/users/permissions/${usersPermissionsId}',
+      apiUrl: '$baseUrl/users/permissions/$usersPermissionsId',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -804,7 +806,7 @@ class EditUsersPermissionsRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -815,10 +817,10 @@ class EditUsersPermissionsRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Edit users_permissions record',
-      apiUrl: '${baseUrl}/users/permissions/${usersPermissionsId}',
+      apiUrl: '$baseUrl/users/permissions/$usersPermissionsId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -841,10 +843,10 @@ class QueryAllUsersPermissionsRecordsCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Query all users_permissions records',
-      apiUrl: '${baseUrl}/users/permissions',
+      apiUrl: '$baseUrl/users/permissions',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -863,7 +865,7 @@ class AddUsersPermissionsRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -874,10 +876,10 @@ class AddUsersPermissionsRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add users_permissions record',
-      apiUrl: '${baseUrl}/users/permissions',
+      apiUrl: '$baseUrl/users/permissions',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -901,10 +903,10 @@ class DeleteUsersRolesRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Delete users_roles record.',
-      apiUrl: '${baseUrl}/users/roles/${usersRolesId}',
+      apiUrl: '$baseUrl/users/roles/$usersRolesId',
       callType: ApiCallType.DELETE,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -926,10 +928,10 @@ class GetUsersRolesRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get users_roles record',
-      apiUrl: '${baseUrl}/users/roles/${usersRolesId}',
+      apiUrl: '$baseUrl/users/roles/$usersRolesId',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -949,7 +951,7 @@ class EditUsersRolesRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -957,10 +959,10 @@ class EditUsersRolesRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Edit users_roles record',
-      apiUrl: '${baseUrl}/users/roles/${usersRolesId}',
+      apiUrl: '$baseUrl/users/roles/$usersRolesId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -983,10 +985,10 @@ class QueryAllUsersRolesRecordsCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Query all users_roles records',
-      apiUrl: '${baseUrl}/users/roles',
+      apiUrl: '$baseUrl/users/roles',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -1005,7 +1007,7 @@ class AddUsersRolesRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -1013,10 +1015,10 @@ class AddUsersRolesRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add users_roles record',
-      apiUrl: '${baseUrl}/users/roles',
+      apiUrl: '$baseUrl/users/roles',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -1040,10 +1042,10 @@ class DeleteUsersSystemAccessRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Delete users_system_access record.',
-      apiUrl: '${baseUrl}/users/system-access/${usersSystemAccessId}',
+      apiUrl: '$baseUrl/users/system-access/$usersSystemAccessId',
       callType: ApiCallType.DELETE,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -1065,10 +1067,10 @@ class GetUsersSystemAccessRecordCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get users_system_access record',
-      apiUrl: '${baseUrl}/users/system-access/${usersSystemAccessId}',
+      apiUrl: '$baseUrl/users/system-access/$usersSystemAccessId',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -1088,7 +1090,7 @@ class EditUsersSystemAccessRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -1096,10 +1098,10 @@ class EditUsersSystemAccessRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Edit users_system_access record',
-      apiUrl: '${baseUrl}/users/system-access/${usersSystemAccessId}',
+      apiUrl: '$baseUrl/users/system-access/$usersSystemAccessId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -1122,10 +1124,10 @@ class QueryAllUsersSystemAccessRecordsCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Query all users_system_access records',
-      apiUrl: '${baseUrl}/users/system-access',
+      apiUrl: '$baseUrl/users/system-access',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       returnBody: true,
@@ -1144,7 +1146,7 @@ class AddUsersSystemAccessRecordCall {
   }) async {
     final baseUrl = UserGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "updated_at": 0,
   "deleted_at": 0,
@@ -1152,10 +1154,10 @@ class AddUsersSystemAccessRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add users_system_access record',
-      apiUrl: '${baseUrl}/users/system-access',
+      apiUrl: '$baseUrl/users/system-access',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       body: apiRequestBody,
@@ -1178,10 +1180,10 @@ class AddUserCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'add user',
-      apiUrl: '${baseUrl}/users',
+      apiUrl: '$baseUrl/users',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${bearerAuth}',
+        'Authorization': 'Bearer $bearerAuth',
       },
       params: {},
       bodyType: BodyType.MULTIPART,
@@ -1201,8 +1203,7 @@ class AddUserCall {
 
 class SendgridValidationGroup {
   static String getBaseUrl() => _kPainelBaseUrl;
-  static Map<String, String> headers = {
-  };
+  static Map<String, String> headers = {};
   static ApiParaResetarASenhaDoUsuarioComUmaNovaSenhaCall
       apiParaResetarASenhaDoUsuarioComUmaNovaSenhaCall =
       ApiParaResetarASenhaDoUsuarioComUmaNovaSenhaCall();
@@ -1232,10 +1233,9 @@ class ApiParaResetarASenhaDoUsuarioComUmaNovaSenhaCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'api para resetar a senha do usuario com uma nova senha',
-      apiUrl: '${baseUrl}/auth/sendgrid/reset/pass',
+      apiUrl: '$baseUrl/auth/sendgrid/reset/pass',
       callType: ApiCallType.PATCH,
-      headers: {
-      },
+      headers: {},
       params: {},
       body: apiRequestBody,
       bodyType: BodyType.JSON,
@@ -1261,10 +1261,9 @@ class ApiParaMandarOCodigoDeRecuperacaoParaOEmailCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'api para mandar o codigo de recuperacao para o email',
-      apiUrl: '${baseUrl}/auth/sendgrid/send/code',
+      apiUrl: '$baseUrl/auth/sendgrid/send/code',
       callType: ApiCallType.POST,
-      headers: {
-      },
+      headers: {},
       params: {},
       body: apiRequestBody,
       bodyType: BodyType.JSON,
@@ -1287,15 +1286,14 @@ class AcaoDeValidarCodigoParaAAlteracaoDeSenhaCall {
 
     final apiRequestBody = '''
 {
-  "code": ${code},
+  "code": $code,
   "users_email": "${escapeStringForJson(usersEmail)}"
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Acao de validar codigo para a alteracao de senha',
-      apiUrl: '${baseUrl}/auth/sendgrid/validate/code',
+      apiUrl: '$baseUrl/auth/sendgrid/validate/code',
       callType: ApiCallType.POST,
-      headers: {
-      },
+      headers: {},
       params: {},
       body: apiRequestBody,
       bodyType: BodyType.JSON,
@@ -1313,7 +1311,7 @@ class ThisEndpointIsUsedToValidateThatSendgridIsWorkingCall {
   Future<ApiCallResponse> call() async {
     final baseUrl = SendgridValidationGroup.getBaseUrl();
 
-    final apiRequestBody = '''
+    const apiRequestBody = '''
 {
   "to_email": "",
   "subject": "",
@@ -1321,10 +1319,9 @@ class ThisEndpointIsUsedToValidateThatSendgridIsWorkingCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'This endpoint is used to validate that sendgrid is working.',
-      apiUrl: '${baseUrl}/auth/sendgrid/validate',
+      apiUrl: '$baseUrl/auth/sendgrid/validate',
       callType: ApiCallType.POST,
-      headers: {
-      },
+      headers: {},
       params: {},
       body: apiRequestBody,
       bodyType: BodyType.JSON,
@@ -1387,10 +1384,10 @@ class ListaMembrosDeUmaEquipeCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Lista membros de uma equipe',
-      apiUrl: '${baseUrl}/teams/members',
+      apiUrl: '$baseUrl/teams/members',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'teams_id': teamsId,
@@ -1404,7 +1401,8 @@ class ListaMembrosDeUmaEquipeCall {
       cache: false,
       isStreamingApi: false,
       alwaysAllowBody: false,
-      useOfflineWrapper: true, // Habilitar suporte offline apenas para leitura (GET)
+      useOfflineWrapper:
+          true, // Habilitar suporte offline apenas para leitura (GET)
     );
   }
 
@@ -1435,21 +1433,22 @@ class AdicionaColaboradoresNaEscalaCall {
     );
     final usersId = _serializeList(usersIdList);
 
-    final effectiveSprintsId = (sprintsId != null && sprintsId > 0) ? sprintsId : null;
+    final effectiveSprintsId =
+        (sprintsId != null && sprintsId > 0) ? sprintsId : null;
     final apiRequestBody = '''
 {
-  "teams_id": ${teamsId},
-  "projects_id": ${projectsId},
+  "teams_id": $teamsId,
+  "projects_id": $projectsId,
   "schedule_date": "${escapeStringForJson(scheduleDate)}",
-  "users_id": ${usersId},
-  "sprints_id": ${effectiveSprintsId}
+  "users_id": $usersId,
+  "sprints_id": $effectiveSprintsId
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Adiciona colaboradores na escala',
-      apiUrl: '${baseUrl}/schedule',
+      apiUrl: '$baseUrl/schedule',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
         if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
         if (idempotencyKey != null) 'X-Operation-Id': idempotencyKey,
         if (ifMatch != null) 'If-Match': ifMatch,
@@ -1479,10 +1478,10 @@ class ListaColaboradoresDaEscalaDoDiaCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'lista colaboradores da escala do dia',
-      apiUrl: '${baseUrl}/schedule',
+      apiUrl: '$baseUrl/schedule',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'projects_id': projectsId,
@@ -1494,7 +1493,8 @@ class ListaColaboradoresDaEscalaDoDiaCall {
       cache: false,
       isStreamingApi: false,
       alwaysAllowBody: false,
-      useOfflineWrapper: true, // Habilitar suporte offline apenas para leitura (GET)
+      useOfflineWrapper:
+          true, // Habilitar suporte offline apenas para leitura (GET)
     );
   }
 
@@ -1524,14 +1524,14 @@ class EditaEscalaDosColaboradoresCall {
 
     final apiRequestBody = '''
 {
-  "users_id": ${usersId}
+  "users_id": $usersId
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Edita escala dos colaboradores',
-      apiUrl: '${baseUrl}/schedule/${scheduleId}',
+      apiUrl: '$baseUrl/schedule/$scheduleId',
       callType: ApiCallType.PUT,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
         if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
         if (idempotencyKey != null) 'X-Operation-Id': idempotencyKey,
         if (ifMatch != null) 'If-Match': ifMatch,
@@ -1563,16 +1563,16 @@ class EditaScheduleSprintTasksCall {
 
     final apiRequestBody = '''
 {
-  "updated_at": ${updatedAt},
-  "sprints_tasks_id": ${sprintsTasksId},
-  "updated_at": ${updatedAt}
+  "updated_at": $updatedAt,
+  "sprints_tasks_id": $sprintsTasksId,
+  "updated_at": $updatedAt
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'edita schedule sprint tasks',
-      apiUrl: '${baseUrl}/schedule/${scheduleId}',
+      apiUrl: '$baseUrl/schedule/$scheduleId',
       callType: ApiCallType.PUT,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -1600,10 +1600,10 @@ class QueryAllScheduleCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'query all schedule',
-      apiUrl: '${baseUrl}/reports/schedule/day',
+      apiUrl: '$baseUrl/reports/schedule/day',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'projects_id': projectsId,
@@ -1629,6 +1629,7 @@ class QueryAllScheduleCall {
         r'''$[:].schedule_user_of_schedule''',
         true,
       ) as List?;
+
   /// Tarefas vinculadas ao schedule ativo (via schedule_sprints_tasks)
   List? listaTasksOfSchedule(dynamic response) => getJsonField(
         response,
@@ -1649,10 +1650,10 @@ class AddImagensCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'add imagens',
-      apiUrl: '${baseUrl}/uploads',
+      apiUrl: '$baseUrl/uploads',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'file': content,
@@ -1680,10 +1681,10 @@ class GetSubtasksCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get subtasks',
-      apiUrl: '${baseUrl}/projects/subtasks',
+      apiUrl: '$baseUrl/projects/subtasks',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'projects_backlogs_id': projectsBacklogsId,
@@ -1714,10 +1715,10 @@ class EquipamentsTypeCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Equipaments type',
-      apiUrl: '${baseUrl}/equipaments_types',
+      apiUrl: '$baseUrl/equipaments_types',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       returnBody: true,
@@ -1763,10 +1764,10 @@ class GetUserProjectsCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get user projects',
-      apiUrl: '${baseUrl}/projects',
+      apiUrl: '$baseUrl/projects',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'company_id': companyId,
@@ -1821,16 +1822,16 @@ class WorkforceCheckInCall {
 
     final apiRequestBody = '''
 {
-  "users_id": ${usersId},
-  "projects_id": ${projectsId},
-  "teams_id": ${teamsId}
+  "users_id": $usersId,
+  "projects_id": $projectsId,
+  "teams_id": $teamsId
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Workforce Check-In',
-      apiUrl: '${baseUrl}/workforce/check-in',
+      apiUrl: '$baseUrl/workforce/check-in',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -1853,10 +1854,10 @@ class GetPendingSchedulesCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get pending schedules',
-      apiUrl: '${baseUrl}/schedule/pending',
+      apiUrl: '$baseUrl/schedule/pending',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       returnBody: true,
@@ -1868,8 +1869,8 @@ class GetPendingSchedulesCall {
     );
   }
 
-  bool? hasPending(dynamic response) => castToType<bool>(
-        getJsonField(response, r'''$.has_pending'''));
+  bool? hasPending(dynamic response) =>
+      castToType<bool>(getJsonField(response, r'''$.has_pending'''));
 
   List? pendingSchedules(dynamic response) =>
       getJsonField(response, r'''$.pending_schedules''', true) as List?;
@@ -1889,10 +1890,10 @@ class LinkTasksToScheduleCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Link tasks to schedule',
-      apiUrl: '${baseUrl}/schedule/${scheduleId}/tasks',
+      apiUrl: '$baseUrl/schedule/$scheduleId/tasks',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -1952,8 +1953,8 @@ class QueryAllSprintsTasksRecordCall {
 
     final apiRequestBody = '''
 {
-  "projects_id": ${projectsId},
-  "sprints_id": ${sprintsId},
+  "projects_id": $projectsId,
+  "sprints_id": $sprintsId,
   "teams_id": ${(teamsId != null && teamsId > 0) ? '[$teamsId]' : '[]'},
   "equipaments_types_id": ${(equipamentsTypesId != null && equipamentsTypesId > 0) ? '[$equipamentsTypesId]' : '[]'},
   "search": ${(search != null && search.isNotEmpty) ? search : 'null'},
@@ -1962,10 +1963,10 @@ class QueryAllSprintsTasksRecordCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Query all sprints tasks record',
-      apiUrl: '${baseUrl}/sprints/sprints_tasks_painel',
+      apiUrl: '$baseUrl/sprints/sprints_tasks_painel',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2037,6 +2038,10 @@ class QueryAllSprintsTasksRecordCall {
         r'''$.sprints_tasks_inspecao.pageTotal''',
       ));
 
+  // is_inspection do projeto vinculado à sprint
+  bool? projectIsInspection(dynamic response) =>
+      castToType<bool>(getJsonField(response, r'''$.is_inspection'''));
+
   // Inspeção concluídas — não existe mais como categoria separada no Painel
   List? yESconcluidas(dynamic response) => null;
 
@@ -2079,18 +2084,21 @@ class GetSprintAtivaCall {
     if (page != null) params['page'] = page;
     if (perPage != null) params['per_page'] = perPage;
     if (dtStart != null && dtStart > 0) {
-      params['dt_start'] = DateTime.fromMillisecondsSinceEpoch(dtStart).toUtc().toIso8601String();
+      params['dt_start'] = DateTime.fromMillisecondsSinceEpoch(dtStart)
+          .toUtc()
+          .toIso8601String();
     }
     if (dtEnd != null && dtEnd > 0) {
-      params['dt_end'] = DateTime.fromMillisecondsSinceEpoch(dtEnd).toUtc().toIso8601String();
+      params['dt_end'] =
+          DateTime.fromMillisecondsSinceEpoch(dtEnd).toUtc().toIso8601String();
     }
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get sprint ativa',
-      apiUrl: '${baseUrl}/sprints',
+      apiUrl: '$baseUrl/sprints',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: params,
       returnBody: true,
@@ -2117,7 +2125,7 @@ class GetSprintAtivaCall {
 class AtualizaStatusDaSprintTaskCall {
   Future<ApiCallResponse> call({
     int? scheduleId,
-    dynamic? tasksListJson,
+    dynamic tasksListJson,
     String? token = '',
     String? idempotencyKey,
     String? ifMatch,
@@ -2129,14 +2137,14 @@ class AtualizaStatusDaSprintTaskCall {
     final tasksList = _serializeJson(tasksListJson, true);
     final apiRequestBody = '''
 {
-  "tasks": ${tasksList}
+  "tasks": $tasksList
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Atualiza status da sprint task',
-      apiUrl: '${baseUrl}/sprints/tasks/status/list',
+      apiUrl: '$baseUrl/sprints/tasks/status/list',
       callType: ApiCallType.PUT,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
         if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
         if (idempotencyKey != null) 'X-Operation-Id': idempotencyKey,
         if (ifMatch != null) 'If-Match': ifMatch,
@@ -2174,10 +2182,10 @@ class AtualizaStatusSingleTaskCall {
     final apiRequestBody = _serializeJson(bodyMap, false);
     return ApiManager.instance.makeApiCall(
       callName: 'Atualiza status single sprint task',
-      apiUrl: '${baseUrl}/sprints/tasks/status',
+      apiUrl: '$baseUrl/sprints/tasks/status',
       callType: ApiCallType.PUT,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2212,10 +2220,10 @@ class EditSprintTaskCall {
     final apiRequestBody = _serializeJson(bodyMap, false);
     return ApiManager.instance.makeApiCall(
       callName: 'Edit sprint task',
-      apiUrl: '${baseUrl}/sprints/tasks/${taskId}',
+      apiUrl: '$baseUrl/sprints/tasks/$taskId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2240,10 +2248,10 @@ class GetNonExecutionReasonsCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Get non execution reasons',
-      apiUrl: '${baseUrl}/sprints/non-execution-reasons',
+      apiUrl: '$baseUrl/sprints/non-execution-reasons',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       returnBody: true,
@@ -2278,18 +2286,18 @@ class EditProgressSprintCall {
 {
   "title":"${escapeStringForJson(title)}",
   "objective":"${escapeStringForJson(objective)}",
-  "start_date":${startDate},
-  "end_date":${endDate},
-  "progress_percentage":${progressPercentage},
-  "projects_id":${projectsId},
-  "sprints_statuses_id": ${sprintsStatusesId}
+  "start_date":$startDate,
+  "end_date":$endDate,
+  "progress_percentage":$progressPercentage,
+  "projects_id":$projectsId,
+  "sprints_statuses_id": $sprintsStatusesId
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Edit progress sprint',
-      apiUrl: '${baseUrl}/sprints/${sprintsId}',
+      apiUrl: '$baseUrl/sprints/$sprintsId',
       callType: ApiCallType.PATCH,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
         if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
         if (idempotencyKey != null) 'X-Operation-Id': idempotencyKey,
         if (ifMatch != null) 'If-Match': ifMatch,
@@ -2319,15 +2327,15 @@ class GetSprintsLoginCall {
 
     final apiRequestBody = '''
 {
-  "projects_id": ${projectsId},
-  "sprints_id": ${sprintsId}
+  "projects_id": $projectsId,
+  "sprints_id": $sprintsId
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Get sprints login',
-      apiUrl: '${baseUrl}/sprints/tasks/panel',
+      apiUrl: '$baseUrl/sprints/tasks/panel',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2366,16 +2374,16 @@ class UpdateInspectionCall {
 
     final apiRequestBody = '''
 {
-  "sprints_tasks_id": ${sprintsTasksId},
-  "quality_status_id": ${qualityStatusId},
+  "sprints_tasks_id": $sprintsTasksId,
+  "quality_status_id": $qualityStatusId,
   "comment": "${escapeStringForJson(comment)}"
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Update inspection',
-      apiUrl: '${baseUrl}/sprints/inspection',
+      apiUrl: '$baseUrl/sprints/inspection',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2416,10 +2424,10 @@ class QrcodeReaderCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'qrcode reader',
-      apiUrl: '${baseUrl}/reports/qrcode-reader',
+      apiUrl: '$baseUrl/reports/qrcode-reader',
       callType: ApiCallType.GET,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {
         'qrcode': qrcode,
@@ -2481,16 +2489,16 @@ class AddCommentCall {
     final apiRequestBody = '''
 {
   "comment": "${escapeStringForJson(comment)}",
-  "projects_backlogs_id": ${projectsBacklogsId},
-  "subtasks_id": ${subtasksId},
-  "created_user_id": ${createdUserId}
+  "projects_backlogs_id": $projectsBacklogsId,
+  "subtasks_id": $subtasksId,
+  "created_user_id": $createdUserId
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add comment',
-      apiUrl: '${baseUrl}/tasks/comments',
+      apiUrl: '$baseUrl/tasks/comments',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2513,9 +2521,12 @@ class DailyReportsGroup {
   static String getBaseUrl({String? token = ''}) => _kPainelBaseUrl;
   static Map<String, String> headers = {};
   static CreateDailyReportCall createDailyReportCall = CreateDailyReportCall();
-  static FinalizeDailyReportCall finalizeDailyReportCall = FinalizeDailyReportCall();
-  static AddDailyReportWorkforceCall addDailyReportWorkforceCall = AddDailyReportWorkforceCall();
-  static AddDailyReportActivityCall addDailyReportActivityCall = AddDailyReportActivityCall();
+  static FinalizeDailyReportCall finalizeDailyReportCall =
+      FinalizeDailyReportCall();
+  static AddDailyReportWorkforceCall addDailyReportWorkforceCall =
+      AddDailyReportWorkforceCall();
+  static AddDailyReportActivityCall addDailyReportActivityCall =
+      AddDailyReportActivityCall();
 }
 
 class CreateDailyReportCall {
@@ -2538,7 +2549,7 @@ class CreateDailyReportCall {
 
     final apiRequestBody = '''
 {
-  "projects_id": ${projectsId},
+  "projects_id": $projectsId,
   "rdo_date": "${escapeStringForJson(rdoDate)}",
   "shift": "${escapeStringForJson(shift)}",
   "weather_morning": "${escapeStringForJson(weatherMorning)}",
@@ -2552,10 +2563,10 @@ class CreateDailyReportCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Create Daily Report',
-      apiUrl: '${baseUrl}/daily-reports',
+      apiUrl: '$baseUrl/daily-reports',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2584,10 +2595,10 @@ class FinalizeDailyReportCall {
 
     return ApiManager.instance.makeApiCall(
       callName: 'Finalize Daily Report',
-      apiUrl: '${baseUrl}/daily-reports/${id}/finalize',
+      apiUrl: '$baseUrl/daily-reports/$id/finalize',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       bodyType: BodyType.NONE,
@@ -2623,10 +2634,10 @@ class AddDailyReportWorkforceCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add Daily Report Workforce',
-      apiUrl: '${baseUrl}/daily-reports/${id}/workforce',
+      apiUrl: '$baseUrl/daily-reports/$id/workforce',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,
@@ -2665,10 +2676,10 @@ class AddDailyReportActivityCall {
 }''';
     return ApiManager.instance.makeApiCall(
       callName: 'Add Daily Report Activity',
-      apiUrl: '${baseUrl}/daily-reports/${id}/activities',
+      apiUrl: '$baseUrl/daily-reports/$id/activities',
       callType: ApiCallType.POST,
       headers: {
-        'Authorization': 'Bearer ${token}',
+        'Authorization': 'Bearer $token',
       },
       params: {},
       body: apiRequestBody,

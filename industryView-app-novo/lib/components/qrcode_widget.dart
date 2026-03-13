@@ -47,7 +47,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
     context.watch<AppState>();
 
     return Padding(
-      padding: EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(24.0),
       child: FutureBuilder<ApiCallResponse>(
         future: _model.user(
           requestFn: () => UserGroup.getUserIdCall.call(
@@ -86,7 +86,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
               ],
             ),
             child: Padding(
-              padding: EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,7 +96,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Align(
-                        alignment: AlignmentDirectional(1.0, -1.0),
+                        alignment: const AlignmentDirectional(1.0, -1.0),
                         child: AppIconButton(
                           borderColor: AppTheme.of(context).primary,
                           borderRadius: 8.0,
@@ -113,7 +113,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                           },
                         ),
                       ),
-                    ].divide(SizedBox(width: 12.0)),
+                    ].divide(const SizedBox(width: 12.0)),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.max,
@@ -130,7 +130,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                             ),
                           ),
                           child: Padding(
-                            padding: EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Row(
                               mainAxisSize: MainAxisSize.max,
                               children: [
@@ -172,7 +172,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                           ),
                         ),
                       ),
-                    ].divide(SizedBox(width: 16.0)),
+                    ].divide(const SizedBox(width: 16.0)),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.max,
@@ -187,7 +187,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                           ),
                         ),
                         child: Padding(
-                          padding: EdgeInsets.all(12.0),
+                          padding: const EdgeInsets.all(12.0),
                           child: Row(
                             mainAxisSize: MainAxisSize.max,
                             children: [
@@ -238,7 +238,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                             ),
                           ),
                           child: Padding(
-                            padding: EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Row(
                               mainAxisSize: MainAxisSize.max,
                               children: [
@@ -280,7 +280,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                           ),
                         ),
                       ),
-                    ].divide(SizedBox(width: 12.0)),
+                    ].divide(const SizedBox(width: 12.0)),
                   ),
                   Container(
                     width: double.infinity,
@@ -292,7 +292,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                       ),
                     ),
                     child: Padding(
-                      padding: EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: Row(
                         mainAxisSize: MainAxisSize.max,
                         children: [
@@ -345,7 +345,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                             ),
                           ),
                           child: Padding(
-                            padding: EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Row(
                               mainAxisSize: MainAxisSize.max,
                               children: [
@@ -400,7 +400,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                             ),
                           ),
                           child: Padding(
-                            padding: EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Row(
                               mainAxisSize: MainAxisSize.max,
                               children: [
@@ -443,7 +443,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                           ),
                         ),
                       ),
-                    ].divide(SizedBox(width: 12.0)),
+                    ].divide(const SizedBox(width: 12.0)),
                   ),
                   if (UserGroup.getUserIdCall.qrcode(
                             containerGetUserIdResponse.jsonBody,
@@ -454,7 +454,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                           ) !=
                           '')
                     Align(
-                      alignment: AlignmentDirectional(0.0, 0.0),
+                      alignment: const AlignmentDirectional(0.0, 0.0),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
                         child: Image.network(
@@ -467,7 +467,7 @@ class _QrcodeWidgetState extends State<QrcodeWidget> {
                         ),
                       ),
                     ),
-                ].divide(SizedBox(height: 16.0)),
+                ].divide(const SizedBox(height: 16.0)),
               ),
             ),
           );

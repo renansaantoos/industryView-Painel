@@ -59,12 +59,12 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
+        padding: const EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
         child: Container(
           width: double.infinity,
-          constraints: BoxConstraints(maxWidth: 530.0),
+          constraints: const BoxConstraints(maxWidth: 530.0),
           decoration: BoxDecoration(
             color: AppTheme.of(context).secondaryBackground,
             boxShadow: [
@@ -78,7 +78,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
           ),
           child: SingleChildScrollView(
             child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 24.0),
+              padding: const EdgeInsetsDirectional.fromSTEB(24.0, 24.0, 24.0, 24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,7 +87,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(width: 32.0, height: 32.0),
+                      SizedBox(width: 32.0, height: 32.0),
                       Icon(
                         Icons.comment_outlined,
                         color: AppTheme.of(context).error,
@@ -109,7 +109,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 16.0),
+                  const SizedBox(height: 16.0),
                   // Título
                   Text(
                     'Tarefa sem sucesso',
@@ -128,7 +128,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                               AppTheme.of(context).headlineSmall.fontStyle,
                         ),
                   ),
-                  SizedBox(height: 8.0),
+                  const SizedBox(height: 8.0),
                   Text(
                     'Informe o motivo pelo qual a tarefa não foi concluída com sucesso.',
                     style: AppTheme.of(context).labelMedium.override(
@@ -145,7 +145,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                               AppTheme.of(context).labelMedium.fontStyle,
                         ),
                   ),
-                  SizedBox(height: 16.0),
+                  const SizedBox(height: 16.0),
                   // Campo de comentário
                   TextFormField(
                     controller: _model.commentController,
@@ -197,7 +197,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                       ),
                       filled: true,
                       fillColor: AppTheme.of(context).primaryBackground,
-                      contentPadding: EdgeInsetsDirectional.fromSTEB(
+                      contentPadding: const EdgeInsetsDirectional.fromSTEB(
                           16.0, 12.0, 16.0, 12.0),
                     ),
                     style: AppTheme.of(context).bodyMedium.override(
@@ -214,7 +214,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                               AppTheme.of(context).bodyMedium.fontStyle,
                         ),
                   ),
-                  SizedBox(height: 24.0),
+                  const SizedBox(height: 24.0),
                   // Botão enviar
                   AppButton(
                     onPressed: _model.isLoading
@@ -225,7 +225,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                             if (comment.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(
+                                  content: const Text(
                                       'O comentário é obrigatório para tarefas sem sucesso.'),
                                   backgroundColor:
                                       AppTheme.of(context).error,
@@ -251,7 +251,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                               safeSetState(() => _model.isLoading = false);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(
+                                  content: const Text(
                                       'Erro ao enviar comentário. Tente novamente.'),
                                   backgroundColor:
                                       AppTheme.of(context).error,
@@ -292,7 +292,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(
+                                    content: const Text(
                                         'Erro ao atualizar status da tarefa. Tente novamente.'),
                                     backgroundColor:
                                         AppTheme.of(context).error,
@@ -304,13 +304,13 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                     text: _model.isLoading ? 'Enviando...' : 'Enviar',
                     icon: _model.isLoading
                         ? null
-                        : Icon(Icons.send_rounded, size: 18.0),
+                        : const Icon(Icons.send_rounded, size: 18.0),
                     options: AppButtonOptions(
                       width: double.infinity,
                       height: 48.0,
-                      padding: EdgeInsetsDirectional.fromSTEB(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
                           20.0, 0.0, 20.0, 0.0),
-                      iconPadding: EdgeInsetsDirectional.fromSTEB(
+                      iconPadding: const EdgeInsetsDirectional.fromSTEB(
                           0.0, 0.0, 8.0, 0.0),
                       color: AppTheme.of(context).error,
                       textStyle:
@@ -330,7 +330,7 @@ class _ModalCommentWidgetState extends State<ModalCommentWidget> {
                                     .fontStyle,
                               ),
                       elevation: 0.0,
-                      borderSide: BorderSide(color: Colors.transparent),
+                      borderSide: const BorderSide(color: Colors.transparent),
                       borderRadius: BorderRadius.circular(14.0),
                     ),
                   ),

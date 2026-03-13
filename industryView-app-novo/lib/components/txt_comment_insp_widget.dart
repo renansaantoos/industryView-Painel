@@ -66,21 +66,21 @@ class _TxtCommentInspWidgetState extends State<TxtCommentInspWidget> {
                 0.0,
                 valueOrDefault<double>(
                   functions.checkFirstComment(AppState().tasksfinish.toList(),
-                              widget!.index!) &&
+                              widget.index!) &&
                           (AppState().taskslist.length > 1)
                       ? 8.0
                       : 0.0,
                   0.0,
                 ),
                 0.0),
-            child: Container(
+            child: SizedBox(
               width: 100.0,
               child: TextFormField(
                 controller: _model.textController,
                 focusNode: _model.textFieldFocusNode,
                 onFieldSubmitted: (_) async {
                   AppState().updateTasksfinishAtIndex(
-                    widget!.index!,
+                    widget.index!,
                     (e) => e..comment = _model.textController.text,
                   );
                   safeSetState(() {});
@@ -178,7 +178,7 @@ class _TxtCommentInspWidgetState extends State<TxtCommentInspWidget> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (functions.checkFirstComment(
-                    AppState().tasksfinish.toList(), widget!.index!) &&
+                    AppState().tasksfinish.toList(), widget.index!) &&
                 (AppState().taskslist.length > 1))
               AppIconButton(
                 borderRadius: 8.0,

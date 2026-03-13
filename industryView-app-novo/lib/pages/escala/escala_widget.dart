@@ -398,7 +398,7 @@ class _EscalaWidgetState extends State<EscalaWidget> {
                                         FocusScope.of(dialogContext).unfocus();
                                         FocusManager.instance.primaryFocus?.unfocus();
                                       },
-                                      child: LogoutWidget(),
+                                      child: const LogoutWidget(),
                                     ),
                                   ),
                                 );
@@ -757,7 +757,7 @@ class _EscalaWidgetState extends State<EscalaWidget> {
                     [];
                 _model.setIds = (allUsers
                         .map((e) => getJsonField(e, r'''$.users.id'''))
-                        .toList() as List)
+                        .toList())
                     .cast<int>()
                     .toList();
                 _model.allCheck = true;

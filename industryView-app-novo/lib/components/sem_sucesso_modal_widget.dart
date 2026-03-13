@@ -141,7 +141,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
     // Vincular tarefas ao schedule do dia
     try {
       final scheduleId = AppState().user.sheduleId;
-      if (scheduleId != null && scheduleId != 0) {
+      if (scheduleId != 0) {
         final taskIds = widget.items
             .map((e) => castToType<int>(getJsonField(e, r'$.id')))
             .whereType<int>()
@@ -264,12 +264,12 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
+        padding: const EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
         child: Container(
           width: double.infinity,
-          constraints: BoxConstraints(maxWidth: 530.0),
+          constraints: const BoxConstraints(maxWidth: 530.0),
           decoration: BoxDecoration(
             color: AppTheme.of(context).secondaryBackground,
             boxShadow: [
@@ -288,21 +288,21 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
               Flexible(
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
                         24.0, 24.0, 24.0, 0.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeader(context),
-                        SizedBox(height: 16.0),
+                        const SizedBox(height: 16.0),
                         _buildTitleSection(context),
-                        SizedBox(height: 20.0),
+                        const SizedBox(height: 20.0),
                         if (_isBatch)
                           _buildBatchContent(context)
                         else
                           _buildSingleContent(context),
-                        SizedBox(height: 24.0),
+                        const SizedBox(height: 24.0),
                       ],
                     ),
                   ),
@@ -310,7 +310,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
               ),
               // Botões fixos na base
               Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(
+                padding: const EdgeInsetsDirectional.fromSTEB(
                     24.0, 0.0, 24.0, 24.0),
                 child: _buildButtons(context),
               ),
@@ -329,7 +329,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(width: 32.0, height: 32.0),
+        SizedBox(width: 32.0, height: 32.0),
         Icon(
           Icons.warning_amber_rounded,
           color: AppTheme.of(context).error,
@@ -373,7 +373,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                 fontStyle: AppTheme.of(context).headlineSmall.fontStyle,
               ),
         ),
-        SizedBox(height: 4.0),
+        const SizedBox(height: 4.0),
         Text(
           _isBatch
               ? 'Informe o motivo individual para cada uma das ${widget.items.length} tarefas.'
@@ -404,7 +404,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _labelText(context, 'Motivo da Falha *'),
-        SizedBox(height: 8.0),
+        const SizedBox(height: 8.0),
         _buildReasonDropdown(
           context: context,
           isLoadingReasons: isLoadingReasons,
@@ -425,12 +425,12 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
           },
         ),
         if (_model.showReasonError) ...[
-          SizedBox(height: 4.0),
+          const SizedBox(height: 4.0),
           _errorText(context, 'Selecione um motivo'),
         ],
-        SizedBox(height: 16.0),
+        const SizedBox(height: 16.0),
         _labelText(context, 'Observacoes'),
-        SizedBox(height: 8.0),
+        const SizedBox(height: 8.0),
         _buildObsField(
           context: context,
           controller: _model.observationsController!,
@@ -456,13 +456,13 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
       children: [
         // Barra de progresso
         _buildProgressBar(context, completedCount, widget.items.length),
-        SizedBox(height: 16.0),
+        const SizedBox(height: 16.0),
         // Lista de accordions
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: widget.items.length,
-          separatorBuilder: (_, __) => SizedBox(height: 8.0),
+          separatorBuilder: (_, __) => const SizedBox(height: 8.0),
           itemBuilder: (context, index) {
             return _buildTaskAccordion(
               context: context,
@@ -518,7 +518,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
             ),
           ],
         ),
-        SizedBox(height: 6.0),
+        const SizedBox(height: 6.0),
         ClipRRect(
           borderRadius: BorderRadius.circular(4.0),
           child: LinearProgressIndicator(
@@ -567,8 +567,8 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
           child: ExpansionTile(
             initiallyExpanded: index == 0,
             tilePadding:
-                EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            childrenPadding: EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            childrenPadding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
             onExpansionChanged: (expanded) {
               safeSetState(() {
                 _model.batchExpanded[index] = expanded;
@@ -585,7 +585,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
               ),
               child: Center(
                 child: hasReason
-                    ? Icon(Icons.check,
+                    ? const Icon(Icons.check,
                         size: 16.0, color: Colors.white)
                     : Text(
                         '${index + 1}',
@@ -666,7 +666,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _labelText(context, 'Motivo da Falha *'),
-                  SizedBox(height: 8.0),
+                  const SizedBox(height: 8.0),
                   _buildReasonDropdown(
                     context: context,
                     isLoadingReasons: isLoadingReasons,
@@ -691,12 +691,12 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                     },
                   ),
                   if (showError) ...[
-                    SizedBox(height: 4.0),
+                    const SizedBox(height: 4.0),
                     _errorText(context, 'Selecione um motivo'),
                   ],
-                  SizedBox(height: 12.0),
+                  const SizedBox(height: 12.0),
                   _labelText(context, 'Observacoes'),
-                  SizedBox(height: 8.0),
+                  const SizedBox(height: 8.0),
                   _buildObsField(
                     context: context,
                     controller: _model.batchObsControllers[index] ??
@@ -755,9 +755,9 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
               'Deseja aplicar o mesmo motivo e observacao para as demais ${widget.items.length - 1} tarefas?',
               style: GoogleFonts.lexend(fontSize: 14.0, color: AppTheme.of(context).secondaryText),
             ),
-            SizedBox(height: 12.0),
+            const SizedBox(height: 12.0),
             Container(
-              padding: EdgeInsets.all(10.0),
+              padding: const EdgeInsets.all(10.0),
               decoration: BoxDecoration(
                 color: AppTheme.of(context).primaryBackground,
                 borderRadius: BorderRadius.circular(8.0),
@@ -768,7 +768,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                   Row(
                     children: [
                       Icon(Icons.warning_amber_rounded, size: 14.0, color: AppTheme.of(context).error),
-                      SizedBox(width: 6.0),
+                      const SizedBox(width: 6.0),
                       Expanded(
                         child: Text(
                           reasonName,
@@ -777,7 +777,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 4.0),
+                  const SizedBox(height: 4.0),
                   Text(
                     obs,
                     style: GoogleFonts.lexend(fontSize: 12.0, color: AppTheme.of(context).secondaryText),
@@ -842,9 +842,9 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
             options: AppButtonOptions(
               width: double.infinity,
               height: 48.0,
-              padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+              padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
               iconPadding:
-                  EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                  const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
               color: AppTheme.of(context).primaryBackground,
               textStyle: AppTheme.of(context).labelMedium.override(
                     font: GoogleFonts.lexend(
@@ -866,7 +866,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
             ),
           ),
         ),
-        SizedBox(width: 12.0),
+        const SizedBox(width: 12.0),
         Expanded(
           child: AppButton(
             onPressed: (_model.isLoading || !allFilled)
@@ -878,9 +878,9 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
             options: AppButtonOptions(
               width: double.infinity,
               height: 48.0,
-              padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+              padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
               iconPadding:
-                  EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                  const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
               color: (_model.isLoading || !allFilled)
                   ? AppTheme.of(context).error.withValues(alpha: 0.4)
                   : AppTheme.of(context).error,
@@ -897,7 +897,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                     fontStyle: AppTheme.of(context).titleSmall.fontStyle,
                   ),
               elevation: 0.0,
-              borderSide: BorderSide(color: Colors.transparent),
+              borderSide: const BorderSide(color: Colors.transparent),
               borderRadius: BorderRadius.circular(14.0),
             ),
           ),
@@ -990,7 +990,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
           value: selectedId,
           isExpanded: true,
           hint: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               'Selecione o motivo...',
               style: AppTheme.of(context).labelMedium.override(
@@ -1008,7 +1008,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
                   ),
             ),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           borderRadius: BorderRadius.circular(12.0),
           dropdownColor: AppTheme.of(context).secondaryBackground,
           icon: Icon(
@@ -1101,7 +1101,7 @@ class _SemSucessoModalWidgetState extends State<SemSucessoModalWidget> {
         filled: true,
         fillColor: AppTheme.of(context).primaryBackground,
         contentPadding:
-            EdgeInsetsDirectional.fromSTEB(16.0, 12.0, 16.0, 12.0),
+            const EdgeInsetsDirectional.fromSTEB(16.0, 12.0, 16.0, 12.0),
       ),
       style: AppTheme.of(context).bodyMedium.override(
             font: GoogleFonts.lexend(

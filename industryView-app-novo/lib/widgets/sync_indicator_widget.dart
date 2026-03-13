@@ -11,10 +11,10 @@ class SyncIndicatorWidget extends StatefulWidget {
   final double? size;
 
   const SyncIndicatorWidget({
-    Key? key,
+    super.key,
     this.showText = true,
     this.size,
-  }) : super(key: key);
+  });
 
   @override
   State<SyncIndicatorWidget> createState() => _SyncIndicatorWidgetState();
@@ -134,7 +134,7 @@ class _SyncIndicatorWidgetState extends State<SyncIndicatorWidget> {
           elevation: 0,
           insetPadding: EdgeInsets.zero,
           backgroundColor: Colors.transparent,
-          alignment: AlignmentDirectional(0.0, 0.0)
+          alignment: const AlignmentDirectional(0.0, 0.0)
               .resolve(Directionality.of(context)),
           child: GestureDetector(
             onTap: () {
@@ -206,7 +206,7 @@ class _SyncIndicatorWidgetState extends State<SyncIndicatorWidget> {
       onTap: () => _showStatusModal(context),
       borderRadius: BorderRadius.circular(iconSize / 2),
       child: Padding(
-        padding: EdgeInsets.all(4.0),
+        padding: const EdgeInsets.all(4.0),
         child: indicator,
       ),
     );
@@ -239,9 +239,9 @@ class SyncButtonWidget extends StatelessWidget {
   final bool showText;
 
   const SyncButtonWidget({
-    Key? key,
+    super.key,
     this.showText = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

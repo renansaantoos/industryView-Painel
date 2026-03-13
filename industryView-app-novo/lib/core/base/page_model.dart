@@ -43,7 +43,7 @@ abstract class PageModel<W extends Widget> {
 
   W? _widget;
   W? get widget => _widget;
-  void set widget(W? newWidget) {
+  set widget(W? newWidget) {
     _widget = newWidget;
   }
 

@@ -277,7 +277,7 @@ class _DailyHubWidgetState extends State<DailyHubWidget> {
           HomePageTarefasWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
               duration: Duration(milliseconds: 250),
@@ -290,7 +290,7 @@ class _DailyHubWidgetState extends State<DailyHubWidget> {
           PageCheckQrcodeWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
             ),

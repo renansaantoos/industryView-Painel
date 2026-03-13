@@ -40,7 +40,7 @@ class OfflineApiWrapper {
   final TaskStateOverrideDao _taskStateOverrideDao = TaskStateOverrideDao();
   final SyncQueueDao _syncQueueDao = SyncQueueDao();
   final Uuid _uuid = const Uuid();
-  
+
   // Armazenar os últimos taskIds processados para usar no addCommentCall
   // Map<comment, taskId> para associar comentários aos taskIds corretos
   final Map<String, int> _commentToTaskIdMap = {};
@@ -108,7 +108,8 @@ class OfflineApiWrapper {
           } catch (e) {
             // Não deixar erro ao salvar no banco quebrar a resposta da API
             if (kDebugMode) {
-              print('OfflineApiWrapper: Erro ao salvar resposta no banco (não crítico): $e');
+              print(
+                  'OfflineApiWrapper: Erro ao salvar resposta no banco (não crítico): $e');
             }
           }
         }
@@ -161,13 +162,13 @@ class OfflineApiWrapper {
           );
         } else {
           if (_shouldCacheCallForOffline(callName, callType)) {
-            return ApiCallResponse([], {}, 200);
+            return const ApiCallResponse([], {}, 200);
           }
           // Se não há dados locais e está offline, retornar resposta vazia apropriada
           // para evitar crash na página
           if (callName.contains('sprints_tasks') ||
               callName.contains('Query all sprints tasks')) {
-            return ApiCallResponse(
+            return const ApiCallResponse(
               {
                 'sprints_tasks_em_andamento': {
                   'items': [],
@@ -196,11 +197,11 @@ class OfflineApiWrapper {
           }
           if (callName.contains('Equipaments type') ||
               callName.contains('equipaments_types')) {
-            return ApiCallResponse([], {}, 200);
+            return const ApiCallResponse([], {}, 200);
           }
           if (callName.contains('sprints') ||
               callName.contains('Get sprint ativa')) {
-            return ApiCallResponse(
+            return const ApiCallResponse(
               {
                 'sprints_ativa': {
                   'items': [],
@@ -213,15 +214,18 @@ class OfflineApiWrapper {
               200,
             );
           }
-          if (callName.contains('Lista membros de uma equipe') || callName.contains('membros') || callName.contains('teams_members')) {
-            return ApiCallResponse(
+          if (callName.contains('Lista membros de uma equipe') ||
+              callName.contains('membros') ||
+              callName.contains('teams_members')) {
+            return const ApiCallResponse(
               {'items': [], 'pageTotal': 0},
               {},
               200,
             );
           }
-          if (callName.contains('lista colaboradores da escala do dia') || callName.contains('schedule')) {
-            return ApiCallResponse(
+          if (callName.contains('lista colaboradores da escala do dia') ||
+              callName.contains('schedule')) {
+            return const ApiCallResponse(
               [],
               {},
               200,
@@ -244,7 +248,7 @@ class OfflineApiWrapper {
           if (localData != null) {
             return ApiCallResponse(localData, {}, 200);
           }
-          return ApiCallResponse([], {}, 200);
+          return const ApiCallResponse([], {}, 200);
         }
 
         if (callName.contains('Adiciona colaboradores na escala')) {
@@ -290,32 +294,37 @@ class OfflineApiWrapper {
         }
 
         // Tratamento específico para Add comment
-        if (callName.contains('Add comment') || apiUrl.contains('/task_comments')) {
+        if (callName.contains('Add comment') ||
+            apiUrl.contains('/task_comments')) {
           final bodyData = _decodeBodyData(body, params);
           var projectsBacklogsId = _asInt(bodyData['projects_backlogs_id']);
           final comment = bodyData['comment']?.toString();
           final subtasksId = _asInt(bodyData['subtasks_id']) ?? 0;
           final createdUserId = _asInt(bodyData['created_user_id']);
-          
+
           // Se o projects_backlogs_id estiver null ou 0, tentar buscar do banco local
           if (projectsBacklogsId == null || projectsBacklogsId == 0) {
             // Estratégia 1: Buscar pelo comentário no mapa (mais confiável)
-            if (comment != null && comment.isNotEmpty && _commentToTaskIdMap.containsKey(comment)) {
+            if (comment != null &&
+                comment.isNotEmpty &&
+                _commentToTaskIdMap.containsKey(comment)) {
               projectsBacklogsId = _commentToTaskIdMap[comment];
               if (kDebugMode) {
-                print('OfflineApiWrapper: Add comment - projects_backlogs_id do mapa de comentários: $projectsBacklogsId');
+                print(
+                    'OfflineApiWrapper: Add comment - projects_backlogs_id do mapa de comentários: $projectsBacklogsId');
               }
             } else if (_recentTaskIds.isNotEmpty) {
               // Estratégia 2: Usar o último taskId processado
               projectsBacklogsId = _recentTaskIds.last;
               if (kDebugMode) {
-                print('OfflineApiWrapper: Add comment - projects_backlogs_id do último task processado: $projectsBacklogsId');
+                print(
+                    'OfflineApiWrapper: Add comment - projects_backlogs_id do último task processado: $projectsBacklogsId');
               }
             } else {
               // Estratégia 3: Buscar tarefa mais recente com esse comentário exato no banco
               try {
                 final db = await _dbHelper.database;
-                
+
                 if (comment != null && comment.isNotEmpty) {
                   final resultsByComment = await db.query(
                     'sprints_tasks',
@@ -326,13 +335,15 @@ class OfflineApiWrapper {
                     limit: 1,
                   );
                   if (resultsByComment.isNotEmpty) {
-                    projectsBacklogsId = _asInt(resultsByComment.first['sprints_tasks_id']);
+                    projectsBacklogsId =
+                        _asInt(resultsByComment.first['sprints_tasks_id']);
                     if (kDebugMode && projectsBacklogsId != null) {
-                      print('OfflineApiWrapper: Add comment - projects_backlogs_id encontrado pelo comentário no banco: $projectsBacklogsId');
+                      print(
+                          'OfflineApiWrapper: Add comment - projects_backlogs_id encontrado pelo comentário no banco: $projectsBacklogsId');
                     }
                   }
                 }
-                
+
                 // Estratégia 4: Se ainda não encontrou, buscar a tarefa mais recente atualizada
                 if ((projectsBacklogsId == null || projectsBacklogsId == 0)) {
                   final resultsRecent = await db.query(
@@ -343,25 +354,30 @@ class OfflineApiWrapper {
                     limit: 1,
                   );
                   if (resultsRecent.isNotEmpty) {
-                    projectsBacklogsId = _asInt(resultsRecent.first['sprints_tasks_id']);
+                    projectsBacklogsId =
+                        _asInt(resultsRecent.first['sprints_tasks_id']);
                     if (kDebugMode && projectsBacklogsId != null) {
-                      print('OfflineApiWrapper: Add comment - projects_backlogs_id encontrado pela tarefa mais recente: $projectsBacklogsId');
+                      print(
+                          'OfflineApiWrapper: Add comment - projects_backlogs_id encontrado pela tarefa mais recente: $projectsBacklogsId');
                     }
                   }
                 }
               } catch (e) {
                 if (kDebugMode) {
-                  print('OfflineApiWrapper: Erro ao buscar projects_backlogs_id do banco: $e');
+                  print(
+                      'OfflineApiWrapper: Erro ao buscar projects_backlogs_id do banco: $e');
                 }
               }
             }
           }
-          
+
           // Se ainda não tiver projects_backlogs_id válido, logar para debug
           if (projectsBacklogsId == null || projectsBacklogsId == 0) {
             if (kDebugMode) {
-              print('OfflineApiWrapper: Add comment - ERRO: projects_backlogs_id está null ou 0. Body: $body');
-              print('OfflineApiWrapper: Não foi possível encontrar o projects_backlogs_id no banco local.');
+              print(
+                  'OfflineApiWrapper: Add comment - ERRO: projects_backlogs_id está null ou 0. Body: $body');
+              print(
+                  'OfflineApiWrapper: Não foi possível encontrar o projects_backlogs_id no banco local.');
             }
             // Manter o body original - será rejeitado pelo backend se projects_backlogs_id for 0
           } else {
@@ -369,10 +385,11 @@ class OfflineApiWrapper {
             bodyData['projects_backlogs_id'] = projectsBacklogsId;
             body = json.encode(bodyData);
             if (kDebugMode) {
-              print('OfflineApiWrapper: Add comment - Body corrigido com projects_backlogs_id: $projectsBacklogsId');
+              print(
+                  'OfflineApiWrapper: Add comment - Body corrigido com projects_backlogs_id: $projectsBacklogsId');
             }
           }
-          
+
           await _queueGenericApiCall(
             callName: callName,
             apiUrl: apiUrl,
@@ -383,7 +400,7 @@ class OfflineApiWrapper {
             bodyType: bodyType,
           );
           _notifySavedOffline();
-          return ApiCallResponse(
+          return const ApiCallResponse(
             {'success': true, 'offline': true},
             {},
             200,
@@ -400,10 +417,7 @@ class OfflineApiWrapper {
             if (callName.contains('Edita escala dos colaboradores')) {
               final usersRaw = (bodyData['users_id'] as List?)?.cast<dynamic>();
               if (usersRaw != null) {
-                final usersId = usersRaw
-                    .map(_asInt)
-                    .whereType<int>()
-                    .toList();
+                final usersId = usersRaw.map(_asInt).whereType<int>().toList();
                 await _scheduleDao.updateUsersIds(
                   scheduleId: scheduleId,
                   usersId: usersId,
@@ -433,7 +447,7 @@ class OfflineApiWrapper {
             bodyType: bodyType,
           );
           _notifySavedOffline();
-          return ApiCallResponse(
+          return const ApiCallResponse(
             {'success': true, 'offline': true},
             {},
             200,
@@ -477,8 +491,11 @@ class OfflineApiWrapper {
 
             // Return success response
             _notifySavedOffline();
-            return ApiCallResponse(
-              {'success': true, 'message': 'Saved offline, will sync when online'},
+            return const ApiCallResponse(
+              {
+                'success': true,
+                'message': 'Saved offline, will sync when online'
+              },
               {},
               200,
             );
@@ -497,7 +514,7 @@ class OfflineApiWrapper {
         );
 
         _notifySavedOffline();
-        return ApiCallResponse(
+        return const ApiCallResponse(
           {'success': true, 'offline': true},
           {},
           200,
@@ -522,8 +539,11 @@ class OfflineApiWrapper {
           );
 
           _notifySavedOffline();
-          return ApiCallResponse(
-            {'success': true, 'message': 'Deleted offline, will sync when online'},
+          return const ApiCallResponse(
+            {
+              'success': true,
+              'message': 'Deleted offline, will sync when online'
+            },
             {},
             200,
           );
@@ -531,7 +551,7 @@ class OfflineApiWrapper {
       }
 
       // If we can't handle it offline, return error
-      return ApiCallResponse(
+      return const ApiCallResponse(
         null,
         {},
         503,
@@ -609,17 +629,19 @@ class OfflineApiWrapper {
     required Map<String, dynamic> params,
   }) async {
     if (kDebugMode) {
-      print('OfflineApiWrapper: _handleOfflineUpdateSprintTasks - Body recebido: $body');
+      print(
+          'OfflineApiWrapper: _handleOfflineUpdateSprintTasks - Body recebido: $body');
     }
-    
+
     final bodyData = _decodeBodyData(body, params);
     final scheduleId = _asInt(bodyData['schedule_id']);
     final tasksList = (bodyData['tasks_list'] as List?)?.cast<dynamic>() ?? [];
-    
+
     if (kDebugMode) {
-      print('OfflineApiWrapper: scheduleId: $scheduleId, tasksList.length: ${tasksList.length}');
+      print(
+          'OfflineApiWrapper: scheduleId: $scheduleId, tasksList.length: ${tasksList.length}');
     }
-    
+
     // DEBUG: Verificar se o comentário está presente no payload original
     if (kDebugMode) {
       for (int i = 0; i < tasksList.length; i++) {
@@ -627,16 +649,19 @@ class OfflineApiWrapper {
         if (item is Map) {
           final taskId = _asInt(item['sprints_tasks_id'] ?? item['id']);
           final comment = item['comment']?.toString();
-          print('OfflineApiWrapper: Task[$i] - taskId: $taskId, comment: ${comment ?? "NULL"}, comment type: ${comment.runtimeType}');
+          print(
+              'OfflineApiWrapper: Task[$i] - taskId: $taskId, comment: ${comment ?? "NULL"}, comment type: ${comment.runtimeType}');
           if (item.containsKey('comment')) {
-            print('OfflineApiWrapper: Task[$i] - comentário encontrado no payload: ${item['comment']}');
+            print(
+                'OfflineApiWrapper: Task[$i] - comentário encontrado no payload: ${item['comment']}');
           } else {
-            print('OfflineApiWrapper: Task[$i] - AVISO: comentário NÃO encontrado no payload');
+            print(
+                'OfflineApiWrapper: Task[$i] - AVISO: comentário NÃO encontrado no payload');
           }
         }
       }
     }
-    
+
     // Garantir que o tasksList seja uma lista de Maps com comentários preservados
     // O tasksList já vem como lista de Maps do body, mas precisamos garantir que o comentário esteja presente
     final tasksListMaps = <Map<String, dynamic>>[];
@@ -661,13 +686,18 @@ class OfflineApiWrapper {
           // Fallback manual
           map = {
             'sprints_tasks_id': (item as dynamic).sprintsTasksId,
-            'sprints_tasks_statuses_id': (item as dynamic).sprintsTasksStatusesId,
+            'sprints_tasks_statuses_id':
+                (item as dynamic).sprintsTasksStatusesId,
             'quantity_done': (item as dynamic).quantityDone,
             'comment': (item as dynamic).comment?.toString(),
-            if ((item as dynamic).subtasksId != null) 'subtasks_id': (item as dynamic).subtasksId,
-            if ((item as dynamic).sucesso != null) 'sucesso': (item as dynamic).sucesso,
-            if ((item as dynamic).check != null) 'check': (item as dynamic).check,
-            if ((item as dynamic).checkField != null) 'check_field': (item as dynamic).checkField,
+            if ((item as dynamic).subtasksId != null)
+              'subtasks_id': (item as dynamic).subtasksId,
+            if ((item as dynamic).sucesso != null)
+              'sucesso': (item as dynamic).sucesso,
+            if ((item as dynamic).check != null)
+              'check': (item as dynamic).check,
+            if ((item as dynamic).checkField != null)
+              'check_field': (item as dynamic).checkField,
           };
         }
       }
@@ -678,7 +708,6 @@ class OfflineApiWrapper {
     final overridesToSave = <TaskStateOverrideModel>[];
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (final item in tasksListMaps) {
-      if (item is! Map) continue;
       final statusId = _asInt(item['sprints_tasks_statuses_id']);
       int? checkField;
       int? sucesso;
@@ -703,7 +732,7 @@ class OfflineApiWrapper {
       }
       final comment = item['comment']?.toString();
       final taskId = _asInt(item['sprints_tasks_id'] ?? item['id']);
-      
+
       // IMPORTANTE: Armazenar o taskId e comentário para usar no addCommentCall
       if (taskId != null) {
         // Adicionar à lista de taskIds recentes (manter apenas os últimos 10)
@@ -717,11 +746,12 @@ class OfflineApiWrapper {
         if (comment != null && comment.isNotEmpty) {
           _commentToTaskIdMap[comment] = taskId;
           if (kDebugMode) {
-            print('OfflineApiWrapper: Associado comentário "$comment" ao taskId $taskId');
+            print(
+                'OfflineApiWrapper: Associado comentário "$comment" ao taskId $taskId');
           }
         }
       }
-      
+
       // IMPORTANTE: Garantir que o sprints_tasks_id esteja presente no item
       if (taskId != null && !item.containsKey('sprints_tasks_id')) {
         item['sprints_tasks_id'] = taskId;
@@ -729,23 +759,24 @@ class OfflineApiWrapper {
       if (taskId != null && !item.containsKey('id')) {
         item['id'] = taskId;
       }
-      
+
       // IMPORTANTE: Garantir que o projects_backlogs_id esteja presente no item
       // Quando online, o addCommentCall usa projectsBacklogsId: sprintsTasksId
       // Então o projects_backlogs_id deve ser o mesmo que sprints_tasks_id
       if (taskId != null && !item.containsKey('projects_backlogs_id')) {
         item['projects_backlogs_id'] = taskId;
       }
-      
+
       // IMPORTANTE: Garantir que o comentário esteja no item do tasksListMaps ANTES de processar
       // Isso garante que o comentário seja incluído no payload da fila
       if (comment != null && comment.isNotEmpty) {
         item['comment'] = comment;
         if (kDebugMode && taskId != null) {
-          print('OfflineApiWrapper: Comentário encontrado para task $taskId (projects_backlogs_id: ${item['projects_backlogs_id']}): $comment');
+          print(
+              'OfflineApiWrapper: Comentário encontrado para task $taskId (projects_backlogs_id: ${item['projects_backlogs_id']}): $comment');
         }
       }
-      
+
       updates.add({
         'sprints_tasks_id': taskId,
         'sprints_tasks_statuses_id': statusId,
@@ -754,12 +785,13 @@ class OfflineApiWrapper {
         'sucesso': sucesso,
         'comment': comment, // Sempre incluir o comentário, mesmo que seja null
       });
-      
+
       // DEBUG: Log do que está sendo adicionado ao update
       if (kDebugMode && taskId != null) {
-        print('OfflineApiWrapper: Adicionando update para task $taskId - comment: ${comment ?? "NULL"}');
+        print(
+            'OfflineApiWrapper: Adicionando update para task $taskId - comment: ${comment ?? "NULL"}');
       }
-      
+
       // Se houver comentário, salvar no banco local usando o ID correto da tarefa
       if (taskId != null && comment != null && comment.isNotEmpty) {
         try {
@@ -767,7 +799,8 @@ class OfflineApiWrapper {
           final existingTask = await _sprintTaskDao.findById(taskId);
           if (existingTask == null) {
             if (kDebugMode) {
-              print('OfflineApiWrapper: AVISO - Tarefa $taskId não existe no banco. O comentário será salvo via updateStatusBatch.');
+              print(
+                  'OfflineApiWrapper: AVISO - Tarefa $taskId não existe no banco. O comentário será salvo via updateStatusBatch.');
             }
             // A tarefa será atualizada via updateStatusBatch, que também salva o comentário
           } else {
@@ -777,23 +810,27 @@ class OfflineApiWrapper {
               comment: comment,
             );
             if (kDebugMode) {
-              print('OfflineApiWrapper: Comentário salvo no banco local para task $taskId: $comment');
+              print(
+                  'OfflineApiWrapper: Comentário salvo no banco local para task $taskId: $comment');
             }
           }
           // Garantir novamente que o comentário esteja no item do tasksListMaps
           item['comment'] = comment;
         } catch (e, stackTrace) {
           if (kDebugMode) {
-            print('OfflineApiWrapper: Erro ao salvar comentário no banco para task $taskId: $e');
+            print(
+                'OfflineApiWrapper: Erro ao salvar comentário no banco para task $taskId: $e');
             print('OfflineApiWrapper: Stack trace: $stackTrace');
           }
         }
       } else {
         if (kDebugMode) {
           if (taskId == null) {
-            print('OfflineApiWrapper: AVISO - taskId é null, não é possível salvar comentário');
+            print(
+                'OfflineApiWrapper: AVISO - taskId é null, não é possível salvar comentário');
           } else if (comment == null || comment.isEmpty) {
-            print('OfflineApiWrapper: AVISO - comentário é null ou vazio para task $taskId');
+            print(
+                'OfflineApiWrapper: AVISO - comentário é null ou vazio para task $taskId');
           }
         }
       }
@@ -814,18 +851,21 @@ class OfflineApiWrapper {
     }
 
     if (kDebugMode) {
-      print('OfflineApiWrapper: Executando updateStatusBatch com ${updates.length} updates');
+      print(
+          'OfflineApiWrapper: Executando updateStatusBatch com ${updates.length} updates');
       for (final update in updates) {
         final taskId = update['sprints_tasks_id'];
         final comment = update['comment'];
-        print('OfflineApiWrapper: Update para task $taskId - comment: ${comment ?? "NULL"}');
+        print(
+            'OfflineApiWrapper: Update para task $taskId - comment: ${comment ?? "NULL"}');
       }
     }
-    
+
     await _sprintTaskDao.updateStatusBatch(updates);
-    
+
     if (kDebugMode) {
-      print('OfflineApiWrapper: updateStatusBatch concluído. Verificando se os comentários foram salvos...');
+      print(
+          'OfflineApiWrapper: updateStatusBatch concluído. Verificando se os comentários foram salvos...');
       // Verificar se os comentários foram salvos
       for (final update in updates) {
         final taskId = _asInt(update['sprints_tasks_id']);
@@ -834,22 +874,27 @@ class OfflineApiWrapper {
           try {
             final task = await _sprintTaskDao.findById(taskId);
             if (task != null) {
-              print('OfflineApiWrapper: Task $taskId - comentário no banco: ${task.comment ?? "NULL"}');
+              print(
+                  'OfflineApiWrapper: Task $taskId - comentário no banco: ${task.comment ?? "NULL"}');
               if (task.comment != comment) {
-                print('OfflineApiWrapper: ERRO - Comentário não foi salvo corretamente! Esperado: "$comment", Encontrado: "${task.comment}"');
+                print(
+                    'OfflineApiWrapper: ERRO - Comentário não foi salvo corretamente! Esperado: "$comment", Encontrado: "${task.comment}"');
               } else {
-                print('OfflineApiWrapper: OK - Comentário salvo corretamente para task $taskId');
+                print(
+                    'OfflineApiWrapper: OK - Comentário salvo corretamente para task $taskId');
               }
             } else {
-              print('OfflineApiWrapper: ERRO - Task $taskId não encontrada no banco após updateStatusBatch');
+              print(
+                  'OfflineApiWrapper: ERRO - Task $taskId não encontrada no banco após updateStatusBatch');
             }
           } catch (e) {
-            print('OfflineApiWrapper: Erro ao verificar comentário salvo para task $taskId: $e');
+            print(
+                'OfflineApiWrapper: Erro ao verificar comentário salvo para task $taskId: $e');
           }
         }
       }
     }
-    
+
     for (final override in overridesToSave) {
       await _taskStateOverrideDao.upsert(override);
     }
@@ -859,14 +904,15 @@ class OfflineApiWrapper {
     for (int i = 0; i < tasksListMaps.length; i++) {
       final map = tasksListMaps[i];
       final taskId = _asInt(map['sprints_tasks_id'] ?? map['id']);
-      
+
       if (taskId == null) continue;
-      
+
       // Garantir que o sprints_tasks_id esteja presente no Map
-      if (!map.containsKey('sprints_tasks_id') || map['sprints_tasks_id'] == null) {
+      if (!map.containsKey('sprints_tasks_id') ||
+          map['sprints_tasks_id'] == null) {
         map['sprints_tasks_id'] = taskId;
       }
-      
+
       // Buscar comentário do banco local usando o ID correto da tarefa
       try {
         final task = await _sprintTaskDao.findById(taskId);
@@ -874,7 +920,8 @@ class OfflineApiWrapper {
           // Sempre usar o comentário do banco local se existir
           map['comment'] = task.comment;
           if (kDebugMode) {
-            print('OfflineApiWrapper: Comentário encontrado no banco para task $taskId: ${task.comment}');
+            print(
+                'OfflineApiWrapper: Comentário encontrado no banco para task $taskId: ${task.comment}');
           }
         } else {
           // Se não tiver no banco, verificar se está no Map original
@@ -882,7 +929,8 @@ class OfflineApiWrapper {
           if (commentValue != null && commentValue.toString().isNotEmpty) {
             map['comment'] = commentValue.toString();
             if (kDebugMode) {
-              print('OfflineApiWrapper: Comentário do Map original para task $taskId: ${commentValue}');
+              print(
+                  'OfflineApiWrapper: Comentário do Map original para task $taskId: $commentValue');
             }
           } else {
             // Remover comentário vazio/null para não enviar dados desnecessários
@@ -891,7 +939,8 @@ class OfflineApiWrapper {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('OfflineApiWrapper: Erro ao buscar comentário do banco para task $taskId: $e');
+          print(
+              'OfflineApiWrapper: Erro ao buscar comentário do banco para task $taskId: $e');
         }
         // Se der erro, manter o comentário do Map se existir
         final commentValue = map['comment'];
@@ -909,7 +958,8 @@ class OfflineApiWrapper {
         final taskId = _asInt(map['sprints_tasks_id'] ?? map['id']);
         final comment = map['comment']?.toString();
         if (taskId != null) {
-          print('OfflineApiWrapper: Task $taskId - Comentário antes de salvar na fila: ${comment ?? "NULL"}');
+          print(
+              'OfflineApiWrapper: Task $taskId - Comentário antes de salvar na fila: ${comment ?? "NULL"}');
         }
       }
     }
@@ -924,7 +974,7 @@ class OfflineApiWrapper {
       },
     );
 
-    return ApiCallResponse(
+    return const ApiCallResponse(
       {'success': true, 'offline': true},
       {},
       200,
@@ -944,11 +994,12 @@ class OfflineApiWrapper {
     final quantityDone = _asDouble(bodyData['quantity_done']);
 
     if (kDebugMode) {
-      print('OfflineApiWrapper: _handleOfflineUpdateSingleTask - taskId: $taskId, statusId: $statusId, quantityDone: $quantityDone');
+      print(
+          'OfflineApiWrapper: _handleOfflineUpdateSingleTask - taskId: $taskId, statusId: $statusId, quantityDone: $quantityDone');
     }
 
     if (taskId == null) {
-      return ApiCallResponse(
+      return const ApiCallResponse(
         {'success': false, 'error': 'taskId is null'},
         {},
         400,
@@ -956,7 +1007,8 @@ class OfflineApiWrapper {
     }
 
     // Determinar checkField e sucesso com base no statusId
-    int? checkField = 1; // Qualquer atualização de status tira da lista "em andamento"
+    int? checkField =
+        1; // Qualquer atualização de status tira da lista "em andamento"
     int? sucesso;
     if (statusId == 0) {
       sucesso = 0; // Sem sucesso
@@ -978,7 +1030,8 @@ class OfflineApiWrapper {
     // Criar override para mascarar a tarefa na UI
     final task = await _sprintTaskDao.findById(taskId);
     final inspection = (task?.inspection ?? false) ? 1 : 0;
-    final statusGroup = (sucesso != null && sucesso == 0) ? 'sem_sucesso' : 'concluida';
+    final statusGroup =
+        (sucesso != null && sucesso == 0) ? 'sem_sucesso' : 'concluida';
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     await _taskStateOverrideDao.upsert(TaskStateOverrideModel(
@@ -1008,10 +1061,11 @@ class OfflineApiWrapper {
     );
 
     if (kDebugMode) {
-      print('OfflineApiWrapper: Single task $taskId salva offline e enfileirada');
+      print(
+          'OfflineApiWrapper: Single task $taskId salva offline e enfileirada');
     }
 
-    return ApiCallResponse(
+    return const ApiCallResponse(
       {'success': true, 'offline': true},
       {},
       200,
@@ -1071,7 +1125,7 @@ class OfflineApiWrapper {
       bodyType: bodyType,
     );
 
-    return ApiCallResponse(
+    return const ApiCallResponse(
       {'success': true, 'offline': true},
       {},
       200,
@@ -1096,22 +1150,27 @@ class OfflineApiWrapper {
         clientId = schedule?.clientId;
       }
     }
-    
+
     // Tratamento especial para Add comment - garantir que projects_backlogs_id esteja correto
     String? correctedBody = body;
-    if ((callName.contains('Add comment') || apiUrl.contains('/task_comments')) && body != null) {
+    if ((callName.contains('Add comment') ||
+            apiUrl.contains('/task_comments')) &&
+        body != null) {
       try {
         final bodyData = json.decode(body) as Map<String, dynamic>;
         final projectsBacklogsId = _asInt(bodyData['projects_backlogs_id']);
         final comment = bodyData['comment']?.toString();
-        
+
         // Se projects_backlogs_id estiver null ou 0, tentar corrigir
-        if ((projectsBacklogsId == null || projectsBacklogsId == 0) && comment != null && comment.isNotEmpty) {
+        if ((projectsBacklogsId == null || projectsBacklogsId == 0) &&
+            comment != null &&
+            comment.isNotEmpty) {
           // Tentar buscar o sprints_tasks_id do banco local baseado no comentário
           // Ou usar o último taskId processado se disponível
           // Por enquanto, vamos preservar o body original e adicionar um log
           if (kDebugMode) {
-            print('OfflineApiWrapper: Add comment - projects_backlogs_id está null ou 0. Body original: $body');
+            print(
+                'OfflineApiWrapper: Add comment - projects_backlogs_id está null ou 0. Body original: $body');
           }
           // O body será preservado como está, mas quando sincronizar, o backend pode rejeitar
           // Se necessário, podemos tentar buscar do contexto ou do último task processado
@@ -1120,7 +1179,8 @@ class OfflineApiWrapper {
           bodyData['projects_backlogs_id'] = projectsBacklogsId;
           correctedBody = json.encode(bodyData);
           if (kDebugMode) {
-            print('OfflineApiWrapper: Add comment - projects_backlogs_id corrigido: $projectsBacklogsId');
+            print(
+                'OfflineApiWrapper: Add comment - projects_backlogs_id corrigido: $projectsBacklogsId');
           }
         }
       } catch (e) {
@@ -1130,7 +1190,7 @@ class OfflineApiWrapper {
         // Manter body original se houver erro
       }
     }
-    
+
     await _enqueueWithDedupe(
       operationType: callType == ApiCallType.POST
           ? SyncOperationType.create
@@ -1302,7 +1362,8 @@ class OfflineApiWrapper {
           return json.decode(cached.responseJson);
         }
       }
-      if (callName.contains('sprints_tasks') || callName.contains('Query all sprints tasks')) {
+      if (callName.contains('sprints_tasks') ||
+          callName.contains('Query all sprints tasks')) {
         final sprintsId = _normalizeId(params['sprints_id']);
         final projectsId = _normalizeId(params['projects_id']);
         final teamsId = _normalizeId(params['teams_id']);
@@ -1313,7 +1374,8 @@ class OfflineApiWrapper {
 
         if (kDebugMode) {
           final total = await _sprintTaskDao.count();
-          print('OfflineApiWrapper: Total de tarefas no banco local (offline): $total');
+          print(
+              'OfflineApiWrapper: Total de tarefas no banco local (offline): $total');
           print(
               'OfflineApiWrapper: Filtros tarefas offline - sprintsId=$sprintsId projectsId=$projectsId teamsId=$teamsId equipamentsTypesId=$equipamentsTypesId search=${params['search']} perPage=$perPage offset=$offset');
         }
@@ -1328,9 +1390,11 @@ class OfflineApiWrapper {
 
         // Se não encontrou tarefas com os filtros específicos, tentar buscar apenas com sprintsId, projectsId e teamsId
         // Isso garante que mesmo que os filtros sejam diferentes, os dados sejam encontrados
-        if (allTasks.isEmpty && (equipamentsTypesId != null && equipamentsTypesId != 0)) {
+        if (allTasks.isEmpty &&
+            (equipamentsTypesId != null && equipamentsTypesId != 0)) {
           if (kDebugMode) {
-            print('OfflineApiWrapper: Nenhuma tarefa encontrada com filtros específicos, tentando buscar sem filtros adicionais');
+            print(
+                'OfflineApiWrapper: Nenhuma tarefa encontrada com filtros específicos, tentando buscar sem filtros adicionais');
           }
           allTasks = await _sprintTaskDao.findAll(
             sprintsId: sprintsId,
@@ -1340,48 +1404,46 @@ class OfflineApiWrapper {
             search: params['search'] as String?,
           );
           if (kDebugMode) {
-            print('OfflineApiWrapper: Encontradas ${allTasks.length} tarefas sem filtros adicionais');
+            print(
+                'OfflineApiWrapper: Encontradas ${allTasks.length} tarefas sem filtros adicionais');
           }
         }
 
         // Paginar por grupo para manter o comportamento do online
-        List<SprintTaskModel> _paginate(List<SprintTaskModel> list) {
+        List<SprintTaskModel> paginate(List<SprintTaskModel> list) {
           if (list.isEmpty) return list;
           return list.skip(offset).take(perPage).toList();
         }
 
-        int _pageTotal(int total) {
+        int pageTotal0(int total) {
           if (total == 0) return 0;
           return (total / perPage).ceil();
         }
 
-        bool _isDone(SprintTaskModel t) =>
+        bool isDone(SprintTaskModel t) =>
             t.check ||
             t.checkTasks ||
-            (t.sprintsTasksStatusesId != null &&
-                t.sprintsTasksStatusesId != 0);
+            (t.sprintsTasksStatusesId != null && t.sprintsTasksStatusesId != 0);
 
-        final taskIds = allTasks
-            .map((t) => t.sprintsTasksId)
-            .whereType<int>()
-            .toList();
+        final taskIds =
+            allTasks.map((t) => t.sprintsTasksId).whereType<int>().toList();
         final overrides = await _taskStateOverrideDao.findByTaskIds(taskIds);
         final overrideMap = {
           for (final override in overrides) override.sprintsTasksId: override
         };
 
-        String _resolveGroup(SprintTaskModel task) {
+        String resolveGroup(SprintTaskModel task) {
           final override = overrideMap[task.sprintsTasksId];
           if (override != null) {
             return override.statusGroup;
           }
-          if (!_isDone(task)) {
+          if (!isDone(task)) {
             return 'andamento';
           }
           return task.sucesso ? 'concluida' : 'sem_sucesso';
         }
 
-        bool _resolveInspection(SprintTaskModel task) {
+        bool resolveInspection(SprintTaskModel task) {
           final override = overrideMap[task.sprintsTasksId];
           if (override?.inspection != null) {
             return override!.inspection == 1;
@@ -1390,28 +1452,28 @@ class OfflineApiWrapper {
         }
 
         final noInspectionEmAndamento = allTasks
-            .where((t) =>
-                !_resolveInspection(t) && _resolveGroup(t) == 'andamento')
+            .where(
+                (t) => !resolveInspection(t) && resolveGroup(t) == 'andamento')
             .toList();
         final noInspectionConcluidas = allTasks
-            .where((t) =>
-                !_resolveInspection(t) && _resolveGroup(t) == 'concluida')
+            .where(
+                (t) => !resolveInspection(t) && resolveGroup(t) == 'concluida')
             .toList();
         final noInspectionSemSucesso = allTasks
             .where((t) =>
-                !_resolveInspection(t) && _resolveGroup(t) == 'sem_sucesso')
+                !resolveInspection(t) && resolveGroup(t) == 'sem_sucesso')
             .toList();
 
         final inspectionEmAndamento = allTasks
-            .where((t) =>
-                _resolveInspection(t) && _resolveGroup(t) == 'andamento')
+            .where(
+                (t) => resolveInspection(t) && resolveGroup(t) == 'andamento')
             .toList();
         final inspectionConcluidas = allTasks
-            .where((t) =>
-                _resolveInspection(t) && _resolveGroup(t) != 'andamento')
+            .where(
+                (t) => resolveInspection(t) && resolveGroup(t) != 'andamento')
             .toList();
 
-        Map<String, dynamic> _taskToMapWithOverride(SprintTaskModel task) {
+        Map<String, dynamic> taskToMapWithOverride(SprintTaskModel task) {
           final override = overrideMap[task.sprintsTasksId];
           if (override == null) {
             return _taskToMap(task);
@@ -1432,31 +1494,33 @@ class OfflineApiWrapper {
         }
 
         // Convert to API response format (estrutura flat do Painel)
-        final allInspection = [...inspectionEmAndamento, ...inspectionConcluidas];
+        final allInspection = [
+          ...inspectionEmAndamento,
+          ...inspectionConcluidas
+        ];
         return {
           'sprints_tasks_em_andamento': {
-            'items': _paginate(noInspectionEmAndamento)
-                .map(_taskToMapWithOverride)
+            'items': paginate(noInspectionEmAndamento)
+                .map(taskToMapWithOverride)
                 .toList(),
-            'pageTotal': _pageTotal(noInspectionEmAndamento.length),
+            'pageTotal': pageTotal0(noInspectionEmAndamento.length),
           },
           'sprints_tasks_concluidas': {
-            'items': _paginate(noInspectionConcluidas)
-                .map(_taskToMapWithOverride)
+            'items': paginate(noInspectionConcluidas)
+                .map(taskToMapWithOverride)
                 .toList(),
-            'pageTotal': _pageTotal(noInspectionConcluidas.length),
+            'pageTotal': pageTotal0(noInspectionConcluidas.length),
           },
           'sprints_tasks_sem_sucesso': {
-            'items': _paginate(noInspectionSemSucesso)
-                .map(_taskToMapWithOverride)
+            'items': paginate(noInspectionSemSucesso)
+                .map(taskToMapWithOverride)
                 .toList(),
-            'pageTotal': _pageTotal(noInspectionSemSucesso.length),
+            'pageTotal': pageTotal0(noInspectionSemSucesso.length),
           },
           'sprints_tasks_inspecao': {
-            'items': _paginate(allInspection)
-                .map(_taskToMapWithOverride)
-                .toList(),
-            'pageTotal': _pageTotal(allInspection.length),
+            'items':
+                paginate(allInspection).map(taskToMapWithOverride).toList(),
+            'pageTotal': pageTotal0(allInspection.length),
           },
           'sprints_tasks_pendentes': {
             'items': [],
@@ -1476,7 +1540,8 @@ class OfflineApiWrapper {
             .toList();
       }
 
-      if (callName.contains('sprints') || callName.contains('Get sprint ativa')) {
+      if (callName.contains('sprints') ||
+          callName.contains('Get sprint ativa')) {
         final projectsId = _normalizeId(params['projects_id']);
         final sprints = await _sprintDao.findAll(
           projectsId: projectsId,
@@ -1527,14 +1592,17 @@ class OfflineApiWrapper {
       }
 
       // Suporte para lista de membros da equipe
-      if (callName.contains('Lista membros de uma equipe') || callName.contains('membros') || callName.contains('teams_members')) {
+      if (callName.contains('Lista membros de uma equipe') ||
+          callName.contains('membros') ||
+          callName.contains('teams_members')) {
         final teamsId = _normalizeId(params['teams_id']);
         final users = await _userDao.findAll(
           teamsId: teamsId,
           search: params['search'] as String?,
           limit: _asInt(params['per_page']),
           offset: params['page'] != null
-              ? ((_asInt(params['page']) ?? 1) - 1) * (_asInt(params['per_page']) ?? 10)
+              ? ((_asInt(params['page']) ?? 1) - 1) *
+                  (_asInt(params['per_page']) ?? 10)
               : null,
         );
 
@@ -1551,20 +1619,25 @@ class OfflineApiWrapper {
         final items = [
           ...uniqueUsers.values,
           ...withoutId,
-        ].map((user) => <String, dynamic>{
-          'user': <String, dynamic>{
-            'id': user.userId,
-            'name': user.name,
-            'email': user.email,
-            'phone': user.phone,
-            'profile_picture': user.image != null ? <String, dynamic>{'url': user.image} : null,
-            'users_permissions': <String, dynamic>{
-              'users_roles': <String, dynamic>{
-                'role': 'Colaborador', // Valor padrão, pode ser ajustado se necessário
-              },
-            },
-          },
-        }).toList();
+        ]
+            .map((user) => <String, dynamic>{
+                  'user': <String, dynamic>{
+                    'id': user.userId,
+                    'name': user.name,
+                    'email': user.email,
+                    'phone': user.phone,
+                    'profile_picture': user.image != null
+                        ? <String, dynamic>{'url': user.image}
+                        : null,
+                    'users_permissions': <String, dynamic>{
+                      'users_roles': <String, dynamic>{
+                        'role':
+                            'Colaborador', // Valor padrão, pode ser ajustado se necessário
+                      },
+                    },
+                  },
+                })
+            .toList();
 
         // Calcular total de páginas (simplificado para offline)
         final totalUsers = await _userDao.findAll(
@@ -1627,7 +1700,8 @@ class OfflineApiWrapper {
       }
 
       // Salvar sprints_tasks quando online
-      if (callName.contains('sprints_tasks') || callName.contains('Query all sprints tasks')) {
+      if (callName.contains('sprints_tasks') ||
+          callName.contains('Query all sprints tasks')) {
         try {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           final tasksToSave = <SprintTaskModel>[];
@@ -1649,7 +1723,7 @@ class OfflineApiWrapper {
               _normalizeId(AppState().user.teamsId);
 
           // Processar categorias flat do Painel
-          void _processCategory(String jsonPath) {
+          void processCategory(String jsonPath) {
             final items = getJsonField(rootData, jsonPath, true) as List?;
             if (items != null) {
               for (final item in items) {
@@ -1669,11 +1743,11 @@ class OfflineApiWrapper {
             }
           }
 
-          _processCategory(r'''$.sprints_tasks_em_andamento.items''');
-          _processCategory(r'''$.sprints_tasks_concluidas.items''');
-          _processCategory(r'''$.sprints_tasks_sem_sucesso.items''');
-          _processCategory(r'''$.sprints_tasks_inspecao.items''');
-          _processCategory(r'''$.sprints_tasks_pendentes.items''');
+          processCategory(r'''$.sprints_tasks_em_andamento.items''');
+          processCategory(r'''$.sprints_tasks_concluidas.items''');
+          processCategory(r'''$.sprints_tasks_sem_sucesso.items''');
+          processCategory(r'''$.sprints_tasks_inspecao.items''');
+          processCategory(r'''$.sprints_tasks_pendentes.items''');
 
           // Fallback: tentar ler listas diretas caso o payload seja diferente
           if (tasksToSave.isEmpty) {
@@ -1728,9 +1802,11 @@ class OfflineApiWrapper {
             );
             await _taskStateOverrideDao.deleteByTaskIds(taskIds);
             if (kDebugMode) {
-              print('OfflineApiWrapper: Salvos ${tasksToSave.length} tarefas no banco local');
+              print(
+                  'OfflineApiWrapper: Salvos ${tasksToSave.length} tarefas no banco local');
               final total = await _sprintTaskDao.count();
-              print('OfflineApiWrapper: Total de tarefas no banco local: $total');
+              print(
+                  'OfflineApiWrapper: Total de tarefas no banco local: $total');
             }
           } else if (kDebugMode) {
             print('OfflineApiWrapper: Nenhuma tarefa encontrada para salvar');
@@ -1743,12 +1819,15 @@ class OfflineApiWrapper {
       }
 
       // Salvar sprints quando online
-      if (callName.contains('sprints') && callName.contains('Get sprint ativa')) {
+      if (callName.contains('sprints') &&
+          callName.contains('Get sprint ativa')) {
         try {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           final sprintsToSave = <SprintModel>[];
 
-          final sprintsAtiva = getJsonField(jsonData, r'''$.sprints_ativa.items''', true) as List?;
+          final sprintsAtiva =
+              getJsonField(jsonData, r'''$.sprints_ativa.items''', true)
+                  as List?;
           if (sprintsAtiva != null) {
             for (final item in sprintsAtiva) {
               final sprintId = _asInt(getJsonField(item, r'''$.id'''));
@@ -1765,7 +1844,8 @@ class OfflineApiWrapper {
                 sprintsStatusesId:
                     _asInt(getJsonField(item, r'''$.sprints_statuses_id''')),
                 updatedAt: now,
-                createdAt: _asInt(getJsonField(item, r'''$.created_at''')) ?? now,
+                createdAt:
+                    _asInt(getJsonField(item, r'''$.created_at''')) ?? now,
                 syncedAt: now,
               );
               sprintsToSave.add(sprint);
@@ -1775,7 +1855,8 @@ class OfflineApiWrapper {
           if (sprintsToSave.isNotEmpty) {
             await _sprintDao.insertOrUpdateBatch(sprintsToSave);
             if (kDebugMode) {
-              print('OfflineApiWrapper: Salvos ${sprintsToSave.length} sprints no banco local');
+              print(
+                  'OfflineApiWrapper: Salvos ${sprintsToSave.length} sprints no banco local');
             }
           }
         } catch (e) {
@@ -1870,7 +1951,8 @@ class OfflineApiWrapper {
               await _scheduleDao.insert(schedule);
             }
             if (kDebugMode) {
-              print('OfflineApiWrapper: Salvas ${schedulesToSave.length} escalas no banco local');
+              print(
+                  'OfflineApiWrapper: Salvas ${schedulesToSave.length} escalas no banco local');
             }
           }
         } catch (e) {
@@ -1881,14 +1963,16 @@ class OfflineApiWrapper {
       }
 
       // Salvar membros da equipe quando online
-      if (callName.contains('Lista membros de uma equipe') || callName.contains('membros') || callName.contains('teams_members')) {
+      if (callName.contains('Lista membros de uma equipe') ||
+          callName.contains('membros') ||
+          callName.contains('teams_members')) {
         try {
           // jsonBody pode ser String ou Map
           dynamic jsonData = jsonBody;
           if (jsonBody is String) {
             jsonData = json.decode(jsonBody);
           }
-          
+
           final items = getJsonField(jsonData, r'''$.items''', true) as List?;
           if (items != null) {
             final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -1897,8 +1981,10 @@ class OfflineApiWrapper {
             for (final item in items) {
               final userData = getJsonField(item, r'''$.user''');
               if (userData != null) {
-                final profilePicture = getJsonField(userData, r'''$.profile_picture.url''')?.toString();
-                
+                final profilePicture =
+                    getJsonField(userData, r'''$.profile_picture.url''')
+                        ?.toString();
+
                 final user = UserModel(
                   id: _asInt(getJsonField(userData, r'''$.id''')),
                   userId: _asInt(getJsonField(userData, r'''$.id''')),
@@ -1918,7 +2004,8 @@ class OfflineApiWrapper {
             if (usersToSave.isNotEmpty) {
               await _userDao.insertOrUpdateBatch(usersToSave);
               if (kDebugMode) {
-                print('OfflineApiWrapper: Salvos ${usersToSave.length} membros da equipe no banco local');
+                print(
+                    'OfflineApiWrapper: Salvos ${usersToSave.length} membros da equipe no banco local');
               }
             }
           }
@@ -1936,7 +2023,8 @@ class OfflineApiWrapper {
   }
 
   /// Save data to local database
-  Future<void> _saveToLocal(String entityType, Map<String, dynamic> data) async {
+  Future<void> _saveToLocal(
+      String entityType, Map<String, dynamic> data) async {
     try {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
@@ -2032,7 +2120,8 @@ class OfflineApiWrapper {
       'sprints_tasks_statuses_id': task.sprintsTasksStatusesId,
       'subtasks_id': task.subtasksId,
       'unity_id': task.unityId,
-      'unity': task.unity != null ? {'id': task.unityId, 'unity': task.unity} : null,
+      'unity':
+          task.unity != null ? {'id': task.unityId, 'unity': task.unity} : null,
       'quantity_done': task.quantityDone,
       'check': task.check,
       'check_field': task.check ? 1 : 0,
@@ -2072,22 +2161,26 @@ class OfflineApiWrapper {
       'projects_id': schedule.projectsId,
       'sprints_id': schedule.sprintsId,
       'schedule_date': schedule.scheduleDate,
-      'users_id': schedule.usersId != null ? json.decode(schedule.usersId!) : null,
-      'sprints_tasks_id': schedule.sprintsTasksId != null ? json.decode(schedule.sprintsTasksId!) : null,
+      'users_id':
+          schedule.usersId != null ? json.decode(schedule.usersId!) : null,
+      'sprints_tasks_id': schedule.sprintsTasksId != null
+          ? json.decode(schedule.sprintsTasksId!)
+          : null,
     };
   }
 
   /// Parse schedule from API response format
   ScheduleModel? _parseScheduleFromApi(dynamic item) {
     try {
-      final scheduleId =
-          _asInt(getJsonField(item, r'''$.schedule_id''')) ??
-              _asInt(getJsonField(item, r'''$.id'''));
+      final scheduleId = _asInt(getJsonField(item, r'''$.schedule_id''')) ??
+          _asInt(getJsonField(item, r'''$.id'''));
       final usersIdRaw = getJsonField(item, r'''$.users_id''', true);
-      final sprintsTasksIdRaw = getJsonField(item, r'''$.sprints_tasks_id''', true);
+      final sprintsTasksIdRaw =
+          getJsonField(item, r'''$.sprints_tasks_id''', true);
 
-      final scheduleDate = getJsonField(item, r'''$.schedule_date''')?.toString() ??
-          DateTime.now().toIso8601String().split('T').first;
+      final scheduleDate =
+          getJsonField(item, r'''$.schedule_date''')?.toString() ??
+              DateTime.now().toIso8601String().split('T').first;
 
       return ScheduleModel(
         id: scheduleId,
@@ -2097,7 +2190,8 @@ class OfflineApiWrapper {
         sprintsId: _asInt(getJsonField(item, r'''$.sprints_id''')),
         scheduleDate: scheduleDate,
         usersId: usersIdRaw != null ? json.encode(usersIdRaw) : null,
-        sprintsTasksId: sprintsTasksIdRaw != null ? json.encode(sprintsTasksIdRaw) : null,
+        sprintsTasksId:
+            sprintsTasksIdRaw != null ? json.encode(sprintsTasksIdRaw) : null,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -2118,7 +2212,7 @@ class OfflineApiWrapper {
       final unityData = getJsonField(item, r'''$.unity''');
       String? unityStr;
       int? unityId;
-      
+
       if (unityData is Map) {
         unityStr = getJsonField(unityData, r'''$.unity''')?.toString();
         unityId = _asInt(getJsonField(unityData, r'''$.id'''));
@@ -2133,8 +2227,8 @@ class OfflineApiWrapper {
       int? equipamentsTypesId;
 
       if (projectsBacklogs != null) {
-        equipamentsTypesId =
-            _asInt(getJsonField(projectsBacklogs, r'''$.equipaments_types_id'''));
+        equipamentsTypesId = _asInt(
+            getJsonField(projectsBacklogs, r'''$.equipaments_types_id'''));
         fallbackProjectsId ??=
             _asInt(getJsonField(projectsBacklogs, r'''$.projects_id'''));
       }
@@ -2144,21 +2238,17 @@ class OfflineApiWrapper {
       final subtasksJson = subtasks != null ? json.encode(subtasks) : null;
       final canConclude = _asBool(canConcludeRaw);
 
-      final taskId =
-          _asInt(getJsonField(item, r'''$.sprints_tasks_id''')) ??
-              _asInt(getJsonField(item, r'''$.id'''));
+      final taskId = _asInt(getJsonField(item, r'''$.sprints_tasks_id''')) ??
+          _asInt(getJsonField(item, r'''$.id'''));
       return SprintTaskModel(
         id: taskId,
         sprintsTasksId: taskId,
-        sprintsId:
-            _asInt(getJsonField(item, r'''$.sprints_id''')) ??
-                fallbackSprintsId,
-        projectsId:
-            _asInt(getJsonField(item, r'''$.projects_id''')) ??
-                fallbackProjectsId,
+        sprintsId: _asInt(getJsonField(item, r'''$.sprints_id''')) ??
+            fallbackSprintsId,
+        projectsId: _asInt(getJsonField(item, r'''$.projects_id''')) ??
+            fallbackProjectsId,
         teamsId:
-            _asInt(getJsonField(item, r'''$.teams_id''')) ??
-                fallbackTeamsId,
+            _asInt(getJsonField(item, r'''$.teams_id''')) ?? fallbackTeamsId,
         description: getJsonField(item, r'''$.description''')?.toString(),
         sprintsTasksStatusesId:
             _asInt(getJsonField(item, r'''$.sprints_tasks_statuses_id''')),
@@ -2166,20 +2256,20 @@ class OfflineApiWrapper {
         unityId: unityId ?? _asInt(getJsonField(item, r'''$.unity_id''')),
         unity: unityStr,
         quantityDone: _asDouble(getJsonField(item, r'''$.quantity_done''')),
-        check: getJsonField(item, r'''$.check''') == true || 
-               getJsonField(item, r'''$.check_field''') == 1 ||
-               getJsonField(item, r'''$.check_field''') == true,
-        sucesso: getJsonField(item, r'''$.sucesso''') != false && 
-                 getJsonField(item, r'''$.sucesso''') != 0 &&
-                 getJsonField(item, r'''$.sucesso''') != false,
-        inspection: getJsonField(item, r'''$.inspection''') == true || 
-                    getJsonField(item, r'''$.inspection''') == 1,
+        check: getJsonField(item, r'''$.check''') == true ||
+            getJsonField(item, r'''$.check_field''') == 1 ||
+            getJsonField(item, r'''$.check_field''') == true,
+        sucesso: getJsonField(item, r'''$.sucesso''') != false &&
+            getJsonField(item, r'''$.sucesso''') != 0 &&
+            getJsonField(item, r'''$.sucesso''') != false,
+        inspection: getJsonField(item, r'''$.inspection''') == true ||
+            getJsonField(item, r'''$.inspection''') == 1,
         canConclude: canConclude,
         comment: getJsonField(item, r'''$.comment''')?.toString(),
-        firstComment: getJsonField(item, r'''$.first_comment''') == true || 
-                      getJsonField(item, r'''$.first_comment''') == 1,
-        checkTasks: getJsonField(item, r'''$.checkTasks''') == true || 
-                    getJsonField(item, r'''$.check_tasks''') == 1,
+        firstComment: getJsonField(item, r'''$.first_comment''') == true ||
+            getJsonField(item, r'''$.first_comment''') == 1,
+        checkTasks: getJsonField(item, r'''$.checkTasks''') == true ||
+            getJsonField(item, r'''$.check_tasks''') == 1,
         equipamentsTypesId: equipamentsTypesId ??
             _asInt(getJsonField(item, r'''$.equipaments_types_id''')),
         projectsBacklogsJson: projectsBacklogsJson,

@@ -89,12 +89,12 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
     context.watch<AppState>();
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
+        padding: const EdgeInsetsDirectional.fromSTEB(16.0, 24.0, 16.0, 24.0),
         child: Container(
           width: 530.0,
-          constraints: BoxConstraints(
+          constraints: const BoxConstraints(
             maxHeight: double.infinity,
           ),
           decoration: BoxDecoration(
@@ -109,13 +109,13 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 24.0),
+            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 24.0),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   Padding(
-                    padding: EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,7 +126,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 16.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -142,7 +142,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                       ),
                                     ),
                                     Align(
-                                      alignment: AlignmentDirectional(0.0, 0.0),
+                                      alignment: const AlignmentDirectional(0.0, 0.0),
                                       child: Icon(
                                         Icons.task,
                                         color: AppTheme.of(context)
@@ -152,7 +152,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     ),
                                     Align(
                                       alignment:
-                                          AlignmentDirectional(1.0, -1.0),
+                                          const AlignmentDirectional(1.0, -1.0),
                                       child: AppIconButton(
                                         borderColor:
                                             AppTheme.of(context)
@@ -203,9 +203,9 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     ),
                               ),
                               Align(
-                                alignment: AlignmentDirectional(-1.0, 0.0),
+                                alignment: const AlignmentDirectional(-1.0, 0.0),
                                 child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       0.0, 8.0, 0.0, 0.0),
                                   child: Text(
                                     AppLocalizations.of(context).getText(
@@ -238,7 +238,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 24.0, 0.0, 0.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -246,22 +246,22 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     Expanded(
                                       child: Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, 1.0),
+                                            const AlignmentDirectional(1.0, 1.0),
                                         child: Builder(
                                           builder: (context) => AppButton(
                                             onPressed: () async {
-                                              var _shouldSetState = false;
+                                              var shouldSetState = false;
                                               
                                               // Sincronizar comentários do tasksfinish para taskslist
                                               for (final finishItem in AppState().tasksfinish) {
-                                                if (finishItem.comment != null && finishItem.comment!.isNotEmpty) {
+                                                if (finishItem.comment.isNotEmpty) {
                                                   final taskIndex = AppState().taskslist.indexWhere(
                                                     (task) => task.sprintsTasksId == finishItem.sprintsTasksId,
                                                   );
                                                   if (taskIndex >= 0) {
                                                     final currentComment = AppState().taskslist[taskIndex].comment;
                                                     // Só atualiza se o comentário do tasksfinish não estiver vazio e for diferente
-                                                    if (currentComment == null || currentComment.isEmpty || currentComment != finishItem.comment) {
+                                                    if (currentComment.isEmpty || currentComment != finishItem.comment) {
                                                       AppState().updateTaskslistAtIndex(
                                                         taskIndex,
                                                         (task) => task..comment = finishItem.comment,
@@ -288,7 +288,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                     .toList(),
                                               );
 
-                                              _shouldSetState = true;
+                                              shouldSetState = true;
                                               if ((_model
                                                       .editProgressSprintSucesso
                                                       ?.succeeded ??
@@ -320,7 +320,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                       backgroundColor:
                                                           Colors.transparent,
                                                       alignment:
-                                                          AlignmentDirectional(
+                                                          const AlignmentDirectional(
                                                                   0.0, 0.0)
                                                               .resolve(
                                                                   Directionality.of(
@@ -344,13 +344,15 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                   },
                                                 );
 
-                                                if (_shouldSetState)
+                                                if (shouldSetState) {
                                                   safeSetState(() {});
+                                                }
                                                 return;
                                               }
 
-                                              if (_shouldSetState)
+                                              if (shouldSetState) {
                                                 safeSetState(() {});
+                                              }
                                             },
                                             text: AppLocalizations.of(context)
                                                 .getText(
@@ -359,10 +361,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             options: AppButtonOptions(
                                               width: 200.0,
                                               height: 48.0,
-                                              padding: EdgeInsetsDirectional
+                                              padding: const EdgeInsetsDirectional
                                                   .fromSTEB(
                                                       16.0, 0.0, 16.0, 0.0),
-                                              iconPadding: EdgeInsetsDirectional
+                                              iconPadding: const EdgeInsetsDirectional
                                                   .fromSTEB(0.0, 0.0, 0.0, 0.0),
                                               color:
                                                   AppTheme.of(context)
@@ -410,7 +412,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     Expanded(
                                       child: Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, 1.0),
+                                            const AlignmentDirectional(1.0, 1.0),
                                         child: AppButton(
                                           onPressed: () async {
                                             _model.fase = 2;
@@ -424,10 +426,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             width: 200.0,
                                             height: 48.0,
                                             padding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     16.0, 0.0, 16.0, 0.0),
                                             iconPadding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     0.0, 0.0, 0.0, 0.0),
                                             color: AppTheme.of(context)
                                                 .status01,
@@ -471,7 +473,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                         ),
                                       ),
                                     ),
-                                  ].divide(SizedBox(width: 16.0)),
+                                  ].divide(const SizedBox(width: 16.0)),
                                 ),
                               ),
                             ],
@@ -482,7 +484,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 16.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -498,7 +500,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                       ),
                                     ),
                                     Align(
-                                      alignment: AlignmentDirectional(0.0, 0.0),
+                                      alignment: const AlignmentDirectional(0.0, 0.0),
                                       child: Icon(
                                         Icons.task,
                                         color: AppTheme.of(context)
@@ -508,7 +510,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     ),
                                     Align(
                                       alignment:
-                                          AlignmentDirectional(1.0, -1.0),
+                                          const AlignmentDirectional(1.0, -1.0),
                                       child: AppIconButton(
                                         borderColor:
                                             AppTheme.of(context)
@@ -557,9 +559,9 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     ),
                               ),
                               Align(
-                                alignment: AlignmentDirectional(-1.0, 0.0),
+                                alignment: const AlignmentDirectional(-1.0, 0.0),
                                 child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       0.0, 8.0, 0.0, 0.0),
                                   child: Text(
                                     AppLocalizations.of(context).getText(
@@ -592,7 +594,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 16.0, 0.0, 0.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -684,7 +686,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                               ),
                               Builder(
                                 builder: (context) => Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       0.0, 4.0, 0.0, 0.0),
                                   child: InkWell(
                                     splashColor: Colors.transparent,
@@ -698,19 +700,19 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                         isGlobal: false,
                                         avoidOverflow: true,
                                         targetAnchor:
-                                            AlignmentDirectional(1.0, 1.0)
+                                            const AlignmentDirectional(1.0, 1.0)
                                                 .resolve(
                                                     Directionality.of(context)),
                                         followerAnchor:
-                                            AlignmentDirectional(-1.0, -1.0)
+                                            const AlignmentDirectional(-1.0, -1.0)
                                                 .resolve(
                                                     Directionality.of(context)),
                                         builder: (dialogContext) {
                                           return Material(
                                             color: Colors.transparent,
-                                            child: Container(
+                                            child: SizedBox(
                                               width: 530.0,
-                                              child: TasksSemSucessoWidget(),
+                                              child: const TasksSemSucessoWidget(),
                                             ),
                                           );
                                         },
@@ -730,7 +732,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                         ),
                                       ),
                                       child: Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             12.0, 0.0, 12.0, 0.0),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
@@ -799,7 +801,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 24.0, 0.0, 0.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -807,7 +809,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     Expanded(
                                       child: Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, 1.0),
+                                            const AlignmentDirectional(1.0, 1.0),
                                         child: Builder(
                                           builder: (context) => AppButton(
                                             onPressed: () async {
@@ -833,7 +835,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                       backgroundColor:
                                                           Colors.transparent,
                                                       alignment:
-                                                          AlignmentDirectional(
+                                                          const AlignmentDirectional(
                                                                   0.0, 0.0)
                                                               .resolve(
                                                                   Directionality.of(
@@ -867,10 +869,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             options: AppButtonOptions(
                                               width: 200.0,
                                               height: 48.0,
-                                              padding: EdgeInsetsDirectional
+                                              padding: const EdgeInsetsDirectional
                                                   .fromSTEB(
                                                       16.0, 0.0, 16.0, 0.0),
-                                              iconPadding: EdgeInsetsDirectional
+                                              iconPadding: const EdgeInsetsDirectional
                                                   .fromSTEB(0.0, 0.0, 0.0, 0.0),
                                               color:
                                                   AppTheme.of(context)
@@ -918,7 +920,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     Expanded(
                                       child: Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, 1.0),
+                                            const AlignmentDirectional(1.0, 1.0),
                                         child: AppButton(
                                           onPressed: () async {
                                             _model.fase = 1;
@@ -932,10 +934,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             width: 200.0,
                                             height: 48.0,
                                             padding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     16.0, 0.0, 16.0, 0.0),
                                             iconPadding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     0.0, 0.0, 0.0, 0.0),
                                             color: AppTheme.of(context)
                                                 .alternate,
@@ -984,7 +986,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                         ),
                                       ),
                                     ),
-                                  ].divide(SizedBox(width: 16.0)),
+                                  ].divide(const SizedBox(width: 16.0)),
                                 ),
                               ),
                             ],
@@ -995,7 +997,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 0.0, 0.0, 16.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -1011,7 +1013,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                       ),
                                     ),
                                     Align(
-                                      alignment: AlignmentDirectional(0.0, 0.0),
+                                      alignment: const AlignmentDirectional(0.0, 0.0),
                                       child: Icon(
                                         Icons.task,
                                         color: AppTheme.of(context)
@@ -1021,7 +1023,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     ),
                                     Align(
                                       alignment:
-                                          AlignmentDirectional(1.0, -1.0),
+                                          const AlignmentDirectional(1.0, -1.0),
                                       child: AppIconButton(
                                         borderColor:
                                             AppTheme.of(context)
@@ -1070,9 +1072,9 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     ),
                               ),
                               Align(
-                                alignment: AlignmentDirectional(-1.0, 0.0),
+                                alignment: const AlignmentDirectional(-1.0, 0.0),
                                 child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
                                       0.0, 8.0, 0.0, 0.0),
                                   child: RichText(
                                     textScaler:
@@ -1126,7 +1128,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                               .getText(
                                             'jvqcbyev' /*  ou  */,
                                           ),
-                                          style: TextStyle(),
+                                          style: const TextStyle(),
                                         ),
                                         TextSpan(
                                           text: AppLocalizations.of(context)
@@ -1144,7 +1146,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                               .getText(
                                             '5rc9klky' /* ". */,
                                           ),
-                                          style: TextStyle(),
+                                          style: const TextStyle(),
                                         )
                                       ],
                                       style: AppTheme.of(context)
@@ -1175,7 +1177,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 8.0, 0.0, 0.0),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.max,
@@ -1248,7 +1250,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                               .alternate,
                                       borderWidth: 0.0,
                                       borderRadius: 12.0,
-                                      margin: EdgeInsetsDirectional.fromSTEB(
+                                      margin: const EdgeInsetsDirectional.fromSTEB(
                                           12.0, 0.0, 12.0, 0.0),
                                       hidesUnderline: true,
                                       isOverButton: false,
@@ -1289,10 +1291,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             ),
                                       ),
                                     Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 8.0, 0.0, 0.0),
                                       child: Container(
-                                        constraints: BoxConstraints(
+                                        constraints: const BoxConstraints(
                                           maxHeight: 280.0,
                                         ),
                                         decoration: BoxDecoration(
@@ -1311,7 +1313,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                               scrollDirection: Axis.vertical,
                                               itemCount: falhas.length,
                                               separatorBuilder: (_, __) =>
-                                                  SizedBox(height: 8.0),
+                                                  const SizedBox(height: 8.0),
                                               itemBuilder:
                                                   (context, falhasIndex) {
                                                 final falhasItem =
@@ -1328,17 +1330,17 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                           if (falhasItem
                                                                   .sprintsTasksStatusesId ==
                                                               1) {
-                                                            return Color(
+                                                            return const Color(
                                                                 0xFFFFE9E9);
                                                           } else if (falhasItem
                                                                   .sprintsTasksStatusesId ==
                                                               2) {
-                                                            return Color(
+                                                            return const Color(
                                                                 0xFFFEF7D6);
                                                           } else if (falhasItem
                                                                   .sprintsTasksStatusesId ==
                                                               3) {
-                                                            return Color(
+                                                            return const Color(
                                                                 0xFFD2FFEC);
                                                           } else {
                                                             return AppTheme
@@ -1375,16 +1377,16 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                             0.0,
                                                           )),
                                                           topLeft:
-                                                              Radius.circular(
+                                                              const Radius.circular(
                                                                   8.0),
                                                           topRight:
-                                                              Radius.circular(
+                                                              const Radius.circular(
                                                                   8.0),
                                                         ),
                                                       ),
                                                       child: Padding(
                                                         padding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     8.0,
                                                                     4.0,
@@ -1396,7 +1398,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                           children: [
                                                             Padding(
                                                               padding:
-                                                                  EdgeInsetsDirectional
+                                                                  const EdgeInsetsDirectional
                                                                       .fromSTEB(
                                                                           0.0,
                                                                           0.0,
@@ -1459,8 +1461,8 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                         height:
                                                                             30.0,
                                                                         decoration:
-                                                                            BoxDecoration(),
-                                                                        alignment: AlignmentDirectional(
+                                                                            const BoxDecoration(),
+                                                                        alignment: const AlignmentDirectional(
                                                                             0.0,
                                                                             0.0),
                                                                         child:
@@ -1529,8 +1531,8 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                         height:
                                                                             30.0,
                                                                         decoration:
-                                                                            BoxDecoration(),
-                                                                        alignment: AlignmentDirectional(
+                                                                            const BoxDecoration(),
+                                                                        alignment: const AlignmentDirectional(
                                                                             0.0,
                                                                             0.0),
                                                                         child:
@@ -1551,7 +1553,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                                   width: 2.0,
                                                                                 ),
                                                                               ),
-                                                                              alignment: AlignmentDirectional(0.0, 0.0),
+                                                                              alignment: const AlignmentDirectional(0.0, 0.0),
                                                                               child: Icon(
                                                                                 Icons.check_rounded,
                                                                                 color: AppTheme.of(context).secondaryBackground,
@@ -1567,9 +1569,9 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                     height:
                                                                         30.0,
                                                                     decoration:
-                                                                        BoxDecoration(),
+                                                                        const BoxDecoration(),
                                                                     alignment:
-                                                                        AlignmentDirectional(
+                                                                        const AlignmentDirectional(
                                                                             0.0,
                                                                             0.0),
                                                                     child:
@@ -1598,7 +1600,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                               ),
                                                                             ),
                                                                             alignment:
-                                                                                AlignmentDirectional(0.0, 0.0),
+                                                                                const AlignmentDirectional(0.0, 0.0),
                                                                             child:
                                                                                 Icon(
                                                                               Icons.check_rounded,
@@ -1665,7 +1667,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                         'osm9t2ao' /*  -  */,
                                                                       ),
                                                                       style:
-                                                                          TextStyle(),
+                                                                          const TextStyle(),
                                                                     ),
                                                                     TextSpan(
                                                                       text: valueOrDefault<
@@ -1675,7 +1677,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                                         'txt',
                                                                       ),
                                                                       style:
-                                                                          TextStyle(),
+                                                                          const TextStyle(),
                                                                     )
                                                                   ],
                                                                   style: AppTheme.of(
@@ -1748,7 +1750,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     0.0, 24.0, 0.0, 0.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
@@ -1756,11 +1758,11 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     Expanded(
                                       child: Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, 1.0),
+                                            const AlignmentDirectional(1.0, 1.0),
                                         child: Builder(
                                           builder: (context) => AppButton(
                                             onPressed: () async {
-                                              var _shouldSetState = false;
+                                              var shouldSetState = false;
                                               if (!functions.allStatus(
                                                   AppState()
                                                       .taskslist
@@ -1775,7 +1777,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                       backgroundColor:
                                                           Colors.transparent,
                                                       alignment:
-                                                          AlignmentDirectional(
+                                                          const AlignmentDirectional(
                                                                   0.0, 0.0)
                                                               .resolve(
                                                                   Directionality.of(
@@ -1798,21 +1800,22 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                   },
                                                 );
 
-                                                if (_shouldSetState)
+                                                if (shouldSetState) {
                                                   safeSetState(() {});
+                                                }
                                                 return;
                                               }
                                               
                                               // Sincronizar comentários do tasksfinish para taskslist
                                               for (final finishItem in AppState().tasksfinish) {
-                                                if (finishItem.comment != null && finishItem.comment!.isNotEmpty) {
+                                                if (finishItem.comment.isNotEmpty) {
                                                   final taskIndex = AppState().taskslist.indexWhere(
                                                     (task) => task.sprintsTasksId == finishItem.sprintsTasksId,
                                                   );
                                                   if (taskIndex >= 0) {
                                                     final currentComment = AppState().taskslist[taskIndex].comment;
                                                     // Só atualiza se o comentário do tasksfinish não estiver vazio e for diferente
-                                                    if (currentComment == null || currentComment.isEmpty || currentComment != finishItem.comment) {
+                                                    if (currentComment.isEmpty || currentComment != finishItem.comment) {
                                                       AppState().updateTaskslistAtIndex(
                                                         taskIndex,
                                                         (task) => task..comment = finishItem.comment,
@@ -1839,7 +1842,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                     .toList(),
                                               );
 
-                                              _shouldSetState = true;
+                                              shouldSetState = true;
                                               if ((_model
                                                       .editProgressSprintSemSucesso
                                                       ?.succeeded ??
@@ -1884,7 +1887,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                         currentAuthenticationToken,
                                                   );
 
-                                                  _shouldSetState = true;
+                                                  shouldSetState = true;
                                                 }
                                                 AppState().comment = '';
                                                 AppState().taskslist = [];
@@ -1896,7 +1899,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                       .routeName,
                                                   extra: <String, dynamic>{
                                                     kTransitionInfoKey:
-                                                        TransitionInfo(
+                                                        const TransitionInfo(
                                                       hasTransition: true,
                                                       transitionType:
                                                           PageTransitionType
@@ -1917,7 +1920,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                       backgroundColor:
                                                           Colors.transparent,
                                                       alignment:
-                                                          AlignmentDirectional(
+                                                          const AlignmentDirectional(
                                                                   0.0, 0.0)
                                                               .resolve(
                                                                   Directionality.of(
@@ -1941,13 +1944,15 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                                   },
                                                 );
 
-                                                if (_shouldSetState)
+                                                if (shouldSetState) {
                                                   safeSetState(() {});
+                                                }
                                                 return;
                                               }
 
-                                              if (_shouldSetState)
+                                              if (shouldSetState) {
                                                 safeSetState(() {});
+                                              }
                                             },
                                             text: AppLocalizations.of(context)
                                                 .getText(
@@ -1956,10 +1961,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             options: AppButtonOptions(
                                               width: 200.0,
                                               height: 48.0,
-                                              padding: EdgeInsetsDirectional
+                                              padding: const EdgeInsetsDirectional
                                                   .fromSTEB(
                                                       16.0, 0.0, 16.0, 0.0),
-                                              iconPadding: EdgeInsetsDirectional
+                                              iconPadding: const EdgeInsetsDirectional
                                                   .fromSTEB(0.0, 0.0, 0.0, 0.0),
                                               color:
                                                   AppTheme.of(context)
@@ -2007,7 +2012,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                     Expanded(
                                       child: Align(
                                         alignment:
-                                            AlignmentDirectional(1.0, 1.0),
+                                            const AlignmentDirectional(1.0, 1.0),
                                         child: AppButton(
                                           onPressed: () async {
                                             _model.fase = 2;
@@ -2021,10 +2026,10 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                             width: 200.0,
                                             height: 48.0,
                                             padding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     16.0, 0.0, 16.0, 0.0),
                                             iconPadding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     0.0, 0.0, 0.0, 0.0),
                                             color: AppTheme.of(context)
                                                 .alternate,
@@ -2073,7 +2078,7 @@ class _ConfirmdialogWidgetState extends State<ConfirmdialogWidget> {
                                         ),
                                       ),
                                     ),
-                                  ].divide(SizedBox(width: 16.0)),
+                                  ].divide(const SizedBox(width: 16.0)),
                                 ),
                               ),
                             ],

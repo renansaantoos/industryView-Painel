@@ -98,7 +98,7 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
         PageCheckQrcodeWidget.routeName,
         context.mounted,
         extra: <String, dynamic>{
-          kTransitionInfoKey: TransitionInfo(
+          kTransitionInfoKey: const TransitionInfo(
             hasTransition: true,
             transitionType: PageTransitionType.fade,
           ),
@@ -175,7 +175,7 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
           ProjectSelectionWidget.routeName,
           context.mounted,
           extra: <String, dynamic>{
-            kTransitionInfoKey: TransitionInfo(
+            kTransitionInfoKey: const TransitionInfo(
               hasTransition: true,
               transitionType: PageTransitionType.fade,
             ),
@@ -189,7 +189,7 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
         PageCheckQrcodeWidget.routeName,
         context.mounted,
         extra: <String, dynamic>{
-          kTransitionInfoKey: TransitionInfo(
+          kTransitionInfoKey: const TransitionInfo(
             hasTransition: true,
             transitionType: PageTransitionType.fade,
           ),
@@ -250,16 +250,16 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
           top: true,
           child: SingleChildScrollView(
             child: Align(
-              alignment: AlignmentDirectional(0.0, 0.0),
+              alignment: const AlignmentDirectional(0.0, 0.0),
               child: Padding(
                 padding:
-                    EdgeInsetsDirectional.fromSTEB(30.0, 0.0, 32.0, 32.0),
+                    const EdgeInsetsDirectional.fromSTEB(30.0, 0.0, 32.0, 32.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
                           0.0, 0.0, 0.0, 24.0),
                       child: Text(
                         'IndustryView',
@@ -308,9 +308,9 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.business_rounded,
+                                  const Icon(Icons.business_rounded,
                                       size: 14,
-                                      color: const Color(0xFF2B5EA7)),
+                                      color: Color(0xFF2B5EA7)),
                                   const SizedBox(width: 6),
                                   Text(
                                     widget.projectName,
@@ -348,7 +348,7 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
                               ),
                             ),
                             Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   0.0, 4.0, 0.0, 16.0),
                               child: Text(
                                 AppLocalizations.of(context)
@@ -380,7 +380,7 @@ class _TeamSelectionWidgetState extends State<TeamSelectionWidget> {
                               final team = widget.teams[index];
                               return Padding(
                                 padding:
-                                    EdgeInsetsDirectional.fromSTEB(
+                                    const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 8.0),
                                 child:
                                     _buildTeamCard(team, theme),

@@ -56,7 +56,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
   Widget build(BuildContext context) {
     context.watch<AppState>();
 
-    double _normalizeProgress(dynamic raw) {
+    double normalizeProgress(dynamic raw) {
       final numValue = raw is num
           ? raw.toDouble()
           : double.tryParse(raw?.toString() ?? '') ?? 0.0;
@@ -64,7 +64,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
       return normalized.clamp(0.0, 1.0);
     }
 
-    double _displayProgress(dynamic raw) {
+    double displayProgress(dynamic raw) {
       final numValue = raw is num
           ? raw.toDouble()
           : double.tryParse(raw?.toString() ?? '') ?? 0.0;
@@ -72,12 +72,12 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
     }
 
     return Align(
-      alignment: AlignmentDirectional(0.0, 0.0),
+      alignment: const AlignmentDirectional(0.0, 0.0),
       child: Padding(
-        padding: EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24.0),
         child: Container(
           width: 490.0,
-          constraints: BoxConstraints(
+          constraints: const BoxConstraints(
             maxHeight: 460.0,
           ),
           decoration: BoxDecoration(
@@ -92,7 +92,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
             ],
           ),
           child: Padding(
-            padding: EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,7 +125,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                       ),
                     ),
                     Align(
-                      alignment: AlignmentDirectional(1.0, -1.0),
+                      alignment: const AlignmentDirectional(1.0, -1.0),
                       child: AppIconButton(
                         borderColor: AppTheme.of(context).primary,
                         borderRadius: 8.0,
@@ -144,7 +144,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                   ],
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -177,7 +177,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -196,7 +196,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                     elevation: 0,
                                     insetPadding: EdgeInsets.zero,
                                     backgroundColor: Colors.transparent,
-                                    alignment: AlignmentDirectional(0.0, 0.0)
+                                    alignment: const AlignmentDirectional(0.0, 0.0)
                                         .resolve(Directionality.of(context)),
                                     child: CalendarWidget(
                                       action: () async {
@@ -221,7 +221,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                 ),
                               ),
                               child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     16.0, 0.0, 16.0, 0.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -262,7 +262,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                           .primaryText,
                                       size: 18.0,
                                     ),
-                                  ].divide(SizedBox(width: 8.0)),
+                                  ].divide(const SizedBox(width: 8.0)),
                                 ),
                               ),
                             ),
@@ -283,7 +283,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                     elevation: 0,
                                     insetPadding: EdgeInsets.zero,
                                     backgroundColor: Colors.transparent,
-                                    alignment: AlignmentDirectional(0.0, 0.0)
+                                    alignment: const AlignmentDirectional(0.0, 0.0)
                                         .resolve(Directionality.of(context)),
                                     child: CalendarWidget(
                                       action: () async {
@@ -307,7 +307,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                 ),
                               ),
                               child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     16.0, 0.0, 16.0, 0.0),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -360,7 +360,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                           AppTheme.of(context).primary,
                                       size: 18.0,
                                     ),
-                                  ].divide(SizedBox(width: 8.0)),
+                                  ].divide(const SizedBox(width: 8.0)),
                                 ),
                               ),
                             ),
@@ -368,7 +368,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                         ),
                       if (AppState().filterSprint)
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               4.0, 0.0, 0.0, 0.0),
                           child: AppIconButton(
                             borderColor: AppTheme.of(context).error,
@@ -400,7 +400,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                   Flexible(
                     child: Padding(
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 0.0),
                       child: SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.max,
@@ -444,7 +444,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                     snapshot.data!;
 
                                 return Container(
-                                  decoration: BoxDecoration(),
+                                  decoration: const BoxDecoration(),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -465,11 +465,11 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                             scrollDirection: Axis.vertical,
                                             itemCount: list.length,
                                             separatorBuilder: (_, __) =>
-                                                SizedBox(height: 0.0),
+                                                const SizedBox(height: 0.0),
                                             itemBuilder: (context, listIndex) {
                                               final listItem = list[listIndex];
                                               return Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         0.0, 0.0, 0.0, 8.0),
                                                 child: InkWell(
@@ -579,7 +579,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                                     ),
                                                     child: Padding(
                                                       padding:
-                                                          EdgeInsetsDirectional
+                                                          const EdgeInsetsDirectional
                                                               .fromSTEB(
                                                                   12.0,
                                                                   8.0,
@@ -591,7 +591,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                                         children: [
                                                           CircularPercentIndicator(
                                                             percent:
-                                                                _normalizeProgress(
+                                                                normalizeProgress(
                                                               getJsonField(
                                                                 listItem,
                                                                 r'''$.progress_percentage''',
@@ -613,7 +613,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                                             center: Text(
                                                               (double var1) {
                                                                 return '${(var1 * 100).toStringAsFixed(1)}%';
-                                                              }(_displayProgress(
+                                                              }(displayProgress(
                                                                 getJsonField(
                                                                   listItem,
                                                                   r'''$.progress_percentage''',
@@ -663,7 +663,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                                                 children: [
                                                                   Align(
                                                                     alignment:
-                                                                        AlignmentDirectional(
+                                                                        const AlignmentDirectional(
                                                                             -1.0,
                                                                             1.0),
                                                                     child: Text(
@@ -697,13 +697,13 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                                                           ),
                                                                     ),
                                                                   ),
-                                                                ].divide(SizedBox(
+                                                                ].divide(const SizedBox(
                                                                     width:
                                                                         8.0)),
                                                               ),
                                                               Align(
                                                                 alignment:
-                                                                    AlignmentDirectional(
+                                                                    const AlignmentDirectional(
                                                                         -1.0,
                                                                         1.0),
                                                                 child: Text(
@@ -812,7 +812,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                                               ),
                                                             ],
                                                           ),
-                                                        ].divide(SizedBox(
+                                                        ].divide(const SizedBox(
                                                             width: 8.0)),
                                                       ),
                                                     ),
@@ -831,10 +831,10 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                           ))
                                         Align(
                                           alignment:
-                                              AlignmentDirectional(-1.0, 0.0),
+                                              const AlignmentDirectional(-1.0, 0.0),
                                           child: Padding(
                                             padding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     0.0, 16.0, 0.0, 0.0),
                                             child: AppButton(
                                               onPressed: () async {
@@ -853,11 +853,11 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                                               ),
                                               options: AppButtonOptions(
                                                 height: 32.0,
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         16.0, 0.0, 16.0, 0.0),
                                                 iconPadding:
-                                                    EdgeInsetsDirectional
+                                                    const EdgeInsetsDirectional
                                                         .fromSTEB(
                                                             0.0, 0.0, 0.0, 0.0),
                                                 color:
@@ -918,7 +918,7 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                     ),
                   ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                   child: AppButton(
                     onPressed: (!AppState().setado || _model.id == null)
                         ? null
@@ -954,9 +954,9 @@ class _ModalSprintsFiltroWidgetState extends State<ModalSprintsFiltroWidget> {
                       width: MediaQuery.sizeOf(context).width * 1.0,
                       height: 48.0,
                       padding:
-                          EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                       iconPadding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                          const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                       color: AppTheme.of(context).primary,
                       textStyle:
                           AppTheme.of(context).titleSmall.override(

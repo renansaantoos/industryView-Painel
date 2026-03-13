@@ -1,21 +1,8 @@
-import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_requests/api_calls.dart';
-import '/backend/schema/structs/index.dart';
-import '/components/modal_escala_manual_widget.dart';
-import '/components/modal_info_widget.dart';
-import '/components/modal_sucess_qrcode_widget.dart';
-import '/core/theme/app_theme.dart';
 import '/core/utils/app_utils.dart';
-import '/core/widgets/app_button.dart';
-import 'dart:ui';
-import '/core/utils/custom_functions.dart' as functions;
 import '/index.dart';
 import 'page_check_qrcode_widget.dart' show PageCheckQrcodeWidget;
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 class PageCheckQrcodeModel extends PageModel<PageCheckQrcodeWidget> {
   ///  Local state fields for this page.

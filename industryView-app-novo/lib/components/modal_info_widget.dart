@@ -49,7 +49,7 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
+      padding: const EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
       child: Container(
         width: 420.0,
         decoration: BoxDecoration(
@@ -59,12 +59,12 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
             BoxShadow(
               color: Colors.black.withOpacity(0.12),
               blurRadius: 24,
-              offset: Offset(0, 8),
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(28.0, 28.0, 28.0, 28.0),
+          padding: const EdgeInsetsDirectional.fromSTEB(28.0, 28.0, 28.0, 28.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -83,10 +83,10 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Align(
-                          alignment: AlignmentDirectional(-1.0, -1.0),
+                          alignment: const AlignmentDirectional(-1.0, -1.0),
                           child: Text(
                             valueOrDefault<String>(
-                              widget!.title,
+                              widget.title,
                               ' - ',
                             ),
                             style: AppTheme.of(context)
@@ -111,11 +111,11 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 4.0, 12.0, 0.0),
                           child: Text(
                             valueOrDefault<String>(
-                              widget!.description,
+                              widget.description,
                               ' - ',
                             ),
                             style: AppTheme.of(context)
@@ -145,7 +145,7 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
                 ],
               ),
               Container(
-                decoration: BoxDecoration(),
+                decoration: const BoxDecoration(),
               ),
               Row(
                 mainAxisSize: MainAxisSize.max,
@@ -153,7 +153,7 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
                 children: [
                   Expanded(
                     child: Align(
-                      alignment: AlignmentDirectional(1.0, 1.0),
+                      alignment: const AlignmentDirectional(1.0, 1.0),
                       child: AppButton(
                         onPressed: () async {
                           Navigator.pop(context);
@@ -164,9 +164,9 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
                         options: AppButtonOptions(
                           width: double.infinity,
                           height: 48.0,
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               16.0, 0.0, 16.0, 0.0),
-                          iconPadding: EdgeInsetsDirectional.fromSTEB(
+                          iconPadding: const EdgeInsetsDirectional.fromSTEB(
                               0.0, 0.0, 0.0, 0.0),
                           color: AppTheme.of(context).primary,
                           textStyle:
@@ -191,9 +191,9 @@ class _ModalInfoWidgetState extends State<ModalInfoWidget> {
                       ),
                     ),
                   ),
-                ].divide(SizedBox(width: 12.0)),
+                ].divide(const SizedBox(width: 12.0)),
               ),
-            ].divide(SizedBox(height: 16.0)),
+            ].divide(const SizedBox(height: 16.0)),
           ),
         ),
       ),
