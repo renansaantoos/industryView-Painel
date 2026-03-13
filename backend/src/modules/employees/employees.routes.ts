@@ -9,6 +9,9 @@ import { authenticate } from '../../middleware/auth';
 
 const router = Router();
 
+// Criacao atomica de funcionario (usuario + dados de RH)
+router.post('/', authenticate, EmployeesController.createEmployee);
+
 // HR Data
 router.get('/hr-data/:users_id', authenticate, EmployeesController.getHrData);
 router.put('/hr-data/:users_id', authenticate, EmployeesController.upsertHrData);

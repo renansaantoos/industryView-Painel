@@ -15,6 +15,27 @@ import type {
 const BASE = '/employees';
 
 // ============================================================
+// Employee creation (user + HR data atomically)
+// ============================================================
+
+export interface CreateEmployeePayload extends Partial<EmployeeHrData> {
+  email: string;
+  phone?: string;
+  nome_completo: string;
+}
+
+export interface CreateEmployeeResult {
+  user: { id: number; name: string | null; email: string | null };
+  hr_data: EmployeeHrData;
+  email_sent: boolean;
+}
+
+export async function createEmployee(data: CreateEmployeePayload): Promise<CreateEmployeeResult> {
+  const response = await apiClient.post(`${BASE}`, data);
+  return response.data;
+}
+
+// ============================================================
 // HR Data
 // ============================================================
 

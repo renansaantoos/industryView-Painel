@@ -4,9 +4,14 @@
 // =============================================================================
 
 import { db } from '../../config/database';
-import { NotFoundError, BadRequestError } from '../../utils/errors';
-import { buildPaginationResponse, normalizeText } from '../../utils/helpers';
+import { NotFoundError, BadRequestError, ConflictError } from '../../utils/errors';
+import { buildPaginationResponse, normalizeText, generateRandomPassword, generateQRCodeUrl } from '../../utils/helpers';
+import { toNumber } from '../../utils/bigint';
+import { AuthService } from '../../services/auth.service';
+import { EmailService } from '../../services/email.service';
+import { logger } from '../../utils/logger';
 import {
+  CreateEmployeeInput,
   UpsertHrDataInput,
   ListVacationsInput,
   CreateVacationInput,
@@ -32,6 +37,148 @@ import { NotificationsService } from '../notifications/notifications.service';
  * EmployeesService - Service do modulo de funcionarios
  */
 export class EmployeesService {
+  // ===========================================================================
+  // Employee Creation (User + HR Data atomically)
+  // ===========================================================================
+
+  /**
+   * Cria um funcionario: gera usuario com senha aleatoria, envia email de
+   * boas-vindas e salva os dados de RH em uma unica operacao atomica.
+   */
+  static async createEmployee(input: CreateEmployeeInput, companyId?: number) {
+    const { email, phone, nome_completo, ...hrFields } = input;
+
+    // Verifica se email ja existe
+    const existing = await db.users.findFirst({
+      where: { email, deleted_at: null },
+    });
+    if (existing) {
+      throw new ConflictError('Ja existe um usuario com este e-mail.');
+    }
+
+    const randomPassword = generateRandomPassword();
+    const hashedPassword = await AuthService.hashPassword(randomPassword);
+
+    const result = await db.$transaction(async (tx) => {
+      // Cria usuario
+      const user = await tx.users.create({
+        data: {
+          name: nome_completo,
+          name_normalized: normalizeText(nome_completo),
+          email,
+          phone: phone || null,
+          password_hash: hashedPassword,
+          first_login: true,
+          qrcode: '',
+          company_id: companyId ? BigInt(companyId) : null,
+        },
+      });
+
+      // Atualiza QR code
+      await tx.users.update({
+        where: { id: user.id },
+        data: { qrcode: generateQRCodeUrl(toNumber(user.id)!) },
+      });
+
+      // Cria permissoes padrao (acesso basico de funcionario)
+      const userPermissions = await tx.users_permissions.create({
+        data: {
+          user_id: user.id,
+          users_system_access_id: BigInt(1),
+          users_roles_id: BigInt(1),
+          users_control_system_id: BigInt(1),
+        },
+      });
+
+      await tx.users.update({
+        where: { id: user.id },
+        data: { users_permissions_id: userPermissions.id },
+      });
+
+      // Cria dados de RH com todos os campos preenchidos
+      const hrData = await tx.employees_hr_data.create({
+        data: {
+          users_id: user.id,
+          nome_completo,
+          cpf: hrFields.cpf,
+          rg: hrFields.rg,
+          rg_orgao_emissor: hrFields.rg_orgao_emissor,
+          rg_data_emissao: hrFields.rg_data_emissao ? new Date(hrFields.rg_data_emissao) : undefined,
+          data_nascimento: hrFields.data_nascimento ? new Date(hrFields.data_nascimento) : undefined,
+          genero: hrFields.genero,
+          estado_civil: hrFields.estado_civil,
+          nacionalidade: hrFields.nacionalidade,
+          naturalidade: hrFields.naturalidade,
+          pais_nascimento: hrFields.pais_nascimento,
+          nome_mae: hrFields.nome_mae,
+          nome_pai: hrFields.nome_pai,
+          cep: hrFields.cep,
+          logradouro: hrFields.logradouro,
+          numero: hrFields.numero,
+          complemento: hrFields.complemento,
+          bairro: hrFields.bairro,
+          cidade: hrFields.cidade,
+          estado: hrFields.estado,
+          matricula: hrFields.matricula,
+          data_admissao: hrFields.data_admissao ? new Date(hrFields.data_admissao) : undefined,
+          data_demissao: hrFields.data_demissao ? new Date(hrFields.data_demissao) : undefined,
+          tipo_contrato: hrFields.tipo_contrato,
+          cargo: hrFields.cargo,
+          senioridade: hrFields.senioridade,
+          nivel: hrFields.nivel,
+          departamento: hrFields.departamento,
+          salario: hrFields.salario,
+          jornada_trabalho: hrFields.jornada_trabalho,
+          trabalho_insalubre: hrFields.trabalho_insalubre,
+          pis_pasep: hrFields.pis_pasep,
+          ctps_numero: hrFields.ctps_numero,
+          ctps_serie: hrFields.ctps_serie,
+          ctps_uf: hrFields.ctps_uf,
+          distancia_moradia_obra: hrFields.distancia_moradia_obra,
+          folga_campo_dias_trabalho: hrFields.folga_campo_dias_trabalho,
+          folga_campo_dias_folga: hrFields.folga_campo_dias_folga,
+          folga_campo_dias_uteis: hrFields.folga_campo_dias_uteis,
+          cnh_numero: hrFields.cnh_numero,
+          cnh_categoria: hrFields.cnh_categoria,
+          cnh_validade: hrFields.cnh_validade ? new Date(hrFields.cnh_validade) : undefined,
+          banco_nome: hrFields.banco_nome,
+          banco_agencia: hrFields.banco_agencia,
+          banco_conta: hrFields.banco_conta,
+          banco_tipo_conta: hrFields.banco_tipo_conta,
+          banco_pix: hrFields.banco_pix,
+          emergencia_nome: hrFields.emergencia_nome,
+          emergencia_parentesco: hrFields.emergencia_parentesco,
+          emergencia_telefone: hrFields.emergencia_telefone,
+          escolaridade: hrFields.escolaridade,
+          curso: hrFields.curso,
+          instituicao: hrFields.instituicao,
+          pcd: hrFields.pcd,
+          tipo_deficiencia: hrFields.tipo_deficiencia,
+          cid: hrFields.cid,
+          grau_deficiencia: hrFields.grau_deficiencia,
+          reabilitado_inss: hrFields.reabilitado_inss,
+          observacoes: hrFields.observacoes,
+          foto_documento_url: hrFields.foto_documento_url,
+        },
+      });
+
+      return { user, hrData };
+    });
+
+    // Envia email de boas-vindas com credenciais
+    try {
+      await EmailService.sendWelcomeEmail(email, nome_completo, randomPassword);
+    } catch (error) {
+      logger.error({ error, email }, 'Failed to send employee welcome email');
+    }
+
+    return {
+      user: result.user,
+      hr_data: result.hrData,
+      email_sent: true,
+    };
+  }
+
   // ===========================================================================
   // HR Data
   // ===========================================================================

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { pageVariants, fadeUpChild } from '../../lib/motion';
-import { usersApi, employeesApi } from '../../services';
+import { employeesApi } from '../../services';
 import type { EmployeeHrData } from '../../types';
 import PageHeader from '../../components/common/PageHeader';
 import SearchableSelect from '../../components/common/SearchableSelect';
@@ -393,27 +393,35 @@ export default function EmployeeCreate() {
 
     setIsSaving(true);
     try {
-      // 1. Create user
-      const newUser = await usersApi.addUser({
-        name: (form.nome_completo ?? '').trim(),
-        email: email.trim(),
-        phone: phone.trim() || undefined,
-      });
-
-      // 2. Save HR data if any field was filled
+      // Cria funcionário + usuário em uma única chamada atômica
       const hrPayload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [k, v === '' ? undefined : v])
       ) as Partial<EmployeeHrData>;
       if (fotoUrl) hrPayload.foto_documento_url = fotoUrl;
-      const hasHrData = Object.values(hrPayload).some(v => v !== undefined);
-      if (hasHrData) {
-        await employeesApi.upsertHrData(newUser.id, hrPayload);
-      }
 
-      // 3. Navigate to profile
-      navigate(`/funcionario/${newUser.id}`);
-    } catch {
-      showToast('Erro ao criar funcionário. Verifique os dados e tente novamente.', 'error');
+      const result = await employeesApi.createEmployee({
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        nome_completo: (form.nome_completo ?? '').trim(),
+        ...hrPayload,
+      });
+
+      showToast(
+        `Funcionário criado. Credenciais de acesso enviadas para ${result.user.email}.`,
+        'success',
+      );
+
+      // Navega para o perfil após breve pausa para o toast ser lido
+      setTimeout(() => navigate(`/funcionario/${result.user.id}`), 1800);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message;
+      showToast(
+        msg === 'Ja existe um usuario com este e-mail.'
+          ? 'Este e-mail já está cadastrado no sistema.'
+          : 'Erro ao criar funcionário. Verifique os dados e tente novamente.',
+        'error',
+      );
     } finally {
       setIsSaving(false);
     }

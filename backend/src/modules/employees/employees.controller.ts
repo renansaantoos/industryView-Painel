@@ -8,6 +8,7 @@ import { EmployeesService } from './employees.service';
 import { serializeBigInt } from '../../utils/bigint';
 import { AuthenticatedRequest } from '../../types';
 import {
+  createEmployeeSchema,
   getHrDataParamsSchema,
   upsertHrDataSchema,
   listVacationsSchema,
@@ -39,6 +40,17 @@ export class EmployeesController {
   // ===========================================================================
   // HR Data
   // ===========================================================================
+
+  static async createEmployee(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const data = createEmployeeSchema.parse(req.body);
+      const companyId = req.user?.companyId ?? undefined;
+      const result = await EmployeesService.createEmployee(data, companyId);
+      res.status(201).json(serializeBigInt(result));
+    } catch (error) {
+      next(error);
+    }
+  }
 
   static async getHrData(req: Request, res: Response, next: NextFunction) {
     try {
