@@ -276,8 +276,10 @@ export default function EmployeeCreate() {
     let count = Object.entries(REQUIRED_HR_FIELDS)
       .filter(([field, cfg]) => cfg.section === section && fieldErrors[field])
       .length;
+    // Campos fora de REQUIRED_HR_FIELDS que podem ter erros de formato/validação
     if (section === 'pessoal') {
       count += fieldErrors.email ? 1 : 0;
+      count += fieldErrors.phone ? 1 : 0;  // phone não está em REQUIRED_HR_FIELDS
     }
     if (section === 'profissional') {
       count += fieldErrors.data_demissao ? 1 : 0;
@@ -347,6 +349,9 @@ export default function EmployeeCreate() {
     if (form.data_nascimento && form.data_nascimento > TODAY_DATE) {
       errors.data_nascimento = 'Data de nascimento não pode ser futura';
     }
+    if (form.data_admissao && form.data_admissao > '2099-12-31') {
+      errors.data_admissao = 'Data de admissão inválida';
+    }
 
     // ── Data demissão > data admissão ──
     if (form.data_demissao && form.data_admissao && form.data_demissao <= form.data_admissao) {
@@ -359,6 +364,29 @@ export default function EmployeeCreate() {
       errors.cpf = 'CPF inválido';
     }
 
+    // CEP deve ter 8 dígitos
+    const cepRaw = form.cep?.replace(/\D/g, '') ?? '';
+    if (cepRaw && cepRaw.length !== 8) {
+      errors.cep = 'CEP deve ter 8 dígitos';
+    }
+
+    // Estado deve ter exatamente 2 letras (UF)
+    if (form.estado && !/^[A-Za-z]{2}$/.test(form.estado.trim())) {
+      errors.estado = 'Estado deve ser a sigla com 2 letras (ex: SP)';
+    }
+
+    // Telefone principal (opcional, mas se preenchido deve ser válido)
+    const phoneRaw = phone.replace(/\D/g, '');
+    if (phoneRaw && phoneRaw.length < 10) {
+      errors.phone = 'Telefone incompleto (mínimo 10 dígitos com DDD)';
+    }
+
+    // Telefone de emergência (obrigatório, deve ser válido)
+    const emergTelRaw = form.emergencia_telefone?.replace(/\D/g, '') ?? '';
+    if (emergTelRaw && emergTelRaw.length < 10) {
+      errors.emergencia_telefone = 'Telefone de emergência incompleto (mínimo 10 dígitos com DDD)';
+    }
+
     setFieldErrors(errors);
 
     if (Object.keys(errors).length > 0) {
@@ -369,6 +397,10 @@ export default function EmployeeCreate() {
         if (errors[field]) sectionsWithErrors.add(config.section);
       }
       if (errors.cpf) sectionsWithErrors.add('pessoal');
+      if (errors.phone) sectionsWithErrors.add('pessoal');
+      if (errors.estado) sectionsWithErrors.add('endereco');
+      if (errors.cep) sectionsWithErrors.add('endereco');
+      if (errors.data_admissao) sectionsWithErrors.add('profissional');
       if (errors.data_demissao) sectionsWithErrors.add('profissional');
       if (errors.trabalho_insalubre) sectionsWithErrors.add('profissional');
       if (errors.pcd) sectionsWithErrors.add('pcd');
@@ -549,9 +581,9 @@ export default function EmployeeCreate() {
             <input className={`input-field${fieldErrors.email ? ' error' : ''}`} type="email" value={email} placeholder={t('employees.emailPlaceholder')}
               onChange={e => { setEmail(e.target.value); clearError('email'); }} />
           </Field>
-          <Field label={t('employees.phone')}>
-            <input className="input-field" type="text" value={phone} placeholder="(00) 00000-0000"
-              onChange={e => setPhone(maskPhone(e.target.value))} />
+          <Field label={t('employees.phone')} error={fieldErrors.phone}>
+            <input className={`input-field${fieldErrors.phone ? ' error' : ''}`} type="text" value={phone} placeholder="(00) 00000-0000"
+              onChange={e => { setPhone(maskPhone(e.target.value)); clearError('phone'); }} />
           </Field>
           <Field label="CPF" required error={fieldErrors.cpf}>
             <input className={`input-field${fieldErrors.cpf ? ' error' : ''}`} type="text"
