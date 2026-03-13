@@ -337,7 +337,11 @@ export class AuthModuleService {
         deleted_at: null,
       },
       include: {
-        teams: true,
+        teams: {
+          include: {
+            teams_projects: { where: { deleted_at: null } },
+          },
+        },
       },
     });
 
@@ -348,16 +352,29 @@ export class AuthModuleService {
         deleted_at: null,
       },
       include: {
-        teams: true,
+        teams: {
+          include: {
+            teams_projects: { where: { deleted_at: null } },
+          },
+        },
       },
     });
+
+    // Expande times para um registro por projeto (teams_projects tem prioridade sobre projects_id direto)
+    const expandTeam = (team: NonNullable<typeof teamsLeaderships[number]['teams']>) => {
+      const tpList = team.teams_projects ?? [];
+      if (tpList.length > 0) {
+        return tpList.map(tp => ({ id: team.id, name: team.name, projects_id: tp.projects_id }));
+      }
+      return [{ id: team.id, name: team.name, projects_id: team.projects_id }];
+    };
 
     return {
       user,
       projects: projectIds,
       teams: {
-        member: teamsMemberships.map(tm => tm.teams),
-        leader: teamsLeaderships.map(tl => tl.teams),
+        member: teamsMemberships.flatMap(tm => tm.teams ? expandTeam(tm.teams) : []),
+        leader: teamsLeaderships.flatMap(tl => tl.teams ? expandTeam(tl.teams) : []),
       },
     };
   }
